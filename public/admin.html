@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odysee Admin Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" href="/assets/favicon_128.png" />
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-container">
+    <header class="admin-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="/assets/favicon_128.png" alt="Odysee Logo" style="height: 40px;">
+            <h1>Administration</h1>
+        </div>
+        <nav>
+            <a href="/">Go to the homepage</a>
+        </nav>
+    </header>
+
+        <main class="admin-sections">
+            <section class="admin-section">
+                <h2>Last Tip</h2>
+                <div class="form-group">
+                    <label for="wallet-address">AR Address:</label>
+                    <input type="text" id="wallet-address" value="<%= WALLET_ADDRESS %>">
+                </div>
+                <button class="save-btn" data-module="lastTip">Save</button>
+                
+                <div class="widget-card" style="margin-top: 20px;">
+                    <h3 style="color: var(--secondary-color); margin-bottom: 10px;">OBS Integration</h3>
+                    <div class="form-group">
+                        <label>Last Tip Widget URL:</label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="text" id="last-tip-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="admin-section">
+                <h2>Tip goal</h2>
+                <div class="form-group">
+                    <label for="goal-amount">Monthly Goal (AR):</label>
+                    <input type="number" id="goal-amount" value="10">
+                </div>
+                <div class="form-group">
+                    <label for="starting-amount">Initial Amount (AR):</label>
+                    <input type="number" id="starting-amount" value="0">
+                </div>
+                <button class="save-btn" data-module="tipGoal">Save</button>
+                
+                <div class="widget-card" style="margin-top: 20px;">
+                    <h3 style="color: var(--secondary-color); margin-bottom: 10px;">OBS Integration</h3>
+                    <div class="form-group">
+                        <label>Tip Goal Widget URL:</label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="text" id="tip-goal-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                            <button class="copy-btn" onclick="copyToClipboard('tip-goal-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+                <section class="admin-section">
+                <h2>Tip Notification</h2>
+
+                <div class="widget-card" style="margin-top: 20px;">
+                    <div class="form-group">
+                        <label>Notification Widget URL:</label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="text" id="tip-notification-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                            <button class="copy-btn" onclick="copyToClipboard('tip-notification-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="admin-section">
+                <h2>Live Chat</h2>
+                <div class="form-group">
+                    <label for="chat-url">Chat URL:</label>
+                    <input type="text" id="chat-url" placeholder="wss://sockety.odysee.tv/ws/commentron?id=xxx">
+                </div>
+                <button class="save-btn" data-module="chat">Save</button>
+                
+                <div class="widget-card" style="margin-top: 20px;">
+                    <h3 style="color: var(--secondary-color); margin-bottom: 10px;">OBS Integration</h3>
+                    <div class="form-group">
+                        <label>Chat Widget URL:</label>
+                        <div style="display: flex; align-items: center;">
+                            <input type="text" id="obs-chat-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                            <button class="copy-btn" onclick="copyToClipboard('obs-chat-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="admin-section system-status">
+                <h2>System Status</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Last tip</h3>
+                        <p class="status-value" id="last-tip-status">Active</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Notifications</h3>
+                        <p class="status-value" id="tip-widget-status">Active</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Tip goal</h3>
+                        <p class="status-value" id="tip-goal-status">Active</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Chat</h3>
+                        <p class="status-value" id="chat-status">Inactive</p>
+                    </div>
+                </div>
+                <button class="refresh-btn" id="refresh-status">Update Status</button>
+            </section>
+        </main>
+    </div>
+    
+    <script src="/js/admin.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const baseUrl = window.location.origin;
+            document.getElementById('last-tip-url').value = `${baseUrl}/widgets/last-tip`;
+            document.getElementById('tip-goal-url').value = `${baseUrl}/widgets/tip-goal`;
+            document.getElementById('tip-notification-url').value = `${baseUrl}/widgets/tip-notification`;
+            document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
+        });
+
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).value;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('URL copied to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>

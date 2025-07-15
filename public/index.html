@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odysee Dashboard</title>
+    <link rel="shortcut icon" href="/assets/favicon_128.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="/widgets/tip-notification.css">
+    <link rel="stylesheet" href="/widgets/tip-goal.css">
+    <link rel="stylesheet" href="/widgets/chat.css">
+</head>
+<body>
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="/assets/favicon_128.png" alt="Odysee Logo" style="height: 40px;">
+            <h1>Odysee Stream Dashboard</h1>
+        </div>
+        <div class="connection-status">
+            <nav>
+                <a href="/admin.html" style="color: #fff; text-decoration: none" target="_blank">Go to the admin</a>
+            </nav>
+            <span class="status-dot connected"></span>
+        </div>
+    </header>
+        
+        <main class="widgets-grid">
+            <section class="widget last-tip-widget tip-notification-widget">
+                <h2>Last tip</h2>
+                <div class="widget-content">
+                    <div id="last-donation" class="last-donation">
+                        <div class="notification-content">
+                            <div class="notification-icon">❤️</div>
+                            <div class="notification-text">
+                                <div class="notification-title">Loading...</div>
+                                <div class="notification-amount">
+                                    <span class="ar-amount">--</span>
+                                    <span class="ar-symbol">AR</span>
+                                </div>
+                                <!-- <div class="notification-from">Connecting to the wallet...</div> -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+                <section class="widget tip-goal-widget">
+                    <h2>Monthly Goal</h2>
+                    <div class="widget-content">
+                        <div id="goal-widget" class="dashboard-goal">
+                        <div class="goal-container">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="widget tip-notification-widget">
+                <h2>Notifications</h2>
+                <div class="widget-content">
+                    <div id="notification" style="margin: 0px 0px 8px;"></div>
+                </div>
+            </section>
+
+            <section class="widget widget-chat">
+                <h2>Live Chat</h2>
+                <div class="chat-widget-content">
+                    <div id="chat-container"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="/js/last-tip.js"></script>
+    <script src="/js/tip-widget.js"></script>
+    <script src="/js/tip-goal.js"></script>
+    <script src="/js/chat.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
