@@ -1,15 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Obtener parámetros de la URL
   const urlParams = new URLSearchParams(window.location.search);
   const widget = document.getElementById('widget-container');
   
   if (!widget) return;
 
-  // Aplicar clase base compatible solo con el estilo de tip-notification.css
-  widget.className = ''; // Elimina otras clases
-  widget.classList.add('tip-notification-widget'); // Usa solo la clase principal del nuevo estilo
+  widget.className = '';
+  widget.classList.add('tip-notification-widget');
 
-  // Configurar tamaño y posición
   const position = urlParams.get('position') || 'bottom-right';
   widget.classList.add(`pos-${position}`);
 

@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
           await updateExchangeRate();
           updateUI(data);
         } catch (jsonError) {
-          console.error('Respuesta no es JSON:', text);
+          console.error('Response is not JSON:', text);
         }
       } catch (error) {
         console.error('Error loading initial data:', error);

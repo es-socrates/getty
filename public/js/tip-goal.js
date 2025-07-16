@@ -1,6 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     const goalWidget = document.getElementById('goal-widget');
-    const ws = new WebSocket(`ws://${window.location.host}`);
+    if (!goalWidget) {
+        console.error('Goal widget container not found');
+        return;
+    }
+
+    let ws;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelayBase = 1000;
     let currentData = null;
 
     function createConfetti(container, count = 50) {
@@ -44,52 +52,83 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadInitialData() {
         fetch('/api/modules')
             .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.json();
             })
             .then(data => {
                 if (data.tipGoal) {
-                    currentData = {
-                        current: data.tipGoal.currentTips,
-                        goal: data.tipGoal.monthlyGoal,
-                        progress: Math.min((data.tipGoal.currentTips / data.tipGoal.monthlyGoal) * 100, 100),
-                        rate: data.tipGoal.exchangeRate,
-                        usdValue: (data.tipGoal.currentTips * data.tipGoal.exchangeRate).toFixed(2),
-                        goalUsd: (data.tipGoal.monthlyGoal * data.tipGoal.exchangeRate).toFixed(2)
-                    };
+                    currentData = processTipData(data.tipGoal);
                     updateGoalDisplay(currentData);
+                } else {
+                    console.warn('No tipGoal data in initial response');
                 }
             })
-            .catch(error => console.error('Error loading initial data:', error));
+            .catch(error => {
+                console.error('Error loading initial data:', error);
+                // Mostrar estado de error al usuario
+                goalWidget.innerHTML = `
+                    <div class="goal-container">
+                        <div class="goal-header">
+                            <div class="goal-title">🎯 Monthly tip goal</div>
+                            <div class="error-message">Failed to load data</div>
+                        </div>
+                    </div>
+                `;
+            });
     }
 
-    ws.onopen = () => {
-        console.log('✅ Connected to the tip goal server');
-        loadInitialData();
-    };
+    function processTipData(data) {
+        return {
+            current: data.currentTips || data.current || 0,
+            goal: data.monthlyGoal || data.goal || 10,
+            progress: Math.min(((data.currentTips || data.current || 0) / (data.monthlyGoal || data.goal || 10)) * 100, 100),
+            rate: data.exchangeRate || data.rate || 0,
+            usdValue: ((data.currentTips || data.current || 0) * (data.exchangeRate || data.rate || 0)).toFixed(2),
+            goalUsd: ((data.monthlyGoal || data.goal || 10) * (data.exchangeRate || data.rate || 0)).toFixed(2),
+            lastDonation: data.lastDonationTimestamp || data.lastDonation
+        };
+    }
 
-    ws.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') {
-                currentData = msg.data;
-                updateGoalDisplay(currentData);
-            } else if (msg.type === 'init' && msg.data?.tipGoal) {
-                currentData = msg.data.tipGoal;
-                updateGoalDisplay(currentData);
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+        ws.onopen = () => {
+            console.log('✅ Connected to the tip goal server');
+            reconnectAttempts = 0;
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                console.debug('WebSocket message received:', msg);
+
+                if (msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') {
+                    currentData = processTipData(msg.data);
+                    updateGoalDisplay(currentData);
+                } else if (msg.type === 'init' && msg.data?.tipGoal) {
+                    currentData = processTipData(msg.data.tipGoal);
+                    updateGoalDisplay(currentData);
+                }
+            } catch (error) {
+                console.error('Error processing message:', error);
             }
-        } catch (error) {
-            console.error('Error processing message:', error);
-        }
-    };
+        };
 
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-    };
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
 
-    ws.onclose = () => {
-        console.log('WebSocket connection closed');
-    };
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+            if (reconnectAttempts < maxReconnectAttempts) {
+                const delay = Math.min(reconnectDelayBase * Math.pow(2, reconnectAttempts), 15000);
+                console.log(`Reconnecting in ${delay/1000} seconds... (attempt ${reconnectAttempts + 1})`);
+                setTimeout(connectWebSocket, delay);
+                reconnectAttempts++;
+            }
+        };
+    }
 
     function updateGoalDisplay(data) {
         if (!data) {
@@ -122,7 +161,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        createConfetti(goalWidget, reachedGoal ? 100 : 15);
+        // Efectos de confeti
+        if (reachedGoal) {
+            createConfetti(goalWidget, 100);
+        } else if (progressPercentage > 0) {
+            createConfetti(goalWidget, Math.min(Math.floor(progressPercentage / 2), 15));
+        }
         
         if (reachedGoal && !wasCelebrating) {
             goalWidget.classList.add('celebrating');
@@ -131,22 +175,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progressBar) {
                 progressBar.style.background = 'linear-gradient(90deg, #FFD700, #FFEC8B)';
             }
-            const pulseAnimation = `
-                @keyframes pulse {
-                    0% { box-shadow: 0 0 0 0 rgb(213, 9, 82); }
-                    70% { box-shadow: 0 0 0 5px rgba(255, 215, 0, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
-                }
-            `;
-            const style = document.createElement('style');
-            style.innerHTML = pulseAnimation;
-            document.head.appendChild(style);
-            goalWidget.style.animation = 'pulse 2s infinite';
         } else if (!reachedGoal && wasCelebrating) {
             goalWidget.classList.remove('celebrating');
-            goalWidget.style.animation = '';
         }
     }
 
+    goalWidget.classList.add('goal-widget');
+    connectWebSocket();
     loadInitialData();
+
+    goalWidget.innerHTML = `
+        <div class="goal-container">
+            <div class="goal-header">
+                <div class="goal-title">🎯 Monthly tip goal</div>
+                <div class="goal-amounts">
+                    <span class="current-ar">0.00</span>
+                    <span class="goal-ar">/ 0.00 AR</span>
+                    <span class="usd-value">$0.00 USD</span>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: 0%"></div>
+                <div class="progress-text">0%</div>
+            </div>
+        </div>
+    `;
 });

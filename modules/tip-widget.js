@@ -22,7 +22,7 @@ class TipWidgetModule {
   
   async getAddressTransactions(address) {
     try {
-      console.log('[DEBUG] Consultando transacciones para address:', address);
+      console.log('[DEBUG] Consult transactions for address:', address);
       const graphqlQuery = {
         query: `
           query GetTransactions($address: String!) {

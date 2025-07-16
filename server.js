@@ -10,18 +10,25 @@ const ChatModule = require('./modules/chat');
 
 const app = express();
 app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+
     res.setHeader(
         'Content-Security-Policy',
-        "default-src 'self'; media-src 'self' https://cdn.streamlabs.com; " +
+        "default-src 'self'; " +
+        "media-src 'self' https://cdn.streamlabs.com; " +
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-        "img-src 'self' data: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com; " +
+        "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com; " + 
         "font-src 'self' data: blob: https://fonts.gstatic.com; " +
         "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://api.coingecko.com; " +
         "frame-src 'self'"
     );
+
     next();
 });
+
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {

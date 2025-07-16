@@ -206,7 +206,6 @@ body {
     border-radius: inherit;
 }
 
-/* Animaciones (igual que antes) */
 @keyframes borderPulse {
     0% { box-shadow: 0 0 5px rgba(232, 17, 97, 0.7), 0 0 2px rgba(232, 17, 97, 0.5); }
     100% { box-shadow: 0 0 5px rgba(232, 17, 97, 0.9), 0 0 2px rgba(232, 17, 97, 0.7); }
