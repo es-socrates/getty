@@ -19,7 +19,7 @@ class TipGoalModule {
         this.isInitialized = false;
         
         this.exchangeRateInterval = 3600000;
-        this.transactionCheckInterval = 300000;
+        this.transactionCheckInterval = 60000;
         
         this.init();
     }
@@ -81,6 +81,46 @@ class TipGoalModule {
         }
 
         try {
+            // Primero intentar con GraphQL (más confiable)
+            const graphqlQuery = {
+                query: `
+                    query GetTransactions($address: String!) {
+                        transactions(
+                            recipients: [$address]
+                            first: 10
+                            sort: HEIGHT_DESC
+                        ) {
+                            edges {
+                                node {
+                                    id
+                                    owner { address }
+                                    quantity { ar }
+                                    block { height timestamp }
+                                }
+                            }
+                        }
+                    }
+                `,
+                variables: { address }
+            };
+
+            const graphqlResponse = await axios.post('https://arweave.net/graphql', graphqlQuery, {
+                timeout: 15000
+            });
+
+            if (graphqlResponse.data?.data?.transactions?.edges) {
+                return graphqlResponse.data.data.transactions.edges.map(edge => ({
+                    id: edge.node.id,
+                    owner: edge.node.owner.address,
+                    target: address,
+                    amount: edge.node.quantity.ar,
+                    timestamp: edge.node.block?.timestamp,
+                    source: 'graphql'
+                }));
+            }
+
+            // Fallback a REST API si GraphQL falla
+            console.log('⚠️ Using REST API as a fallback');
             const restResponse = await axios.get(`https://arweave.net/tx/history/${address}`, {
                 timeout: 15000
             });
@@ -101,6 +141,10 @@ class TipGoalModule {
             return [];
         } catch (error) {
             console.error('Error in getAddressTransactions:', error.message);
+            if (error.response) {
+                console.error('Error response:', error.response.data);
+                console.error('Status code:', error.response.status);
+            }
             return [];
         }
     }
@@ -114,7 +158,6 @@ class TipGoalModule {
         try {
             console.log('🔍 Checking transactions for', this.walletAddress.slice(0, 8) + '...');
             const txs = await this.getAddressTransactions(this.walletAddress);
-            this.lastTransactionCheck = new Date();
             
             if (txs.length === 0) {
                 console.log('ℹ️ No transactions found for address');
@@ -165,7 +208,13 @@ class TipGoalModule {
                 this.sendGoalUpdate();
             }
         } catch (error) {
-            console.error('Error in checkTransactions:', error.message);
+            console.error('Error in checkTransactions:', error);
+            if (error.response) {
+                console.error('API Error:', {
+                    status: error.response.status,
+                    data: error.response.data
+                });
+            }
             if (initialLoad) {
                 this.sendGoalUpdate();
             }

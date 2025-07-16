@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error loading initial data:', error);
-                // Mostrar estado de error al usuario
                 goalWidget.innerHTML = `
                     <div class="goal-container">
                         <div class="goal-header">

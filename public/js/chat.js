@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const CYBERPUNK_PALETTE = [
         { bg: 'rgba(17, 255, 121, 0.8)', text: '#000', border: 'rgba(17, 255, 121, 0.9)' },
-        { bg: 'rgba(255, 17, 121, 0.8)', text: '#000', border: 'rgba(255, 17, 121, 0.9)' },
+        { bg: 'rgba(255, 17, 121, 0.8)', text: '#fff', border: 'rgba(255, 17, 121, 0.9)' },
         { bg: 'rgba(121, 17, 255, 0.8)', text: '#fff', border: 'rgba(121, 17, 255, 0.9)' },
         { bg: 'rgba(17, 121, 255, 0.8)', text: '#fff', border: 'rgba(17, 121, 255, 0.9)' },
         { bg: 'rgba(255, 255, 17, 0.8)', text: '#000', border: 'rgba(255, 255, 17, 0.9)' },
@@ -73,7 +73,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         usernameElement.className = 'message-username cyberpunk';
         usernameElement.textContent = username + ':';
 
-        // Icono de membresía
         const membershipIcons = [
             'crown', 'star', 'diamond', 'heart', 'rocket',
             'moon', 'fire', 'ghost', 'alien', 'dragon'
@@ -94,7 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         usernameElement.style.border = `1px solid ${style.border}`;
         usernameElement.style.padding = '0px 2px';
         usernameElement.style.borderRadius = '4px';
-        usernameElement.style.fontWeight = '700';
+        usernameElement.style.fontWeight = '800';
         usernameElement.style.fontSize = '18px';
         usernameElement.style.transition = 'all 0.3s ease';
         usernameElement.style.display = 'inline-block';

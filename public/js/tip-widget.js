@@ -119,7 +119,6 @@ async function showDonationNotification(data) {
     const arAmount = parseFloat(data.amount || data.credits || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 6});
     const usdAmount = (parseFloat(data.amount || data.credits || 0) * AR_TO_USD).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     
-    // Manejar tanto tips de blockchain como donaciones del chat
     const senderInfo = data.from 
         ? `📦 From: ${data.from.slice(0, 8)}...` 
         : `🏷️ ${data.channelTitle || 'Anonymous'}`;
