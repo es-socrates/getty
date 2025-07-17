@@ -58,7 +58,12 @@
                         <label>Last Tip Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="last-tip-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                Copy
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -82,7 +87,12 @@
                         <label>Tip Goal Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="tip-goal-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('tip-goal-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                Copy
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -96,7 +106,12 @@
                         <label>Notification Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="tip-notification-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('tip-notification-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                Copy
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -116,7 +131,12 @@
                         <label>Chat Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="obs-chat-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('obs-chat-url')" style="margin-left: 10px; padding: 8px 12px; background: var(--primary-color); border: none; border-radius: 4px; color: white; cursor: pointer;">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                Copy
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -149,12 +169,43 @@
             document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
         });
 
-        function copyToClipboard(elementId) {
-            const text = document.getElementById(elementId).value;
-            navigator.clipboard.writeText(text).then(() => {
-                alert('URL copied to clipboard');
-            });
+    function copyToClipboard(elementId) {
+    const text = document.getElementById(elementId).value;
+    navigator.clipboard.writeText(text).then(() => {
+        showCopyToast();
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showCopyToast(false);
+    });
+}
+
+    function showCopyToast(success = true) {
+        const toast = document.getElementById('copy-toast');
+        const icon = toast.querySelector('.copy-icon');
+        const message = toast.querySelector('.copy-message');
+        
+        if (success) {
+            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+            message.textContent = 'URL copied to clipboard!';
+            toast.style.borderColor = 'var(--secondary-color)';
+        } else {
+            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+            message.textContent = 'Failed to copy!';
+            toast.style.borderColor = 'var(--error-color)';
         }
+        
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
     </script>
+    <div id="copy-toast" class="copy-toast">
+    <svg class="copy-icon" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+    </svg>
+    <span class="copy-message">URL copied to clipboard!</span>
+</div>
 </body>
 </html>

@@ -36,11 +36,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const msg = JSON.parse(event.data);
             
-            if (msg.type === 'tip' || msg.type === 'tipNotification') {
-                await showDonationNotification(msg.data);
+            if (msg.type === 'tipNotification') {
+                await showDonationNotification({
+                    ...msg.data,
+                    isDirectTip: true
+                });
             } else if (msg.type === 'chatMessage' && msg.data?.credits > 0) {
-                await showDonationNotification(msg.data);
+                await showDonationNotification({
+                    ...msg.data,
+                    isChatTip: true
+                });
             }
+
         } catch (error) {
             console.error('Error processing message:', error);
             showError('Error processing notification');
@@ -102,7 +109,9 @@ async function updateExchangeRate() {
 const shownTips = new Set();
 
 async function showDonationNotification(data) {
-    const uniqueId = data.txId || data.id || (data.from + data.amount + data.message);
+    const uniqueId = data.isDirectTip 
+        ? `direct-${data.txId}` 
+        : `chat-${data.id || (data.from + data.amount + data.message)}`;
 
     if (shownTips.has(uniqueId)) {
         return;
@@ -127,7 +136,7 @@ async function showDonationNotification(data) {
     
     const senderInfo = data.from 
         ? `📦 From: ${data.from.slice(0, 8)}...` 
-        : `🏷️ ${data.channelTitle || 'Anonymous'}`;
+        : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
 
     notification.innerHTML = `
         <div class="notification-content">

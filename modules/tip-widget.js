@@ -224,6 +224,11 @@ class TipWidgetModule {
       Logger.error('WebSocket server not properly initialized');
       return;
     }
+    
+    if (this.processedTxs.has(data.txId)) {
+      Logger.debug('Transaction already notified, skipping', data.txId);
+      return;
+    }
 
     let clientsNotified = 0;
     
