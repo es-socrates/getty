@@ -160,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        // Efectos de confeti
         if (reachedGoal) {
             createConfetti(goalWidget, 100);
         } else if (progressPercentage > 0) {

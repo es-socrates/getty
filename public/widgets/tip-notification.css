@@ -90,7 +90,7 @@
     font-size: 22px;
     font-weight: 800;
     color: #00ff7f;
-    text-shadow: 0 0 5px rgba(0, 255, 127, 0.5);
+    text-shadow: 0 0 1px rgba(0, 255, 127, 0.5);
 }
 
 .usd-value {
@@ -103,7 +103,7 @@
 .notification-from {
     font-size: 14px;
     font-weight: 600;
-    color: #00ff7f;
+    color: #fff;
     display: flex;
     align-items: center;
 }
@@ -112,26 +112,27 @@
     width: 18px;
     height: 18px;
     margin: 0 1px;
+    vertical-align: middle;
+    display: inline-block;
 }
 
 .notification-sticker {
     max-width:18px;
     max-height: 18px;
     margin: 2px 0;
-    display: block;
+    vertical-align: middle;
+    display: inline-block;
 }
 
 .notification-message {
-    font-size: 16px;
+    font-size: 15px;
     color: #ffffff;
     text-overflow: ellipsis;
     margin-top: 8px;
     font-weight: 600;
     word-wrap: break-word;
     overflow: hidden;
-    display: -webkit-box;
     -webkit-box-orient: vertical;
-    max-width: 100%;
 }
 
 .notification-sticker {

@@ -19,7 +19,7 @@ body {
 }
 
 #chat-container {
-    padding: 12px;
+    /* padding: 12px; */
     height: 100vh;
     overflow-y: auto;
     scrollbar-width: none;
@@ -67,6 +67,7 @@ body {
     top: -2px;
     margin: 10px 2px;
     max-width: 22px;
+    display: inline;
 }
 
 @keyframes fadeIn {
@@ -106,7 +107,7 @@ body {
 }
 
 .message {
-    width: 550px;
+    /* width: 550px; */
     background: var(--bg-message);
     /* border: 1px solid var(--border); */
     border-radius: 8px;
@@ -118,7 +119,7 @@ body {
 }
 
 .message.odd {
-    width: 526px;
+    /* width: 526px; */
     background: var(--bg-message-alt);
     position: relative;
     border-left: 8px solid #ca004b;
@@ -131,7 +132,7 @@ body {
     align-items: flex-start;
     width: 100%;
     position: relative;
-    margin-left: 6px;
+    margin-left: 8px;
 }
 
 .message-username.cyberpunk {
@@ -145,8 +146,8 @@ body {
     border: 1px solid rgba(17, 255, 121, 0.9);
     padding: 2px 4px;
     border-radius: 4px;
-    font-weight: 800;
-    font-size: 22px;
+    font-weight: 700;
+    font-size: 14px;
     flex-shrink: 0;
 }
 
@@ -157,7 +158,7 @@ body {
     flex-grow: 1;
     min-width: 0;
     font-family: var(--odysee-font-family);
-    font-size: var(--odysee-chat-text-size);
+    font-size: 13px;
     color: #fff;
     font-weight: 600;
     line-height: 1.4;
@@ -173,15 +174,15 @@ body {
 
 .message-donation {
     position: absolute;
-    right: 0px;
-    top: 92%;
-    transform: translateY(-50%);
+    right: -4px;
+    bottom: 0;
+    margin-bottom: -17px;
     background-color: #e81161;
     color: white;
     padding: 2px 3px;
     border-radius: 6px;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 10px;
     z-index: 10;
     transition: all 0.5s ease;
 }
@@ -267,10 +268,10 @@ body {
     
     .message-donation {
         position: absolute;
-        top: 76%;
         transform: none;
         margin-top: 0px;
         display: inline-block;
+        font-size: 18px;
     }
 }
 

@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .dashboard-container {
+    @apply max-w-7xl mx-auto p-6 bg-gray-900;
+  }
+
+  .dashboard-header {
+    @apply flex justify-between items-center pb-5 mb-8 border-b border-gray-800;
+  }
+
+  .connection-status {
+    @apply flex items-center gap-2;
+  }
+
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full;
+  }
+  .status-dot.connected {
+    @apply bg-green-500 shadow-[0_0_8px] shadow-green-500;
+  }
+  .status-dot.disconnected {
+    @apply bg-red-500 shadow-[0_0_8px] shadow-red-500;
+  }
+
+  .widgets-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8;
+  }
+
+  .widget {
+    @apply bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col;
+  }
+
+  .widget-chat {
+    @apply bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col h-[450px];
+  }
+
+  .widget h2 {
+    @apply px-6 pt-4 text-lg font-semibold text-white;
+  }
+
+  .widget-content {
+    @apply p-3 flex-1 flex flex-col justify-center;
+  }
+
+  .last-donation {
+    @apply text-white rounded-lg overflow-hidden border-l-8 border-[#ca004b];
+  }
+
+  .last-donation-content {
+    @apply p-5 flex items-center bg-[#080c10];
+  }
+
+  .notification-icon {
+    @apply text-3xl mr-4 text-pink-600;
+  }
+
+  .notification-text {
+    @apply flex-1;
+  }
+
+  .notification-title {
+    @apply text-lg font-bold text-white;
+  }
+
+  .notification-amount {
+    @apply text-2xl font-extrabold;
+  }
+
+  .message {
+    @apply py-2 break-words max-w-full;
+  }
+
+  .message-header {
+    @apply flex items-start mb-3;
+  }
+
+  .message-text-inline {
+    @apply text-gray-100 leading-snug text-sm break-words;
+  }
+
+  .message-username {
+    @apply text-sm font-semibold mr-1.5 text-green-400;
+  }
+
+  .comment-emoji, .comment-sticker {
+    @apply max-w-6 max-h-6 align-middle;
+  }
+
+  .message-donation {
+    @apply ml-auto text-sm;
+  }
+
+  @media (max-width: 768px) {
+    .widget-chat {
+      @apply h-[250px];
+    }
+    .widget-content-chat {
+      @apply p-2;
+    }
+  }
+}

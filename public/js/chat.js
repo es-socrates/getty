@@ -93,8 +93,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         usernameElement.style.border = `1px solid ${style.border}`;
         usernameElement.style.padding = '0px 2px';
         usernameElement.style.borderRadius = '4px';
-        usernameElement.style.fontWeight = '800';
-        usernameElement.style.fontSize = '18px';
+        // usernameElement.style.fontWeight = '800';
+        // usernameElement.style.fontSize = '18px';
         usernameElement.style.transition = 'all 0.3s ease';
         usernameElement.style.display = 'inline-block';
 

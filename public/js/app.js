@@ -1,23 +1,30 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const ws = new WebSocket(`ws://${window.location.host}`);
-    
-    ws.onopen = () => {
-        console.log('✅ Connected to dashboard server');
-        document.querySelector('.connection-status .status-dot').classList.add('connected');
-        document.querySelector('.connection-status .status-dot').classList.remove('disconnected');
-        document.querySelector('.connection-status span').textContent = '';
-    };
-    
-    ws.onerror = (error) => {
-        console.error('WebSocket Error:', error);
-        document.querySelector('.connection-status .status-dot').classList.remove('connected');
-        document.querySelector('.connection-status .status-dot').classList.add('disconnected');
-        document.querySelector('.connection-status span').textContent = '';
-    };
-    
-    ws.onclose = () => {
-        document.querySelector('.connection-status .status-dot').classList.remove('connected');
-        document.querySelector('.connection-status .status-dot').classList.add('disconnected');
-        document.querySelector('.connection-status span').textContent = '';
-    };
+  const ws = new WebSocket(`ws://${window.location.host}`);
+  const statusDot = document.querySelector('.connection-status .status-dot');
+  const statusText = document.querySelector('.connection-status span:last-child');
+
+  if (!statusDot || !statusText) {
+    console.error('Connection status items not found');
+    return;
+  }
+
+  ws.onopen = () => {
+    console.log('✅ Connected to dashboard server');
+    statusDot.classList.add('connected');
+    statusDot.classList.remove('disconnected');
+    statusText.textContent = '';
+  };
+  
+  ws.onerror = (error) => {
+    console.error('WebSocket Error:', error);
+    statusDot.classList.remove('connected');
+    statusDot.classList.add('disconnected');
+    statusText.textContent = '';
+  };
+  
+  ws.onclose = () => {
+    statusDot.classList.remove('connected');
+    statusDot.classList.add('disconnected');
+    statusText.textContent = '';
+  };
 });

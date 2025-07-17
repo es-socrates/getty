@@ -1,8 +1,8 @@
 # Getty.
 
-**A Odysee Widget Hub: All the widgets for your Odysee livestream in one place.**
+### App for Odysee streamers to manage tips, goals, and chat
 
-![Getty](https://thumbs.odycdn.com/75a10ce76465fdd305aca5144ee018a5.webp)
+![Getty](https://thumbs.odycdn.com/3a2887c073c32480aeba03df33012e9f.webp)
 
 ## Some features of the app:
 
@@ -12,7 +12,7 @@
 4) Customize the widgets as you like (colors, fonts, styles, titles, etc).
 5) You don't have to activate all widgets, you can activate 2 widgets if you want.
 
-![Getty admin](https://thumbs.odycdn.com/32fdcb81930e950256eccf02ecbf002f.webp)
+![Getty](https://thumbs.odycdn.com/227b020decd149afd5ed6ec3fa0c170a.webp)
 
 ## Prerequisites
 
@@ -43,22 +43,64 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 2. Example: Set the URL to http://localhost:3000/widgets/chat.
 3. Adjust the size according to your needs.
 
-And that's it, the widget is now working. You can monitor the entire process from the Odysee Dashboard.
+![Getty](https://thumbs.odycdn.com/2c3fc1df0ac34b600e24a2d226176d5e.webp)
 
-If you see the scroll in the widget's OBS source, check the source properties in OBS and use these CSS styles.
+And that's it, the widget is now working. You can monitor the entire process from the Odysee Dashboard. You can also monitor the entire backend process from the terminal.
+
+![Getty](https://thumbs.odycdn.com/b0214136d90c88ed5251bc14b4e95589.webp)
+
+---
+
+## Customize CSS in OBS
+
+Chat in OBS can be customized independently, so you can add these styles to the widget's browser source CSS container.
 
 ```
 body { 
   background-color: rgba(0,0,0,0) !important; 
   overflow: hidden !important;
 }
+.message-text-inline {
+    font-size: 22px;
+}
+.message-username.cyberpunk {
+    font-size: 22px;
+}
+.message-avatar {
+    width: 38px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #21262d;
+}
+
+.message-avatar img {
+    width: 38px;
+    height: 38px;
+    object-fit: cover;
+}
+.comment-emoji,
+.message-content .comment-emoji {
+    vertical-align: middle;
+    position: relative;
+    top: -2px;
+    margin: 10px 2px;
+    max-width: 24px;
+}
 ```
 
-## Main Dependencies:
+## Dependencies in the installation:
 
-1. Express: Web server
-2. WebSockets: Real-time communication
-3. Axios: HTTP requests
-4. dotenv: Environment variable management
+```
+"@untitledui/icons": "^0.0.17",
+"arweave": "^1.15.7",
+"axios": "^1.6.2",
+"dotenv": "^16.3.1",
+"express": "^4.18.2",
+"react-aria-components": "^1.10.1",
+"tailwind-merge": "^3.3.1",
+"tailwindcss-react-aria-components": "^2.0.0",
+"ws": "^8.13.0"
+```
 
 **This is an independent project for fun; it is not an official Odysee product.**

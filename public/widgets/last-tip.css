@@ -18,7 +18,6 @@
     padding: 20px;
     display: flex;
     align-items: center;
-    background: linear-gradient(90deg, #080c10 0%, #0f1214 100%);
 }
 
 .notification-icon {
@@ -42,7 +41,7 @@
     font-size: 24px;
     font-weight: 800;
     color: #00ff7f;
-    text-shadow: 0 0 10px rgba(0, 255, 127, 0.5);
+    text-shadow: 0 0 6px rgba(0, 255, 127, 0.5);
 }
 
 .notification-from {

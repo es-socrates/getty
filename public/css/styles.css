@@ -41,7 +41,7 @@ body {
     align-items: center;
     padding: 20px 0;
     margin-bottom: 30px;
-    border-bottom: 4px solid #df1258;
+    border-bottom: 4px solid #ca004b;
 }
 
 .dashboard-header h1, .admin-header h1 {
@@ -223,14 +223,14 @@ body {
     z-index: 10000;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    border-left: 8px solid #ca004b;
+    border-left: 6px solid #ca004b;
 }
 
 .last-donation-content {
     padding: 20px;
     display: flex;
     align-items: center;
-    background: linear-gradient(90deg, #080c10 0%, #0f1214 100%);
+    background: #080c10;
 }
 
 .notification-icon {
@@ -254,7 +254,7 @@ body {
     font-size: 24px;
     font-weight: 800;
     color: #00ff7f;
-    text-shadow: 0 0 10px rgba(0, 255, 127, 0.5);
+    text-shadow: 0 0 1px rgba(0, 255, 127, 0.5);
 }
 
 .notification-from {

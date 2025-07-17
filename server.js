@@ -178,7 +178,6 @@ app.get('/obs/widgets', (req, res) => {
   res.json(widgets);
 });
 
-// Rutas para los widgets individuales
 app.get('/widgets/last-tip', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/widgets/last-tip.html'));
 });
@@ -211,6 +210,17 @@ app.get('/api/modules', (_req, res) => {
   });
 });
 
+app.get('/api/ar-price', async (req, res) => {
+    try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
+        if (!response.ok) throw new Error('Failed to fetch from CoinGecko');
+        const data = await response.json();
+        res.json({ arweave: { usd: data.arweave.usd } });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch AR price' });
+    }
+});
+
 server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, ws => {
     wss.emit('connection', ws, req);
@@ -218,7 +228,7 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  console.log('Nueva conexión WebSocket');
+  console.log('New WebSocket connection');
   
   ws.send(JSON.stringify({
     type: 'init',
@@ -229,6 +239,6 @@ wss.on('connection', (ws) => {
   }));
   
   ws.on('close', () => {
-    console.log('Conexión WebSocket cerrada');
+    console.log('WebSocket connection closed');
   });
 });

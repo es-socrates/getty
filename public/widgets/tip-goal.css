@@ -10,8 +10,6 @@ body {
   border-radius: 8px;
   width: 310px;
   padding: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(8px);
   color: white;
   z-index: 10000;
   border-left: 8px solid #ca004b;
@@ -46,7 +44,6 @@ body {
   font-size: 24px;
   font-weight: 800;
   color: #00ff7f;
-  text-shadow: 0 0 10px rgba(0, 255, 127, 0.5);
 }
 
 .goal-ar {
@@ -64,11 +61,12 @@ body {
 
 .progress-container {
   height: 18px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(35, 38, 47, 0.31);
   border-radius: 4px;
-  margin-top: 10px;
+  margin: auto;
   position: relative;
   overflow: hidden;
+  height: 20px;
 }
 
 #goal-widget .progress-bar {

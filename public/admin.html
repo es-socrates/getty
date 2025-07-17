@@ -3,24 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Odysee Admin Dashboard</title>
+    <title>Getty Admin Dashboard</title>
+    <meta name="description" content="App for Odysee streamers to manage tips, goals, and chat.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="shortcut icon" href="/assets/favicon_128.png" />
-    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="shortcut icon" href="/assets/getty.png" />
+    <link rel="stylesheet" href="/css/output.css">
     <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
 <div class="admin-container">
     <header class="admin-header">
         <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="/assets/favicon_128.png" alt="Odysee Logo" style="height: 40px;">
+            <img src="/assets/getty.png" alt="Odysee Logo" style="height: 40px;">
             <h1>Administration</h1>
         </div>
         <nav>
             <a href="/">Go to the homepage</a>
         </nav>
     </header>
-
+            <section class="admin-section system-status">
+                <h2>System Status</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <h3>Last tip</h3>
+                        <p class="status-value" id="last-tip-status">Active</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Notifications</h3>
+                        <p class="status-value" id="tip-widget-status">Active</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Tip goal</h3>
+                        <p class="status-value" id="tip-goal-status">Active</p>
+                    </div>
+                    <div class="status-item">
+                        <h3>Chat</h3>
+                        <p class="status-value" id="chat-status">Inactive</p>
+                    </div>
+                </div>
+                <button class="refresh-btn" id="refresh-status">Update Status</button>
+            </section>
         <main class="admin-sections">
             <section class="admin-section">
                 <h2>Last Tip</h2>
@@ -99,32 +121,24 @@
                     </div>
                 </div>
             </section>
-            
-            <section class="admin-section system-status">
-                <h2>System Status</h2>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <h3>Last tip</h3>
-                        <p class="status-value" id="last-tip-status">Active</p>
-                    </div>
-                    <div class="status-item">
-                        <h3>Notifications</h3>
-                        <p class="status-value" id="tip-widget-status">Active</p>
-                    </div>
-                    <div class="status-item">
-                        <h3>Tip goal</h3>
-                        <p class="status-value" id="tip-goal-status">Active</p>
-                    </div>
-                    <div class="status-item">
-                        <h3>Chat</h3>
-                        <p class="status-value" id="chat-status">Inactive</p>
-                    </div>
-                </div>
-                <button class="refresh-btn" id="refresh-status">Update Status</button>
-            </section>
         </main>
     </div>
-    
+        <footer class="py-6 border-t border-border text-center text-sm">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="font-bold">© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="https://odysee.com" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Odysee</a>
+                    <span>|</span>
+                    <a href="https://github.com/es-socrates/getty" target="_blank" class="hover:text-primary-200 transition-colors font-bold">GitHub</a>
+                    <span>|</span>
+                    <p class="font-bold">This is an independent project for fun; it is not an official Odysee product.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
     <script src="/js/admin.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {

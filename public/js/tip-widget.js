@@ -2,16 +2,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const notification = document.getElementById('notification');
     const ws = new WebSocket(`ws://${window.location.host}`);
     let AR_TO_USD = 0;
-    let EMOJI_MAPPING = {};
 
     const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
-
-    try {
-        const response = await fetch(`/emojis.json?nocache=${Date.now()}`);
-        EMOJI_MAPPING = await response.json();
-    } catch (e) {
-        console.error('Error loading emojis:', e);
-    }
 
     function playRemoteSound() {
         const audio = new Audio(REMOTE_SOUND_URL);
@@ -23,32 +15,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function formatText(text) {
         if (!text) return '';
-        let formatted = escapeHtml(text);
-
-        formatted = formatted.replace(/<stkr>(.*?)<\/stkr>/g, (match, url) => {
-            try {
-                const decodedUrl = decodeURIComponent(url);
-                if (decodedUrl.match(/^https?:\/\//i)) {
-                    return `<img src="${decodedUrl}" alt="Sticker" class="notification-sticker" loading="lazy" />`;
-                }
-                return match;
-            } catch (e) {
-                return match;
-            }
-        });
-
-        if (Object.keys(EMOJI_MAPPING).length > 0) {
-            for (const [code, url] of Object.entries(EMOJI_MAPPING)) {
-                const isSticker = url.includes('/stickers/');
-                const className = isSticker ? 'notification-sticker' : 'notification-emoji';
-                const escapedCode = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                formatted = formatted.replace(
-                    new RegExp(escapedCode, 'g'),
-                    `<img src="${url}" alt="${code}" class="${className}" loading="lazy" />`
-                );
-            }
-        }
-        return formatted;
+        const withoutEmojis = text.replace(/:[a-zA-Z0-9_]+:/g, '');
+        return escapeHtml(withoutEmojis).trim();
     }
 
     function escapeHtml(text) {
@@ -67,8 +35,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     ws.onmessage = async (event) => {
         try {
             const msg = JSON.parse(event.data);
-            if (msg.type === 'tip') {
-                await showNotification(msg.data);
+            
+            if (msg.type === 'tip' || msg.type === 'tipNotification') {
+                await showDonationNotification(msg.data);
             } else if (msg.type === 'chatMessage' && msg.data?.credits > 0) {
                 await showDonationNotification(msg.data);
             }
@@ -95,20 +64,51 @@ document.addEventListener('DOMContentLoaded', async () => {
             .catch(e => console.error('Error playing:', e));
     }
 
-    async function updateExchangeRate() {
-        try {
-            const response = await fetch('/api/ar-price');
-            const data = await response.json();
-            if (data.arweave?.usd) {
-                AR_TO_USD = data.arweave.usd;
-            }
-        } catch (error) {
-            console.error('Error updating exchange rate:', error);
+async function updateExchangeRate() {
+    try {
+        const response = await fetch('/api/ar-price');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Response is not JSON');
+        }
+        
+        const textData = await response.text();
+        console.log('[DEBUG] API Response:', textData);
+        
+        const data = JSON.parse(textData);
+        
+        if (data?.arweave?.usd) {
+            AR_TO_USD = data.arweave.usd;
+            console.log(`✅ Updated exchange rate: 1 AR = $${AR_TO_USD} USD`);
+        } else {
+            console.warn('⚠️ Exchange rate data not in expected format, using fallback');
             AR_TO_USD = AR_TO_USD || 5;
         }
+    } catch (error) {
+        console.error('Error updating exchange rate:', error);
+        AR_TO_USD = AR_TO_USD || 5;
+        
+        if (error.message.includes('Failed to fetch')) {
+            showError('Failed to connect to exchange rate service');
+        }
     }
+}
+
+const shownTips = new Set();
 
 async function showDonationNotification(data) {
+    const uniqueId = data.txId || data.id || (data.from + data.amount + data.message);
+
+    if (shownTips.has(uniqueId)) {
+        return;
+    }
+    shownTips.add(uniqueId);
+
     playRemoteSound();
     notification.style.display = 'none';
     void notification.offsetWidth;
@@ -116,8 +116,14 @@ async function showDonationNotification(data) {
     await updateExchangeRate();
     
     const formattedMessage = data.message ? formatText(data.message) : '';
-    const arAmount = parseFloat(data.amount || data.credits || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 6});
-    const usdAmount = (parseFloat(data.amount || data.credits || 0) * AR_TO_USD).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    const arAmount = parseFloat(data.amount || data.credits || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 6
+    });
+    const usdAmount = (parseFloat(data.amount || data.credits || 0) * AR_TO_USD).toLocaleString('en-US', {
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2
+    });
     
     const senderInfo = data.from 
         ? `📦 From: ${data.from.slice(0, 8)}...` 
@@ -126,21 +132,22 @@ async function showDonationNotification(data) {
     notification.innerHTML = `
         <div class="notification-content">
             <div class="notification-icon">
-                <img src="${data.avatar || 'https://odysee.com/public/favicon_128.png'}" alt="💰" onerror="this.style.display='none'; this.parentNode.innerHTML='💰'">
+                <img src="${data.avatar || '/assets/odysee.png'}" alt="💰" onerror="this.style.display='none'; this.parentNode.innerHTML='💰'">
             </div>
             <div class="notification-text">
-                <div class="notification-title">🎉 ${data.credits ? 'New tip.' : 'Tip'} Woohoo!!</div>
+                <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo' : 'Tip Received. Woohoo!'}</div>
                 <div class="amount-container">
-                    ${data.amount ? `<span class="ar-amount">${arAmount} AR</span>` : ''}
                     <span class="ar-amount">${arAmount} AR</span>
-                    <span class="usd-value">$${usdAmount} USD</span>
+                    <span class="usd-value">($${usdAmount} USD)</span>
                 </div>
                 <div class="notification-from">
-                ${senderInfo} <span class="thank-you" style="margin: 0 4px;"> 👏</span>
+                    ${senderInfo} <span class="thank-you">👏</span>
                 </div>
-                ${data.message ? `
-                <div class="notification-message" style="margin-top: 8px; font-weight: 600;">
-                    ${formattedMessage.substring(0, 80) + (formattedMessage.length > 90 ? '...' : '')}
+                ${formattedMessage ? `
+                <div class="notification-message">
+                    ${formattedMessage.length > 80 
+                        ? formattedMessage.substring(0, 80) + '...' 
+                        : formattedMessage}
                 </div>
                 ` : ''}
             </div>
@@ -148,7 +155,7 @@ async function showDonationNotification(data) {
         <div class="progress-bar"></div>
     `;
 
-    notification.style.display = 'block';
+    notification.style.display = 'inline';
     notification.style.opacity = '1';
 
     setTimeout(() => {

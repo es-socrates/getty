@@ -81,7 +81,6 @@ class TipGoalModule {
         }
 
         try {
-            // Primero intentar con GraphQL (más confiable)
             const graphqlQuery = {
                 query: `
                     query GetTransactions($address: String!) {
@@ -119,7 +118,6 @@ class TipGoalModule {
                 }));
             }
 
-            // Fallback a REST API si GraphQL falla
             console.log('⚠️ Using REST API as a fallback');
             const restResponse = await axios.get(`https://arweave.net/tx/history/${address}`, {
                 timeout: 15000

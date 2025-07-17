@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(error => {
             console.error('Error loading settings:', error);
-            showAlert('Error al cargar la configuración', 'error');
+            showAlert('Error loading configuration', 'error');
         });
     
     document.querySelectorAll('.save-btn').forEach(btn => {
@@ -42,11 +42,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatus('tip-widget-status', data.tipWidget.active);
                 updateStatus('tip-goal-status', data.tipGoal.active);
                 updateStatus('chat-status', data.chat.connected);
-                showAlert('Estado actualizado', 'success');
+                showAlert('Updated status', 'success');
             })
             .catch(error => {
                 console.error('Error refreshing status:', error);
-                showAlert('Error al actualizar el estado', 'error');
+                showAlert('Error updating status', 'error');
             });
     });
     
@@ -77,12 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (module === 'lastTip' && !data.walletAddress) {
-            showAlert('La dirección de wallet es requerida', 'error');
+            showAlert('The wallet address is required', 'error');
             return;
         }
         
         if (module === 'chat' && !data.chatUrl) {
-            showAlert('La URL del chat es requerida', 'error');
+            showAlert('The chat URL is required', 'error');
             return;
         }
         
@@ -100,12 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return response.json();
         })
         .then(data => {
-            showAlert('Configuración guardada exitosamente', 'success');
+            showAlert('Configuration saved successfully', 'success');
             updateStatus(`${module}-status`, data.active || data.connected);
         })
         .catch(error => {
             console.error('Error saving settings:', error);
-            const message = error.error || 'Error al guardar la configuración';
+            const message = error.error || 'Error saving configuration';
             showAlert(message, 'error');
         });
     }
@@ -113,15 +113,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateStatus(elementId, isActive) {
         const element = document.getElementById(elementId);
         if (!element) {
-            console.warn(`Elemento con id "${elementId}" no encontrado.`);
+            console.warn(`Element with id "${elementId}" not found.`);
             return;
         }
         if (isActive) {
-            element.textContent = 'Activo';
+            element.textContent = 'Active';
             element.classList.add('active');
             element.classList.remove('inactive');
         } else {
-            element.textContent = 'Inactivo';
+            element.textContent = 'Inactive';
             element.classList.add('inactive');
             element.classList.remove('active');
         }
