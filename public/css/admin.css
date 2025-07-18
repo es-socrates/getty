@@ -166,8 +166,8 @@ body {
 .status-item {
     background: #040509;
     padding: 15px;
-    border-radius: 6px;
-    border-left: 4px solid #ca004b;
+    border-radius: 4px;
+    border-left: 8px solid #ca004b
 }
 
 .status-item h3 {

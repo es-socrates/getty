@@ -31,6 +31,9 @@ class ExternalNotifications {
             config: {
                 hasDiscord: !!this.discordWebhook,
                 hasTelegram: !!(this.telegramBotToken && this.telegramChatId),
+                discordWebhook: this.discordWebhook,
+                telegramBotToken: this.telegramBotToken,
+                telegramChatId: this.telegramChatId,
                 template: this.template
             },
             lastUpdated: new Date().toISOString()
@@ -62,15 +65,20 @@ class ExternalNotifications {
     async saveConfig(config) {
         try {
             const data = JSON.stringify({
-                discordWebhook: config.discordWebhook || this.discordWebhook,
-                telegramBotToken: config.telegramBotToken || this.telegramBotToken,
-                telegramChatId: config.telegramChatId || this.telegramChatId,
-                template: config.template || this.template,
+                discordWebhook: config.discordWebhook,
+                telegramBotToken: config.telegramBotToken,
+                telegramChatId: config.telegramChatId,
+                template: config.template,
                 lastTips: this.lastTips
             }, null, 2);
 
             fs.writeFileSync(this.configFile, data);
             console.log('[ExternalNotifications] Config saved');
+
+            this.discordWebhook = config.discordWebhook;
+            this.telegramBotToken = config.telegramBotToken;
+            this.telegramChatId = config.telegramChatId;
+            this.template = config.template;
         } catch (error) {
             console.error('[ExternalNotifications] Error saving config:', error);
             throw error;
