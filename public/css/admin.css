@@ -315,3 +315,63 @@ body {
     width: 16px;
     height: 16px;
 }
+
+.external-notifications-section {
+    background: var(--light-bg);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.external-notifications-section h2 {
+    color: var(--secondary-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.external-notifications-section .form-group {
+    margin-bottom: 15px;
+}
+
+.external-notifications-section label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.external-notifications-section input[type="text"],
+.external-notifications-section textarea {
+    width: 100%;
+    padding: 10px;
+    background: var(--darker-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    font-family: 'Inter', sans-serif;
+    box-sizing: border-box;
+}
+
+.external-notifications-section textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.external-notifications-section input[type="text"]:focus,
+.external-notifications-section textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(202, 0, 75, 0.2);
+}
+
+#notification-template {
+    background: var(--darker-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    font-family: 'Courier New', monospace;
+    padding: 12px;
+    line-height: 1.5;
+}

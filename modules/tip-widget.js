@@ -220,48 +220,73 @@ class TipWidgetModule {
   }
   
   notifyFrontend(data) {
-    if (!this.wss || typeof this.wss.clients === 'undefined') {
-      Logger.error('WebSocket server not properly initialized');
-      return;
-    }
-    
-    if (this.processedTxs.has(data.txId)) {
-      Logger.debug('Transaction already notified, skipping', data.txId);
-      return;
-    }
-
-    let clientsNotified = 0;
-    
-    this.wss.clients.forEach(client => {
-      const isOpen = client.readyState === (client.OPEN || 1);
-      if (isOpen) {
-        try {
-          const notification = {
-            type: 'tipNotification',
-            data: {
-              from: data.from,
-              amount: data.amount,
-              txId: data.txId,
-              message: data.message,
-              timestamp: new Date().toISOString()
-            }
-          };
-          
-          client.send(JSON.stringify(notification));
-          clientsNotified++;
-          
-          Logger.debug('Notification sent to client', {
-            notificationType: notification.type,
-            clientState: client.readyState
-          });
-        } catch (error) {
-          Logger.error('Error sending notification to client', error);
-        }
+      if (!this.wss || typeof this.wss.clients === 'undefined') {
+          Logger.error('WebSocket server not properly initialized');
+          return;
       }
-    });
-    
-    Logger.info(`Notifications sent to ${clientsNotified} clients`);
-  }
+      
+      if (this.processedTxs.has(data.txId)) {
+          Logger.debug('Transaction already notified, skipping', data.txId);
+          return;
+      }
+
+      let clientsNotified = 0;
+      
+      this.wss.clients.forEach(client => {
+          const isOpen = client.readyState === (client.OPEN || 1);
+          if (isOpen) {
+              try {
+                  const notification = {
+                      type: 'tipNotification',
+                      data: {
+                          from: data.from,
+                          amount: data.amount,
+                          txId: data.txId,
+                          message: data.message,
+                          timestamp: new Date().toISOString()
+                      }
+                  };
+                  
+                  client.send(JSON.stringify(notification));
+                  clientsNotified++;
+                  
+                  Logger.debug('Notification sent to client', {
+                      notificationType: notification.type,
+                      clientState: client.readyState
+                  });
+              } catch (error) {
+                  Logger.error('Error sending notification to client', error);
+              }
+          }
+      });
+      
+    try {
+        if (this.wss && typeof this.wss.emit === 'function') {
+            const eventData = {
+                from: data.from,
+                amount: data.amount,
+                txId: data.txId,
+                message: data.message || 'Direct AR transfer',
+                source: 'direct',
+                timestamp: data.timestamp || new Date().toISOString()
+            };
+            
+            this.wss.emit('tip', eventData);
+            
+            Logger.debug('Tip Event issued', {
+                eventData: eventData,
+                clients: this.wss.clients.size
+            });
+        } else {
+            Logger.error('WebSocket Server is not available to broadcast events');
+        }
+    } catch (error) {
+        Logger.error('Critical error when issuing event tip', {
+            error: error.message,
+            stack: error.stack
+        });
+    }
+}
   
   updateWalletAddress(newAddress) {
     Logger.info('Updating wallet address', {

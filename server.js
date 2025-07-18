@@ -2,11 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const WebSocket = require('ws');
 const path = require('path');
+const axios = require('axios');
 
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
 const TipGoalModule = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
+const ExternalNotifications = require('./modules/external-notifications');
 
 const app = express();
 app.use((req, res, next) => {
@@ -22,7 +24,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com; " + 
         "font-src 'self' data: blob: https://fonts.gstatic.com; " +
-        "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://api.coingecko.com; " +
+        "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://api.coingecko.com https://api.telegram.org; " +
         "frame-src 'self'"
     );
 
@@ -41,8 +43,29 @@ const lastTip = new LastTipModule(wss);
 const tipWidget = new TipWidgetModule(wss);
 const tipGoal = new TipGoalModule(wss);
 const chat = new ChatModule(wss);
+const externalNotifications = new ExternalNotifications(wss);
 
-app.post('/api/last-tip', express.json(), (req, res) => {
+function setupWebSocketListeners() {
+    wss.removeAllListeners('tip');
+    
+    wss.on('tip', (tipData) => {
+        console.log('[Main] Tip event received:', {
+            from: tipData.from,
+            amount: tipData.amount,
+            source: tipData.source || 'direct'
+        });
+        
+        externalNotifications.handleIncomingTip(tipData).catch(error => {
+            console.error('[Main] Error processing tip:', error);
+        });
+    });
+}
+
+setupWebSocketListeners();
+
+app.use(express.json());
+
+app.post('/api/last-tip', (req, res) => {
   try {
     const { walletAddress } = req.body;
     if (!walletAddress) {
@@ -60,7 +83,7 @@ app.post('/api/last-tip', express.json(), (req, res) => {
   }
 });
 
-app.post('/api/tip-goal', express.json(), (req, res) => {
+app.post('/api/tip-goal', (req, res) => {
   try {
     const { goalAmount, startingAmount } = req.body;
     
@@ -79,7 +102,7 @@ app.post('/api/tip-goal', express.json(), (req, res) => {
   }
 });
 
-app.post('/api/chat', express.json(), (req, res) => {
+app.post('/api/chat', (req, res) => {
   try {
     const { chatUrl } = req.body;
     
@@ -98,9 +121,46 @@ app.post('/api/chat', express.json(), (req, res) => {
   }
 });
 
-app.post('/api/test-tip', express.json(), (req, res) => {
+app.post('/api/external-notifications', async (req, res) => {
   try {
-    const { amount, from } = req.body;
+    const { discordWebhook, telegramBotToken, telegramChatId, template } = req.body;
+    
+    if (!discordWebhook && !(telegramBotToken && telegramChatId)) {
+      return res.status(400).json({ 
+        error: "Either Discord webhook or Telegram credentials are required",
+        success: false
+      });
+    }
+    
+    await externalNotifications.saveConfig({
+      discordWebhook,
+      telegramBotToken,
+      telegramChatId,
+      template: template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"'
+    });
+    
+    res.json({ 
+      success: true, 
+      status: externalNotifications.getStatus(),
+      message: "Settings saved successfully"
+    });
+  } catch (error) {
+    console.error('Error saving external notifications config:', error);
+    res.status(500).json({ 
+      success: false,
+      error: "Internal server error",
+      details: error.message 
+    });
+  }
+});
+
+app.get('/api/external-notifications', (req, res) => {
+  res.json(externalNotifications.getStatus());
+});
+
+app.post('/api/test-tip', (req, res) => {
+  try {
+    const { amount, from, message } = req.body;
     if (typeof amount === 'undefined' || typeof from === 'undefined') {
       return res.status(400).json({ error: "Both amount and from are required" });
     }
@@ -108,6 +168,7 @@ app.post('/api/test-tip', express.json(), (req, res) => {
     const donation = {
       amount: parseFloat(amount),
       from: String(from),
+      message: message || '',
       timestamp: Math.floor(Date.now() / 1000)
     };
     
@@ -115,6 +176,11 @@ app.post('/api/test-tip', express.json(), (req, res) => {
       if (client.readyState === 1) {
         client.send(JSON.stringify({ type: 'tip', data: donation }));
       }
+    });
+    
+    externalNotifications.handleTip({
+      ...donation,
+      usd: (donation.amount * 5).toFixed(2)
     });
     
     res.json({ ok: true, sent: donation });
@@ -130,6 +196,10 @@ app.get('/last-donation', (_req, res) => {
   } else {
     res.status(404).json({ error: "No donation found" });
   }
+});
+
+app.get('/widgets/persistent-notifications', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public/widgets/persistent-notifications.html'));
 });
 
 app.get('/obs/widgets', (req, res) => {
@@ -172,6 +242,15 @@ app.get('/obs/widgets', (req, res) => {
         width: 350,
         height: 500
       }
+    },
+    persistentNotifications: {
+      name: "Persistent Notifications",
+      url: `${baseUrl}/widgets/persistent-notifications`,
+      params: {
+        position: "top-left",
+        width: 380,
+        height: 500
+      }
     }
   };
   
@@ -200,23 +279,23 @@ app.get('/obs-help', (_req, res) => {
 
 app.use(express.static('public'));
 
-app.use(express.json());
 app.get('/api/modules', (_req, res) => {
   res.json({
     lastTip: lastTip.getStatus(),
     tipWidget: tipWidget.getStatus(),
     tipGoal: tipGoal.getStatus(),
-    chat: chat.getStatus()
+    chat: chat.getStatus(),
+    externalNotifications: externalNotifications.getStatus()
   });
 });
 
 app.get('/api/ar-price', async (req, res) => {
     try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
-        if (!response.ok) throw new Error('Failed to fetch from CoinGecko');
-        const data = await response.json();
-        res.json({ arweave: { usd: data.arweave.usd } });
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
+        if (response.status !== 200) throw new Error('Failed to fetch from CoinGecko');
+        res.json({ arweave: { usd: response.data.arweave.usd } });
     } catch (error) {
+        console.error('Error fetching AR price:', error);
         res.status(500).json({ error: 'Failed to fetch AR price' });
     }
 });
@@ -234,11 +313,37 @@ wss.on('connection', (ws) => {
     type: 'init',
     data: {
       lastTip: lastTip.getLastDonation(),
-      tipGoal: tipGoal.getGoalProgress()
+      tipGoal: tipGoal.getGoalProgress(),
+      persistentTips: externalNotifications.getStatus().lastTips
     }
   }));
+  
+  ws.on('message', (message) => {
+    try {
+      const msg = JSON.parse(message);
+      console.log('Message from client:', msg);
+    } catch (error) {
+      console.error('Error parsing message from client:', error);
+    }
+  });
   
   ws.on('close', () => {
     console.log('WebSocket connection closed');
   });
+});
+
+app.post('/api/test-discord', express.json(), async (req, res) => {
+  try {
+    const { from, amount } = req.body;
+    const success = await externalNotifications.sendToDiscord({
+      from: from || "test-user",
+      amount: amount || 1,
+      message: "Test notification",
+      source: "test",
+      timestamp: new Date().toISOString()
+    });
+    res.json({ success });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
