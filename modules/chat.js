@@ -1,5 +1,11 @@
 const WebSocket = require('ws');
 const axios = require('axios');
+const Logger = {
+    debug: (...args) => console.log('[DEBUG]', ...args),
+    info: (...args) => console.log('[INFO]', ...args),
+    warn: (...args) => console.warn('[WARN]', ...args),
+    error: (...args) => console.error('[ERROR]', ...args)
+};
 
 class ChatModule {
   constructor(wss) {
@@ -140,14 +146,33 @@ class ChatModule {
   }
   
   notifyFrontend(data) {
-    this.wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'chatMessage',
-          data: data
-        }));
+      this.wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                  type: 'chatMessage',
+                  data: data
+              }));
+          }
+      });
+
+      if (data.credits > 0) {
+          try {
+              const tipData = {
+                  from: data.channelName || data.channelTitle || 'Anonymous',
+                  amount: data.credits,
+                  message: data.message || '',
+                  source: 'chat',
+                  timestamp: data.timestamp || new Date().toISOString()
+              };
+
+              if (this.wss && typeof this.wss.emit === 'function') {
+                  this.wss.emit('tip', tipData);
+                  Logger.debug('Chat tip event emitted', tipData);
+              }
+          } catch (error) {
+              Logger.error('Error emitting chat tip:', error);
+          }
       }
-    });
   }
   
   notifyStatus(connected) {

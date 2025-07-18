@@ -339,3 +339,17 @@ body {
         padding: 8px;
     }
 }
+
+.template-vars-hint {
+    margin-top: 5px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.template-vars-hint code {
+    background: rgba(0, 255, 127, 0.1);
+    color: var(--secondary-color);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}

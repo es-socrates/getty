@@ -74,15 +74,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     chatUrl: document.getElementById('chat-url').value.trim()
                 };
                 break;
+            case 'externalNotifications':
+                endpoint = '/api/external-notifications';
+                data = {
+                    discordWebhook: document.getElementById('discord-webhook').value.trim(),
+                    telegramBotToken: document.getElementById('telegram-bot-token').value.trim(),
+                    telegramChatId: document.getElementById('telegram-chat-id').value.trim(),
+                    template: document.getElementById('notification-template').value.trim()
+                };
+                break;
         }
         
-        if (module === 'lastTip' && !data.walletAddress) {
-            showAlert('The wallet address is required', 'error');
-            return;
-        }
-        
-        if (module === 'chat' && !data.chatUrl) {
-            showAlert('The chat URL is required', 'error');
+        if ((module === 'lastTip' || module === 'chat') && !data[Object.keys(data)[0]]) {
+            showAlert(`The ${Object.keys(data)[0]} is required`, 'error');
             return;
         }
         
@@ -93,20 +97,30 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             body: JSON.stringify(data)
         })
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw err; });
+        .then(async (response) => {
+            const text = await response.text();
+            try {
+                const json = text ? JSON.parse(text) : {};
+                
+                if (!response.ok) {
+                    throw new Error(json.error || 'Unknown error occurred');
+                }
+                
+                showAlert('Configuration saved successfully', 'success');
+                
+                if (module === 'externalNotifications') {
+                    updateStatus('external-notifications-status', json.status?.active || false);
+                } else {
+                    updateStatus(`${module}-status`, json.active || json.connected || false);
+                }
+            } catch (error) {
+                showAlert(text || error.message, 'error');
+                console.error('Error parsing response:', error, 'Response text:', text);
             }
-            return response.json();
-        })
-        .then(data => {
-            showAlert('Configuration saved successfully', 'success');
-            updateStatus(`${module}-status`, data.active || data.connected);
         })
         .catch(error => {
             console.error('Error saving settings:', error);
-            const message = error.error || 'Error saving configuration';
-            showAlert(message, 'error');
+            showAlert(error.message || 'Error saving configuration', 'error');
         });
     }
     
