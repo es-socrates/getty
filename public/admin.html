@@ -87,7 +87,7 @@
                         <label>Tip Goal Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="tip-goal-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                            <button class="copy-btn" onclick="copyToClipboard('tip-goal-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
                                 </svg>
@@ -106,7 +106,7 @@
                         <label>Notification Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="tip-notification-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                            <button class="copy-btn" onclick="copyToClipboard('tip-notification-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
                                 </svg>
@@ -131,7 +131,7 @@
                         <label>Chat Widget URL:</label>
                         <div style="display: flex; align-items: center;">
                             <input type="text" id="obs-chat-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
-                            <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
+                            <button class="copy-btn" onclick="copyToClipboard('obs-chat-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
                                 </svg>
@@ -160,13 +160,13 @@
                     <input type="text" id="telegram-chat-id" placeholder="-1001234567890">
                 </div>
                 
-                <!-- <div class="form-group">
+                <div class="form-group">
                     <label for="notification-template">Notification Template:</label>
-                    <textarea id="notification-template" rows="6">🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"</textarea>
+                    <textarea id="notification-template" rows="4">🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"</textarea>
                     <div class="template-vars-hint">
-                        <small>Variables disponibles: <code>{from}</code>, <code>{amount}</code>, <code>{usd}</code>, <code>{message}</code></small>
+                        <small>Available variables: <code>{from}</code>, <code>{amount}</code>, <code>{usd}</code>, <code>{message}</code></small>
                     </div>
-                </div> -->
+                </div>
                 
                 <button class="save-btn" data-module="externalNotifications">Save</button>
             </section>

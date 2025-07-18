@@ -32,8 +32,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { bg: 'rgba(255, 17, 121, 0.8)', text: '#fff', border: 'rgba(255, 17, 121, 0.9)' },
         { bg: 'rgba(121, 17, 255, 0.8)', text: '#fff', border: 'rgba(121, 17, 255, 0.9)' },
         { bg: 'rgba(17, 121, 255, 0.8)', text: '#fff', border: 'rgba(17, 121, 255, 0.9)' },
-        { bg: 'rgba(255, 255, 17, 0.8)', text: '#000', border: 'rgba(255, 255, 17, 0.9)' },
-        { bg: 'rgba(21, 25, 40, 0.93)', text: '#11ff79', border: 'rgba(19, 19, 19, 0.9)' }
+        { bg: 'rgba(255, 231, 17, 0.8)', text: '#000', border: 'rgba(255, 231, 17, 0.9)' },
+        { bg: 'rgba(21, 25, 40, 0.93)', text: '#fff', border: 'rgba(19, 19, 19, 0.9)' }
     ];
 
     function getCyberpunkStyle(username) {
@@ -47,7 +47,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function addMessage(msg) {
         const messageEl = document.createElement('div');
-        messageEl.className = `message ${messageCount++ % 2 ? 'odd' : ''}`;
+        messageEl.classList.add('message');
+        if (messageCount++ % 2) messageEl.classList.add('odd');
 
         const header = document.createElement('div');
         header.className = 'message-header';
@@ -90,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         usernameElement.style.backgroundColor = style.bg;
         usernameElement.style.color = style.text;
         usernameElement.style.textShadow = `0 0 8px ${style.border}`;
-        usernameElement.style.border = `1px solid ${style.border}`;
+        // usernameElement.style.border = `1px solid ${style.border}`;
         usernameElement.style.padding = '0px 2px';
         usernameElement.style.borderRadius = '4px';
         // usernameElement.style.fontWeight = '800';
@@ -103,6 +104,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cleanMessage = (msg.message || '').replace(/&lt;stkr&gt;(.*?)&lt;\/stkr&gt;/g, '<stkr>$1</stkr>');
         const hasSticker = /<stkr>/.test(cleanMessage);
         const normalText = cleanMessage.replace(/<stkr>.*?<\/stkr>/g, '').trim();
+
+        if (msg.credits > 0) {
+            const isDonationOnly = !normalText.length && !hasSticker && !/:([^\s:]+):/.test(cleanMessage);
+            messageEl.classList.add('has-donation');
+            
+            if (isDonationOnly) {
+                messageEl.classList.add('donation-only');
+            }
+        }
 
         if (normalText.length > 0 || (!normalText.length && (hasSticker || /:[^\s:]+:/.test(cleanMessage)))) {
             const textElement = document.createElement('span');

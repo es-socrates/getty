@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('starting-amount').value = data.tipGoal.currentTips || 0;
             document.getElementById('chat-url').value = data.chat.chatUrl || '';
             
+            if (data.externalNotifications && data.externalNotifications.config) {
+                document.getElementById('discord-webhook').value = data.externalNotifications.config.discordWebhook || '';
+                document.getElementById('telegram-bot-token').value = data.externalNotifications.config.telegramBotToken || '';
+                document.getElementById('telegram-chat-id').value = data.externalNotifications.config.telegramChatId || '';
+            }
             updateStatus('last-tip-status', data.lastTip.active);
             updateStatus('tip-widget-status', data.tipWidget.active);
             updateStatus('tip-goal-status', data.tipGoal.active);

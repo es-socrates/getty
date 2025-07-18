@@ -4,9 +4,9 @@
     --bg-message-alt: #0a0e12;
     --border: #161b22;
     --text: #e6edf3;
-    --username: #19e33d;
-    --donation: #ffc107;
-    --donation-bg: #1a3a1f;
+    --username: #fff;
+    --donation: #1bdf5f;
+    --donation-bg: #691fd5;
     --odysee-font-family: Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif;
     --odysee-chat-text-size: 22px;
 }
@@ -36,7 +36,8 @@ body {
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    margin-top: 8px;
 }
 
 .message-avatar {
@@ -66,7 +67,7 @@ body {
     position: relative;
     top: -2px;
     margin: 10px 2px;
-    max-width: 22px;
+    max-width: 18px;
     display: inline;
 }
 
@@ -107,22 +108,19 @@ body {
 }
 
 .message {
-    /* width: 550px; */
-    background: var(--bg-message);
-    /* border: 1px solid var(--border); */
-    border-radius: 8px;
+    background: #0a0e12;
+    border-radius: 4px;
     padding: 12px;
     margin-bottom: 8px;
     animation: fadeIn 0.3s;
     box-sizing: border-box;
-    border-left: 8px solid #ca004b;
+    /* border-left: 8px solid #a639f0; */
 }
 
 .message.odd {
-    /* width: 526px; */
     background: var(--bg-message-alt);
     position: relative;
-    border-left: 8px solid #ca004b;
+    /* border-left: 8px solid #a639f0; */
 }
 
 .message-user-container {
@@ -143,7 +141,6 @@ body {
     background-color: rgba(17, 255, 121, 0.8);
     color: #000;
     text-shadow: 0 0 8px rgba(17, 255, 121, 0.9);
-    border: 1px solid rgba(17, 255, 121, 0.9);
     padding: 2px 4px;
     border-radius: 4px;
     font-weight: 700;
@@ -176,13 +173,13 @@ body {
     position: absolute;
     right: -4px;
     bottom: 0;
-    margin-bottom: -17px;
-    background-color: #e81161;
-    color: white;
-    padding: 2px 3px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 10px;
+    margin-bottom: -14px;
+    /* background-color: #f9f9f9; */
+    color: #fff;
+    padding: 3px 4px;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 12px;
     z-index: 10;
     transition: all 0.5s ease;
 }
@@ -190,10 +187,6 @@ body {
 .message-donation.highlight {
     margin-left: 8px;
     white-space: nowrap;
-    box-shadow: 0 0 2px rgba(88, 74, 79, 0.7);
-    animation: 
-        borderPulse 1.2s infinite alternate,
-        neonGlow 1s ease-in-out infinite alternate;
 }
 
 .message .confetti-container {
@@ -253,7 +246,7 @@ body {
         width: 100%;
         max-width: 100%;
         position: relative;
-        border-left: 8px solid #ca004b;
+        /* border-left: 8px solid #a639f0; */
     }
     
     .message-user-container {
@@ -271,7 +264,8 @@ body {
         transform: none;
         margin-top: 0px;
         display: inline-block;
-        font-size: 18px;
+        font-size: 12px;
+        font-weight: 800;
     }
 }
 
@@ -377,4 +371,17 @@ body {
 
 .membership-icon.dragon {
     background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="purple"><path d="M19 8l-4 4h3c0 3.3-2.7 6-6 6-1 0-1.9-.2-2.8-.6l-1.5 1.5c1.4.7 3 .9 4.6.7l-2.6 2.6-1.4-1.4L14 18c-2.2-.1-4.2-1-5.7-2.5-1.5-1.5-2.4-3.5-2.5-5.7l-3.7 3.7-1.4-1.4L6 12c-.2 1.6 0 3.2.7 4.6l1.5-1.5c-.4-.8-.6-1.8-.6-2.8 0-3.3 2.7-6 6-6h3l-4-4h9v9z"/></svg>') no-repeat center;
+}
+
+.message.has-donation {
+    background: #ee3546;
+    /* border-left: 8px solid #ececec; */
+}
+
+.message.has-donation .message-username {
+    color: #fff;
+}
+
+.message.has-donation .message-text-inline {
+    color: #fff !important;
 }
