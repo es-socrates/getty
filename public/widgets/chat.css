@@ -374,7 +374,7 @@ body {
 }
 
 .message.has-donation {
-    background: #ee3546;
+    background: #ececec;
     border-left: 8px solid #ddb826
 }
 
@@ -383,5 +383,5 @@ body {
 }
 
 .message.has-donation .message-text-inline {
-    color: #fff !important;
+    color: #111 !important;
 }
