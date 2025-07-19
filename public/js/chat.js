@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const usernameElement = document.createElement('span');
         usernameElement.className = 'message-username cyberpunk';
-        usernameElement.textContent = username + ':';
+        usernameElement.textContent = username + '';
 
         const membershipIcons = [
             'crown', 'star', 'diamond', 'heart', 'rocket',
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         usernameElement.style.color = style.text;
         usernameElement.style.textShadow = `0 0 8px ${style.border}`;
         // usernameElement.style.border = `1px solid ${style.border}`;
-        usernameElement.style.padding = '0px 2px';
+        usernameElement.style.padding = '0px 4px';
         usernameElement.style.borderRadius = '4px';
         // usernameElement.style.fontWeight = '800';
         // usernameElement.style.fontSize = '18px';
