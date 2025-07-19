@@ -15,7 +15,7 @@
     "@untitledui/icons": "^0.0.17",
     "arweave": "^1.15.7",
     "axios": "^1.6.2",
-    "dotenv": "^16.3.1",
+    "dotenv": "^17.2.0",
     "express": "^4.18.2",
     "react-aria-components": "^1.10.1",
     "tailwind-merge": "^3.3.1",
