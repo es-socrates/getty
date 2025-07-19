@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Getty Admin Dashboard</title>
+    <title>Getty Admin</title>
     <meta name="description" content="App for Odysee streamers to manage tips, goals, and chat.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="shortcut icon" href="/assets/getty-fav.png" />
@@ -12,51 +12,143 @@
 </head>
 <body>
 <div class="admin-container">
-    <header class="admin-header">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="/assets/getty.png" alt="Odysee Logo" style="height: 40px;">
-        </div>
-        <nav>
-            <a href="/">Go to the homepage</a>
-        </nav>
-    </header>
-            <section class="admin-section system-status">
-                <h2>System Status</h2>
+<header class="admin-header">
+    <div class="header-content">
+        <a href="/admin.html" class="logo-link">
+            <img src="/assets/getty.png" alt="Getty Logo" class="logo">
+        </a>
+    </div>
+    <nav>
+        <a href="/" class="nav-link">Go to homepage</a>
+    </nav>
+</header>
+
+    <div class="admin-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">Widgets</h3>
+                <nav class="sidebar-nav">
+                    <button class="sidebar-link active" data-tab="system-status">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M21,16V14L13,9V3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5V9L2,14V16L10,13.5V19L8,20.5V22L11.5,21L15,22V20.5L13,19V13.5L21,16Z" />
+                        </svg>
+                        System Status
+                    </button>
+                    <button class="sidebar-link" data-tab="last-tip">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.99H19V11C19,7.9 16.97,5.17 14,4.29V6.69L16,8L12.5,10.3L9,8L11,6.69V4.29C8.03,5.17 6,7.9 6,11V12H12V15H8V17H16V15H12V11.99Z" />
+                        </svg>
+                        Last Tip
+                    </button>
+                    <button class="sidebar-link" data-tab="tip-goal">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,10.5A1.5,1.5 0 0,1 13.5,12A1.5,1.5 0 0,1 12,13.5A1.5,1.5 0 0,1 10.5,12A1.5,1.5 0 0,1 12,10.5M7.5,10.5A1.5,1.5 0 0,1 9,12A1.5,1.5 0 0,1 7.5,13.5A1.5,1.5 0 0,1 6,12A1.5,1.5 0 0,1 7.5,10.5M16.5,10.5A1.5,1.5 0 0,1 18,12A1.5,1.5 0 0,1 16.5,13.5A1.5,1.5 0 0,1 15,12A1.5,1.5 0 0,1 16.5,10.5Z" />
+                        </svg>
+                        Tip Goal
+                    </button>
+                    <button class="sidebar-link" data-tab="notifications">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21" />
+                        </svg>
+                        Notifications
+                    </button>
+                    <button class="sidebar-link" data-tab="live-chat">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M12,3C17.5,3 22,6.58 22,11C22,15.42 17.5,19 12,19C10.76,19 9.57,18.82 8.47,18.5C5.55,21 2,21 2,21C4.33,18.67 4.7,17.1 4.75,16.5C3.05,15.07 2,13.13 2,11C2,6.58 6.5,3 12,3Z" />
+                        </svg>
+                        Live Chat
+                    </button>
+                    <button class="sidebar-link" data-tab="external">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M14.4,22H9.6C8.71,22 8,21.29 8,20.4V17.6C8,16.71 8.71,16 9.6,16H14.4C15.29,16 16,16.71 16,17.6V20.4C16,21.29 15.29,22 14.4,22M20.4,16H17.6C16.71,16 16,15.29 16,14.4V9.6C16,8.71 16.71,8 17.6,8H20.4C21.29,8 22,8.71 22,9.6V14.4C22,15.29 21.29,16 20.4,16M14.4,8H9.6C8.71,8 8,7.29 8,6.4V3.6C8,2.71 8.71,2 9.6,2H14.4C15.29,2 16,2.71 16,3.6V6.4C16,7.29 15.29,8 14.4,8M6.4,16H3.6C2.71,16 2,15.29 2,14.4V9.6C2,8.71 2.71,8 3.6,8H6.4C7.29,8 8,8.71 8,9.6V14.4C8,15.29 7.29,16 6.4,16Z" />
+                        </svg>
+                        External Services
+                    </button>
+                </nav>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="connection-status">
+                    <span class="status-dot connected"></span>
+                    <span>Connected</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="admin-main">
+            <!-- System Status Tab -->
+            <section class="admin-tab active" id="system-status-tab">
+                <h2 class="tab-title">System Status</h2>
                 <div class="status-grid">
-                    <div class="status-item">
-                        <h3>Last tip</h3>
-                        <p class="status-value" id="last-tip-status">Active</p>
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.99H19V11C19,7.9 16.97,5.17 14,4.29V6.69L16,8L12.5,10.3L9,8L11,6.69V4.29C8.03,5.17 6,7.9 6,11V12H12V15H8V17H16V15H12V11.99Z" />
+                            </svg>
+                        </div>
+                        <h3>Last Tip</h3>
+                        <p class="status-value active" id="lastTip-status">Active</p>
                     </div>
-                    <div class="status-item">
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21" />
+                            </svg>
+                        </div>
                         <h3>Notifications</h3>
-                        <p class="status-value" id="tip-widget-status">Active</p>
+                        <p class="status-value active" id="tipWidget-status">Active</p>
                     </div>
-                    <div class="status-item">
-                        <h3>Tip goal</h3>
-                        <p class="status-value" id="tip-goal-status">Active</p>
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,10.5A1.5,1.5 0 0,1 13.5,12A1.5,1.5 0 0,1 12,13.5A1.5,1.5 0 0,1 10.5,12A1.5,1.5 0 0,1 12,10.5M7.5,10.5A1.5,1.5 0 0,1 9,12A1.5,1.5 0 0,1 7.5,13.5A1.5,1.5 0 0,1 6,12A1.5,1.5 0 0,1 7.5,10.5M16.5,10.5A1.5,1.5 0 0,1 18,12A1.5,1.5 0 0,1 16.5,13.5A1.5,1.5 0 0,1 15,12A1.5,1.5 0 0,1 16.5,10.5Z" />
+                            </svg>
+                        </div>
+                        <h3>Tip Goal</h3>
+                        <p class="status-value active" id="tipGoal-status">Active</p>
                     </div>
-                    <div class="status-item">
+                    <div class="status-card">
+                        <div class="status-icon">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="currentColor" d="M12,3C17.5,3 22,6.58 22,11C22,15.42 17.5,19 12,19C10.76,19 9.57,18.82 8.47,18.5C5.55,21 2,21 2,21C4.33,18.67 4.7,17.1 4.75,16.5C3.05,15.07 2,13.13 2,11C2,6.58 6.5,3 12,3Z" />
+                            </svg>
+                        </div>
                         <h3>Chat</h3>
-                        <p class="status-value" id="chat-status">Inactive</p>
+                        <p class="status-value inactive" id="chat-status">Inactive</p>
                     </div>
                 </div>
-                <button class="refresh-btn" id="refresh-status">Update Status</button>
+                <button class="refresh-btn" id="refresh-status">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                    </svg>
+                    Update Status
+                </button>
             </section>
-        <main class="admin-sections">
-            <section class="admin-section">
-                <h2>Last Tip</h2>
-                <div class="form-group">
-                    <label for="wallet-address">AR Address:</label>
-                    <input type="text" id="wallet-address" value="<%= WALLET_ADDRESS %>">
+
+            <!-- Last Tip Tab -->
+            <section class="admin-tab" id="last-tip-tab">
+                <h2 class="tab-title">Last Tip Settings</h2>
+                <div class="form-card">
+                    <div class="form-group">
+                        <label for="wallet-address">AR Wallet Address:</label>
+                        <input type="text" id="wallet-address" value="<%= WALLET_ADDRESS %>">
+                    </div>
+                    <button class="save-btn" data-module="lastTip">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                        </svg>
+                        Save Settings
+                    </button>
                 </div>
-                <button class="save-btn" data-module="lastTip">Save</button>
-                
-                <div class="widget-card" style="margin-top: 20px;">
-                    <h3 style="color: var(--secondary-color); margin-bottom: 10px;">OBS Integration</h3>
+
+                <div class="widget-card">
+                    <h3 class="widget-title">OBS Integration</h3>
                     <div class="form-group">
                         <label>Last Tip Widget URL:</label>
-                        <div style="display: flex; align-items: center;">
-                            <input type="text" id="last-tip-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                        <div class="input-group">
+                            <input type="text" id="last-tip-url" readonly>
                             <button class="copy-btn" onclick="copyToClipboard('last-tip-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
@@ -67,25 +159,32 @@
                     </div>
                 </div>
             </section>
-            
-            <section class="admin-section">
-                <h2>Tip goal</h2>
-                <div class="form-group">
-                    <label for="goal-amount">Monthly Goal (AR):</label>
-                    <input type="number" id="goal-amount" value="10">
+
+            <section class="admin-tab" id="tip-goal-tab">
+                <h2 class="tab-title">Tip Goal Settings</h2>
+                <div class="form-card">
+                    <div class="form-group">
+                        <label for="goal-amount">Monthly Goal (AR):</label>
+                        <input type="number" id="goal-amount" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="starting-amount">Initial Amount (AR):</label>
+                        <input type="number" id="starting-amount" value="0">
+                    </div>
+                    <button class="save-btn" data-module="tipGoal">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                        </svg>
+                        Save Settings
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label for="starting-amount">Initial Amount (AR):</label>
-                    <input type="number" id="starting-amount" value="0">
-                </div>
-                <button class="save-btn" data-module="tipGoal">Save</button>
-                
-                <div class="widget-card" style="margin-top: 20px;">
-                    <h3 style="color: var(--secondary-color); margin-bottom: 10px;">OBS Integration</h3>
+
+                <div class="widget-card">
+                    <h3 class="widget-title">OBS Integration</h3>
                     <div class="form-group">
                         <label>Tip Goal Widget URL:</label>
-                        <div style="display: flex; align-items: center;">
-                            <input type="text" id="tip-goal-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                        <div class="input-group">
+                            <input type="text" id="tip-goal-url" readonly>
                             <button class="copy-btn" onclick="copyToClipboard('tip-goal-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
@@ -97,14 +196,14 @@
                 </div>
             </section>
 
-                <section class="admin-section">
-                <h2>Tip Notification</h2>
-
-                <div class="widget-card" style="margin-top: 20px;">
+            <section class="admin-tab" id="notifications-tab">
+                <h2 class="tab-title">Notification Settings</h2>
+                <div class="widget-card">
+                    <h3 class="widget-title">OBS Integration</h3>
                     <div class="form-group">
                         <label>Notification Widget URL:</label>
-                        <div style="display: flex; align-items: center;">
-                            <input type="text" id="tip-notification-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                        <div class="input-group">
+                            <input type="text" id="tip-notification-url" readonly>
                             <button class="copy-btn" onclick="copyToClipboard('tip-notification-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
@@ -112,35 +211,48 @@
                                 Copy
                             </button>
                         </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="tts-enabled">
-                            <span class="slider round"></span>
+                    </div>
+                    <div class="form-group toggle-group">
+                        <label class="toggle-label">
+                            <span>Enable Text-to-Speech</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="tts-enabled">
+                                <span class="slider round"></span>
+                            </label>
                         </label>
-                        <label for="tts-language" style="font-weight: 500; font-size: 15px; color: #444; display: inline-flex; align-items: center; gap: 6px;">
-                            <select id="tts-language" style="padding: 4px 16px 4px 8px; border-radius: 6px; border: 1px solid #bbb; background: #f8f8fa; font-size: 15px; font-weight: 500; color: #222; outline: none; transition: border 0.2s; min-width: 110px;">
+                        <div class="toggle-option">
+                            <label for="tts-language">TTS Language:</label>
+                            <select id="tts-language">
                                 <option value="en">English</option>
                                 <option value="es">Español</option>
                             </select>
-                        </label>
-                        <small class="label">Enable or disable text-to-speech with tips</small>
+                        </div>
+                        <small class="form-hint">Enable or disable text-to-speech for tip notifications</small>
                     </div>
                 </div>
             </section>
-            
-            <section class="admin-section">
-                <h2>Live Chat</h2>
-                <div class="form-group">
-                    <label for="chat-url">Chat URL:</label>
-                    <input type="text" id="chat-url" placeholder="wss://sockety.odysee.tv/ws/commentron?id=xxx">
+
+            <section class="admin-tab" id="live-chat-tab">
+                <h2 class="tab-title">Live Chat Settings</h2>
+                <div class="form-card">
+                    <div class="form-group">
+                        <label for="chat-url">Chat URL:</label>
+                        <input type="text" id="chat-url" placeholder="wss://sockety.odysee.tv/ws/commentron?id=xxx">
+                    </div>
+                    <button class="save-btn" data-module="chat">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                        </svg>
+                        Save Settings
+                    </button>
                 </div>
-                <button class="save-btn" data-module="chat">Save</button>
-                
-                <div class="widget-card" style="margin-top: 20px;">
-                    <h3 style="color: var(--secondary-color); margin-bottom: 10px;">OBS Integration</h3>
+
+                <div class="widget-card">
+                    <h3 class="widget-title">OBS Integration</h3>
                     <div class="form-group">
                         <label>Chat Widget URL:</label>
-                        <div style="display: flex; align-items: center;">
-                            <input type="text" id="obs-chat-url" readonly style="flex-grow: 1; background: var(--darker-bg);">
+                        <div class="input-group">
+                            <input type="text" id="obs-chat-url" readonly>
                             <button class="copy-btn" onclick="copyToClipboard('obs-chat-url')">
                                 <svg viewBox="0 0 24 24" width="16" height="16">
                                     <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
@@ -152,71 +264,100 @@
                 </div>
             </section>
 
-            <section class="admin-section external-notifications-section">
-                <h2>External Notifications</h2>
-                
-                <div class="form-group">
-                    <label for="discord-webhook">Discord Webhook URL:</label>
-                    <input type="text" id="discord-webhook" placeholder="https://discord.com/api/webhooks/...">
-                </div>
-                
-                <div class="form-group">
-                    <label for="telegram-bot-token">Telegram Bot Token:</label>
-                    <input type="text" id="telegram-bot-token" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
-                </div>
-                
-                <div class="form-group">
-                    <label for="telegram-chat-id">Telegram Chat ID:</label>
-                    <input type="text" id="telegram-chat-id" placeholder="-1001234567890">
-                </div>
-                
-                <div class="form-group">
-                    <label for="notification-template">Notification Template:</label>
-                    <textarea id="notification-template" rows="4">🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"</textarea>
-                    <div class="template-vars-hint">
-                        <small>Available variables: <code>{from}</code>, <code>{amount}</code>, <code>{usd}</code>, <code>{message}</code></small>
+            <section class="admin-tab" id="external-tab">
+                <h2 class="tab-title">External Notifications</h2>
+                <div class="form-card">
+                    <div class="form-group">
+                        <label for="discord-webhook">Discord Webhook URL:</label>
+                        <input type="text" id="discord-webhook" placeholder="https://discord.com/api/webhooks/...">
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="telegram-bot-token">Telegram Bot Token:</label>
+                        <input type="text" id="telegram-bot-token" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="telegram-chat-id">Telegram Chat ID:</label>
+                        <input type="text" id="telegram-chat-id" placeholder="-1001234567890">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notification-template">Notification Template:</label>
+                        <textarea id="notification-template" rows="4">🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"</textarea>
+                        <div class="template-vars-hint">
+                            <small>Available variables: <code>{from}</code>, <code>{amount}</code>, <code>{usd}</code>, <code>{message}</code></small>
+                        </div>
+                    </div>
+                    
+                    <button class="save-btn" data-module="externalNotifications">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                        </svg>
+                        Save Settings
+                    </button>
                 </div>
-                
-                <button class="save-btn" data-module="externalNotifications">Save</button>
             </section>
         </main>
     </div>
-        <footer class="py-6 border-t border-border text-center text-sm">
-        <div class="max-w-7xl mx-auto px-6">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="mb-4 md:mb-0">
-                    <p class="font-bold">© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
-                </div>
-                <div class="flex space-x-4">
-                    <a href="https://odysee.com" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Odysee</a>
-                    <span>|</span>
-                    <a href="https://github.com/es-socrates/getty" target="_blank" class="hover:text-primary-200 transition-colors font-bold">GitHub</a>
-                    <span>|</span>
-                    <p class="font-bold">This is an independent project; it is not an official Odysee product.</p>
-                </div>
+
+    <footer class="admin-footer">
+        <div class="footer-content">
+            <p>© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank">MIT License</a></p>
+            <div class="footer-links">
+                <a href="https://odysee.com" target="_blank">Odysee</a>
+                <span>|</span>
+                <a href="https://github.com/es-socrates/getty" target="_blank">GitHub</a>
+                <span>|</span>
+                <p>This is an independent project; it is not an official Odysee product.</p>
             </div>
         </div>
     </footer>
-    <script src="/js/admin.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const baseUrl = window.location.origin;
-            document.getElementById('last-tip-url').value = `${baseUrl}/widgets/last-tip`;
-            document.getElementById('tip-goal-url').value = `${baseUrl}/widgets/tip-goal`;
-            document.getElementById('tip-notification-url').value = `${baseUrl}/widgets/tip-notification`;
-            document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
+
+    <div id="copy-toast" class="copy-toast">
+        <svg class="copy-icon" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+        </svg>
+        <span class="copy-message">URL copied to clipboard!</span>
+    </div>
+</div>
+
+<script src="/js/admin.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+
+        const tabButtons = document.querySelectorAll('.sidebar-link');
+        const tabs = document.querySelectorAll('.admin-tab');
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabs.forEach(tab => tab.classList.remove('active'));
+                
+                button.classList.add('active');
+                
+                const tabId = button.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).classList.add('active');
+            });
         });
 
-    function copyToClipboard(elementId) {
-    const text = document.getElementById(elementId).value;
-    navigator.clipboard.writeText(text).then(() => {
-        showCopyToast();
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-        showCopyToast(false);
+        const baseUrl = window.location.origin;
+        document.getElementById('last-tip-url').value = `${baseUrl}/widgets/last-tip`;
+        document.getElementById('tip-goal-url').value = `${baseUrl}/widgets/tip-goal`;
+        document.getElementById('tip-notification-url').value = `${baseUrl}/widgets/tip-notification`;
+        document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
     });
-}
+
+    function copyToClipboard(elementId) {
+        const text = document.getElementById(elementId).value;
+        navigator.clipboard.writeText(text).then(() => {
+            showCopyToast();
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showCopyToast(false);
+        });
+    }
 
     function showCopyToast(success = true) {
         const toast = document.getElementById('copy-toast');
@@ -239,12 +380,6 @@
             toast.classList.remove('show');
         }, 2000);
     }
-    </script>
-    <div id="copy-toast" class="copy-toast">
-    <svg class="copy-icon" viewBox="0 0 24 24">
-        <path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
-    </svg>
-    <span class="copy-message">URL copied to clipboard!</span>
-</div>
+</script>
 </body>
 </html>

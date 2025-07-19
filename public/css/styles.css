@@ -5,6 +5,15 @@ body {
     padding: 0;
 }
 
+.logo-link {
+    display: inline-block;
+}
+
+.logo {
+    height: 40px;
+    display: block;
+}
+
 .dashboard-header {
     display: flex;
     justify-content: space-between;
