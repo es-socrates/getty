@@ -13,8 +13,9 @@
 4) Customize the widgets as you like (colors, fonts, styles, titles, etc).
 5) Widgets can be activated independently, in case you need 2 or even 1.
 6) Send your tip notifications to your **Discord server or Telegram group**.
+7) Get **text-to-speech** chat notifications when you receive tips.
 
-![getty](https://thumbs.odycdn.com/98b365c1f9228b0d2d1b13fd99a0c8ec.webp)
+![getty](https://thumbs.odycdn.com/98f025f083672d1c6b1a68e028a56d11.webp)
 
 ## Prerequisites to start Getty
 
@@ -44,7 +45,7 @@
 
 The app's admin page has all the widget links for OBS. I recommend saving the changes on the admin page and checking that all of them are active, or the ones you need.
 
-![getty](https://thumbs.odycdn.com/5b57228678705b9dcc882bdc92f1847f.webp)
+![getty](https://thumbs.odycdn.com/5b4cccbe3417751a5d665d03f82cd419.webp)
 
 ## OBS Integration:
 
@@ -52,7 +53,7 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 2. **Example:** Set the URL to http://localhost:3000/widgets/chat.
 3. Adjust the size and css according to your needs.
 
-![getty](https://thumbs.odycdn.com/0bd4f3b0fa71dbc8e77c003e78eba376.webp)
+![getty](https://thumbs.odycdn.com/7766a9769bc3e06e793bdcd7b04ba761.webp)
 
 And that's it, the widget is now working. You can monitor the entire process from the Getty Dashboard. You can also monitor the entire backend process from the terminal.
 
