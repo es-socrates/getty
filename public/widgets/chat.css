@@ -42,7 +42,7 @@ body {
 
 .message-avatar {
     width: 36px;
-    height: 34px;
+    height: 32px;
     border-radius: 50%;
     overflow: hidden;
     background: #21262d;
@@ -136,7 +136,7 @@ body {
 .message-username.cyberpunk {
     display: inline-block;
     white-space: nowrap;
-    margin-right: 8px;
+    margin-right: 6px;
     flex-shrink: 0;
     background-color: rgba(17, 255, 121, 0.8);
     color: #000;
@@ -174,8 +174,8 @@ body {
     right: -4px;
     bottom: 0;
     margin-bottom: -14px;
-    /* background-color: #f9f9f9; */
-    color: #fff;
+    background-color: #ddb826;
+    color: #131313;
     padding: 3px 4px;
     border-radius: 4px;
     font-weight: 800;
@@ -375,7 +375,7 @@ body {
 
 .message.has-donation {
     background: #ee3546;
-    /* border-left: 8px solid #ececec; */
+    border-left: 8px solid #ddb826
 }
 
 .message.has-donation .message-username {
