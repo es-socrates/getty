@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
             document.getElementById('starting-amount').value = data.tipGoal.currentTips || 0;
             document.getElementById('chat-url').value = data.chat.chatUrl || '';
+            document.getElementById('tts-enabled').checked = data.tipWidget?.ttsEnabled || false;
             
             if (data.externalNotifications && data.externalNotifications.config) {
                 document.getElementById('discord-webhook').value = data.externalNotifications.config.discordWebhook || '';
@@ -21,16 +22,50 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('tip-widget-status', data.tipWidget.active);
             updateStatus('tip-goal-status', data.tipGoal.active);
             updateStatus('chat-status', data.chat.connected);
+            return fetch('/api/tts-setting');
+        })
+        .then(response => {
+        if (!response.ok) throw new Error('Failed to load TTS settings');
+        return response.json();
+        })
+        .then(ttsSettings => {
+            document.getElementById('tts-enabled').checked = ttsSettings.ttsEnabled;
         })
         .catch(error => {
-            console.error('Error loading settings:', error);
-            showAlert('Error loading configuration', 'error');
+            console.error('Error loading TTS settings:', error);
+            document.getElementById('tts-enabled').checked = false;
         });
     
     document.querySelectorAll('.save-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const module = e.target.dataset.module;
             saveSettings(module);
+        });
+    });
+
+    document.getElementById('tts-enabled').addEventListener('change', (e) => {
+        const ttsEnabled = e.target.checked;
+        
+        fetch('/api/tts-setting', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ttsEnabled })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to save TTS settings');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('TTS setting saved successfully', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving TTS settings:', error);
+            showAlert('Error saving TTS setting', 'error');
+            e.target.checked = !ttsEnabled;
         });
     });
     
@@ -157,4 +192,44 @@ document.addEventListener('DOMContentLoaded', () => {
             alertDiv.remove();
         }, 3000);
     }
+
+    fetch('/api/tts-language')
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load TTS language');
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById('tts-language').value = data.ttsLanguage || 'en';
+        })
+        .catch(error => {
+            console.error('Error loading TTS language:', error);
+            document.getElementById('tts-language').value = 'en';
+        });
+
+    document.getElementById('tts-language').addEventListener('change', (e) => {
+        const ttsLanguage = e.target.value;
+        fetch('/api/tts-language', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ttsLanguage })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to save TTS language');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                showAlert('TTS language saved successfully', 'success');
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving TTS language:', error);
+            showAlert('Error saving TTS language', 'error');
+            e.target.value = e.target.value === 'en' ? 'es' : 'en';
+        });
+    });
 });

@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const notification = document.getElementById('notification');
     const ws = new WebSocket(`ws://${window.location.host}`);
     let AR_TO_USD = 0;
+    let ttsLanguage = 'en'; // Global TTS Language
 
     const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
 
@@ -35,6 +36,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     ws.onmessage = async (event) => {
         try {
             const msg = JSON.parse(event.data);
+
+            if (msg.type === 'ttsSettingUpdate') {
+                updateTTSStatus(msg.data.ttsEnabled);
+            }
+
+            if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
+                ttsLanguage = msg.data.ttsLanguage;
+                console.log('[TTS] Idioma actualizado en caliente:', ttsLanguage);
+            }
             
             if (msg.type === 'tipNotification') {
                 await showDonationNotification({
@@ -53,6 +63,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             showError('Error processing notification');
         }
     };
+
+    async function loadInitialTTSLanguage() {
+        try {
+            const response = await fetch('/api/tts-language');
+            if (response.ok) {
+                const data = await response.json();
+                ttsLanguage = data.ttsLanguage || 'en';
+                console.log('[TTS] Idioma inicial:', ttsLanguage);
+            }
+        } catch (error) {
+            console.error('Error loading initial TTS language:', error);
+        }
+    }
+    loadInitialTTSLanguage();
+
+    async function loadInitialTTSStatus() {
+        try {
+            const response = await fetch('/api/tts-setting');
+            if (response.ok) {
+                const data = await response.json();
+                updateTTSStatus(data.ttsEnabled);
+            }
+        } catch (error) {
+            console.error('Error loading initial TTS status:', error);
+        }
+    }
+
+    loadInitialTTSStatus();
 
     ws.onerror = (error) => {
         console.error('WebSocket Error:', error);
@@ -108,6 +146,112 @@ async function updateExchangeRate() {
 
 const shownTips = new Set();
 
+let ttsEnabled = true;
+
+function updateTTSStatus(enabled) {
+    ttsEnabled = enabled;
+    console.log(`TTS setting updated: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+    
+    if (typeof enabled !== 'boolean') {
+        console.warn('Invalid TTS status received, forcing to boolean');
+        ttsEnabled = Boolean(enabled);
+    }
+}
+
+async function checkTTSStatus() {
+    try {
+        const response = await fetch('/api/tts-setting');
+        if (response.ok) {
+            const data = await response.json();
+            ttsEnabled = data.ttsEnabled;
+        }
+    } catch (error) {
+        console.error('Error checking TTS status:', error);
+    }
+}
+
+checkTTSStatus();
+
+function speakMessage(message) {
+    if (!message || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.volume = 0.8;
+    utterance.rate = 1; // Normal speed
+    utterance.pitch = 0.9; // A little deeper to sound more masculine
+    
+    let voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => {
+            voices = window.speechSynthesis.getVoices();
+            selectVoice(utterance, voices);
+            window.speechSynthesis.speak(utterance);
+        };
+    } else {
+        selectVoice(utterance, voices);
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+function selectVoice(utterance, voices) {
+
+    if (ttsLanguage === 'en') {
+        const usMaleVoices = voices.filter(voice =>
+            voice.lang.startsWith('en') &&
+            (voice.name.toLowerCase().includes('male') ||
+             voice.name.toLowerCase().includes('hombre') ||
+             voice.name.toLowerCase().includes('masc') ||
+             !voice.name.toLowerCase().includes('female'))
+        );
+        const anyEnglish = voices.filter(voice => voice.lang.startsWith('en'));
+        if (usMaleVoices.length > 0) {
+            utterance.voice = usMaleVoices[0];
+            console.log('Using male voice in English:', usMaleVoices[0].name);
+        } else if (anyEnglish.length > 0) {
+            utterance.voice = anyEnglish[0];
+            console.log('Using English voice:', anyEnglish[0].name);
+        } else {
+            console.log('Using the browsers default voice');
+        }
+    } else {
+        const mexicanMaleVoices = voices.filter(voice => 
+            (voice.lang.includes('es-MX') || voice.lang.includes('es-MX')) &&
+            voice.name.toLowerCase().includes('microsoft')
+        );
+        const latinMaleVoices = voices.filter(voice => 
+            (voice.lang.includes('es-419') || voice.lang.includes('es-LA')) &&
+            voice.name.toLowerCase().includes('microsoft')
+        );
+        const anySpanishMale = voices.filter(voice => 
+            voice.lang.includes('es') && 
+            (voice.name.toLowerCase().includes('male') || 
+             voice.name.toLowerCase().includes('hombre') ||
+             voice.name.toLowerCase().includes('masc') ||
+             !voice.name.toLowerCase().includes('female'))
+        );
+        const anySpanish = voices.filter(voice => voice.lang.includes('es'));
+        if (mexicanMaleVoices.length > 0) {
+            utterance.voice = mexicanMaleVoices[0];
+            console.log('Usando voz mexicana masculina:', mexicanMaleVoices[0].name);
+        } else if (latinMaleVoices.length > 0) {
+            utterance.voice = latinMaleVoices[0];
+            console.log('Usando voz latinoamericana masculina:', latinMaleVoices[0].name);
+        } else if (anySpanishMale.length > 0) {
+            utterance.voice = anySpanishMale[0];
+            console.log('Usando voz masculina en español:', anySpanishMale[0].name);
+        } else if (anySpanish.length > 0) {
+            utterance.voice = anySpanish[0];
+            console.log('Usando voz en español:', anySpanish[0].name);
+        } else {
+            console.log('Usando voz predeterminada del navegador');
+        }
+    }
+}
+
 async function showDonationNotification(data) {
     const uniqueId = data.isDirectTip 
         ? `direct-${data.txId}` 
@@ -137,6 +281,10 @@ async function showDonationNotification(data) {
     const senderInfo = data.from 
         ? `📦 From: ${data.from.slice(0, 8)}...` 
         : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
+
+    if (ttsEnabled && data.isChatTip && formattedMessage) {
+        speakMessage(formattedMessage);
+    }
 
     notification.innerHTML = `
         <div class="notification-content">

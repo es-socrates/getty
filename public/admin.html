@@ -15,7 +15,6 @@
     <header class="admin-header">
         <div style="display: flex; align-items: center; gap: 15px;">
             <img src="/assets/getty.png" alt="Odysee Logo" style="height: 40px;">
-            <h1>Administration</h1>
         </div>
         <nav>
             <a href="/">Go to the homepage</a>
@@ -113,6 +112,17 @@
                                 Copy
                             </button>
                         </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="tts-enabled">
+                            <span class="slider round"></span>
+                        </label>
+                        <label for="tts-language" style="font-weight: 500; font-size: 15px; color: #444; display: inline-flex; align-items: center; gap: 6px;">
+                            <select id="tts-language" style="padding: 4px 16px 4px 8px; border-radius: 6px; border: 1px solid #bbb; background: #f8f8fa; font-size: 15px; font-weight: 500; color: #222; outline: none; transition: border 0.2s; min-width: 110px;">
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                            </select>
+                        </label>
+                        <small class="label">Enable or disable text-to-speech with tips</small>
                     </div>
                 </div>
             </section>
