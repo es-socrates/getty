@@ -18,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('telegram-bot-token').value = data.externalNotifications.config.telegramBotToken || '';
                 document.getElementById('telegram-chat-id').value = data.externalNotifications.config.telegramChatId || '';
             }
-            updateStatus('last-tip-status', data.lastTip.active);
-            updateStatus('tip-widget-status', data.tipWidget.active);
-            updateStatus('tip-goal-status', data.tipGoal.active);
+            updateStatus('lastTip-status', data.lastTip.active);
+            updateStatus('tipWidget-status', data.tipWidget.active);
+            updateStatus('tipGoal-status', data.tipGoal.active);
             updateStatus('chat-status', data.chat.connected);
             return fetch('/api/tts-setting');
         })
@@ -78,9 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return response.json();
             })
             .then(data => {
-                updateStatus('last-tip-status', data.lastTip.active);
-                updateStatus('tip-widget-status', data.tipWidget.active);
-                updateStatus('tip-goal-status', data.tipGoal.active);
+                updateStatus('lastTip-status', data.lastTip.active);
+                updateStatus('tipWidget-status', data.tipWidget.active);
+                updateStatus('tipGoal-status', data.tipGoal.active);
                 updateStatus('chat-status', data.chat.connected);
                 showAlert('Updated status', 'success');
             })
@@ -148,9 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 showAlert('Configuration saved successfully', 'success');
                 
-                if (module === 'externalNotifications') {
-                    updateStatus('external-notifications-status', json.status?.active || false);
-                } else {
+                if (module !== 'externalNotifications') {
                     updateStatus(`${module}-status`, json.active || json.connected || false);
                 }
             } catch (error) {
@@ -182,14 +180,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function showAlert(message, type) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.textContent = message;
+        const toast = document.getElementById('copy-toast');
+        const icon = toast.querySelector('.copy-icon');
+        const messageElement = toast.querySelector('.copy-message');
         
-        document.body.appendChild(alertDiv);
+        messageElement.textContent = message;
+        
+        if (type === 'success') {
+            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+            toast.style.borderColor = 'var(--secondary-color)';
+        } else {
+            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+            toast.style.borderColor = 'var(--error-color)';
+        }
+        
+        toast.classList.add('show');
         
         setTimeout(() => {
-            alertDiv.remove();
+            toast.classList.remove('show');
         }, 3000);
     }
 
