@@ -66,6 +66,7 @@ class Logger {
 class TipWidgetModule {
   constructor(wss) {
     this.wss = wss;
+    this.ttsEnabled = true; // Default value
     this.ARWEAVE_GATEWAY = 'https://arweave.net';
     this.walletAddress = process.env.WALLET_ADDRESS;
     this.processedTxs = new Set();
@@ -301,13 +302,37 @@ class TipWidgetModule {
     
     return this.getStatus();
   }
+
+  updateTTSStatus(enabled) {
+      this.ttsEnabled = enabled;
+      Logger.info(`TTS setting updated: ${enabled ? 'ENABLED' : 'DISABLED'}`);
+      
+      this.broadcastTTSStatus();
+  }
+
+  broadcastTTSStatus() {
+      if (!this.wss || typeof this.wss.clients === 'undefined') {
+          Logger.error('WebSocket server not properly initialized');
+          return;
+      }
+
+      this.wss.clients.forEach(client => {
+          if (client.readyState === (client.OPEN || 1)) {
+              client.send(JSON.stringify({
+                  type: 'ttsSettingUpdate',
+                  data: { ttsEnabled: this.ttsEnabled }
+              }));
+          }
+      });
+  }
   
   getStatus() {
     const status = {
       active: !!this.walletAddress,
       walletAddress: this.walletAddress,
       processedTxs: this.processedTxs.size,
-      lastChecked: new Date().toISOString()
+      lastChecked: new Date().toISOString(),
+      ttsEnabled: this.ttsEnabled
     };
     
     Logger.debug('Current module status', status);

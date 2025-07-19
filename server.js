@@ -3,6 +3,8 @@ const express = require('express');
 const WebSocket = require('ws');
 const path = require('path');
 const axios = require('axios');
+const fs = require('fs');
+const SETTINGS_FILE = './tts-settings.json';
 
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
@@ -34,7 +36,7 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀Server running on http://localhost:${PORT}`);
 });
 
 const wss = new WebSocket.Server({ noServer: true });
@@ -63,7 +65,105 @@ function setupWebSocketListeners() {
 
 setupWebSocketListeners();
 
+function loadSettings() {
+    try {
+        if (fs.existsSync(SETTINGS_FILE)) {
+            const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+            return {
+                ttsEnabled: typeof settings.ttsEnabled === 'boolean' ? settings.ttsEnabled : true,
+                ttsLanguage: settings.ttsLanguage || 'en'
+            };
+        }
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+    return { ttsEnabled: true, ttsLanguage: 'en' }; // Default language
+}
+
+function saveSettings(newSettings) {
+    let current = {};
+    try {
+        if (fs.existsSync(SETTINGS_FILE)) {
+            current = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+        }
+    } catch (error) {
+        console.error('Error reading settings for merge:', error);
+    }
+    const merged = { ...current, ...newSettings };
+    try {
+        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2));
+    } catch (error) {
+        console.error('Error saving settings:', error);
+    }
+}
+
+app.get('/api/tts-setting', (_req, res) => {
+    const settings = loadSettings();
+    res.json({ ttsEnabled: settings.ttsEnabled });
+});
+
+app.post('/api/tts-setting', express.json(), (req, res) => {
+    const { ttsEnabled } = req.body;
+    saveSettings({ ttsEnabled: Boolean(ttsEnabled) });
+    
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+                type: 'ttsSettingUpdate',
+                data: { ttsEnabled: Boolean(ttsEnabled) }
+            }));
+        }
+    });
+    
+    res.json({ 
+        success: true, 
+        ttsEnabled: Boolean(ttsEnabled),
+        message: "TTS setting updated successfully"
+    });
+});
+
+app.get('/api/tts-language', (_req, res) => {
+    const settings = loadSettings();
+    res.json({ ttsLanguage: settings.ttsLanguage || 'en' });
+});
+
+app.post('/api/tts-language', express.json(), (req, res) => {
+    const { ttsLanguage } = req.body;
+    if (!ttsLanguage || (ttsLanguage !== 'en' && ttsLanguage !== 'es')) {
+        return res.status(400).json({ success: false, error: 'Invalid ttsLanguage value' });
+    }
+    saveSettings({ ttsLanguage });
+
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+                type: 'ttsLanguageUpdate',
+                data: { ttsLanguage }
+            }));
+        }
+    });
+    res.json({ success: true, ttsLanguage, message: 'TTS language updated successfully' });
+});
+
 app.use(express.json());
+
+app.post('/api/tts-setting', express.json(), (req, res) => {
+    try {
+        const { ttsEnabled } = req.body;
+        
+        res.json({ 
+            success: true, 
+            ttsEnabled: Boolean(ttsEnabled),
+            message: "TTS setting updated successfully"
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false,
+            error: "Internal server error",
+            details: error.message 
+        });
+    }
+});
 
 app.post('/api/last-tip', (req, res) => {
   try {
