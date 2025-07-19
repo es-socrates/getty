@@ -144,7 +144,7 @@ async function showDonationNotification(data) {
                 <img src="${data.avatar || '/assets/odysee.png'}" alt="💰" onerror="this.style.display='none'; this.parentNode.innerHTML='💰'">
             </div>
             <div class="notification-text">
-                <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo' : 'Tip Received. Woohoo!'}</div>
+                <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo!' : 'Tip Received. Woohoo!'}</div>
                 <div class="amount-container">
                     <span class="ar-amount">${arAmount} AR</span>
                     <span class="usd-value">($${usdAmount} USD)</span>

@@ -155,25 +155,9 @@ class ExternalNotifications {
                 throw new Error('Invalid tip amount');
             }
 
-            const usdValue = tipData.usd || await this.calculateUsdValue(tipData.amount);
-            
-            const embed = {
-                title: `New ${tipData.source === 'chat' ? 'Chat' : 'Direct'} Tip`,
-                description: [
-                    `From: ${tipData.from || 'Anonymous'}`,
-                    `Amount: ${tipData.amount} AR ($${usdValue})`,
-                    tipData.message ? `Message: ${tipData.message}` : ''
-                ].filter(Boolean).join('\n'),
-                color: tipData.source === 'chat' ? 0x5865F2 : 0x00FF7F,
-                timestamp: new Date(tipData.timestamp).toISOString(),
-                footer: {
-                    text: 'Odysee Tip Notification'
-                }
-            };
-
             const payload = {
                 embeds: [{
-                    title: `New tip ${tipData.source === 'chat' ? 'from chat' : 'Direct'}`,
+                    title: `New tip ${tipData.source === 'chat' ? 'received. Woohoo!' : 'Direct'}`,
                     description: this.formatMessage(tipData),
                     color: tipData.source === 'chat' ? 0x5865F2 : 0x00FF7F,
                     fields: [
@@ -181,10 +165,10 @@ class ExternalNotifications {
                         { name: "Amount", value: `${tipData.amount} AR ($${tipData.usd})`, inline: true }
                     ],
                     timestamp: new Date().toISOString(),
-                    footer: { text: "Odysee Notifications" }
+                    footer: { text: "Getty" }
                 }],
-                username: "Odysee Tips",
-                avatar_url: "https://odysee.com/public/favicon_128.png?override=" + Date.now()
+                username: "Getty",
+                avatar_url: "https://thumbs.odycdn.com/43f53f554e4a85240564f8ff794eb60e.webp?override=" + Date.now()
             };
 
             const response = await axios.post(this.discordWebhook, payload, {
