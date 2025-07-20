@@ -1,6 +1,6 @@
 :root {
-    --primary-color: #ca004b;
-    --primary-hover: #e81161;
+    --primary-color: #9eb474;
+    --primary-hover: #758c48;
     --secondary-color: #00ff7f;
     --dark-bg: #111111;
     --darker-bg: #05080c;
@@ -128,7 +128,7 @@ body {
 }
 
 .sidebar-link.active {
-    background: rgba(202, 0, 75, 0.2);
+    background: rgba(158, 180, 116, 0.51);
     color: white;
     border-left: 4px solid var(--primary-color);
 }
@@ -164,8 +164,8 @@ body {
 }
 
 .status-dot.connected {
-    background-color: var(--success-color);
-    box-shadow: 0 0 8px var(--success-color);
+    background-color: var(--primary-color);
+    box-shadow: 0 0 8px #9eb474;
 }
 
 .admin-main {
@@ -234,11 +234,11 @@ body {
 
 .status-value {
     font-size: 0.9rem;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .status-value.active {
-    color: var(--success-color);
+    color: var(--primary-color);
 }
 
 .status-value.inactive {
@@ -257,7 +257,7 @@ body {
     font-size: 1.1rem;
     font-weight: 600;
     margin: 0 0 1.25rem 0;
-    color: var(--secondary-color);
+    color: var(--primary-color);
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border-color);
 }
@@ -340,8 +340,8 @@ body {
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: rgb(202, 0, 75);
-    border: 1px solid var(--primary-color);
+    background: var(--primary-color);
+    border: none;
     border-radius: 6px;
     color: #fff;
     cursor: pointer;
@@ -349,7 +349,9 @@ body {
 }
 
 .copy-btn:hover {
-    background: rgb(176, 25, 81);
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
 }
 
 .copy-btn svg {
@@ -449,7 +451,7 @@ input:checked + .slider:before {
 
 .template-vars-hint code {
     background: rgba(0, 255, 127, 0.1);
-    color: var(--secondary-color);
+    color: var(--primary-color);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
     font-size: 0.8rem;
@@ -472,7 +474,7 @@ input:checked + .slider:before {
 }
 
 .footer-content a {
-    color: var(--secondary-color);
+    color: var(--primary-color);
     text-decoration: none;
 }
 
@@ -496,7 +498,7 @@ input:checked + .slider:before {
     align-items: center;
     gap: 0.75rem;
     box-shadow: var(--shadow);
-    border: 1px solid var(--primary-color);
+    border: none;
     opacity: 0;
     transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     z-index: 1000;
@@ -510,7 +512,7 @@ input:checked + .slider:before {
 .copy-icon {
     width: 20px;
     height: 20px;
-    color: var(--secondary-color);
+    color: var(--primary-color);
 }
 
 .copy-message {

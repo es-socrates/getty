@@ -6,15 +6,23 @@
     background: #080c10;
     color: white;
     padding: 0;
-    border-radius: 8px;
+    border-radius: 4px;
     font-family: 'Inter', 'Helvetica Neue', sans-serif;
     display: none;
     z-index: 10000;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    border-left: 8px solid #a639f0;
+    border-left: 8px solid #9eb474;
     transform: translateX(100%);
     animation: slideIn 0.5s forwards, fadeOut 0.5s 10s forwards;
+}
+
+.notification.tip-notification-widget {
+    border-left: 8px solid #00ff7f !important;
+}
+
+#notification.tip-notification-widget {
+    border-left: 8px solid #00ff7f !important;
 }
 
 .notification-content {
@@ -56,14 +64,6 @@
     text-align: right;
 } */
 
-.progress-bar {
-    height: 8px;
-    background: #ca004b;
-    width: 100%;
-    border-radius: 4px;
-    animation: progress 15s linear forwards;
-}
-
 @keyframes slideIn {
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
@@ -72,11 +72,6 @@
 @keyframes fadeOut {
     from { opacity: 1; }
     to { opacity: 0; }
-}
-
-@keyframes progress {
-    from { width: 100%; }
-    to { width: 0%; }
 }
 
 .amount-container {
@@ -89,8 +84,18 @@
 .ar-amount {
     font-size: 22px;
     font-weight: 800;
-    color: #00ff7f;
-    text-shadow: 0 0 1px rgba(0, 255, 127, 0.5);
+    color: #9eb474;
+    text-shadow: 0 0 1px rgba(158, 180, 116, 0.47);
+}
+
+.notification.tip-notification-widget .ar-amount {
+    color: #00ff7f !important;
+    text-shadow: 0 0 1px rgba(0, 255, 127, 0.47) !important;
+}
+
+#notification.tip-notification-widget .ar-amount {
+    color: #00ff7f !important;
+    text-shadow: 0 0 1px rgba(0, 255, 127, 0.47) !important;
 }
 
 .usd-value {

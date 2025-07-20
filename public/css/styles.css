@@ -232,7 +232,7 @@ body {
     z-index: 10000;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    border-left: 8px solid #a639f0;
+    border-left: 8px solid #9eb474;
 }
 
 .last-donation-content {
@@ -262,8 +262,8 @@ body {
 .notification-amount {
     font-size: 24px;
     font-weight: 800;
-    color: #00ff7f;
-    text-shadow: 0 0 1px rgba(0, 255, 127, 0.5);
+    color: #9eb474;
+    text-shadow: 0 0 1px rgba(158, 180, 116, 0.5);
 }
 
 .notification-from {

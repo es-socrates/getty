@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const goalWidget = document.getElementById('goal-widget');
+    
     if (!goalWidget) {
         console.error('Goal widget container not found');
         return;
@@ -10,6 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxReconnectAttempts = 5;
     const reconnectDelayBase = 1000;
     let currentData = null;
+    let hasReachedGoal = false;
+
+    function resetCelebrationState() {
+        try {
+            localStorage.removeItem('tipGoalCelebration');
+        } catch (error) {
+            console.warn('Could not reset celebration state:', error);
+        }
+    }
 
     function createConfetti(container, count = 50) {
         const colors = ['#ff69b4', '#ffd700', '#ffffff', '#e81161', '#0070ff', '#00ff28'];
@@ -29,6 +39,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 confetti.remove();
             }, (animationDuration + animationDelay) * 1000);
         }
+    }
+
+    function createPersistentConfetti(container) {
+        const confettiInterval = setInterval(() => {
+            if (!container.classList.contains('celebrating')) {
+                clearInterval(confettiInterval);
+                return;
+            }
+            createConfetti(container, 20);
+        }, 3000);
+        
+        setTimeout(() => {
+            clearInterval(confettiInterval);
+        }, 30000);
     }
 
     function createParticles(container, count = 20) {
@@ -58,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 if (data.tipGoal) {
                     currentData = processTipData(data.tipGoal);
+                    hasReachedGoal = currentData.progress >= 100;
                     updateGoalDisplay(currentData);
                 } else {
                     console.warn('No tipGoal data in initial response');
@@ -103,10 +128,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.debug('WebSocket message received:', msg);
 
                 if (msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') {
+                    const previousProgress = currentData ? currentData.progress : 0;
                     currentData = processTipData(msg.data);
+                    const newProgress = currentData.progress;
+                    
+                    if (newProgress >= 100 && previousProgress < 100) {
+                        hasReachedGoal = true;
+                    } else if (newProgress < 100 && previousProgress >= 100) {
+                        hasReachedGoal = false;
+                        resetCelebrationState();
+                    } else {
+                        hasReachedGoal = newProgress >= 100;
+                    }
+                    
                     updateGoalDisplay(currentData);
                 } else if (msg.type === 'init' && msg.data?.tipGoal) {
                     currentData = processTipData(msg.data.tipGoal);
+                    hasReachedGoal = currentData.progress >= 100;
                     updateGoalDisplay(currentData);
                 }
             } catch (error) {
@@ -143,6 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const wasCelebrating = goalWidget.classList.contains('celebrating');
         const reachedGoal = progressPercentage >= 100;
         
+        hasReachedGoal = reachedGoal;
+        
+        const existingClasses = goalWidget.className;
+        
         goalWidget.innerHTML = `
             <div class="goal-container">
                 <div class="goal-header">
@@ -160,28 +202,58 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
+        goalWidget.className = existingClasses;
+        
         if (reachedGoal) {
-            createConfetti(goalWidget, 100);
-        } else if (progressPercentage > 0) {
-            createConfetti(goalWidget, Math.min(Math.floor(progressPercentage / 2), 15));
+            const progressBar = goalWidget.querySelector('.progress-bar');
+            if (progressBar) {
+                progressBar.style.background = 'linear-gradient(90deg, #1c5928, #34d755)';
+            }
+        }
+        
+        if (reachedGoal) {
+            if (!wasCelebrating) {
+                createConfetti(goalWidget, 100);
+            }
         }
         
         if (reachedGoal && !wasCelebrating) {
             goalWidget.classList.add('celebrating');
             createParticles(goalWidget, 30);
-            const progressBar = goalWidget.querySelector('.progress-bar');
-            if (progressBar) {
-                progressBar.style.background = 'linear-gradient(90deg, #FFD700, #FFEC8B)';
-            }
+            createPersistentConfetti(goalWidget);
         } else if (!reachedGoal && wasCelebrating) {
             goalWidget.classList.remove('celebrating');
+            const existingConfetti = goalWidget.querySelectorAll('.confetti');
+            const existingParticles = goalWidget.querySelectorAll('.particles');
+            existingConfetti.forEach(el => el.remove());
+            existingParticles.forEach(el => el.remove());
         }
     }
 
     goalWidget.classList.add('goal-widget');
+    
+    const isOBSWidget = window.location.pathname.includes('/widgets/');
+    if (isOBSWidget) {
+        goalWidget.classList.add('tip-goal-widget');
+    }
+    
     connectWebSocket();
     loadInitialData();
 
+    function forceUpdateCelebrationState() {
+        if (currentData) {
+            const newReachedGoal = currentData.progress >= 100;
+            if (newReachedGoal !== hasReachedGoal) {
+                hasReachedGoal = newReachedGoal;
+                updateGoalDisplay(currentData);
+            }
+        }
+    }
+
+    setInterval(forceUpdateCelebrationState, 5000);
+
+    const existingClasses = goalWidget.className;
+    
     goalWidget.innerHTML = `
         <div class="goal-container">
             <div class="goal-header">
@@ -198,4 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>
     `;
+    
+    goalWidget.className = existingClasses;
 });

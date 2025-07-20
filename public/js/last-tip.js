@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const lastDonationElement = document.getElementById('last-donation');
     if (!lastDonationElement) {
-        console.error('Error: Elemento #last-donation no encontrado');
+        console.error('Error: Element #last-donation not found');
         return;
     }
 
@@ -12,10 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const fromElement = document.querySelector('.notification-from');
 
     const verifyElements = () => {
-        if (!titleElement) console.error('Elemento .notification-title no encontrado');
-        if (!amountElement) console.error('Elemento .notification-amount .ar-amount no encontrado');
-        if (!symbolElement) console.error('Elemento .notification-amount .ar-symbol no encontrado');
-        if (!usdValueElement) console.error('Elemento .notification-amount .usd-value no encontrado');
+        if (!titleElement) console.error('Element .notification-title not found');
+        if (!amountElement) console.error('Element .notification-amount .ar-amount not found');
+        if (!symbolElement) console.error('Element .notification-amount .ar-symbol not found');
+        if (!usdValueElement) console.error('Element .notification-amount .usd-value not found');
         return titleElement && amountElement && symbolElement && usdValueElement;
     };
 
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ws = new WebSocket(`ws://${window.location.host}`);
 
     const formatTimestamp = (timestamp) => {
-        if (!timestamp) return 'Reciente';
+        if (!timestamp) return 'Recent';
         const date = new Date(timestamp * 1000);
         return date.toLocaleString();
     };
@@ -59,10 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.arweave?.usd) {
                 AR_TO_USD = data.arweave.usd;
-                console.log('Tasa de cambio actualizada:', AR_TO_USD);
+                console.log('Updated exchange rate:', AR_TO_USD);
             }
         } catch (error) {
-            console.error('Error al actualizar tasa de cambio:', error);
+            console.error('Error updating exchange rate:', error);
             AR_TO_USD = AR_TO_USD || 5;
         }
     };
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
         usdValueElement.textContent = usdValue;
         
         if (fromElement) {
-            fromElement.textContent = `From: ${data.from?.slice(0, 22) || 'Anonymous'}... 🟢`;
+            fromElement.textContent = `From: ${data.from?.slice(0, 22) || 'Anonymous'}... 📑`;
         }
         
         lastDonationElement.classList.remove('update-animation');
@@ -105,17 +105,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 await updateExchangeRate();
                 updateUI(data);
             } catch (jsonError) {
-                console.error('La respuesta no es JSON válido:', text);
+                console.error('The response is not valid JSON:', text);
                 updateUI(null);
             }
         } catch (error) {
-            console.error('Error al cargar datos iniciales:', error);
+            console.error('Error loading initial data:', error);
             updateUI(null);
         }
     };
 
     ws.onopen = () => {
-        console.log('✅ Conectado al servidor WebSocket');
+        console.log('✅ Connected to the WebSocket server');
         loadInitialData();
     };
     
@@ -127,16 +127,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateUI(msg.data);
             }
         } catch (error) {
-            console.error('Error procesando mensaje:', error);
+            console.error('Error processing message:', error);
         }
     };
     
     ws.onerror = (error) => {
-        console.error('Error en WebSocket:', error);
+        console.error('WebSocket Error:', error);
     };
     
     ws.onclose = () => {
-        console.log('WebSocket desconectado');
+        console.log('WebSocket disconnected');
     };
 
     setInterval(() => {
