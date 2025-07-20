@@ -120,6 +120,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 60000);
 
   updateExchangeRate();
+  
+  const goalWidget = document.getElementById('goal-widget');
+  if (goalWidget) {
+    goalWidget.classList.add('tip-goal-widget');
+    goalWidget.style.background = 'var(--bg-main, #080c10)';
+    goalWidget.style.fontFamily = 'Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif';
+    goalWidget.style.color = 'var(--text, #e6edf3)';
+  }
+  
+  const notificationWidget = document.getElementById('notification');
+  if (notificationWidget) {
+    notificationWidget.classList.add('tip-notification-widget');
+  }
 });
 
 function addResizeControls(element) {
@@ -234,19 +247,4 @@ function updateUrlParams() {
   }
   
   window.history.replaceState({}, '', url);
-}
-
-const goalWidget = document.getElementById('goal-widget');
-if (goalWidget) {
-  goalWidget.classList.add('tip-goal-widget');
-  goalWidget.style.background = 'var(--bg-main, #080c10)';
-  goalWidget.style.fontFamily = 'Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif';
-  goalWidget.style.color = 'var(--text, #e6edf3)';
-
-  let content = goalWidget.querySelector('.widget-content');
-  if (!content) {
-    content = document.createElement('div');
-    content.className = 'widget-content';
-    goalWidget.appendChild(content);
-  }
 }

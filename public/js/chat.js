@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             avatar.className = 'message-avatar';
             const img = document.createElement('img');
             img.src = msg.avatar;
-            img.alt = msg.channelTitle || 'Anónimo';
+            img.alt = msg.channelTitle || 'Anonymous';
             img.onerror = () => avatar.style.display = 'none';
             avatar.appendChild(img);
             header.appendChild(avatar);
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userContainer = document.createElement('div');
         userContainer.className = 'message-user-container';
 
-        const username = msg.channelTitle || 'Anónimo';
+        const username = msg.channelTitle || 'Anonymous';
         const style = getCyberpunkStyle(username);
 
         const usernameElement = document.createElement('span');

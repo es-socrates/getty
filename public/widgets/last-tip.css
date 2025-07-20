@@ -6,12 +6,12 @@
     background: #080c10;
     color: white;
     padding: 0;
-    border-radius: 8px;
+    border-radius: 4px;
     font-family: 'Inter', 'Helvetica Neue', sans-serif;
     z-index: 10000;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    border-left: 8px solid #a639f0;
+    border-left: 8px solid #00ff7f;
 }
 
 .last-donation-content {
@@ -41,7 +41,7 @@
     font-size: 24px;
     font-weight: 800;
     color: #00ff7f;
-    text-shadow: 0 0 6px rgba(0, 255, 127, 0.5);
+    text-shadow: 0 0 1px rgba(158, 180, 116, 0.47);
 }
 
 .notification-from {

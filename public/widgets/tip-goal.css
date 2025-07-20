@@ -7,13 +7,17 @@ body {
 
 #goal-widget {
   background: #080c10;
-  border-radius: 8px;
+  border-radius: 4px;
   width: 310px;
   padding: 14px;
   color: white;
   z-index: 10000;
-  border-left: 8px solid #a639f0;
+  border-left: 8px solid #9eb474;
   margin: 12px auto;
+}
+
+#goal-widget.tip-goal-widget {
+  border-left: 8px solid #00ff7f !important;
 }
 
 .goal-container {
@@ -43,7 +47,11 @@ body {
 .current-ar {
   font-size: 24px;
   font-weight: 800;
-  color: #00ff7f;
+  color: #9eb474;
+}
+
+.tip-goal-widget .current-ar {
+  color: #00ff7f !important;
 }
 
 .goal-ar {
@@ -71,16 +79,48 @@ body {
 
 #goal-widget .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #ca004b, #ff2d6d);
+  background: linear-gradient(90deg, #9eb474, #657b39);
   border-radius: 4px;
   transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1), background 0.5s ease;
   animation: none !important;
 }
 
+.progress-container:not(.reached-goal) .progress-bar {
+  background: linear-gradient(90deg, #9eb474, #657b39) !important;
+  animation: none !important;
+}
+
+.tip-goal-widget .progress-container:not(.reached-goal) .progress-bar {
+  background: linear-gradient(90deg, #00ff7f, #00cc66) !important;
+}
+
+.progress-container.reached-goal .progress-bar {
+  background: linear-gradient(90deg, #1c5928, #34d755) !important;
+  animation: celebration-pulse 3s ease-in-out infinite !important;
+}
+
+@keyframes celebration-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(89, 28, 83, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(89, 28, 83, 0.8), 0 0 15px rgba(20, 31, 202, 0.6);
+  }
+}
+
 .progress-container.reached-goal .progress-text {
   color: #f1f1f1 !important;
-  font-weight: 900;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+  font-weight: 800;
+  animation: text-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes text-glow {
+  from {
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  }
+  to {
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 15px rgba(255, 255, 255, 0.6);
+  }
 }
 
 .progress-container.high-progress .progress-text {
@@ -140,22 +180,41 @@ body {
   position: absolute;
   width: 10px;
   height: 10px;
-  background-color: #f00;
+  background-color: #9eb474;
   opacity: 0;
 }
 
-@keyframes celebration {
+.celebrating {
+  border-left: 8px solid #34d755 !important;
+}
+
+#goal-widget:not(.celebrating) {
+  border-left: 8px solid #9eb474 !important;
+}
+
+#goal-widget.tip-goal-widget.celebrating {
+  border-left: 8px solid #34d755 !important;
+}
+
+#goal-widget.tip-goal-widget:not(.celebrating) {
+  border-left: 8px solid #00ff7f !important;
+}
+
+@keyframes confetti-fall {
   0% {
-    box-shadow: 0 0 0 0 rgb(213, 9, 82);
-  }
-  70% {
-    box-shadow: 0 0 0 5px rgba(0, 255, 127, 0);
+    transform: translateY(-100px) rotate(0deg);
+    opacity: 1;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 255, 127, 0);
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
   }
 }
 
-.celebrating {
-  animation: celebration 1.5s ease-out;
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+  animation: confetti-fall 3s linear forwards;
 }

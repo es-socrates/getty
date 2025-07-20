@@ -1,5 +1,11 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const notification = document.getElementById('notification');
+    
+    const isOBSWidget = window.location.pathname.includes('/widgets/');
+    if (isOBSWidget && notification) {
+        notification.classList.add('tip-notification-widget');
+    }
+    
     const ws = new WebSocket(`ws://${window.location.host}`);
     let AR_TO_USD = 0;
     let ttsLanguage = 'en'; // Global TTS Language
@@ -309,7 +315,6 @@ async function showDonationNotification(data) {
                 ` : ''}
             </div>
         </div>
-        <div class="progress-bar"></div>
     `;
 
     notification.style.display = 'inline';
@@ -331,19 +336,6 @@ style.textContent = `
     @keyframes fadeOut {
         from { opacity: 1; }
         to { opacity: 0; }
-    }
-
-    @keyframes progress {
-        from { width: 100%; }
-        to { width: 0%; }
-    }
-    
-    .progress-bar {
-        height: 8px;
-        background: #ca004b;
-        width: 100%;
-        border-radius: 4px;
-        animation: progress 15s linear forwards;
     }
 `;
 document.head.appendChild(style);
