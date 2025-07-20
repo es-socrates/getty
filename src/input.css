@@ -46,7 +46,7 @@
   }
 
   .last-donation {
-    @apply text-white rounded-lg overflow-hidden border-l-8 border-[#9eb474];
+    @apply text-white overflow-hidden border-l-8 border-[#9eb474] rounded-[4px];
   }
 
   .last-donation-content {

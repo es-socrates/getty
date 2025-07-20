@@ -2,7 +2,7 @@
 
 ### App for Odysee streamers to manage chat tip notification, tip goals, and notification. All in real time, without registration or databases.
 
-![Getty](https://thumbs.odycdn.com/449046a27f9381c869b1126d3268833e.webp)
+![getty](https://thumbs.odycdn.com/f2a06e0d66598d2da4ddb602bb9a05a4.webp)
 > **This is the dashboard view in Getty, the widgets are independent in OBS Studio**
 
 ## Some features of Getty:
@@ -15,7 +15,7 @@
 6) Send your tip notifications to your **Discord server or Telegram group**.
 7) Get **text-to-speech** chat notifications when you receive tips.
 
-![getty](https://thumbs.odycdn.com/98f025f083672d1c6b1a68e028a56d11.webp)
+![getty](https://thumbs.odycdn.com/574d042ea3836e63153124f283100163.webp)
 
 ## Prerequisites to start Getty
 
@@ -45,7 +45,7 @@
 
 The app's admin page has all the widget links for OBS. I recommend saving the changes on the admin page and checking that all of them are active, or the ones you need.
 
-![getty](https://thumbs.odycdn.com/5b4cccbe3417751a5d665d03f82cd419.webp)
+![getty](https://thumbs.odycdn.com/8c6125617bf086a6046b445de0a01772.webp)
 
 ## OBS Integration:
 
@@ -53,7 +53,7 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 2. **Example:** Set the URL to http://localhost:3000/widgets/chat.
 3. Adjust the size and css according to your needs.
 
-![getty](https://thumbs.odycdn.com/7766a9769bc3e06e793bdcd7b04ba761.webp)
+![getty](https://thumbs.odycdn.com/6dd538e00705ebaf66e6a179ea7a8c59.webp)
 
 And that's it, the widget is now working. You can monitor the entire process from the Getty Dashboard. You can also monitor the entire backend process from the terminal.
 
@@ -107,7 +107,7 @@ body {
 }
 
 .message.has-donation .message-text-inline {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
     font-family: var(--odysee-font-family);
     white-space: normal;
