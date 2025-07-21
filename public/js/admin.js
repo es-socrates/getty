@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('starting-amount').value = data.tipGoal.currentTips || 0;
             document.getElementById('chat-url').value = data.chat.chatUrl || '';
             document.getElementById('tts-enabled').checked = data.tipWidget?.ttsEnabled || false;
+            document.getElementById('tip-goal-bg-color').value = data.tipGoal.bgColor || '#080c10';
+            document.getElementById('tip-goal-font-color').value = data.tipGoal.fontColor || '#ffffff';
+            document.getElementById('tip-goal-border-color').value = data.tipGoal.borderColor || '#00ff7f';
+            document.getElementById('tip-goal-progress-color').value = data.tipGoal.progressColor || '#00ff7f';
             
             if (data.externalNotifications && data.externalNotifications.config) {
                 document.getElementById('discord-webhook').value = data.externalNotifications.config.discordWebhook || '';
@@ -98,20 +102,39 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'lastTip':
                 endpoint = '/api/last-tip';
                 data = {
-                    walletAddress: document.getElementById('wallet-address').value.trim()
+                    walletAddress: document.getElementById('wallet-address').value.trim(),
+                    bgColor: document.getElementById('last-tip-bg-color').value,
+                    fontColor: document.getElementById('last-tip-font-color').value,
+                    borderColor: document.getElementById('last-tip-border-color').value,
+                    amountColor: document.getElementById('last-tip-amount-color').value,
+                    iconColor: document.getElementById('last-tip-icon-color').value,
+                    fromColor: document.getElementById('last-tip-from-color').value
                 };
                 break;
             case 'tipGoal':
                 endpoint = '/api/tip-goal';
                 data = {
                     goalAmount: parseFloat(document.getElementById('goal-amount').value),
-                    startingAmount: parseFloat(document.getElementById('starting-amount').value) || 0
+                    startingAmount: parseFloat(document.getElementById('starting-amount').value) || 0,
+                    bgColor: document.getElementById('tip-goal-bg-color').value,
+                    fontColor: document.getElementById('tip-goal-font-color').value,
+                    borderColor: document.getElementById('tip-goal-border-color').value,
+                    progressColor: document.getElementById('tip-goal-progress-color').value
                 };
                 break;
             case 'chat':
                 endpoint = '/api/chat';
                 data = {
-                    chatUrl: document.getElementById('chat-url').value.trim()
+                    chatUrl: document.getElementById('chat-url').value.trim(),
+                    bgColor: document.getElementById('chat-bg-color').value,
+                    msgBgColor: document.getElementById('chat-msg-bg-color').value,
+                    msgBgAltColor: document.getElementById('chat-msg-bg-alt-color').value,
+                    borderColor: document.getElementById('chat-border-color').value,
+                    textColor: document.getElementById('chat-text-color').value,
+                    usernameColor: document.getElementById('chat-username-color').value,
+                    usernameBgColor: document.getElementById('chat-username-bg-color').value,
+                    donationColor: document.getElementById('chat-donation-color').value,
+                    donationBgColor: document.getElementById('chat-donation-bg-color').value
                 };
                 break;
             case 'externalNotifications':
@@ -240,4 +263,96 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.value = e.target.value === 'en' ? 'es' : 'en';
         });
     });
+
+    function updateLastTipColorHex() {
+        document.getElementById('last-tip-bg-color-hex').textContent = document.getElementById('last-tip-bg-color').value;
+        document.getElementById('last-tip-font-color-hex').textContent = document.getElementById('last-tip-font-color').value;
+        document.getElementById('last-tip-border-color-hex').textContent = document.getElementById('last-tip-border-color').value;
+        document.getElementById('last-tip-amount-color-hex').textContent = document.getElementById('last-tip-amount-color').value;
+        document.getElementById('last-tip-icon-color-hex').textContent = document.getElementById('last-tip-icon-color').value;
+        document.getElementById('last-tip-from-color-hex').textContent = document.getElementById('last-tip-from-color').value;
+    }
+    ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-color','last-tip-from-color'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateLastTipColorHex);
+        }
+    });
+    updateLastTipColorHex();
+
+    const resetLastTipBtn = document.getElementById('reset-last-tip-colors');
+    if (resetLastTipBtn) {
+        resetLastTipBtn.addEventListener('click', function() {
+            document.getElementById('last-tip-bg-color').value = '#080c10';
+            document.getElementById('last-tip-font-color').value = '#ffffff';
+            document.getElementById('last-tip-border-color').value = '#00ff7f';
+            document.getElementById('last-tip-amount-color').value = '#00ff7f';
+            document.getElementById('last-tip-icon-color').value = '#ca004b';
+            document.getElementById('last-tip-from-color').value = '#e9e9e9';
+            updateLastTipColorHex();
+        });
+    }
+
+    function updateTipGoalColorHex() {
+        document.getElementById('tip-goal-bg-color-hex').textContent = document.getElementById('tip-goal-bg-color').value;
+        document.getElementById('tip-goal-font-color-hex').textContent = document.getElementById('tip-goal-font-color').value;
+        document.getElementById('tip-goal-border-color-hex').textContent = document.getElementById('tip-goal-border-color').value;
+        document.getElementById('tip-goal-progress-color-hex').textContent = document.getElementById('tip-goal-progress-color').value;
+    }
+    ['tip-goal-bg-color','tip-goal-font-color','tip-goal-border-color','tip-goal-progress-color'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateTipGoalColorHex);
+        }
+    });
+    updateTipGoalColorHex();
+
+    const resetBtn = document.getElementById('reset-tip-goal-colors');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            document.getElementById('tip-goal-bg-color').value = '#080c10';
+            document.getElementById('tip-goal-font-color').value = '#ffffff';
+            document.getElementById('tip-goal-border-color').value = '#00ff7f';
+            document.getElementById('tip-goal-progress-color').value = '#00ff7f';
+            updateTipGoalColorHex();
+        });
+    }
+
+    function updateChatColorHex() {
+        document.getElementById('chat-bg-color-hex').textContent = document.getElementById('chat-bg-color').value;
+        document.getElementById('chat-msg-bg-color-hex').textContent = document.getElementById('chat-msg-bg-color').value;
+        document.getElementById('chat-msg-bg-alt-color-hex').textContent = document.getElementById('chat-msg-bg-alt-color').value;
+        document.getElementById('chat-border-color-hex').textContent = document.getElementById('chat-border-color').value;
+        document.getElementById('chat-text-color-hex').textContent = document.getElementById('chat-text-color').value;
+        document.getElementById('chat-username-color-hex').textContent = document.getElementById('chat-username-color').value;
+        document.getElementById('chat-username-bg-color-hex').textContent = document.getElementById('chat-username-bg-color').value;
+        document.getElementById('chat-donation-color-hex').textContent = document.getElementById('chat-donation-color').value;
+        document.getElementById('chat-donation-bg-color-hex').textContent = document.getElementById('chat-donation-bg-color').value;
+    }
+    [
+        'chat-bg-color','chat-msg-bg-color','chat-msg-bg-alt-color','chat-border-color','chat-text-color',
+        'chat-username-color','chat-username-bg-color','chat-donation-color','chat-donation-bg-color'
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateChatColorHex);
+        }
+    });
+    updateChatColorHex();
+
+    const resetChatBtn = document.getElementById('reset-chat-colors');
+    if (resetChatBtn) {
+        resetChatBtn.addEventListener('click', function() {
+            document.getElementById('chat-bg-color').value = '#080c10';
+            document.getElementById('chat-msg-bg-color').value = '#0a0e12';
+            document.getElementById('chat-msg-bg-alt-color').value = '#0d1114';
+            document.getElementById('chat-border-color').value = '#161b22';
+            document.getElementById('chat-text-color').value = '#e6edf3';
+            document.getElementById('chat-username-color').value = '#fff';
+            document.getElementById('chat-username-bg-color').value = '#11ff79';
+            document.getElementById('chat-donation-color').value = '#1bdf5f';
+            document.getElementById('chat-donation-bg-color').value = '#ececec';
+            updateChatColorHex();
+        });
+    }
 });

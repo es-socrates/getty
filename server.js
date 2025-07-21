@@ -167,39 +167,70 @@ app.post('/api/tts-setting', express.json(), (req, res) => {
     }
 });
 
-app.post('/api/last-tip', (req, res) => {
+const LAST_TIP_CONFIG_FILE = './last-tip-config.json';
+app.post('/api/last-tip', express.json(), (req, res) => {
   try {
-    const { walletAddress } = req.body;
+    const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, fromColor } = req.body;
     if (!walletAddress) {
       return res.status(400).json({ error: "Wallet address is required" });
     }
-    
+
+    let config = {};
+    if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+      config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+    }
+    const newConfig = {
+      ...config,
+      bgColor: bgColor || config.bgColor || '#080c10',
+      fontColor: fontColor || config.fontColor || '#ffffff',
+      borderColor: borderColor || config.borderColor || '#00ff7f',
+      amountColor: amountColor || config.amountColor || '#00ff7f',
+      iconColor: iconColor || config.iconColor || '#ca004b',
+      fromColor: fromColor || config.fromColor || '#e9e9e9'
+    };
+    fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
     const result = lastTip.updateWalletAddress(walletAddress);
     res.json({
       success: true,
-      ...result
+      ...result,
+      ...newConfig
     });
   } catch (error) {
-    console.error('Error updating wallet address:', error);
-    res.status(500).json({ 
+    console.error('Error updating last tip:', error);
+    res.status(500).json({
       error: "Internal server error",
-      details: error.message 
+      details: error.message
     });
   }
 });
 
-app.post('/api/tip-goal', (req, res) => {
+const TIP_GOAL_CONFIG_FILE = './tip-goal-config.json';
+app.post('/api/tip-goal', express.json(), (req, res) => {
   try {
-    const { goalAmount, startingAmount } = req.body;
+    const { goalAmount, startingAmount, bgColor, fontColor, borderColor, progressColor } = req.body;
     
     if (!goalAmount || isNaN(goalAmount)) {
       return res.status(400).json({ error: "Valid goal amount is required" });
     }
-    
+
+    let config = {};
+    if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+      config = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
+    }
+    const newConfig = {
+      ...config,
+      bgColor: bgColor || config.bgColor || '#080c10',
+      fontColor: fontColor || config.fontColor || '#ffffff',
+      borderColor: borderColor || config.borderColor || '#00ff7f',
+      progressColor: progressColor || config.progressColor || '#00ff7f'
+    };
+    fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+
     const result = tipGoal.updateGoal(goalAmount, startingAmount);
     res.json({
       success: true,
-      ...result
+      ...result,
+      ...newConfig
     });
   } catch (error) {
     console.error('Error updating tip goal:', error);
@@ -210,21 +241,42 @@ app.post('/api/tip-goal', (req, res) => {
   }
 });
 
-app.post('/api/chat', (req, res) => {
+const CHAT_CONFIG_FILE = './chat-config.json';
+app.post('/api/chat', express.json(), (req, res) => {
   try {
-    const { chatUrl } = req.body;
-    
+    const { chatUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = req.body;
     if (!chatUrl) {
       return res.status(400).json({ error: "Chat URL is required" });
     }
-    
+
+    let config = {};
+    if (fs.existsSync(CHAT_CONFIG_FILE)) {
+      config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+    }
+    const newConfig = {
+      ...config,
+      bgColor: bgColor || config.bgColor || '#080c10',
+      msgBgColor: msgBgColor || config.msgBgColor || '#0a0e12',
+      msgBgAltColor: msgBgAltColor || config.msgBgAltColor || '#0d1114',
+      borderColor: borderColor || config.borderColor || '#161b22',
+      textColor: textColor || config.textColor || '#e6edf3',
+      usernameColor: usernameColor || config.usernameColor || '#fff',
+      usernameBgColor: usernameBgColor || config.usernameBgColor || '#11ff79',
+      donationColor: donationColor || config.donationColor || '#1bdf5f',
+      donationBgColor: donationBgColor || config.donationBgColor || '#ececec'
+    };
+    fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
     const result = chat.updateChatUrl(chatUrl);
-    res.json(result);
+    res.json({
+      success: true,
+      ...result,
+      ...newConfig
+    });
   } catch (error) {
-    console.error('Error updating chat URL:', error);
-    res.status(500).json({ 
+    console.error('Error updating chat:', error);
+    res.status(500).json({
       error: "Internal server error",
-      details: error.message 
+      details: error.message
     });
   }
 });
@@ -388,11 +440,23 @@ app.get('/obs-help', (_req, res) => {
 app.use(express.static('public'));
 
 app.get('/api/modules', (_req, res) => {
+  let tipGoalColors = {};
+  if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+    tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
+  }
+  let lastTipColors = {};
+  if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+    lastTipColors = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+  }
+  let chatColors = {};
+  if (fs.existsSync(CHAT_CONFIG_FILE)) {
+    chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+  }
   res.json({
-    lastTip: lastTip.getStatus(),
+    lastTip: { ...lastTip.getStatus(), ...lastTipColors },
     tipWidget: tipWidget.getStatus(),
-    tipGoal: tipGoal.getStatus(),
-    chat: chat.getStatus(),
+    tipGoal: { ...tipGoal.getStatus(), ...tipGoalColors },
+    chat: { ...chat.getStatus(), ...chatColors },
     externalNotifications: externalNotifications.getStatus()
   });
 });
@@ -416,7 +480,6 @@ server.on('upgrade', (req, socket, head) => {
 
 wss.on('connection', (ws) => {
   console.log('New WebSocket connection');
-  
   ws.send(JSON.stringify({
     type: 'init',
     data: {
@@ -425,7 +488,7 @@ wss.on('connection', (ws) => {
       persistentTips: externalNotifications.getStatus().lastTips
     }
   }));
-  
+
   ws.on('message', (message) => {
     try {
       const msg = JSON.parse(message);
@@ -434,7 +497,7 @@ wss.on('connection', (ws) => {
       console.error('Error parsing message from client:', error);
     }
   });
-  
+
   ws.on('close', () => {
     console.log('WebSocket connection closed');
   });

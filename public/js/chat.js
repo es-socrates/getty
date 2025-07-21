@@ -45,6 +45,73 @@ document.addEventListener('DOMContentLoaded', async () => {
         return CYBERPUNK_PALETTE[index];
     }
 
+    const isOBSWidget = window.location.pathname.includes('/widgets/');
+    let chatColors = {};
+
+    async function loadColors() {
+        if (!isOBSWidget) return;
+        try {
+            const res = await fetch('/api/modules');
+            const data = await res.json();
+            if (data.chat) {
+                chatColors = {
+                    bgColor: data.chat.bgColor,
+                    msgBgColor: data.chat.msgBgColor,
+                    msgBgAltColor: data.chat.msgBgAltColor,
+                    borderColor: data.chat.borderColor,
+                    textColor: data.chat.textColor,
+                    usernameColor: data.chat.usernameColor,
+                    usernameBgColor: data.chat.usernameBgColor,
+                    donationColor: data.chat.donationColor,
+                    donationBgColor: data.chat.donationBgColor
+                };
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function setIfCustom(element, property, value, defaultValue) {
+        if (!element) return;
+        if (value && value !== defaultValue) {
+            element.style.setProperty(property, value, 'important');
+        } else {
+            element.style.removeProperty(property);
+        }
+    }
+
+    const originalAddMessage = addMessage;
+    addMessage = function(msg) {
+        originalAddMessage(msg);
+        if (!isOBSWidget) return;
+        const messages = chatContainer.querySelectorAll('.message');
+        messages.forEach((messageEl, idx) => {
+
+            if (messageEl.classList.contains('has-donation')) {
+                setIfCustom(messageEl, 'background', chatColors.donationBgColor, '#ececec');
+            } else if (messageEl.classList.contains('odd')) {
+                setIfCustom(messageEl, 'background', chatColors.msgBgAltColor, '#0d1114');
+            } else {
+                setIfCustom(messageEl, 'background', chatColors.msgBgColor, '#0a0e12');
+            }
+            setIfCustom(messageEl, 'border-left', `8px solid ${chatColors.borderColor}`, '8px solid #161b22');
+            setIfCustom(messageEl, 'color', chatColors.textColor, '#e6edf3');
+
+            const donation = messageEl.querySelector('.message-donation');
+            setIfCustom(donation, 'color', chatColors.donationColor, '#1bdf5f');
+            setIfCustom(donation, 'background', chatColors.donationBgColor, '#ececec');
+
+            const text = messageEl.querySelector('.message-text-inline');
+            setIfCustom(text, 'color', chatColors.textColor, '#e6edf3');
+        });
+    };
+
+    async function applyChatColors() {
+        if (!isOBSWidget) return;
+        await loadColors();
+        setIfCustom(chatContainer, 'background', chatColors.bgColor, '#080c10');
+    }
+
+    applyChatColors();
+
     function addMessage(msg) {
         const messageEl = document.createElement('div');
         messageEl.classList.add('message');
