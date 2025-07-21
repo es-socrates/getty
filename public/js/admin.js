@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.querySelectorAll('.save-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const module = e.target.dataset.module;
+            const module = e.currentTarget.dataset.module;
             saveSettings(module);
         });
     });

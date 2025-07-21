@@ -11,6 +11,7 @@ const TipWidgetModule = require('./modules/tip-widget');
 const TipGoalModule = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ExternalNotifications = require('./modules/external-notifications');
+const LanguageConfig = require('./modules/language-config');
 
 const app = express();
 app.use((req, res, next) => {
@@ -46,6 +47,7 @@ const tipWidget = new TipWidgetModule(wss);
 const tipGoal = new TipGoalModule(wss);
 const chat = new ChatModule(wss);
 const externalNotifications = new ExternalNotifications(wss);
+const languageConfig = new LanguageConfig();
 
 function setupWebSocketListeners() {
     wss.removeAllListeners('tip');
@@ -173,7 +175,10 @@ app.post('/api/last-tip', (req, res) => {
     }
     
     const result = lastTip.updateWalletAddress(walletAddress);
-    res.json(result);
+    res.json({
+      success: true,
+      ...result
+    });
   } catch (error) {
     console.error('Error updating wallet address:', error);
     res.status(500).json({ 
@@ -192,7 +197,10 @@ app.post('/api/tip-goal', (req, res) => {
     }
     
     const result = tipGoal.updateGoal(goalAmount, startingAmount);
-    res.json(result);
+    res.json({
+      success: true,
+      ...result
+    });
   } catch (error) {
     console.error('Error updating tip goal:', error);
     res.status(500).json({ 
@@ -443,6 +451,37 @@ app.post('/api/test-discord', express.json(), async (req, res) => {
       timestamp: new Date().toISOString()
     });
     res.json({ success });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/language', (req, res) => {
+  try {
+    const currentLanguage = languageConfig.getLanguage();
+    const availableLanguages = languageConfig.getAvailableLanguages();
+    res.json({ 
+      currentLanguage, 
+      availableLanguages 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/language', express.json(), (req, res) => {
+  try {
+    const { language } = req.body;
+    if (!language || !languageConfig.getAvailableLanguages().includes(language)) {
+      return res.status(400).json({ error: 'Invalid language' });
+    }
+    
+    const success = languageConfig.setLanguage(language);
+    if (success) {
+      res.json({ success: true, language });
+    } else {
+      res.status(500).json({ error: 'Failed to save language setting' });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

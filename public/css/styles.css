@@ -362,3 +362,65 @@ body {
     border-radius: 3px;
     font-family: 'Courier New', monospace;
 }
+
+#user-menu-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+#user-menu-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#user-menu {
+    background: #0f1214;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+#user-menu .py-1 {
+    padding: 0.5rem 0;
+}
+
+#user-menu a {
+    display: block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+#user-menu a:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#user-menu .border-t {
+    border-top: 1px solid #21262d;
+    margin: 0.25rem 0;
+}
+
+.language-selector {
+    background: #05080c;
+    border: 1px solid #21262d;
+    border-radius: 4px;
+    color: #e6edf3;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.language-selector:focus {
+    outline: none;
+    border-color: #9eb474;
+    box-shadow: 0 0 0 2px rgba(158, 180, 116, 0.2);
+}
+
+.language-selector option {
+    background: #05080c;
+    color: #e6edf3;
+}

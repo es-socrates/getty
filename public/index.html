@@ -4,13 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Getty</title>
-    <meta name="description" content="App for Odysee streamers to manage tips, goals, and chat.">
+    <meta property="og:title" content="Getty" />
+    <meta property="og:site_name" content="Getty"/>
+    <meta name="description" content="App widget for Odysee streamers to manage tips, goals, and chat.">
     <link rel="shortcut icon" href="/assets/getty-fav.png" />
     <link href="/css/output.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/admin.css">
     <link rel="stylesheet" href="/widgets/tip-notification.css">
     <link rel="stylesheet" href="/widgets/tip-goal.css">
     <link rel="stylesheet" href="/widgets/chat.css">
+    <script src="/js/languages.js"></script>
 </head>
 <body class="bg-background text-gray-100 font-sans">
 <div class="max-w-7xl mx-auto p-6">
@@ -20,25 +23,46 @@
                 <img src="/assets/getty.png" alt="Getty Logo" class="h-10">
             </a>
         </div>
-        <div class="flex items-center gap-2">
-            <nav>
-                <a href="/admin.html" class="text-white font-bold" target="_blank">Go to admin</a>
-            </nav>
+        <div class="flex items-center gap-4">
             <div class="connection-status">
               <span class="status-dot disconnected"></span>
+            </div>
+            
+            <div class="relative">
+                <button id="user-menu-button" class="flex items-center gap-2 text-white hover:text-primary-200 transition-colors">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+                    </svg>
+                </button>
+                
+                <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 z-50">
+                    <div class="py-1">
+                        <a href="/admin.html" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="settings">
+                            Settings
+                        </a>
+                        <div class="border-t border-border my-1"></div>
+                        <div class="px-4 py-2">
+                            <label for="language-selector" class="block text-sm text-gray-300 mb-1" data-i18n="language">Language</label>
+                            <select id="language-selector" class="language-selector w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white">
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
         
     <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
         <section class="bg-card rounded-lg shadow-lg overflow-hidden flex flex-col">
-            <h2 class="px-6 pt-4 text-2xl font-semibold">Last tip</h2>
+            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="lastTipTitle">Last tip</h2>
             <div class="p-3 flex-1 flex flex-col justify-center">
                 <div id="last-donation" class="last-donation">
                     <div class="last-donation-content">
                         <div class="notification-icon">❤️</div>
                         <div class="notification-text">
-                            <div class="notification-title">Loading...</div>
+                            <div class="notification-title" data-i18n="loading">Loading...</div>
                             <div class="notification-amount">
                                 <div class="amount-container">
                                     <span class="ar-amount">--</span>
@@ -46,7 +70,7 @@
                                 </div>
                                 <div class="usd-value"></div>
                             </div>
-                            <div class="notification-from">Connecting to the wallet...</div>
+                            <div class="notification-from" data-i18n="connectingToWallet">Connecting to the wallet...</div>
                         </div>
                     </div>
                 </div>
@@ -54,7 +78,7 @@
         </section>
         
         <section class="bg-card rounded-lg shadow-lg overflow-hidden flex flex-col">
-            <h2 class="px-6 pt-4 text-2xl font-semibold">Monthly Goal</h2>
+            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="monthlyGoalTitle">Monthly Goal</h2>
             <div class="p-3 flex-1 flex flex-col justify-center">
                 <div id="goal-widget" class="p-4">
                     <div class="goal-container"></div>
@@ -63,14 +87,14 @@
         </section>
 
         <section class="bg-card rounded-lg shadow-lg overflow-hidden flex flex-col">
-            <h2 class="px-6 pt-4 text-2xl font-semibold">Notifications</h2>
+            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="notificationsTitle">Notifications</h2>
             <div class="p-3 flex-1 flex flex-col justify-center">
                 <div id="notification" class="mb-2"></div>
             </div>
         </section>
 
         <section class="bg-chat rounded-lg shadow-lg overflow-hidden flex flex-col h-[450px]">
-            <h2 class="px-6 pt-4 text-2xl font-semibold">Live Chat</h2>
+            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="liveChatTitle">Live Chat</h2>
             <div class="p-3 flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
                 <div id="chat-container"></div>
             </div>
@@ -81,14 +105,14 @@
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex flex-col md:flex-row justify-between items-center">
             <div class="mb-4 md:mb-0">
-                <p class="font-bold">© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
+                <p class="font-bold" data-i18n="copyright">© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
             </div>
             <div class="flex space-x-4">
                 <a href="https://odysee.com" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Odysee</a>
                 <span>-</span>
                 <a href="https://github.com/es-socrates/getty" target="_blank" class="hover:text-primary-200 transition-colors font-bold">GitHub</a>
                 <span>-</span>
-                <p class="font-bold">This is an independent project; it is not an official Odysee product.</p>
+                <p class="font-bold" data-i18n="independentProject">Made with love for Odysee ❤️.</p>
             </div>
         </div>
     </div>
@@ -98,5 +122,29 @@
 <script src="/js/tip-goal.js"></script>
 <script src="/js/chat.js"></script>
 <script src="/js/app.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenu = document.getElementById('user-menu');
+        
+        userMenuButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userMenu.classList.toggle('opacity-0');
+            userMenu.classList.toggle('invisible');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
+                userMenu.classList.add('opacity-0', 'invisible');
+            }
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                userMenu.classList.add('opacity-0', 'invisible');
+            }
+        });
+    });
+</script>
 </body>
 </html>

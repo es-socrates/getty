@@ -583,3 +583,61 @@ input:checked + .slider:before {
         justify-content: center;
     }
 }
+
+#user-menu-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+#user-menu-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#user-menu {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+#user-menu a {
+    display: block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+#user-menu a:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#user-menu .border-t {
+    border-top: 1px solid var(--border-color);
+    margin: 0.25rem 0;
+}
+
+.language-selector {
+    background: var(--darker-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-color);
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    transition: var(--transition);
+}
+
+.language-selector:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(158, 180, 116, 0.2);
+}
+
+.language-selector option {
+    background: var(--darker-bg);
+    color: var(--text-color);
+}
