@@ -12,7 +12,7 @@
     "build": "npx tailwindcss -i ./src/input.css -o ./public/css/output.css --minify"
   },
   "dependencies": {
-    "@untitledui/icons": "^0.0.17",
+    "@untitledui/icons": "^0.0.19",
     "arweave": "^1.15.7",
     "axios": "^1.6.2",
     "dotenv": "^17.2.0",
