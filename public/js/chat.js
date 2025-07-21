@@ -134,12 +134,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const userContainer = document.createElement('div');
         userContainer.className = 'message-user-container';
 
-        const username = msg.channelTitle || 'Anonymous';
+        const username = (msg.channelTitle || 'Anonymous');
+        const displayUsername = username.length > 12 ? username.slice(0, 12) + '…' : username;
         const style = getCyberpunkStyle(username);
 
         const usernameElement = document.createElement('span');
         usernameElement.className = 'message-username cyberpunk';
-        usernameElement.textContent = username + '';
+        usernameElement.textContent = displayUsername + '';
 
         const membershipIcons = [
             'crown', 'star', 'diamond', 'heart', 'rocket',
