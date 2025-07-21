@@ -17,7 +17,7 @@ body {
 }
 
 #goal-widget.tip-goal-widget {
-  border-left: 8px solid #00ff7f !important;
+  border-left: 8px solid #00ff7f;
 }
 
 .goal-container {
@@ -51,7 +51,7 @@ body {
 }
 
 .tip-goal-widget .current-ar {
-  color: #00ff7f !important;
+  color: #00ff7f;
 }
 
 .goal-ar {
@@ -86,17 +86,17 @@ body {
 }
 
 .progress-container:not(.reached-goal) .progress-bar {
-  background: linear-gradient(90deg, #9eb474, #657b39) !important;
-  animation: none !important;
+  background: linear-gradient(90deg, #9eb474, #657b39);
+  animation: none;
 }
 
 .tip-goal-widget .progress-container:not(.reached-goal) .progress-bar {
-  background: linear-gradient(90deg, #00ff7f, #00cc66) !important;
+  background: linear-gradient(90deg, #00ff7f, #00cc66);
 }
 
 .progress-container.reached-goal .progress-bar {
-  background: linear-gradient(90deg, #1c5928, #34d755) !important;
-  animation: celebration-pulse 3s ease-in-out infinite !important;
+  background: linear-gradient(90deg, #1c5928, #34d755);
+  animation: celebration-pulse 3s ease-in-out infinite;
 }
 
 @keyframes celebration-pulse {
@@ -109,7 +109,7 @@ body {
 }
 
 .progress-container.reached-goal .progress-text {
-  color: #f1f1f1 !important;
+  color: #f1f1f1;
   font-weight: 800;
   animation: text-glow 2s ease-in-out infinite alternate;
 }
@@ -185,19 +185,19 @@ body {
 }
 
 .celebrating {
-  border-left: 8px solid #34d755 !important;
+  border-left: 8px solid #34d755;
 }
 
 #goal-widget:not(.celebrating) {
-  border-left: 8px solid #9eb474 !important;
+  border-left: 8px solid #9eb474;
 }
 
 #goal-widget.tip-goal-widget.celebrating {
-  border-left: 8px solid #34d755 !important;
+  border-left: 8px solid #34d755;
 }
 
 #goal-widget.tip-goal-widget:not(.celebrating) {
-  border-left: 8px solid #00ff7f !important;
+  border-left: 8px solid #00ff7f;
 }
 
 @keyframes confetti-fall {

@@ -67,6 +67,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const isOBSWidget = window.location.pathname.includes('/widgets/');
+    let lastTipColors = {};
+
+    function applyCustomColors(customColors = {}) {
+        if (!isOBSWidget) return;
+        const colors = { ...customColors, ...lastTipColors };
+
+        lastDonationElement.style.setProperty('background', colors.bgColor || '#080c10', 'important');
+        lastDonationElement.style.setProperty('border-left', `8px solid ${colors.borderColor || '#00ff7f'}`, 'important');
+        lastDonationElement.style.setProperty('color', colors.fontColor || '#ffffff', 'important');
+
+        const amount = document.querySelector('.notification-amount');
+        if (amount) amount.style.setProperty('color', colors.amountColor || '#00ff7f', 'important');
+        const arAmount = document.querySelector('.ar-amount');
+        if (arAmount) arAmount.style.setProperty('color', colors.amountColor || '#00ff7f', 'important');
+
+        const icon = document.querySelector('.notification-icon');
+        if (icon) icon.style.setProperty('color', colors.iconColor || '#ca004b', 'important');
+
+        const from = document.querySelector('.notification-from');
+        if (from) from.style.setProperty('color', colors.fromColor || '#e9e9e9', 'important');
+    }
+
+    async function loadColors() {
+        if (!isOBSWidget) return;
+        try {
+            const res = await fetch('/api/modules');
+            const data = await res.json();
+            if (data.lastTip) {
+                lastTipColors = {
+                    bgColor: data.lastTip.bgColor,
+                    fontColor: data.lastTip.fontColor,
+                    borderColor: data.lastTip.borderColor,
+                    amountColor: data.lastTip.amountColor,
+                    iconColor: data.lastTip.iconColor,
+                    fromColor: data.lastTip.fromColor
+                };
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function applyCustomColorsAfterUI() {
+        applyCustomColors();
+    }
+
     const updateUI = async (data) => {
         if (!data) {
             titleElement.textContent = 'No tips yet. Send one! 💸';
@@ -74,10 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
             symbolElement.textContent = 'AR';
             usdValueElement.textContent = '';
             if (fromElement) fromElement.textContent = 'Send your first tip';
+            applyCustomColors();
             return;
         }
         
         await updateExchangeRate();
+        await loadColors();
         
         const formattedAmount = formatArAmount(data.amount);
         const usdValue = calculateUsdValue(data.amount);
@@ -94,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDonationElement.classList.remove('update-animation');
         void lastDonationElement.offsetWidth;
         lastDonationElement.classList.add('update-animation');
+        applyCustomColors(data);
     };
 
     const loadInitialData = async () => {
@@ -103,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = JSON.parse(text);
                 await updateExchangeRate();
+                await loadColors();
                 updateUI(data);
             } catch (jsonError) {
                 console.error('The response is not valid JSON:', text);
@@ -114,8 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
         console.log('✅ Connected to the WebSocket server');
+        await loadColors();
         loadInitialData();
     };
     
@@ -124,7 +174,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const msg = JSON.parse(event.data);
             if (msg.type === 'tip' || msg.type === 'lastTip') {
                 await updateExchangeRate();
-                updateUI(msg.data);
+                await loadColors();
+                updateUI({ ...msg.data, ...lastTipColors });
             }
         } catch (error) {
             console.error('Error processing message:', error);

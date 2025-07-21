@@ -13,6 +13,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentData = null;
     let hasReachedGoal = false;
 
+    const isOBSWidget = window.location.pathname.includes('/widgets/');
+    let tipGoalColors = {};
+
+    async function loadColors() {
+        if (!isOBSWidget) return;
+        try {
+            const res = await fetch('/api/modules');
+            const data = await res.json();
+            if (data.tipGoal) {
+                tipGoalColors = {
+                    bgColor: data.tipGoal.bgColor,
+                    fontColor: data.tipGoal.fontColor,
+                    borderColor: data.tipGoal.borderColor,
+                    progressColor: data.tipGoal.progressColor
+                };
+            }
+        } catch (e) { /* ignore */ }
+    }
+
     function resetCelebrationState() {
         try {
             localStorage.removeItem('tipGoalCelebration');
@@ -81,6 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .then(data => {
                 if (data.tipGoal) {
+                    tipGoalColors = {
+                        bgColor: data.tipGoal.bgColor,
+                        fontColor: data.tipGoal.fontColor,
+                        borderColor: data.tipGoal.borderColor,
+                        progressColor: data.tipGoal.progressColor
+                    };
                     currentData = processTipData(data.tipGoal);
                     hasReachedGoal = currentData.progress >= 100;
                     updateGoalDisplay(currentData);
@@ -109,7 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
             rate: data.exchangeRate || data.rate || 0,
             usdValue: ((data.currentTips || data.current || 0) * (data.exchangeRate || data.rate || 0)).toFixed(2),
             goalUsd: ((data.monthlyGoal || data.goal || 10) * (data.exchangeRate || data.rate || 0)).toFixed(2),
-            lastDonation: data.lastDonationTimestamp || data.lastDonation
+            lastDonation: data.lastDonationTimestamp || data.lastDonation,
+            bgColor: data.bgColor,
+            fontColor: data.fontColor,
+            borderColor: data.borderColor,
+            progressColor: data.progressColor
         };
     }
 
@@ -117,9 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         ws = new WebSocket(`${protocol}//${window.location.host}`);
 
-        ws.onopen = () => {
-            console.log('✅ Connected to the tip goal server');
-            reconnectAttempts = 0;
+        ws.onopen = async () => {
+            console.log('✅ Connected to the WebSocket server');
+            await loadColors();
+            loadInitialData();
         };
 
         ws.onmessage = (event) => {
@@ -127,7 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const msg = JSON.parse(event.data);
                 console.debug('WebSocket message received:', msg);
 
-                if (msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') {
+                if ((msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') && msg.data) {
+
+                    msg.data = { ...msg.data, ...tipGoalColors };
                     const previousProgress = currentData ? currentData.progress : 0;
                     currentData = processTipData(msg.data);
                     const newProgress = currentData.progress;
@@ -143,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     updateGoalDisplay(currentData);
                 } else if (msg.type === 'init' && msg.data?.tipGoal) {
+
+                    msg.data.tipGoal = { ...msg.data.tipGoal, ...tipGoalColors };
                     currentData = processTipData(msg.data.tipGoal);
                     hasReachedGoal = currentData.progress >= 100;
                     updateGoalDisplay(currentData);
@@ -173,9 +207,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const bgColor = data.bgColor || '#222222';
+        const fontColor = data.fontColor || '#ffffff';
+        const borderColor = data.borderColor || '#ffcc00';
+        const progressColor = data.progressColor || '#00ff00';
         const progressPercentage = data.progress || 0;
         const currentUSD = data.usdValue || "0.00";
-        const goalUSD = data.goalUsd || "0.00";
+        // const goalUSD = data.goalUsd || "0.00";
         const currentAR = data.current ? data.current.toFixed(2) : "0.00";
         const goalAR = data.goal || 10;
         const wasCelebrating = goalWidget.classList.contains('celebrating');
@@ -203,14 +241,51 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         goalWidget.className = existingClasses;
-        
-        if (reachedGoal) {
-            const progressBar = goalWidget.querySelector('.progress-bar');
-            if (progressBar) {
-                progressBar.style.background = 'linear-gradient(90deg, #1c5928, #34d755)';
+
+        if (isOBSWidget) {
+            goalWidget.style.setProperty('background', bgColor, 'important');
+            goalWidget.style.setProperty('border-left', `8px solid ${borderColor}`, 'important');
+            goalWidget.style.setProperty('color', fontColor, 'important');
+        }
+
+        const container = goalWidget.querySelector('.goal-container');
+        if (container && isOBSWidget) {
+            container.style.setProperty('background', bgColor, 'important');
+            container.style.setProperty('color', fontColor, 'important');
+        }
+        const title = goalWidget.querySelector('.goal-title');
+        if (title && isOBSWidget) {
+            title.style.setProperty('color', fontColor, 'important');
+        }
+        const currentAr = goalWidget.querySelector('.current-ar');
+        if (currentAr && isOBSWidget) {
+            currentAr.style.setProperty('color', progressColor, 'important');
+        }
+        const goalAr = goalWidget.querySelector('.goal-ar');
+        if (goalAr && isOBSWidget) {
+            goalAr.style.setProperty('color', fontColor, 'important');
+        }
+        const usdValue = goalWidget.querySelector('.usd-value');
+        if (usdValue && isOBSWidget) {
+            usdValue.style.setProperty('color', fontColor, 'important');
+        }
+        const progressContainer = goalWidget.querySelector('.progress-container');
+        if (progressContainer && isOBSWidget) {
+            progressContainer.style.setProperty('background', 'rgba(35,38,47,0.31)', 'important');
+        }
+        const progressBar = goalWidget.querySelector('.progress-bar');
+        if (progressBar && isOBSWidget) {
+            if (reachedGoal) {
+                progressBar.style.setProperty('background', 'linear-gradient(90deg, #1c5928, #34d755)', 'important');
+            } else {
+                progressBar.style.setProperty('background', progressColor, 'important');
             }
         }
-        
+        const progressText = goalWidget.querySelector('.progress-text');
+        if (progressText && isOBSWidget) {
+            progressText.style.setProperty('color', fontColor, 'important');
+        }
+
         if (reachedGoal) {
             if (!wasCelebrating) {
                 createConfetti(goalWidget, 100);
@@ -232,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     goalWidget.classList.add('goal-widget');
     
-    const isOBSWidget = window.location.pathname.includes('/widgets/');
     if (isOBSWidget) {
         goalWidget.classList.add('tip-goal-widget');
     }
