@@ -3,3 +3,9 @@ public/css/output.css
 .env
 .DS_Store
 *.log
+chat-config.json
+external-notifications-config.json
+language-settings.json
+last-tip-config.json
+tip-goal-config.json
+tts-settings.json
