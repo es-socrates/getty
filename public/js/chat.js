@@ -102,6 +102,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const text = messageEl.querySelector('.message-text-inline');
             setIfCustom(text, 'color', chatColors.textColor, '#e6edf3');
         });
+
+        if (isHorizontal) {
+            chatContainer.scrollLeft = chatContainer.scrollWidth;
+        }
     };
 
     async function applyChatColors() {
@@ -283,4 +287,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     chatContainer.addEventListener('scroll', () => {
         isAutoScroll = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight;
     });
+
+    const isHorizontal = window.location.search.includes('horizontal=1') || window.location.hash.includes('horizontal');
+    if (isHorizontal) {
+        chatContainer.classList.add('horizontal-chat');
+    }
 });

@@ -21,7 +21,7 @@
     </div>
     <nav class="flex items-center gap-4">
         <div class="relative">
-            <button id="user-menu-button" class="flex items-center gap-2 text-white hover:text-primary-200 transition-colors">
+            <button id="user-menu-button" class="flex items-center gap-2 text-white">
                 <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
                 </svg>
@@ -413,6 +413,19 @@
                             </button>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label data-i18n="chatWidgetUrlHorizontal"></label>
+                        <span data-i18n="chatWidgetUrlHorizontalHelp" style="display:block;font-size:12px;color:#aaa;"></span>
+                        <div class="input-group">
+                            <input type="text" id="obs-chat-horizontal-url" readonly>
+                            <button class="copy-btn" onclick="copyToClipboard('obs-chat-horizontal-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                <span data-i18n="copy"></span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -499,6 +512,7 @@
         document.getElementById('tip-goal-url').value = `${baseUrl}/widgets/tip-goal`;
         document.getElementById('tip-notification-url').value = `${baseUrl}/widgets/tip-notification`;
         document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
+        document.getElementById('obs-chat-horizontal-url').value = `${baseUrl}/widgets/chat?horizontal=1`;
     });
 
     function copyToClipboard(elementId) {
