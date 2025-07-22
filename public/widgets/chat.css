@@ -385,3 +385,127 @@ body {
 .message.has-donation .message-text-inline {
     color: #111 !important;
 }
+
+.horizontal-chat#chat-container {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 40px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    z-index: 1000;
+}
+.horizontal-chat#chat-container::-webkit-scrollbar {
+    height: 6px;
+}
+.horizontal-chat#chat-container::-webkit-scrollbar-track {
+    background: #1f1f23;
+}
+.horizontal-chat#chat-container::-webkit-scrollbar-thumb {
+    background: #3a3a3d;
+    border-radius: 3px;
+}
+.horizontal-chat .message {
+    background-color: rgb(13, 15, 17);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    white-space: normal;
+    height: 28px;
+    margin-right: 8px;
+    animation: fadeIn 0.3s ease-in;
+    box-shadow: none;
+}
+.horizontal-chat .message:last-child {
+    margin-right: 0;
+}
+.horizontal-chat .message-header {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    margin: 0;
+    padding: 0;
+}
+.horizontal-chat .message-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #21262d;
+    margin-right: 6px;
+    margin-bottom: 0;
+}
+.horizontal-chat .message-avatar img {
+    width: 20px;
+    height: 20px;
+    object-fit: cover;
+}
+.horizontal-chat .message-user-container {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    margin: 0;
+    width: auto;
+}
+.horizontal-chat .message-username.cyberpunk {
+    font-weight: bold;
+    margin-right: 4px;
+    white-space: nowrap;
+    background: none;
+    color: #fff;
+    text-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: 13px;
+}
+.horizontal-chat .message-text-inline {
+    display: inline;
+    font-size: 13px;
+    color: #fff;
+    font-weight: 400;
+    margin: 0;
+    line-height: 1.1;
+}
+.horizontal-chat .membership-icon {
+    width: 14px;
+    height: 14px;
+    margin-right: 3px;
+    vertical-align: middle;
+    display: inline-block;
+    position: relative;
+    top: 0;
+}
+.horizontal-chat .message-donation {
+    background: #ddb826;
+    color: #131313;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 12px;
+    margin-left: 6px;
+    align-self: center;
+    position: static;
+}
+.horizontal-chat .message-sticker-container {
+    margin-left: 4px;
+    margin-top: 0;
+    padding: 0;
+    display: inline-block;
+}
+.horizontal-chat .comment-emoji, .horizontal-chat .message-content .comment-emoji {
+    max-width: 14px;
+    margin: 0 1px;
+    vertical-align: middle;
+}
+.horizontal-chat .comment-sticker {
+    max-width: 18px;
+    max-height: 18px;
+    margin: 0 1px;
+    vertical-align: middle;
+}

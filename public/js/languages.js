@@ -76,7 +76,9 @@ const languages = {
         colorMsgUsername: "Username",
         colorMsgUsernameBg: "User background",
         colorMsgDonation: "Tip text",
-        colorMsgDonationBg: "Background Tip"
+        colorMsgDonationBg: "Background Tip",
+        chatWidgetUrlHorizontal: "Chat Widget URL (Horizontal)",
+        chatWidgetUrlHorizontalHelp: "Same widget, but in landscape mode. Use this URL if you want messages to display from right to left."
     },
     
     es: {
@@ -156,7 +158,9 @@ const languages = {
         colorMsgUsername: "Nombre de usuario",
         colorMsgUsernameBg: "Fondo de usuario",
         colorMsgDonation: "Texto de propina",
-        colorMsgDonationBg: "Fondo de propina"
+        colorMsgDonationBg: "Fondo de propina",
+        chatWidgetUrlHorizontal: "URL del Widget de Chat (Horizontal)",
+        chatWidgetUrlHorizontalHelp: "Mismo widget, pero en modo horizontal. Usa esta URL si quieres que los mensajes se muestren de derecha a izquierda."
     }
 };
 
