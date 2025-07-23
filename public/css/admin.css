@@ -57,7 +57,6 @@ body {
     gap: 1rem;
 }
 
-
 .admin-header h1 {
     font-size: 1.5rem;
     font-weight: 600;
@@ -274,9 +273,10 @@ body {
     color: var(--text-color);
 }
 
-.form-group input, 
+.form-group input:not([type="radio"]):not([type="checkbox"]), 
 .form-group textarea,
 .form-group select {
+    max-width: 480px;
     width: 100%;
     padding: 0.75rem;
     background: var(--darker-bg);
@@ -285,6 +285,13 @@ body {
     color: var(--text-color);
     font-family: 'Inter', sans-serif;
     transition: var(--transition);
+}
+
+.form-group input[type="radio"],
+.form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+    accent-color: var(--primary-color);
 }
 
 .form-group input:focus, 
@@ -519,71 +526,6 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
-@media (max-width: 768px) {
-    .admin-layout {
-        flex-direction: column;
-    }
-    
-    .admin-sidebar {
-        width: 100%;
-        padding: 1rem 0;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .sidebar-nav {
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 0 1rem;
-    }
-    
-    .sidebar-link {
-        padding: 0.5rem 1rem;
-        white-space: nowrap;
-    }
-    
-    .sidebar-link.active {
-        border-left: none;
-        border-bottom: 3px solid var(--primary-color);
-    }
-    
-    .admin-main {
-        padding: 1.5rem;
-    }
-    
-    .status-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .footer-content {
-        flex-direction: column;
-        gap: 0.5rem;
-        text-align: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .status-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .admin-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 1rem;
-    }
-    
-    .input-group {
-        flex-direction: column;
-    }
-    
-    .copy-btn {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
 #user-menu-button {
     background: none;
     border: none;
@@ -642,62 +584,403 @@ input:checked + .slider:before {
     color: var(--text-color);
 }
 
-.color-settings-card {
-  background: #181c22;
-  border-radius: 8px;
-  padding: 18px 18px 10px 18px;
-  margin-bottom: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+/* Color picker styles */
+.color-settings {
+    background: #181c22;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
 }
+
 .color-settings-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
 }
+
+.color-settings-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0;
+}
+
 .reset-colors-btn {
-  background: #23272f;
-  color: #00ff7f;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+    background: #23272f;
+    color: var(--secondary-color);
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
+
 .reset-colors-btn:hover {
-  background: #00ff7f;
-  color: #181c22;
+    background: var(--primary-color);
+    color: #fff;
 }
-.color-pickers-row {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 10px;
+
+.reset-colors-btn svg {
+    width: 14px;
+    height: 14px;
 }
-.color-picker-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
 }
-.color-picker-group label {
-  min-width: 60px;
-  font-size: 14px;
-  color: #cfd8dc;
+
+.color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
-.color-picker-group input[type="color"] {
-  width: 50px;
-  height: 50px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+
+.color-picker label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
 }
-.color-hex {
-  font-size: 13px;
-  color: #8be9fd;
-  background: #23272f;
-  border-radius: 4px;
-  padding: 2px 8px;
-  margin-left: 2px;
+
+.color-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.color-input-wrapper input[type="color"] {
+    width: 40px;
+    height: 40px;
+    border: none;
+    /* border-radius: 4px; */
+    cursor: pointer;
+    padding: 0;
+    background: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.color-input-wrapper input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+}
+
+.color-input-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
+    border: none;
+    border-radius: 4px;
+    padding: 0;
+}
+
+.color-value {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: var(--text-color);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    flex: 1;
+}
+
+/* Audio upload styles */
+.audio-source-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.radio-option {
+    position: relative;
+}
+
+.radio-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.radio-option label {
+    display: block;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--darker-bg);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.radio-option input[type="radio"]:checked + label {
+    border-color: var(--primary-color);
+    background: rgba(158, 180, 116, 0.1);
+}
+
+.radio-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: var(--text-color);
+}
+
+.radio-description {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.audio-upload-container {
+    margin-top: 1rem;
+    display: none;
+}
+
+.file-upload-box {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    transition: var(--transition);
+    margin-bottom: 1rem;
+}
+
+.file-upload-box:hover {
+    border-color: var(--primary-color);
+}
+
+.file-input {
+    display: none;
+}
+
+.upload-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+.upload-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    background: rgba(158, 180, 116, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
+.upload-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--primary-color);
+}
+
+.upload-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.upload-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-color);
+}
+
+.upload-instructions {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.upload-requirements {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 0.5rem 0 0;
+}
+
+.audio-preview {
+    display: none;
+    background: var(--darker-bg);
+    border-radius: 8px;
+    padding: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--border-color);
+}
+
+.audio-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.audio-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(158, 180, 116, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-icon svg {
+    width: 20px;
+    height: 20px;
+    color: var(--primary-color);
+}
+
+.audio-details {
+    flex: 1;
+}
+
+.audio-name {
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.audio-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.audio-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.audio-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.audio-action-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.play-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.play-btn:hover {
+    background: var(--primary-hover);
+}
+
+.remove-btn {
+    background: var(--error-color);
+    color: white;
+}
+
+.remove-btn:hover {
+    background: #cc4444;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .admin-layout {
+        flex-direction: column;
+    }
+    
+    .admin-sidebar {
+        width: 100%;
+        padding: 1rem 0;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .sidebar-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 0 1rem;
+    }
+    
+    .sidebar-link {
+        padding: 0.5rem 1rem;
+        white-space: nowrap;
+    }
+    
+    .sidebar-link.active {
+        border-left: none;
+        border-bottom: 3px solid var(--primary-color);
+    }
+    
+    .admin-main {
+        padding: 1.5rem;
+    }
+    
+    .status-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .color-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .footer-content {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .status-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .color-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    
+    .input-group {
+        flex-direction: column;
+    }
+    
+    .copy-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .audio-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .audio-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }

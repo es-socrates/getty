@@ -13,35 +13,35 @@
 </head>
 <body>
 <div class="admin-container">
-<header class="admin-header">
-    <div class="header-content">
-        <a href="/" class="logo-link">
-            <img src="/assets/getty.png" alt="Getty Logo" class="logo">
-        </a>
-    </div>
-    <nav class="flex items-center gap-4">
-        <div class="relative">
-            <button id="user-menu-button" class="flex items-center gap-2 text-white">
-                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
-                </svg>
-            </button>
-            
-            <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 z-50">
-                <div class="py-1">
-                    <a href="/" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="goToHome"></a>
-                    <div class="px-4 py-2">
-                        <label for="language-selector" class="block text-sm text-gray-300 mb-1" data-i18n="language"></label>
-                        <select id="language-selector" class="language-selector w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white">
-                            <option value="en" data-i18n="english"></option>
-                            <option value="es" data-i18n="spanish"></option>
-                        </select>
+    <header class="admin-header">
+        <div class="header-content">
+            <a href="/" class="logo-link">
+                <img src="/assets/getty.png" alt="Getty Logo" class="logo">
+            </a>
+        </div>
+        <nav class="flex items-center gap-4">
+            <div class="relative">
+                <button id="user-menu-button" class="flex items-center gap-2 text-white">
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
+                    </svg>
+                </button>
+                
+                <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 z-50">
+                    <div class="py-1">
+                        <a href="/" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="goToHome"></a>
+                        <div class="px-4 py-2">
+                            <label for="language-selector" class="block text-sm text-gray-300 mb-1" data-i18n="language"></label>
+                            <select id="language-selector" class="language-selector w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white">
+                                <option value="en" data-i18n="english"></option>
+                                <option value="es" data-i18n="spanish"></option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </nav>
-</header>
+        </nav>
+    </header>
 
     <div class="admin-layout">
         <aside class="admin-sidebar">
@@ -151,50 +151,64 @@
                         <label for="wallet-address" data-i18n="arWalletAddress"></label>
                         <input type="text" id="wallet-address" value="<%= WALLET_ADDRESS %>">
                     </div>
-                    <div class="form-card">
-                        <div class="color-settings-card">
-                            <div class="color-settings-header">
-                                <strong data-i18n="colorCustomizationTitle"></strong>
-                                <button type="button" id="reset-last-tip-colors" class="reset-colors-btn" data-i18n="resetColors"></button>
-                            </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="last-tip-bg-color" data-i18n="colorBg"></label>
+                    
+                    <div class="color-settings">
+                        <div class="color-settings-header">
+                            <h3 class="color-settings-title" data-i18n="colorCustomizationTitle"></h3>
+                            <button type="button" id="reset-last-tip-colors" class="reset-colors-btn" data-i18n="resetColors"></button>
+                        </div>
+                        
+                        <div class="color-grid">
+                            <div class="color-picker">
+                                <label for="last-tip-bg-color" data-i18n="colorBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-bg-color" value="#080c10">
-                                    <span class="color-hex" id="last-tip-bg-color-hex">#080c10</span>
+                                    <span class="color-value">#080c10</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="last-tip-font-color" data-i18n="colorFont"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="last-tip-font-color" data-i18n="colorFont"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-font-color" value="#ffffff">
-                                    <span class="color-hex" id="last-tip-font-color-hex">#ffffff</span>
+                                    <span class="color-value">#ffffff</span>
                                 </div>
                             </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="last-tip-border-color" data-i18n="colorBorder"></label>
+                            
+                            <div class="color-picker">
+                                <label for="last-tip-border-color" data-i18n="colorBorder"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-border-color" value="#00ff7f">
-                                    <span class="color-hex" id="last-tip-border-color-hex">#00ff7f</span>
-                                </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="last-tip-amount-color" data-i18n="colorAmount"></label>
-                                    <input type="color" id="last-tip-amount-color" value="#00ff7f">
-                                    <span class="color-hex" id="last-tip-amount-color-hex">#00ff7f</span>
+                                    <span class="color-value">#00ff7f</span>
                                 </div>
                             </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="last-tip-icon-color" data-i18n="colorIcon"></label>
-                                    <input type="color" id="last-tip-icon-color" value="#ca004b">
-                                    <span class="color-hex" id="last-tip-icon-color-hex">#ca004b</span>
+                            
+                            <div class="color-picker">
+                                <label for="last-tip-amount-color" data-i18n="colorAmount"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="last-tip-amount-color" value="#00ff7f">
+                                    <span class="color-value">#00ff7f</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="last-tip-from-color" data-i18n="colorFrom"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="last-tip-icon-color" data-i18n="colorIcon"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="last-tip-icon-color" value="#ca004b">
+                                    <span class="color-value">#ca004b</span>
+                                </div>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="last-tip-from-color" data-i18n="colorFrom"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-from-color" value="#e9e9e9">
-                                    <span class="color-hex" id="last-tip-from-color-hex">#e9e9e9</span>
+                                    <span class="color-value">#e9e9e9</span>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
                     <button class="save-btn" data-module="lastTip">
                         <svg viewBox="0 0 24 24" width="16" height="16">
                             <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
@@ -231,59 +245,68 @@
                         <label for="starting-amount" data-i18n="initialAmount"></label>
                         <input type="number" id="starting-amount" value="0">
                     </div>
-                    <div class="form-card">
-                        <div class="color-settings-card">
-                            <div class="color-settings-header">
-                                <strong data-i18n="colorCustomizationTitle"></strong>
-                                <button type="button" id="reset-tip-goal-colors" class="reset-colors-btn" data-i18n="resetColors"></button>
-                            </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="tip-goal-bg-color" data-i18n="colorBg"></label>
+                    
+                    <div class="color-settings">
+                        <div class="color-settings-header">
+                            <h3 class="color-settings-title" data-i18n="colorCustomizationTitle"></h3>
+                            <button type="button" id="reset-tip-goal-colors" class="reset-colors-btn" data-i18n="resetColors"></button>
+                        </div>
+                        
+                        <div class="color-grid">
+                            <div class="color-picker">
+                                <label for="tip-goal-bg-color" data-i18n="colorBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="tip-goal-bg-color" value="#080c10">
-                                    <span class="color-hex" id="tip-goal-bg-color-hex">#080c10</span>
-                                </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="tip-goal-font-color" data-i18n="colorFont"></label>
-                                    <input type="color" id="tip-goal-font-color" value="#ffffff">
-                                    <span class="color-hex" id="tip-goal-font-color-hex">#ffffff</span>
+                                    <span class="color-value">#080c10</span>
                                 </div>
                             </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="tip-goal-border-color" data-i18n="colorBorder"></label>
-                                    <input type="color" id="tip-goal-border-color" value="#00ff7f">
-                                    <span class="color-hex" id="tip-goal-border-color-hex">#00ff7f</span>
+                            
+                            <div class="color-picker">
+                                <label for="tip-goal-font-color" data-i18n="colorFont"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="tip-goal-font-color" value="#ffffff">
+                                    <span class="color-value">#ffffff</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="tip-goal-progress-color" data-i18n="colorProgress"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="tip-goal-border-color" data-i18n="colorBorder"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="tip-goal-border-color" value="#00ff7f">
+                                    <span class="color-value">#00ff7f</span>
+                                </div>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="tip-goal-progress-color" data-i18n="colorProgress"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="tip-goal-progress-color" value="#00ff7f">
-                                    <span class="color-hex" id="tip-goal-progress-color-hex">#00ff7f</span>
+                                    <span class="color-value">#00ff7f</span>
                                 </div>
                             </div>
                         </div>
-
-                        <button class="save-btn" data-module="tipGoal">
-                            <svg viewBox="0 0 24 24" width="16" height="16">
-                                <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
-                            </svg>
-                            <span data-i18n="saveSettings"></span>
-                        </button>
                     </div>
 
-                    <div class="widget-card">
-                        <h3 class="widget-title" data-i18n="obsIntegration"></h3>
-                        <div class="form-group">
-                            <label data-i18n="tipGoalWidgetUrl"></label>
-                            <div class="input-group">
-                                <input type="text" id="tip-goal-url" readonly>
-                                <button class="copy-btn" onclick="copyToClipboard('tip-goal-url')">
-                                    <svg viewBox="0 0 24 24" width="16" height="16">
-                                        <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
-                                    </svg>
-                                    <span data-i18n="copy">Copy</span>
-                                </button>
-                            </div>
+                    <button class="save-btn" data-module="tipGoal">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                        </svg>
+                        <span data-i18n="saveSettings"></span>
+                    </button>
+                </div>
+
+                <div class="widget-card">
+                    <h3 class="widget-title" data-i18n="obsIntegration"></h3>
+                    <div class="form-group">
+                        <label data-i18n="tipGoalWidgetUrl"></label>
+                        <div class="input-group">
+                            <input type="text" id="tip-goal-url" readonly>
+                            <button class="copy-btn" onclick="copyToClipboard('tip-goal-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                <span data-i18n="copy">Copy</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -322,6 +345,86 @@
                         </div>
                         <small class="form-hint" data-i18n="ttsHint"></small>
                     </div>
+                    
+                    <div class="form-group">
+                        <h4 class="form-section-title" data-i18n="customAudioTitle"></h4>
+                        
+                        <div class="audio-source-selector">
+                            <div class="radio-option">
+                                <input type="radio" id="audio-remote" name="audio-source" value="remote" checked>
+                                <label for="audio-remote">
+                                    <span class="radio-label" data-i18n="useRemoteAudio"></span>
+                                    <span class="radio-description" data-i18n="remoteAudioDescription"></span>
+                                </label>
+                            </div>
+                            
+                            <div class="radio-option">
+                                <input type="radio" id="audio-custom" name="audio-source" value="custom">
+                                <label for="audio-custom">
+                                    <span class="radio-label" data-i18n="useCustomAudio"></span>
+                                    <span class="radio-description" data-i18n="customAudioDescription"></span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="audio-upload-container" id="custom-audio-section">
+                            <div class="file-upload-box">
+                                <input type="file" id="custom-audio-file" accept=".mp3" class="file-input">
+                                <label for="custom-audio-file" class="upload-label">
+                                    <div class="upload-icon-wrapper">
+                                        <svg class="upload-icon" viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                                        </svg>
+                                    </div>
+                                    <div class="upload-text">
+                                        <h5 class="upload-title" data-i18n="uploadAudioTitle"></h5>
+                                        <p class="upload-instructions" data-i18n="uploadAudioInstructions"></p>
+                                        <p class="upload-requirements" data-i18n="uploadAudioRequirements"></p>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <div class="audio-preview" id="audio-preview">
+                                <div class="audio-info">
+                                    <div class="audio-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M3,9V15H7L12,20V4L7,9H3Z" />
+                                        </svg>
+                                    </div>
+                                    <div class="audio-details">
+                                        <div class="audio-name" id="audio-name">custom_notification.mp3</div>
+                                        <div class="audio-meta">
+                                            <span class="audio-size" id="audio-size">850 KB</span>
+                                            <span class="audio-duration" id="audio-duration">0:05</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="audio-actions">
+                                    <button type="button" class="audio-action-btn play-btn" id="play-audio">
+                                        <svg viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                                        </svg>
+                                        <span data-i18n="play"></span>
+                                    </button>
+                                    <button type="button" class="audio-action-btn remove-btn" id="remove-audio">
+                                        <svg viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                                        </svg>
+                                        <span data-i18n="remove"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <small class="form-hint" data-i18n="audioHint"></small>
+                    </div>
+                    
+                    <button class="save-btn" data-module="notifications">
+                        <svg viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                        </svg>
+                        <span data-i18n="saveSettings"></span>
+                    </button>
                 </div>
             </section>
 
@@ -332,65 +435,88 @@
                         <label for="chat-url" data-i18n="chatUrl"></label>
                         <input type="text" id="chat-url" placeholder="wss://sockety.odysee.tv/ws/commentron?id=xxx">
                     </div>
-                    <div class="form-card">
-                        <div class="color-settings-card">
-                            <div class="color-settings-header">
-                                <strong data-i18n="colorCustomizationTitle"></strong>
-                                <button type="button" id="reset-chat-colors" class="reset-colors-btn" data-i18n="resetColors"></button>
-                            </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-bg-color" data-i18n="colorBg"></label>
+                    
+                    <div class="color-settings">
+                        <div class="color-settings-header">
+                            <h3 class="color-settings-title" data-i18n="colorCustomizationTitle"></h3>
+                            <button type="button" id="reset-chat-colors" class="reset-colors-btn" data-i18n="resetColors"></button>
+                        </div>
+                        
+                        <div class="color-grid">
+                            <div class="color-picker">
+                                <label for="chat-bg-color" data-i18n="colorBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-bg-color" value="#080c10">
-                                    <span class="color-hex" id="chat-bg-color-hex">#080c10</span>
+                                    <span class="color-value">#080c10</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-msg-bg-color" data-i18n="colorMsgBg"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="chat-msg-bg-color" data-i18n="colorMsgBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-msg-bg-color" value="#0a0e12">
-                                    <span class="color-hex" id="chat-msg-bg-color-hex">#0a0e12</span>
+                                    <span class="color-value">#0a0e12</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-msg-bg-alt-color" data-i18n="colorMsgAltBg"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="chat-msg-bg-alt-color" data-i18n="colorMsgAltBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-msg-bg-alt-color" value="#0d1114">
-                                    <span class="color-hex" id="chat-msg-bg-alt-color-hex">#0d1114</span>
+                                    <span class="color-value">#0d1114</span>
                                 </div>
                             </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-border-color" data-i18n="colorMsgBorder"></label>
+                            
+                            <div class="color-picker">
+                                <label for="chat-border-color" data-i18n="colorMsgBorder"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-border-color" value="#161b22">
-                                    <span class="color-hex" id="chat-border-color-hex">#161b22</span>
-                                </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-text-color" data-i18n="colorMsgText"></label>
-                                    <input type="color" id="chat-text-color" value="#e6edf3">
-                                    <span class="color-hex" id="chat-text-color-hex">#e6edf3</span>
-                                </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-username-color" data-i18n="colorMsgUsername"></label>
-                                    <input type="color" id="chat-username-color" value="#fff">
-                                    <span class="color-hex" id="chat-username-color-hex">#fff</span>
+                                    <span class="color-value">#161b22</span>
                                 </div>
                             </div>
-                            <div class="color-pickers-row">
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-username-bg-color" data-i18n="colorMsgUsernameBg"></label>
+                            
+                            <div class="color-picker">
+                                <label for="chat-text-color" data-i18n="colorMsgText"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="chat-text-color" value="#e6edf3">
+                                    <span class="color-value">#e6edf3</span>
+                                </div>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="chat-username-color" data-i18n="colorMsgUsername"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="chat-username-color" value="#fff">
+                                    <span class="color-value">#fff</span>
+                                </div>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="chat-username-bg-color" data-i18n="colorMsgUsernameBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-username-bg-color" value="#11ff79">
-                                    <span class="color-hex" id="chat-username-bg-color-hex">#11ff79</span>
+                                    <span class="color-value">#11ff79</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-donation-color" data-i18n="colorMsgDonation"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="chat-donation-color" data-i18n="colorMsgDonation"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-donation-color" value="#1bdf5f">
-                                    <span class="color-hex" id="chat-donation-color-hex">#1bdf5f</span>
+                                    <span class="color-value">#1bdf5f</span>
                                 </div>
-                                <div class="form-group color-picker-group">
-                                    <label for="chat-donation-bg-color" data-i18n="colorMsgDonationBg"></label>
+                            </div>
+                            
+                            <div class="color-picker">
+                                <label for="chat-donation-bg-color" data-i18n="colorMsgDonationBg"></label>
+                                <div class="color-input-wrapper">
                                     <input type="color" id="chat-donation-bg-color" value="#ececec">
-                                    <span class="color-hex" id="chat-donation-bg-color-hex">#ececec</span>
+                                    <span class="color-value">#ececec</span>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
                     <button class="save-btn" data-module="chat">
                         <svg viewBox="0 0 24 24" width="16" height="16">
                             <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
@@ -415,7 +541,7 @@
                     </div>
                     <div class="form-group">
                         <label data-i18n="chatWidgetUrlHorizontal"></label>
-                        <span data-i18n="chatWidgetUrlHorizontalHelp" style="display:block;font-size:12px;color:#aaa;"></span>
+                        <span data-i18n="chatWidgetUrlHorizontalHelp" style="display:block;font-size:12px;color:#aaa;margin-bottom:10px;"></span>
                         <div class="input-group">
                             <input type="text" id="obs-chat-horizontal-url" readonly>
                             <button class="copy-btn" onclick="copyToClipboard('obs-chat-horizontal-url')">
@@ -490,13 +616,11 @@
 <script src="/js/admin.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-
         const tabButtons = document.querySelectorAll('.sidebar-link');
         const tabs = document.querySelectorAll('.admin-tab');
         
         tabButtons.forEach(button => {
             button.addEventListener('click', () => {
-
                 tabButtons.forEach(btn => btn.classList.remove('active'));
                 tabs.forEach(tab => tab.classList.remove('active'));
                 
@@ -513,6 +637,62 @@
         document.getElementById('tip-notification-url').value = `${baseUrl}/widgets/tip-notification`;
         document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
         document.getElementById('obs-chat-horizontal-url').value = `${baseUrl}/widgets/chat?horizontal=1`;
+        
+        const audioRemote = document.getElementById('audio-remote');
+        const audioCustom = document.getElementById('audio-custom');
+        const customAudioSection = document.getElementById('custom-audio-section');
+        const audioPreview = document.getElementById('audio-preview');
+        const audioFileInput = document.getElementById('custom-audio-file');
+        const playBtn = document.getElementById('play-audio');
+        const removeBtn = document.getElementById('remove-audio');
+        
+        audioRemote.addEventListener('change', function() {
+            if(this.checked) {
+                customAudioSection.style.display = 'none';
+            }
+        });
+        
+        audioCustom.addEventListener('change', function() {
+            if(this.checked) {
+                customAudioSection.style.display = 'block';
+            }
+        });
+        
+        audioFileInput.addEventListener('change', function(e) {
+            if(this.files && this.files[0]) {
+                const file = this.files[0];
+                const fileName = file.name;
+                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
+                
+                document.getElementById('audio-name').textContent = fileName;
+                document.getElementById('audio-size').textContent = fileSize;
+                
+                audioPreview.style.display = 'flex';
+            }
+        });
+        
+        removeBtn.addEventListener('click', function() {
+            audioFileInput.value = '';
+            audioPreview.style.display = 'none';
+        });
+        
+        document.querySelectorAll('input[type="color"]').forEach(colorPicker => {
+            colorPicker.addEventListener('input', function() {
+                const hexValue = this.nextElementSibling;
+                hexValue.textContent = this.value;
+            });
+        });
+        
+        document.querySelectorAll('.reset-colors-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const formCard = this.closest('.form-card');
+                formCard.querySelectorAll('input[type="color"]').forEach(colorPicker => {
+                    const defaultValue = colorPicker.getAttribute('value');
+                    colorPicker.value = defaultValue;
+                    colorPicker.nextElementSibling.textContent = defaultValue;
+                });
+            });
+        });
     });
 
     function copyToClipboard(elementId) {
