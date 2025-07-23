@@ -22,7 +22,7 @@ app.use((req, res, next) => {
     res.setHeader(
         'Content-Security-Policy',
         "default-src 'self'; " +
-        "media-src 'self' https://cdn.streamlabs.com; " +
+        "media-src 'self' blob: https://cdn.streamlabs.com; " +
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com; " + 
@@ -437,6 +437,180 @@ app.get('/obs-help', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/obs-integration.html'));
 });
 
+const multer = require('multer');
+const AUDIO_CONFIG_FILE = './audio-settings.json';
+const AUDIO_UPLOADS_DIR = './public/uploads/audio';
+
+if (!fs.existsSync('./public/uploads')) {
+  fs.mkdirSync('./public/uploads', { recursive: true });
+}
+if (!fs.existsSync(AUDIO_UPLOADS_DIR)) {
+  fs.mkdirSync(AUDIO_UPLOADS_DIR, { recursive: true });
+}
+
+const audioStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, AUDIO_UPLOADS_DIR);
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = 'custom-notification-audio.mp3';
+    cb(null, uniqueName);
+  }
+});
+
+const audioUpload = multer({
+  storage: audioStorage,
+  limits: {
+    fileSize: 1024 * 1024
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype === 'audio/mpeg' || file.originalname.toLowerCase().endsWith('.mp3')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only MP3 files are allowed'));
+    }
+  }
+});
+
+function loadAudioSettings() {
+  try {
+    if (fs.existsSync(AUDIO_CONFIG_FILE)) {
+      const settings = JSON.parse(fs.readFileSync(AUDIO_CONFIG_FILE, 'utf8'));
+      return {
+        audioSource: settings.audioSource || 'remote',
+        hasCustomAudio: settings.hasCustomAudio || false,
+        audioFileName: settings.audioFileName || null,
+        audioFileSize: settings.audioFileSize || 0
+      };
+    }
+  } catch (error) {
+    console.error('Error loading audio settings:', error);
+  }
+  return { audioSource: 'remote', hasCustomAudio: false, audioFileName: null, audioFileSize: 0 };
+}
+
+function saveAudioSettings(newSettings) {
+  try {
+    const current = loadAudioSettings();
+    const merged = { ...current, ...newSettings };
+    fs.writeFileSync(AUDIO_CONFIG_FILE, JSON.stringify(merged, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving audio settings:', error);
+    return false;
+  }
+}
+
+app.get('/api/audio-settings', (req, res) => {
+  console.log('=== GET /api/audio-settings REQUEST ===');
+  console.log('Request URL:', req.url);
+  console.log('Request method:', req.method);
+  console.log('=======================================');
+  
+  try {
+    const settings = loadAudioSettings();
+    console.log('Sending audio settings:', settings);
+    res.json(settings);
+  } catch (error) {
+    console.error('Error getting audio settings:', error);
+    res.status(500).json({ error: 'Error al cargar configuración de audio' });
+  }
+});
+
+app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
+  console.log('=== POST /api/audio-settings REQUEST ===');
+  console.log('Request URL:', req.url);
+  console.log('Request method:', req.method);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  console.log('Request file:', req.file);
+  console.log('=========================================');
+  
+  try {
+    const { audioSource } = req.body;
+    
+    if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
+      return res.status(400).json({ error: 'Invalid audio source' });
+    }
+
+    let settings = {
+      audioSource: audioSource
+    };
+
+    if (audioSource === 'custom' && req.file) {
+      settings.hasCustomAudio = true;
+      settings.audioFileName = req.file.originalname;
+      settings.audioFileSize = req.file.size;
+      
+      console.log('Saved custom audio:', {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        size: req.file.size
+      });
+    } else if (audioSource === 'remote') {
+      settings.hasCustomAudio = false;
+      settings.audioFileName = null;
+      settings.audioFileSize = 0;
+      
+      const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
+      if (fs.existsSync(customAudioPath)) {
+        fs.unlinkSync(customAudioPath);
+        console.log('Custom audio removed');
+      }
+    }
+
+    const success = saveAudioSettings(settings);
+    
+    if (success) {
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'audioSettingsUpdate',
+            data: settings
+          }));
+        }
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Audio configuration successfully saved',
+        settings: settings
+      });
+    } else {
+      res.status(500).json({ error: 'Error saving audio configuration' });
+    }
+  } catch (error) {
+    console.error('Error saving audio settings:', error);
+    
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'The file is too large. Maximum 1MB.' });
+    }
+    
+    if (error.message === 'Only MP3 files are allowed') {
+      return res.status(400).json({ error: error.message });
+    }
+    
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/custom-audio', (req, res) => {
+  try {
+    const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
+    
+    if (fs.existsSync(customAudioPath)) {
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.resolve(customAudioPath));
+    } else {
+      res.status(404).json({ error: 'Custom audio not found' });
+    }
+  } catch (error) {
+    console.error('Error serving custom audio:', error);
+    res.status(500).json({ error: 'Error serving custom audio' });
+  }
+});
+
 app.use(express.static('public'));
 
 app.get('/api/modules', (_req, res) => {
@@ -548,4 +722,40 @@ app.post('/api/language', express.json(), (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.post('/api/test-donation', express.json(), (req, res) => {
+    try {
+        const { amount = 5.00, from = 'TestUser', message = 'Test donation!' } = req.body;
+        
+        console.log('🧪 Test donation received:', { amount, from, message });
+        
+        const donationData = {
+            type: 'donation',
+            amount: parseFloat(amount),
+            from: from,
+            message: message,
+            timestamp: new Date().toISOString()
+        };
+        
+        wss.clients.forEach(client => {
+            if (client.readyState === client.OPEN) {
+                client.send(JSON.stringify(donationData));
+            }
+        });
+        
+        res.json({
+            success: true,
+            message: 'Test donation sent successfully',
+            data: donationData
+        });
+        
+    } catch (error) {
+        console.error('Error sending test donation:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to send test donation',
+            details: error.message
+        });
+    }
 });

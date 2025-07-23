@@ -11,13 +11,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ttsLanguage = 'en'; // Global TTS Language
 
     const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
+    
+    let audioSettings = {
+        audioSource: 'remote',
+        hasCustomAudio: false
+    };
 
-    function playRemoteSound() {
-        const audio = new Audio(REMOTE_SOUND_URL);
-        audio.volume = 0.4;
+    function playNotificationSound() {
+        let audioUrl;
+        let logMessage;
+        
+        if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
+            audioUrl = '/api/custom-audio';
+            logMessage = '🎵 Custom audio played';
+        } else {
+            audioUrl = REMOTE_SOUND_URL;
+            logMessage = '🎵 Remote sound played';
+        }
+        
+        const audio = new Audio(audioUrl);
+        audio.volume = 0.9;
         audio.play()
-            .then(() => console.log('🎵 Remote sound played'))
-            .catch(e => console.error('Error playing sound:', e));
+            .then(() => console.log(logMessage))
+            .catch(e => {
+                console.error('Error playing audio:', e);
+                if (audioSettings.audioSource === 'custom') {
+                    console.log('Fallback to remote audio');
+                    const fallbackAudio = new Audio(REMOTE_SOUND_URL);
+                    fallbackAudio.volume = 0.9;
+                    fallbackAudio.play()
+                        .then(() => console.log('🎵 Fallback remote sound played'))
+                        .catch(fallbackError => console.error('Error playing fallback audio:', fallbackError));
+                }
+            });
     }
 
     function formatText(text) {
@@ -49,7 +75,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
                 ttsLanguage = msg.data.ttsLanguage;
-                console.log('[TTS] Idioma actualizado en caliente:', ttsLanguage);
+                console.log('[TTS] Language updated on hot:', ttsLanguage);
+            }
+            
+            if (msg.type === 'audioSettingsUpdate') {
+                audioSettings = { ...audioSettings, ...msg.data };
+                console.log('[AUDIO] Updated configuration:', audioSettings);
             }
             
             if (msg.type === 'tipNotification') {
@@ -61,6 +92,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await showDonationNotification({
                     ...msg.data,
                     isChatTip: true
+                });
+            } else if (msg.type === 'donation') {
+                await showDonationNotification({
+                    amount: msg.amount,
+                    from: msg.from,
+                    message: msg.message,
+                    isTestDonation: true
                 });
             }
 
@@ -76,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 const data = await response.json();
                 ttsLanguage = data.ttsLanguage || 'en';
-                console.log('[TTS] Idioma inicial:', ttsLanguage);
+                console.log('[TTS] Initial language:', ttsLanguage);
             }
         } catch (error) {
             console.error('Error loading initial TTS language:', error);
@@ -98,6 +136,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadInitialTTSStatus();
 
+    async function loadInitialAudioSettings() {
+        try {
+            const response = await fetch('/api/audio-settings');
+            if (response.ok) {
+                const data = await response.json();
+                audioSettings = {
+                    audioSource: data.audioSource || 'remote',
+                    hasCustomAudio: data.hasCustomAudio || false
+                };
+                console.log('[AUDIO] Initial configuration loaded:', audioSettings);
+            }
+        } catch (error) {
+            console.error('Error loading initial audio settings:', error);
+        }
+    }
+
+    loadInitialAudioSettings();
+
     ws.onerror = (error) => {
         console.error('WebSocket Error:', error);
         showError('Server connection error');
@@ -106,14 +162,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     ws.onclose = () => {
         showConnectionStatus(false);
     };
-
-    function playRemoteSound() {
-        const audio = new Audio(REMOTE_SOUND_URL);
-        audio.volume = 0.4;
-        audio.play()
-            .then(() => console.log('🎵 Remote sound played'))
-            .catch(e => console.error('Error playing:', e));
-    }
 
 async function updateExchangeRate() {
     try {
@@ -268,7 +316,7 @@ async function showDonationNotification(data) {
     }
     shownTips.add(uniqueId);
 
-    playRemoteSound();
+    playNotificationSound();
     notification.style.display = 'none';
     void notification.offsetWidth;
 

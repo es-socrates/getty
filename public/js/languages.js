@@ -64,8 +64,8 @@ const languages = {
         colorFrom: "Sender",
         colorMsg: "Message background",
         colorMsgAlt: "Alt message background",
-        colorDonation: "Donation text",
-        colorDonationBg: "Donation background",
+        colorDonation: "Tip text",
+        colorDonationBg: "Tip background",
         colorUsername: "Username",
         colorUsernameBg: "Username background",
         resetColors: "Reset to default colors",
@@ -78,7 +78,19 @@ const languages = {
         colorMsgDonation: "Tip text",
         colorMsgDonationBg: "Background Tip",
         chatWidgetUrlHorizontal: "Chat Widget URL (Horizontal)",
-        chatWidgetUrlHorizontalHelp: "Same widget, but in landscape mode. Use this URL if you want messages to display from right to left."
+        chatWidgetUrlHorizontalHelp: "Same widget, but in landscape mode. Use this URL if you want messages to display from right to left.",
+        customAudioTitle: "Custom Audio",
+        useRemoteAudio: "Use remote audio",
+        useCustomAudio: "Use custom audio",
+        removeAudio: "Remove audio",
+        audioHint: "The custom audio will be played when a new tip is coming in. If you do not select one, the default audio will be used.",
+        remoteAudioDescription: "Use remote audio for tip notifications",
+        customAudioDescription: "Use custom audio for tip notifications",
+        uploadAudioTitle: "Upload Audio",
+        uploadAudioInstructions: "Upload an audio file to use as a custom audio for tip notifications",
+        uploadAudioRequirements: "Audio file must be less than 1MB and in MP3 format",
+        play: "Play",
+        remove: "Remove"
     },
     
     es: {
@@ -160,7 +172,19 @@ const languages = {
         colorMsgDonation: "Texto de propina",
         colorMsgDonationBg: "Fondo de propina",
         chatWidgetUrlHorizontal: "URL del Widget de Chat (Horizontal)",
-        chatWidgetUrlHorizontalHelp: "Mismo widget, pero en modo horizontal. Usa esta URL si quieres que los mensajes se muestren de derecha a izquierda."
+        chatWidgetUrlHorizontalHelp: "Mismo widget, pero en modo horizontal. Usa esta URL si quieres que los mensajes se muestren de derecha a izquierda.",
+        customAudioTitle: "Audio personalizado",
+        useRemoteAudio: "Usar audio remoto",
+        useCustomAudio: "Usar audio personalizado",
+        removeAudio: "Quitar audio",
+        audioHint: "El audio personalizado se reproducirá cuando llegue una nueva propina. Si no selecciona ninguno, se utilizará el audio predeterminado",
+        remoteAudioDescription: "Usar audio remoto para notificaciones de propinas",
+        customAudioDescription: "Usar audio personalizado para notificaciones de propinas",
+        uploadAudioTitle: "Subir audio",
+        uploadAudioInstructions: "Subir un archivo de audio para utilizarlo como audio personalizado para las notificaciones de propinas",
+        uploadAudioRequirements: "El archivo de audio debe ocupar menos de 1MB y estar en formato MP3",
+        play: "Reproducir",
+        remove: "Eliminar"
     }
 };
 
