@@ -265,9 +265,28 @@ class LanguageManager {
         const languageSelectors = document.querySelectorAll('.language-selector');
         languageSelectors.forEach(selector => {
             selector.value = this.currentLanguage;
-            selector.addEventListener('change', (e) => {
-                this.setLanguage(e.target.value);
-            });
+            
+            const handleLanguageChange = (e) => {
+                const selectedValue = e.target.value;
+                if (selectedValue !== this.currentLanguage) {
+                    this.setLanguage(selectedValue);
+                }
+            };
+            
+            selector.removeEventListener('change', handleLanguageChange);
+            selector.removeEventListener('click', handleLanguageChange);
+            
+            selector.addEventListener('change', handleLanguageChange);
+            
+            if (navigator.userAgent.includes('Firefox')) {
+                selector.addEventListener('click', (e) => {
+                    setTimeout(() => {
+                        if (selector.value !== this.currentLanguage) {
+                            this.setLanguage(selector.value);
+                        }
+                    }, 10);
+                });
+            }
         });
     }
 }

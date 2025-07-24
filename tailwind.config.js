@@ -3,6 +3,7 @@ module.exports = {
     "./public/**/*.html",
     "./src/**/*.{js,jsx,ts,tsx}"
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -21,10 +22,31 @@ module.exports = {
         },
         success: '#00ff7f',
         error: '#ff4d4f',
-        background: '#09080d',
-        card: '#0f1214',
-        chat: '#0f1214',
-        border: '#2d333b',
+        // Dark theme colors
+        background: {
+          DEFAULT: 'var(--bg-background)',
+          dark: '#09080d',
+          light: '#ffffff',
+        },
+        card: {
+          DEFAULT: 'var(--bg-card)',
+          dark: '#0f1214',
+          light: '#f8fafc',
+        },
+        chat: {
+          DEFAULT: 'var(--bg-chat)',
+          dark: '#0f1214',
+          light: '#f1f5f9',
+        },
+        border: {
+          DEFAULT: 'var(--border-color)',
+          dark: '#2d333b',
+          light: '#e2e8f0',
+        },
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
