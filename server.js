@@ -218,8 +218,7 @@ if (!fs.existsSync(goalAudioDir)) {
 }
 
 const goalAudioStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Limpiar archivos antiguos
+  destination: function (_req, _file, cb) {
     try {
       const files = fs.readdirSync(goalAudioDir);
       files.forEach(oldFile => {
@@ -228,12 +227,12 @@ const goalAudioStorage = multer.diskStorage({
         }
       });
     } catch (error) {
-      console.error('Error limpiando archivos de audio antiguos:', error);
+      console.error('Error cleaning old audio files:', error);
     }
     
     cb(null, goalAudioDir);
   },
-  filename: function (req, file, cb) {
+  filename: function (_req, file, cb) {
     const extension = path.extname(file.originalname);
     cb(null, `goal-audio${extension}`);
   }
@@ -242,14 +241,14 @@ const goalAudioStorage = multer.diskStorage({
 const goalAudioUpload = multer({ 
   storage: goalAudioStorage,
   limits: {
-    fileSize: 1024 * 1024 * 2, // Límite de 2MB
+    fileSize: 1024 * 1024 * 1, // 1MB limit
     files: 1
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('audio/')) {
       cb(null, true);
     } else {
-      cb(new Error('Solo se permiten archivos de audio'));
+      cb(new Error('Only audio files are allowed'));
     }
   }
 });
@@ -411,7 +410,7 @@ app.post('/api/external-notifications', async (req, res) => {
   }
 });
 
-app.get('/api/external-notifications', (req, res) => {
+app.get('/api/external-notifications', (_req, res) => {
   res.json(externalNotifications.getStatus());
 });
 
@@ -545,10 +544,10 @@ if (!fs.existsSync(AUDIO_UPLOADS_DIR)) {
 }
 
 const audioStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: function (_req, _file, cb) {
     cb(null, AUDIO_UPLOADS_DIR);
   },
-  filename: function (req, file, cb) {
+  filename: function (_req, _file, cb) {
     const uniqueName = 'custom-notification-audio.mp3';
     cb(null, uniqueName);
   }
@@ -559,7 +558,7 @@ const audioUpload = multer({
   limits: {
     fileSize: 1024 * 1024
   },
-  fileFilter: function (req, file, cb) {
+  fileFilter: function (_req, file, cb) {
     if (file.mimetype === 'audio/mpeg' || file.originalname.toLowerCase().endsWith('.mp3')) {
       cb(null, true);
     } else {
@@ -690,7 +689,7 @@ app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
   }
 });
 
-app.get('/api/custom-audio', (req, res) => {
+app.get('/api/custom-audio', (_req, res) => {
   try {
     const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
     
@@ -731,7 +730,7 @@ app.get('/api/modules', (_req, res) => {
   });
 });
 
-app.get('/api/ar-price', async (req, res) => {
+app.get('/api/ar-price', async (_req, res) => {
     try {
         const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
         if (response.status !== 200) throw new Error('Failed to fetch from CoinGecko');
@@ -789,7 +788,7 @@ app.post('/api/test-discord', express.json(), async (req, res) => {
   }
 });
 
-app.get('/api/language', (req, res) => {
+app.get('/api/language', (_req, res) => {
   try {
     const currentLanguage = languageConfig.getLanguage();
     const availableLanguages = languageConfig.getAvailableLanguages();
@@ -938,7 +937,7 @@ app.get('/api/goal-audio', (req, res) => {
     }
 });
 
-app.get('/api/goal-audio-settings', (req, res) => {
+app.get('/api/goal-audio-settings', (_req, res) => {
   try {
       if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
           const settings = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
@@ -952,7 +951,7 @@ app.get('/api/goal-audio-settings', (req, res) => {
   }
 });
 
-app.delete('/api/goal-audio-settings', (req, res) => {
+app.delete('/api/goal-audio-settings', (_req, res) => {
   try {
       const audioPath = path.join(GOAL_AUDIO_UPLOADS_DIR, 'custom-goal-notification.mp3');
       if (fs.existsSync(audioPath)) {
@@ -1048,7 +1047,7 @@ app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), async (req, res) 
   }
 });
 
-app.get('/api/goal-custom-audio', (req, res) => {
+app.get('/api/goal-custom-audio', (_req, res) => {
     try {
         const customAudioPath = path.join(GOAL_AUDIO_UPLOADS_DIR, 'custom-goal-notification.mp3');
         

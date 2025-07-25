@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (data.arweave?.usd) {
                 AR_TO_USD = data.arweave.usd;
-                console.log('Updated exchange rate:', AR_TO_USD);
+
             }
         } catch (error) {
             console.error('Error updating exchange rate:', error);
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     ws.onopen = async () => {
-        console.log('✅ Connected to the WebSocket server');
+
         await loadColors();
         loadInitialData();
     };
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     ws.onclose = () => {
-        console.log('WebSocket disconnected');
+
     };
 
     setInterval(() => {
