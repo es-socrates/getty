@@ -4,6 +4,7 @@ const WebSocket = require('ws');
 const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
+const multer = require('multer');
 const SETTINGS_FILE = './tts-settings.json';
 
 const LastTipModule = require('./modules/last-tip');
@@ -12,8 +13,14 @@ const TipGoalModule = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
+const GOAL_AUDIO_CONFIG_FILE = './config/goal-audio-settings.json';
+const TIP_GOAL_CONFIG_FILE = './tip-goal-config.json';
+const GOAL_AUDIO_UPLOADS_DIR = './public/uploads/goal-audio';
 
 const app = express();
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -44,10 +51,11 @@ const wss = new WebSocket.Server({ noServer: true });
 
 const lastTip = new LastTipModule(wss);
 const tipWidget = new TipWidgetModule(wss);
-const tipGoal = new TipGoalModule(wss);
 const chat = new ChatModule(wss);
 const externalNotifications = new ExternalNotifications(wss);
 const languageConfig = new LanguageConfig();
+
+const tipGoal = new TipGoalModule(wss);
 
 function setupWebSocketListeners() {
     wss.removeAllListeners('tip');
@@ -204,10 +212,62 @@ app.post('/api/last-tip', express.json(), (req, res) => {
   }
 });
 
-const TIP_GOAL_CONFIG_FILE = './tip-goal-config.json';
-app.post('/api/tip-goal', express.json(), (req, res) => {
+const goalAudioDir = './public/uploads/goal-audio';
+if (!fs.existsSync(goalAudioDir)) {
+    fs.mkdirSync(goalAudioDir, { recursive: true });
+}
+
+const goalAudioStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Limpiar archivos antiguos
+    try {
+      const files = fs.readdirSync(goalAudioDir);
+      files.forEach(oldFile => {
+        if (oldFile.startsWith('goal-audio')) {
+          fs.unlinkSync(path.join(goalAudioDir, oldFile));
+        }
+      });
+    } catch (error) {
+      console.error('Error limpiando archivos de audio antiguos:', error);
+    }
+    
+    cb(null, goalAudioDir);
+  },
+  filename: function (req, file, cb) {
+    const extension = path.extname(file.originalname);
+    cb(null, `goal-audio${extension}`);
+  }
+});
+
+const goalAudioUpload = multer({ 
+  storage: goalAudioStorage,
+  limits: {
+    fileSize: 1024 * 1024 * 2, // Límite de 2MB
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('audio/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten archivos de audio'));
+    }
+  }
+});
+
+app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), (req, res) => {
   try {
-    const { goalAmount, startingAmount, bgColor, fontColor, borderColor, progressColor } = req.body;
+    const goalAmount = parseFloat(req.body.goalAmount);
+    const startingAmount = parseFloat(req.body.startingAmount || '0');
+    const bgColor = req.body.bgColor;
+    const fontColor = req.body.fontColor;
+    const borderColor = req.body.borderColor;
+    const progressColor = req.body.progressColor;
+    const audioSource = req.body.audioSource;
+    
+    let audioFile = null;
+    if (req.file) {
+      audioFile = '/uploads/goal-audio/' + req.file.filename;
+    }
     
     if (!goalAmount || isNaN(goalAmount)) {
       return res.status(400).json({ error: "Valid goal amount is required" });
@@ -217,19 +277,55 @@ app.post('/api/tip-goal', express.json(), (req, res) => {
     if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
       config = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
     }
+    
     const newConfig = {
       ...config,
+      goalAmount: goalAmount,
+      startingAmount: startingAmount || 0,
       bgColor: bgColor || config.bgColor || '#080c10',
       fontColor: fontColor || config.fontColor || '#ffffff',
       borderColor: borderColor || config.borderColor || '#00ff7f',
-      progressColor: progressColor || config.progressColor || '#00ff7f'
+      progressColor: progressColor || config.progressColor || '#00ff7f',
+      audioSource: audioSource || 'remote',
+      ...(audioFile ? { customAudioUrl: audioFile } : {})
     };
+    
     fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-
-    const result = tipGoal.updateGoal(goalAmount, startingAmount);
+    
+    tipGoal.monthlyGoalAR = parseFloat(goalAmount);
+    tipGoal.currentTipsAR = parseFloat(startingAmount || 0);
+    
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'audioSettingsUpdate',
+          data: {
+            audioSource: audioSource || 'remote',
+            hasCustomAudio: !!audioFile,
+            audioFileName: audioFile ? path.basename(audioFile) : null
+          }
+        }));
+      }
+    });
+    
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'tipGoalUpdate',
+          data: {
+            success: true,
+            monthlyGoal: tipGoal.monthlyGoalAR,
+            currentTips: tipGoal.currentTipsAR,
+            ...newConfig
+          }
+        }));
+      }
+    });
+    
     res.json({
       success: true,
-      ...result,
+      monthlyGoal: tipGoal.monthlyGoalAR,
+      currentTips: tipGoal.currentTipsAR,
       ...newConfig
     });
   } catch (error) {
@@ -242,6 +338,7 @@ app.post('/api/tip-goal', express.json(), (req, res) => {
 });
 
 const CHAT_CONFIG_FILE = './chat-config.json';
+
 app.post('/api/chat', express.json(), (req, res) => {
   try {
     const { chatUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = req.body;
@@ -437,7 +534,6 @@ app.get('/obs-help', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/obs-integration.html'));
 });
 
-const multer = require('multer');
 const AUDIO_CONFIG_FILE = './audio-settings.json';
 const AUDIO_UPLOADS_DIR = './public/uploads/audio';
 
@@ -757,5 +853,214 @@ app.post('/api/test-donation', express.json(), (req, res) => {
             error: 'Failed to send test donation',
             details: error.message
         });
+    }
+});
+
+if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
+    fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
+}
+
+function loadGoalAudioSettings() {
+    try {
+        if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
+            const settings = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
+            return {
+                audioSource: settings.audioSource || 'remote',
+                hasCustomAudio: settings.hasCustomAudio || false,
+                audioFileName: settings.audioFileName || null,
+                audioFileSize: settings.audioFileSize || 0
+            };
+        }
+    } catch (error) {
+        console.error('Error loading goal audio settings:', error);
+    }
+    return { audioSource: 'remote', hasCustomAudio: false, audioFileName: null, audioFileSize: 0 };
+}
+
+function saveGoalAudioSettings(newSettings) {
+    try {
+        const current = loadGoalAudioSettings();
+        const merged = { ...current, ...newSettings };
+        fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(merged, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving goal audio settings:', error);
+        return false;
+    }
+}
+
+function calculateFileHash(filePath) {
+    try {
+        const fileBuffer = fs.readFileSync(filePath);
+        return require('crypto').createHash('md5').update(fileBuffer).digest('hex');
+    } catch (error) {
+        console.error('Error calculating file hash:', error);
+        return Date.now().toString();
+    }
+}
+
+app.get('/api/goal-audio', (req, res) => {
+    try {
+        const audioDir = path.join(__dirname, 'public/uploads/goal-audio');
+        const files = fs.readdirSync(audioDir);
+        const audioFile = files.find(file => file.startsWith('goal-audio'));
+        
+        if (audioFile) {
+            const filePath = path.join(audioDir, audioFile);
+            const stats = fs.statSync(filePath);
+            const fileHash = calculateFileHash(filePath);
+            
+            res.set({
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'ETag': `"${fileHash}"`,
+                'Last-Modified': stats.mtime.toUTCString()
+            });
+            
+            const clientEtag = req.headers['if-none-match'];
+            if (clientEtag && clientEtag === `"${fileHash}"`) {
+                return res.status(304).end();
+            }
+            
+            const ifModifiedSince = req.headers['if-modified-since'];
+            if (ifModifiedSince && new Date(ifModifiedSince) >= new Date(stats.mtime)) {
+                return res.status(304).end();
+            }
+            
+            res.sendFile(filePath);
+        } else {
+            res.status(404).json({ error: 'No audio file found' });
+        }
+    } catch (error) {
+        console.error('Error serving goal audio:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/goal-audio-settings', (req, res) => {
+  try {
+      if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
+          const settings = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
+          res.json(settings);
+      } else {
+          res.json({ audioSource: 'remote', hasCustomAudio: false });
+      }
+  } catch (error) {
+      console.error('Error loading goal audio settings:', error);
+      res.status(500).json({ error: 'Error loading settings' });
+  }
+});
+
+app.delete('/api/goal-audio-settings', (req, res) => {
+  try {
+      const audioPath = path.join(GOAL_AUDIO_UPLOADS_DIR, 'custom-goal-notification.mp3');
+      if (fs.existsSync(audioPath)) {
+          fs.unlinkSync(audioPath);
+      }
+      
+      saveGoalAudioSettings({
+          audioSource: 'remote',
+          hasCustomAudio: false,
+          audioFileName: null,
+          audioFileSize: 0
+      });
+      
+      res.json({ success: true });
+  } catch (error) {
+      console.error('Error deleting goal audio:', error);
+      res.status(500).json({ error: 'Error deleting audio' });
+  }
+});
+
+app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), async (req, res) => {
+  try {
+      const goalAmount = parseFloat(req.body.goalAmount);
+      const startingAmount = parseFloat(req.body.startingAmount) || 0;
+      const bgColor = req.body.bgColor;
+      const fontColor = req.body.fontColor;
+      const borderColor = req.body.borderColor;
+      const progressColor = req.body.progressColor;
+      const audioSource = req.body.audioSource || 'remote';
+
+      if (isNaN(goalAmount)) {
+          return res.status(400).json({ error: "Valid goal amount is required" });
+      }
+
+      const configPath = path.join(__dirname, TIP_GOAL_CONFIG_FILE);
+      let config = {};
+      
+      if (fs.existsSync(configPath)) {
+          config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      }
+      
+      const newConfig = {
+          ...config,
+          bgColor: bgColor || config.bgColor || '#080c10',
+          fontColor: fontColor || config.fontColor || '#ffffff',
+          borderColor: borderColor || config.borderColor || '#00ff7f',
+          progressColor: progressColor || config.progressColor || '#00ff7f'
+      };
+
+      fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+
+      const audioSettings = {
+          audioSource: audioSource,
+          hasCustomAudio: false,
+          audioFileName: null,
+          audioFileSize: 0
+      };
+
+      if (audioSource === 'custom' && req.file) {
+          audioSettings.hasCustomAudio = true;
+          audioSettings.audioFileName = req.file.originalname;
+          audioSettings.audioFileSize = req.file.size;
+      }
+
+      const audioConfigPath = path.join(__dirname, GOAL_AUDIO_CONFIG_FILE);
+      fs.writeFileSync(audioConfigPath, JSON.stringify(audioSettings, null, 2));
+
+      const result = tipGoal.updateGoal(goalAmount, startingAmount);
+      
+      wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                  type: 'goalAudioSettingsUpdate',
+                  data: audioSettings
+              }));
+          }
+      });
+
+      res.json({
+          success: true,
+          active: true,
+          ...result,
+          ...newConfig,
+          ...audioSettings
+      });
+
+  } catch (error) {
+      console.error('Error in /api/tip-goal:', error);
+      res.status(500).json({ 
+          error: "Internal server error",
+          details: error.message 
+      });
+  }
+});
+
+app.get('/api/goal-custom-audio', (req, res) => {
+    try {
+        const customAudioPath = path.join(GOAL_AUDIO_UPLOADS_DIR, 'custom-goal-notification.mp3');
+        
+        if (fs.existsSync(customAudioPath)) {
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.sendFile(path.resolve(customAudioPath));
+        } else {
+            res.status(404).json({ error: 'Custom goal audio not found' });
+        }
+    } catch (error) {
+        console.error('Error serving custom goal audio:', error);
+        res.status(500).json({ error: 'Error serving custom goal audio' });
     }
 });

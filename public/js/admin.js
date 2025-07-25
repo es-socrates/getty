@@ -29,8 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return fetch('/api/tts-setting');
         })
         .then(response => {
-        if (!response.ok) throw new Error('Failed to load TTS settings');
-        return response.json();
+            if (!response.ok) throw new Error('Failed to load TTS settings');
+            return response.json();
         })
         .then(ttsSettings => {
             document.getElementById('tts-enabled').checked = ttsSettings.ttsEnabled;
@@ -41,9 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     
     document.querySelectorAll('.save-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             const module = e.currentTarget.dataset.module;
-            saveSettings(module);
+            await saveSettings(module);
         });
     });
 
@@ -94,98 +94,119 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     });
     
-    function saveSettings(module) {
-        let endpoint = '';
-        let data = {};
-        
-        switch(module) {
-            case 'lastTip':
-                endpoint = '/api/last-tip';
-                data = {
-                    walletAddress: document.getElementById('wallet-address').value.trim(),
-                    bgColor: document.getElementById('last-tip-bg-color').value,
-                    fontColor: document.getElementById('last-tip-font-color').value,
-                    borderColor: document.getElementById('last-tip-border-color').value,
-                    amountColor: document.getElementById('last-tip-amount-color').value,
-                    iconColor: document.getElementById('last-tip-icon-color').value,
-                    fromColor: document.getElementById('last-tip-from-color').value
-                };
-                break;
-            case 'tipGoal':
-                endpoint = '/api/tip-goal';
-                data = {
-                    goalAmount: parseFloat(document.getElementById('goal-amount').value),
-                    startingAmount: parseFloat(document.getElementById('starting-amount').value) || 0,
-                    bgColor: document.getElementById('tip-goal-bg-color').value,
-                    fontColor: document.getElementById('tip-goal-font-color').value,
-                    borderColor: document.getElementById('tip-goal-border-color').value,
-                    progressColor: document.getElementById('tip-goal-progress-color').value
-                };
-                break;
-            case 'chat':
-                endpoint = '/api/chat';
-                data = {
-                    chatUrl: document.getElementById('chat-url').value.trim(),
-                    bgColor: document.getElementById('chat-bg-color').value,
-                    msgBgColor: document.getElementById('chat-msg-bg-color').value,
-                    msgBgAltColor: document.getElementById('chat-msg-bg-alt-color').value,
-                    borderColor: document.getElementById('chat-border-color').value,
-                    textColor: document.getElementById('chat-text-color').value,
-                    usernameColor: document.getElementById('chat-username-color').value,
-                    usernameBgColor: document.getElementById('chat-username-bg-color').value,
-                    donationColor: document.getElementById('chat-donation-color').value,
-                    donationBgColor: document.getElementById('chat-donation-bg-color').value
-                };
-                break;
-            case 'externalNotifications':
-                endpoint = '/api/external-notifications';
-                data = {
-                    discordWebhook: document.getElementById('discord-webhook').value.trim(),
-                    telegramBotToken: document.getElementById('telegram-bot-token').value.trim(),
-                    telegramChatId: document.getElementById('telegram-chat-id').value.trim(),
-                    template: document.getElementById('notification-template').value.trim()
-                };
-                break;
-            case 'notifications':
-                saveNotificationSettings();
-                return;
-        }
-        
-        if ((module === 'lastTip' || module === 'chat') && !data[Object.keys(data)[0]]) {
-            showAlert(`The ${Object.keys(data)[0]} is required`, 'error');
-            return;
-        }
-        
-        fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(async (response) => {
-            const text = await response.text();
-            try {
-                const json = text ? JSON.parse(text) : {};
-                
-                if (!response.ok) {
-                    throw new Error(json.error || 'Unknown error occurred');
-                }
-                
-                showAlert('Configuration saved successfully', 'success');
-                
-                if (module !== 'externalNotifications') {
-                    updateStatus(`${module}-status`, json.active || json.connected || false);
-                }
-            } catch (error) {
-                showAlert(text || error.message, 'error');
-                console.error('Error parsing response:', error, 'Response text:', text);
+    async function saveSettings(module) {
+        try {
+            let endpoint = '';
+            let data = {};
+            
+            switch(module) {
+                case 'lastTip':
+                    endpoint = '/api/last-tip';
+                    data = {
+                        walletAddress: document.getElementById('wallet-address').value.trim(),
+                        bgColor: document.getElementById('last-tip-bg-color').value,
+                        fontColor: document.getElementById('last-tip-font-color').value,
+                        borderColor: document.getElementById('last-tip-border-color').value,
+                        amountColor: document.getElementById('last-tip-amount-color').value,
+                        iconColor: document.getElementById('last-tip-icon-color').value,
+                        fromColor: document.getElementById('last-tip-from-color').value
+                    };
+                    break;
+                    
+                case 'tipGoal':
+                    const goalAudioSource = document.querySelector('input[name="goal-audio-source"]:checked')?.value || 'remote';
+                    
+                    const formData = new FormData();
+
+                    formData.append('goalAmount', document.getElementById('goal-amount').value);
+                    formData.append('startingAmount', document.getElementById('starting-amount').value || '0');
+                    formData.append('bgColor', document.getElementById('tip-goal-bg-color').value);
+                    formData.append('fontColor', document.getElementById('tip-goal-font-color').value);
+                    formData.append('borderColor', document.getElementById('tip-goal-border-color').value);
+                    formData.append('progressColor', document.getElementById('tip-goal-progress-color').value);
+                    formData.append('audioSource', goalAudioSource);
+                    
+                    if (goalAudioSource === 'custom' && currentGoalAudioFile) {
+                        formData.append('audioFile', currentGoalAudioFile);
+                    }
+                    
+                    const response = await fetch('/api/tip-goal', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Error saving tip goal settings');
+                    }
+    
+                    const responseData = await response.json();
+                    showAlert('Goal configuration saved successfully', 'success');
+                    updateStatus('tipGoal-status', responseData.active || false);
+                    return;
+                    
+                case 'chat':
+                    endpoint = '/api/chat';
+                    data = {
+                        chatUrl: document.getElementById('chat-url').value.trim(),
+                        bgColor: document.getElementById('chat-bg-color').value,
+                        msgBgColor: document.getElementById('chat-msg-bg-color').value,
+                        msgBgAltColor: document.getElementById('chat-msg-bg-alt-color').value,
+                        borderColor: document.getElementById('chat-border-color').value,
+                        textColor: document.getElementById('chat-text-color').value,
+                        usernameColor: document.getElementById('chat-username-color').value,
+                        usernameBgColor: document.getElementById('chat-username-bg-color').value,
+                        donationColor: document.getElementById('chat-donation-color').value,
+                        donationBgColor: document.getElementById('chat-donation-bg-color').value
+                    };
+                    break;
+                    
+                case 'externalNotifications':
+                    endpoint = '/api/external-notifications';
+                    data = {
+                        discordWebhook: document.getElementById('discord-webhook').value.trim(),
+                        telegramBotToken: document.getElementById('telegram-bot-token').value.trim(),
+                        telegramChatId: document.getElementById('telegram-chat-id').value.trim(),
+                        template: document.getElementById('notification-template').value.trim()
+                    };
+                    break;
+                    
+                case 'notifications':
+                    await saveNotificationSettings();
+                    return;
+                    
+                default:
+                    throw new Error(`Unknown module: ${module}`);
             }
-        })
-        .catch(error => {
-            console.error('Error saving settings:', error);
+            
+            if ((module === 'lastTip' || module === 'chat') && !data[Object.keys(data)[0]]) {
+                throw new Error(`The ${Object.keys(data)[0]} is required`);
+            }
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save settings');
+            }
+            
+            const result = await response.json();
+            showAlert('Configuration saved successfully', 'success');
+            
+            if (module !== 'externalNotifications') {
+                updateStatus(`${module}-status`, result.active || result.connected || false);
+            }
+            
+        } catch (error) {
+            console.error(`Error saving ${module} settings:`, error);
             showAlert(error.message || 'Error saving configuration', 'error');
-        });
+        }
     }
     
     function updateStatus(elementId, isActive) {
@@ -268,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function updateLastTipColorHex() {
-
         const bgColorEl = document.getElementById('last-tip-bg-color');
         const fontColorEl = document.getElementById('last-tip-font-color');
         const borderColorEl = document.getElementById('last-tip-border-color');
@@ -290,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (iconColorEl && iconColorHexEl) iconColorHexEl.textContent = iconColorEl.value;
         if (fromColorEl && fromColorHexEl) fromColorHexEl.textContent = fromColorEl.value;
     }
+    
     ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-color','last-tip-from-color'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -315,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTipGoalColorHex() {
-
         const bgColorEl = document.getElementById('tip-goal-bg-color');
         const fontColorEl = document.getElementById('tip-goal-font-color');
         const borderColorEl = document.getElementById('tip-goal-border-color');
@@ -331,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
         if (progressColorEl && progressColorHexEl) progressColorHexEl.textContent = progressColorEl.value;
     }
+    
     ['tip-goal-bg-color','tip-goal-font-color','tip-goal-border-color','tip-goal-progress-color'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -354,7 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateChatColorHex() {
-
         const chatBgColorEl = document.getElementById('chat-bg-color');
         const chatMsgBgColorEl = document.getElementById('chat-msg-bg-color');
         const chatMsgBgAltColorEl = document.getElementById('chat-msg-bg-alt-color');
@@ -385,6 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chatDonationColorEl && chatDonationColorHexEl) chatDonationColorHexEl.textContent = chatDonationColorEl.value;
         if (chatDonationBgColorEl && chatDonationBgColorHexEl) chatDonationBgColorHexEl.textContent = chatDonationBgColorEl.value;
     }
+    
     [
         'chat-bg-color','chat-msg-bg-color','chat-msg-bg-alt-color','chat-border-color','chat-text-color',
         'chat-username-color','chat-username-bg-color','chat-donation-color','chat-donation-bg-color'
@@ -443,154 +464,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (uploadZone) {
-        uploadZone.addEventListener('click', function() {
-            customAudioFile.click();
-        });
-
-        uploadZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-
-        uploadZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-        });
-
-        uploadZone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleAudioFile(files[0]);
-            }
-        });
-    }
-
-    if (customAudioFile) {
-        customAudioFile.addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                handleAudioFile(e.target.files[0]);
-            }
-        });
-    }
-
-    if (audioCustomRadio) {
-        audioCustomRadio.addEventListener('change', function() {
-            if (this.checked) {
-                customAudioSection.style.display = 'block';
-            }
-        });
-    }
-
-if (uploadZone) {
-    uploadZone.addEventListener('click', function() {
-        customAudioFile.click();
-    });
-
-    uploadZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadZone.classList.add('dragover');
-    });
-
-    uploadZone.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadZone.classList.remove('dragover');
-    });
-
-    uploadZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadZone.classList.remove('dragover');
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleAudioFile(files[0]);
-        }
-    });
-}
-
-if (customAudioFile) {
-    customAudioFile.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-            handleAudioFile(e.target.files[0]);
-        }
-    });
-}
-
-function handleAudioFile(file) {
-    clearAudioError();
-    
-    const validMimeTypes = ['audio/mpeg', 'audio/mp3'];
-    const isValidMimeType = validMimeTypes.includes(file.type);
-    const isValidExtension = file.name.toLowerCase().endsWith('.mp3');
-    
-    console.log('File validation:', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        isValidMimeType,
-        isValidExtension
-    });
-    
-    if (!isValidMimeType && !isValidExtension) {
-        showAudioError('Only valid MP3 files are allowed');
-        return;
-    }
-    
-    if (file.size > 1048576) {
-        showAudioError('The file must be less than 1MB');
-        return;
-    }
-    
-    if (file.size === 0) {
-        showAudioError('The file is empty');
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const arrayBuffer = e.target.result;
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const hasID3 = uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33;
-        const hasMPEGHeader = (uint8Array[0] === 0xFF && (uint8Array[1] & 0xE0) === 0xE0);
+    function handleAudioFile(file) {
+        clearAudioError();
         
-        console.log('File header validation:', {
-            hasID3,
-            hasMPEGHeader,
-            firstBytes: Array.from(uint8Array.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0'))
+        const validMimeTypes = ['audio/mpeg', 'audio/mp3'];
+        const isValidMimeType = validMimeTypes.includes(file.type);
+        const isValidExtension = file.name.toLowerCase().endsWith('.mp3');
+        
+        console.log('File validation:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            isValidMimeType,
+            isValidExtension
         });
         
-        if (!hasID3 && !hasMPEGHeader) {
-            showAudioError('The file does not appear to be a valid MP3');
+        if (!isValidMimeType && !isValidExtension) {
+            showAudioError('Only valid MP3 files are allowed');
             return;
         }
         
-        currentAudioFile = file;
-        currentAudioBlob = URL.createObjectURL(file);
-        showAudioPreview(file);
-    };
-    
-    reader.onerror = function() {
-        showAudioError('Error reading file');
-    };
-    
-    reader.readAsArrayBuffer(file);
-}
+        if (file.size > 1048576) {
+            showAudioError('The file must be less than 1MB');
+            return;
+        }
+        
+        if (file.size === 0) {
+            showAudioError('The file is empty');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const arrayBuffer = e.target.result;
+            const uint8Array = new Uint8Array(arrayBuffer);
+            const hasID3 = uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33;
+            const hasMPEGHeader = (uint8Array[0] === 0xFF && (uint8Array[1] & 0xE0) === 0xE0);
+            
+            console.log('File header validation:', {
+                hasID3,
+                hasMPEGHeader,
+                firstBytes: Array.from(uint8Array.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0'))
+            });
+            
+            if (!hasID3 && !hasMPEGHeader) {
+                showAudioError('The file does not appear to be a valid MP3');
+                return;
+            }
+            
+            currentAudioFile = file;
+            currentAudioBlob = URL.createObjectURL(file);
+            showAudioPreview(file);
+        };
+        
+        reader.onerror = function() {
+            showAudioError('Error reading file');
+        };
+        
+        reader.readAsArrayBuffer(file);
+    }
 
-function showAudioPreview(file) {
-    if (audioName) {
-        audioName.textContent = file.name;
+    function showAudioPreview(file) {
+        if (audioName) {
+            audioName.textContent = file.name;
+        }
+        if (audioSize) {
+            audioSize.textContent = formatFileSize(file.size);
+        }
+        if (uploadZone && uploadZone.parentElement) {
+            uploadZone.parentElement.style.display = 'none';
+        }
+        if (audioPreview) {
+            audioPreview.style.display = 'flex';
+        }
     }
-    if (audioSize) {
-        audioSize.textContent = formatFileSize(file.size);
-    }
-    if (uploadZone && uploadZone.parentElement) {
-        uploadZone.parentElement.style.display = 'none';
-    }
-    if (audioPreview) {
-        audioPreview.style.display = 'flex';
-    }
-}
 
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -666,68 +613,6 @@ function showAudioPreview(file) {
         });
     }
 
-    window.saveNotificationSettings = function() {
-        const audioSource = document.querySelector('input[name="audio-source"]:checked')?.value || 'remote';
-        console.log('Saving audio settings with source:', audioSource);
-        
-        const formData = new FormData();
-        formData.append('audioSource', audioSource);
-        
-        if (audioSource === 'custom' && currentAudioFile) {
-            formData.append('audioFile', currentAudioFile);
-            console.log('Uploading file:', currentAudioFile.name, 'Size:', currentAudioFile.size);
-        }
-        
-        console.log('Sending request to /api/audio-settings');
-        console.log('Current URL:', window.location.href);
-        console.log('Base URL:', window.location.origin);
-        
-        const apiUrl = window.location.origin + '/api/audio-settings';
-        console.log('API URL:', apiUrl);
-        
-        fetch(apiUrl, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Server error response:', text);
-                    throw new Error(`Server error: ${response.status} - ${text}`);
-                });
-            }
-            return response.text().then(text => {
-                console.log('Raw response text:', text);
-                try {
-                    const parsed = JSON.parse(text);
-                    console.log('Parsed JSON:', parsed);
-                    return parsed;
-                } catch (e) {
-                    console.error('Invalid JSON response:', text);
-                    throw new Error('Invalid JSON response from server');
-                }
-            });
-        })
-        .then(data => {
-            if (data.success) {
-                showAlert('Audio configuration successfully saved', 'success');
-                if (audioSource === 'custom' && currentAudioFile) {
-                    showSavedAudioInfo(currentAudioFile.name, currentAudioFile.size);
-                    currentAudioFile = null;
-                }
-            } else {
-                throw new Error(data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving audio settings:', error);
-            showAlert('Error saving audio configuration', 'error');
-        });
-    };
-
     if (removeAudioBtn) {
         removeAudioBtn.addEventListener('click', function() {
             currentAudioFile = null;
@@ -780,7 +665,120 @@ function showAudioPreview(file) {
         }
     }
 
-    loadAudioSettings();
+    const goalAudioRemote = document.getElementById('goal-audio-remote');
+    const goalAudioCustom = document.getElementById('goal-audio-custom');
+    const goalCustomAudioSection = document.getElementById('goal-custom-audio-section');
+    const goalAudioPreview = document.getElementById('goal-audio-preview');
+    const goalAudioFileInput = document.getElementById('goal-custom-audio-file');
+    const goalPlayBtn = document.getElementById('play-goal-audio');
+    const goalRemoveBtn = document.getElementById('remove-goal-audio');
+    
+    let currentGoalAudioFile = null;
+    let currentGoalAudioBlob = null;
+
+    function loadGoalAudioSettings() {
+        fetch('/api/goal-audio-settings')
+            .then(response => response.json())
+            .then(data => {
+                if (data.audioSource === 'custom') {
+                    goalAudioCustom.checked = true;
+                    goalCustomAudioSection.style.display = 'block';
+                    if (data.hasCustomAudio) {
+                        document.getElementById('goal-audio-name').textContent = data.audioFileName || 'custom_goal_audio.mp3';
+                        document.getElementById('goal-audio-size').textContent = formatFileSize(data.audioFileSize);
+                        goalAudioPreview.style.display = 'flex';
+                    }
+                } else {
+                    goalAudioRemote.checked = true;
+                    goalCustomAudioSection.style.display = 'none';
+                }
+            })
+            .catch(error => console.error('Error loading goal audio settings:', error));
+    }
+
+    if (goalAudioRemote && goalAudioCustom) {
+        goalAudioRemote.addEventListener('change', function() {
+            if (this.checked) {
+                goalCustomAudioSection.style.display = 'none';
+            }
+        });
+
+        goalAudioCustom.addEventListener('change', function() {
+            if (this.checked) {
+                goalCustomAudioSection.style.display = 'block';
+            }
+        });
+    }
+
+    if (goalAudioFileInput) {
+        goalAudioFileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                currentGoalAudioFile = file;
+                currentGoalAudioBlob = URL.createObjectURL(file);
+                
+                document.getElementById('goal-audio-name').textContent = file.name;
+                document.getElementById('goal-audio-size').textContent = formatFileSize(file.size);
+                
+                getAudioDuration(currentGoalAudioBlob).then(duration => {
+                    document.getElementById('goal-audio-duration').textContent = formatDuration(duration);
+                });
+                
+                goalAudioPreview.style.display = 'flex';
+            }
+        });
+    }
+
+    if (goalPlayBtn) {
+        goalPlayBtn.addEventListener('click', function() {
+            if (currentGoalAudioBlob) {
+                const audio = new Audio(currentGoalAudioBlob);
+                audio.volume = 0.8;
+                audio.play().catch(e => console.error('Error playing audio:', e));
+            } else if (goalAudioCustom.checked) {
+                const audio = new Audio('/api/goal-custom-audio');
+                audio.volume = 0.8;
+                audio.play().catch(e => console.error('Error playing audio:', e));
+            }
+        });
+    }
+
+    if (goalRemoveBtn) {
+        goalRemoveBtn.addEventListener('click', function() {
+            goalAudioFileInput.value = '';
+            currentGoalAudioFile = null;
+            if (currentGoalAudioBlob) {
+                URL.revokeObjectURL(currentGoalAudioBlob);
+                currentGoalAudioBlob = null;
+            }
+            goalAudioPreview.style.display = 'none';
+            
+            fetch('/api/goal-audio-settings', {
+                method: 'DELETE'
+            }).catch(e => console.error('Error deleting audio:', e));
+        });
+    }
+
+    function formatDuration(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function getAudioDuration(url) {
+        return new Promise(resolve => {
+            const audio = new Audio();
+            audio.src = url;
+            audio.onloadedmetadata = () => {
+                resolve(audio.duration);
+            };
+            audio.onerror = () => {
+                resolve(0);
+            };
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadGoalAudioSettings);
 
     async function loadAudioSettings() {
         try {
@@ -885,20 +883,50 @@ function showAudioPreview(file) {
             console.error('Error saving audio settings:', error);
             showAlert('Error saving audio configuration', 'error');
         });
-    };
+    }
 
     window.saveNotificationSettings = saveNotificationSettings;
-});
 
-const originalSaveSettings = saveSettings;
-function saveSettings(module) {
-    if (module === 'notifications') {
-        if (window.saveNotificationSettings) {
-            window.saveNotificationSettings();
-        } else {
-            console.error('saveNotificationSettings function not available');
-        }
-        return;
+    if (uploadZone) {
+        uploadZone.addEventListener('click', function() {
+            customAudioFile.click();
+        });
+
+        uploadZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleAudioFile(files[0]);
+            }
+        });
     }
-    originalSaveSettings(module);
-}
+
+    if (customAudioFile) {
+        customAudioFile.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                handleAudioFile(e.target.files[0]);
+            }
+        });
+    }
+
+    if (audioCustomRadio) {
+        audioCustomRadio.addEventListener('change', function() {
+            if (this.checked) {
+                customAudioSection.style.display = 'block';
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadAudioSettings);
+});

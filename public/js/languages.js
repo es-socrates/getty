@@ -90,7 +90,8 @@ const languages = {
         uploadAudioInstructions: "Upload an audio file to use as a custom audio for tip notifications",
         uploadAudioRequirements: "Audio file must be less than 1MB and in MP3 format",
         play: "Play",
-        remove: "Remove"
+        remove: "Remove",
+        goalAudioTitle: "Goal Audio"
     },
     
     es: {
@@ -184,7 +185,8 @@ const languages = {
         uploadAudioInstructions: "Subir un archivo de audio para utilizarlo como audio personalizado para las notificaciones de propinas",
         uploadAudioRequirements: "El archivo de audio debe ocupar menos de 1MB y estar en formato MP3",
         play: "Reproducir",
-        remove: "Eliminar"
+        remove: "Eliminar",
+        goalAudioTitle: "Audio de meta"
     }
 };
 
