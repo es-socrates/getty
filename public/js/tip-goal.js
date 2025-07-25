@@ -12,29 +12,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const reconnectDelayBase = 1000;
     let currentData = null;
     let hasReachedGoal = false;
+    let hasPlayedGoalSound = false;
 
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     let tipGoalColors = {};
+    let audioSettings = {
+        audioSource: 'remote',
+        hasCustomAudio: false
+    };
 
-    async function loadColors() {
-        if (!isOBSWidget) return;
-        try {
-            const res = await fetch('/api/modules');
-            const data = await res.json();
-            if (data.tipGoal) {
-                tipGoalColors = {
-                    bgColor: data.tipGoal.bgColor,
-                    fontColor: data.tipGoal.fontColor,
-                    borderColor: data.tipGoal.borderColor,
-                    progressColor: data.tipGoal.progressColor
-                };
-            }
-        } catch (e) { /* ignore */ }
+    const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
+
+    function playGoalSound() {
+        if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
+            const audioUrl = '/api/goal-audio';
+            const timestamp = new Date().getTime();
+            const audio = new Audio(`${audioUrl}?t=${timestamp}`);
+            audio.volume = 0.9;
+            audio.play()
+                .then(() => console.log('🎵 Custom goal audio played'))
+                .catch(e => {
+                    console.error('Error playing custom audio, falling back to remote audio');
+                    playRemoteAudio();
+                });
+        } else {
+            playRemoteAudio();
+        }
+        
+        function playRemoteAudio() {
+            const audio = new Audio(REMOTE_SOUND_URL);
+            audio.volume = 0.9;
+            audio.play()
+                .then(() => console.log('🎵 Remote goal sound played'))
+                .catch(e => console.error('Error playing remote audio'));
+        }
     }
 
-    function resetCelebrationState() {
+    async function loadAudioSettings() {
+        try {
+            const response = await fetch('/api/audio-settings');
+            if (response.ok) {
+                const data = await response.json();
+                audioSettings = {
+                    audioSource: data.audioSource || 'remote',
+                    hasCustomAudio: data.hasCustomAudio || false
+                };
+                console.log('[AUDIO] Goal audio configuration loaded:', audioSettings);
+            }
+        } catch (error) {
+            console.error('Error loading audio settings:', error);
+        }
+    }
+
+    async function resetCelebrationState() {
         try {
             localStorage.removeItem('tipGoalCelebration');
+            hasPlayedGoalSound = false;
         } catch (error) {
             console.warn('Could not reset celebration state:', error);
         }
@@ -92,7 +125,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
 
-    function loadInitialData() {
+    async function loadInitialData() {
+        await loadAudioSettings();
+        
         fetch('/api/modules')
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -118,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 goalWidget.innerHTML = `
                     <div class="goal-container">
                         <div class="goal-header">
-                            <div class="goal-title">🎯 Monthly tip goal</div>
+                            <div class="goal-title">🎖️ Monthly tip goal</div>
                             <div class="error-message">Failed to load data</div>
                         </div>
                     </div>
@@ -148,8 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onopen = async () => {
             console.log('✅ Connected to the WebSocket server');
-            await loadColors();
-            loadInitialData();
+            await loadInitialData();
         };
 
         ws.onmessage = (event) => {
@@ -157,8 +191,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const msg = JSON.parse(event.data);
                 console.debug('WebSocket message received:', msg);
 
-                if ((msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') && msg.data) {
+                if (msg.type === 'audioSettingsUpdate') {
+                    audioSettings = {
+                        audioSource: msg.data.audioSource || 'remote',
+                        hasCustomAudio: msg.data.hasCustomAudio || false,
+                        audioFileName: msg.data.audioFileName || null
+                    };
+                    console.log('[AUDIO] Updated goal audio configuration:', audioSettings);
+                    return;
+                }
 
+                if ((msg.type === 'goalUpdate' || msg.type === 'tipGoalUpdate') && msg.data) {
                     msg.data = { ...msg.data, ...tipGoalColors };
                     const previousProgress = currentData ? currentData.progress : 0;
                     currentData = processTipData(msg.data);
@@ -166,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (newProgress >= 100 && previousProgress < 100) {
                         hasReachedGoal = true;
+                        hasPlayedGoalSound = false;
                     } else if (newProgress < 100 && previousProgress >= 100) {
                         hasReachedGoal = false;
                         resetCelebrationState();
@@ -175,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     updateGoalDisplay(currentData);
                 } else if (msg.type === 'init' && msg.data?.tipGoal) {
-
                     msg.data.tipGoal = { ...msg.data.tipGoal, ...tipGoalColors };
                     currentData = processTipData(msg.data.tipGoal);
                     hasReachedGoal = currentData.progress >= 100;
@@ -213,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const progressColor = data.progressColor || '#00ff00';
         const progressPercentage = data.progress || 0;
         const currentUSD = data.usdValue || "0.00";
-        // const goalUSD = data.goalUsd || "0.00";
         const currentAR = data.current ? data.current.toFixed(2) : "0.00";
         const goalAR = data.goal || 10;
         const wasCelebrating = goalWidget.classList.contains('celebrating');
@@ -226,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         goalWidget.innerHTML = `
             <div class="goal-container">
                 <div class="goal-header">
-                    <div class="goal-title">🎯 Monthly tip goal</div>
+                    <div class="goal-title">🎖️ Monthly tip goal</div>
                     <div class="goal-amounts">
                         <span class="current-ar">${currentAR}</span>
                         <span class="goal-ar">/ ${goalAR} AR</span>
@@ -290,6 +332,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!wasCelebrating) {
                 createConfetti(goalWidget, 100);
             }
+            
+            if (!hasPlayedGoalSound) {
+                playGoalSound();
+                hasPlayedGoalSound = true;
+            }
         }
         
         if (reachedGoal && !wasCelebrating) {
@@ -331,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
     goalWidget.innerHTML = `
         <div class="goal-container">
             <div class="goal-header">
-                <div class="goal-title">🎯 Monthly tip goal</div>
+                <div class="goal-title">🎖️ Monthly tip goal</div>
                 <div class="goal-amounts">
                     <span class="current-ar">0.00</span>
                     <span class="goal-ar">/ 0.00 AR</span>

@@ -27,7 +27,8 @@
 
 .notification-content {
     padding: 16px;
-    border-radius: 2px;
+    border-radius: 4px;
+    background: #080c10;
 }
 
 .notification-icon {
