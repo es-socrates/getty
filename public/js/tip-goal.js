@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const audio = new Audio(`${audioUrl}?t=${timestamp}`);
             audio.volume = 0.9;
             audio.play()
-                .then(() => console.log('🎵 Custom goal audio played'))
+                .then(() => {})
                 .catch(e => {
                     console.error('Error playing custom audio, falling back to remote audio');
                     playRemoteAudio();
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const audio = new Audio(REMOTE_SOUND_URL);
             audio.volume = 0.9;
             audio.play()
-                .then(() => console.log('🎵 Remote goal sound played'))
+                .then(() => {})
                 .catch(e => console.error('Error playing remote audio'));
         }
     }
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     audioSource: data.audioSource || 'remote',
                     hasCustomAudio: data.hasCustomAudio || false
                 };
-                console.log('[AUDIO] Goal audio configuration loaded:', audioSettings);
+
             }
         } catch (error) {
             console.error('Error loading audio settings:', error);
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ws = new WebSocket(`${protocol}//${window.location.host}`);
 
         ws.onopen = async () => {
-            console.log('✅ Connected to the WebSocket server');
+
             await loadInitialData();
         };
 
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         hasCustomAudio: msg.data.hasCustomAudio || false,
                         audioFileName: msg.data.audioFileName || null
                     };
-                    console.log('[AUDIO] Updated goal audio configuration:', audioSettings);
+
                     return;
                 }
 
@@ -234,10 +234,10 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         ws.onclose = () => {
-            console.log('WebSocket connection closed');
+
             if (reconnectAttempts < maxReconnectAttempts) {
                 const delay = Math.min(reconnectDelayBase * Math.pow(2, reconnectAttempts), 15000);
-                console.log(`Reconnecting in ${delay/1000} seconds... (attempt ${reconnectAttempts + 1})`);
+
                 setTimeout(connectWebSocket, delay);
                 reconnectAttempts++;
             }

@@ -471,14 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const isValidMimeType = validMimeTypes.includes(file.type);
         const isValidExtension = file.name.toLowerCase().endsWith('.mp3');
         
-        console.log('File validation:', {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            isValidMimeType,
-            isValidExtension
-        });
-        
         if (!isValidMimeType && !isValidExtension) {
             showAudioError('Only valid MP3 files are allowed');
             return;
@@ -500,12 +492,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const uint8Array = new Uint8Array(arrayBuffer);
             const hasID3 = uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33;
             const hasMPEGHeader = (uint8Array[0] === 0xFF && (uint8Array[1] & 0xE0) === 0xE0);
-            
-            console.log('File header validation:', {
-                hasID3,
-                hasMPEGHeader,
-                firstBytes: Array.from(uint8Array.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0'))
-            });
             
             if (!hasID3 && !hasMPEGHeader) {
                 showAudioError('The file does not appear to be a valid MP3');
@@ -554,11 +540,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const audio = new Audio(currentAudioBlob);
                     audio.volume = 0.7;
                     
-                    audio.addEventListener('loadstart', () => console.log('Audio loading started'));
-                    audio.addEventListener('canplay', () => console.log('Audio can play'));
-                    audio.addEventListener('loadeddata', () => console.log('Audio data loaded'));
+                    audio.addEventListener('loadstart', () => {});
+                    audio.addEventListener('canplay', () => {});
+                    audio.addEventListener('loadeddata', () => {});
                     audio.addEventListener('loadedmetadata', () => {
-                        console.log('Audio metadata loaded - Duration:', audio.duration, 'seconds');
                     });
                     audio.addEventListener('error', (e) => {
                         console.error('Audio error event:', e);
@@ -592,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     
                     audio.play().then(() => {
-                        console.log('Audio playing successfully');
+                        
                     }).catch(e => {
                         console.error('Error playing audio:', e);
                         if (e.name === 'NotSupportedError') {
@@ -829,22 +814,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveNotificationSettings() {
         const audioSource = document.querySelector('input[name="audio-source"]:checked')?.value || 'remote';
-        console.log('Saving audio settings with source:', audioSource);
         
         const formData = new FormData();
         formData.append('audioSource', audioSource);
         
         if (audioSource === 'custom' && currentAudioFile) {
             formData.append('audioFile', currentAudioFile);
-            console.log('Uploading file:', currentAudioFile.name, 'Size:', currentAudioFile.size);
+            
         }
         
-        console.log('Sending request to /api/audio-settings');
-        console.log('Current URL:', window.location.href);
-        console.log('Base URL:', window.location.origin);
-        
         const apiUrl = window.location.origin + '/api/audio-settings';
-        console.log('API URL:', apiUrl);
         
         fetch(apiUrl, {
             method: 'POST',

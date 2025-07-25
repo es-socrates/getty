@@ -61,7 +61,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     ws.onopen = () => {
-        console.log('✅ Connected to the WebSocket server');
         showConnectionStatus(true);
     };
 
@@ -75,12 +74,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
                 ttsLanguage = msg.data.ttsLanguage;
-                console.log('[TTS] Language updated on hot:', ttsLanguage);
             }
             
             if (msg.type === 'audioSettingsUpdate') {
                 audioSettings = { ...audioSettings, ...msg.data };
-                console.log('[AUDIO] Updated configuration:', audioSettings);
             }
             
             if (msg.type === 'tipNotification') {
@@ -114,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 const data = await response.json();
                 ttsLanguage = data.ttsLanguage || 'en';
-                console.log('[TTS] Initial language:', ttsLanguage);
+
             }
         } catch (error) {
             console.error('Error loading initial TTS language:', error);
@@ -145,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     audioSource: data.audioSource || 'remote',
                     hasCustomAudio: data.hasCustomAudio || false
                 };
-                console.log('[AUDIO] Initial configuration loaded:', audioSettings);
+
             }
         } catch (error) {
             console.error('Error loading initial audio settings:', error);
@@ -204,7 +201,6 @@ let ttsEnabled = true;
 
 function updateTTSStatus(enabled) {
     ttsEnabled = enabled;
-    console.log(`TTS setting updated: ${enabled ? 'ENABLED' : 'DISABLED'}`);
     
     if (typeof enabled !== 'boolean') {
         console.warn('Invalid TTS status received, forcing to boolean');

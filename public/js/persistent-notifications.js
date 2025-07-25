@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ws = new WebSocket(`ws://${window.location.host}`);
     
     ws.onopen = () => {
-        console.log('Connected to WebSocket for persistent notifications');
+
     };
     
     ws.onmessage = (event) => {

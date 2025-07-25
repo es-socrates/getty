@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   ws.onopen = () => {
-    console.log('✅ Connected to dashboard server');
+
     statusDot.classList.add('connected');
     statusDot.classList.remove('disconnected');
     statusText.textContent = '';
