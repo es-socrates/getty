@@ -57,6 +57,24 @@ const languageConfig = new LanguageConfig();
 
 const tipGoal = new TipGoalModule(wss);
 
+const RaffleModule = require('./modules/raffle');
+
+const raffle = new RaffleModule(wss);
+
+global.gettyRaffleInstance = raffle;
+
+// console.log('[DEBUG] Registrando endpoints de la rifa:');
+// console.log('[DEBUG] GET  /api/raffle/settings');
+// console.log('[DEBUG] GET  /api/raffle/state');
+// console.log('[DEBUG] POST /api/raffle/settings');
+// console.log('[DEBUG] POST /api/raffle/start');
+// console.log('[DEBUG] POST /api/raffle/stop');
+// console.log('[DEBUG] POST /api/raffle/pause');
+// console.log('[DEBUG] POST /api/raffle/resume');
+// console.log('[DEBUG] POST /api/raffle/draw');
+// console.log('[DEBUG] POST /api/raffle/reset');
+// console.log('[DEBUG] POST /api/raffle/upload-image');
+
 function setupWebSocketListeners() {
     wss.removeAllListeners('tip');
     
@@ -255,77 +273,50 @@ const goalAudioUpload = multer({
 
 app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), (req, res) => {
   try {
-    const goalAmount = parseFloat(req.body.goalAmount);
-    const startingAmount = parseFloat(req.body.startingAmount || '0');
+    const monthlyGoal = parseFloat(req.body.monthlyGoal || req.body.goalAmount);
+    const currentAmount = parseFloat(
+      req.body.currentAmount || req.body.startingAmount || req.body.currentTips || '0'
+    );
     const bgColor = req.body.bgColor;
     const fontColor = req.body.fontColor;
     const borderColor = req.body.borderColor;
     const progressColor = req.body.progressColor;
     const audioSource = req.body.audioSource;
-    
+
     let audioFile = null;
     if (req.file) {
       audioFile = '/uploads/goal-audio/' + req.file.filename;
     }
-    
-    if (!goalAmount || isNaN(goalAmount)) {
-      return res.status(400).json({ error: "Valid goal amount is required" });
+
+    if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
+      return res.status(400).json({ 
+        error: "Valid goal amount is required",
+        details: `Received: ${JSON.stringify({monthlyGoal: req.body.monthlyGoal, goalAmount: req.body.goalAmount})}`
+      });
     }
 
-    let config = {};
-    if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-      config = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
-    }
-    
-    const newConfig = {
-      ...config,
-      goalAmount: goalAmount,
-      startingAmount: startingAmount || 0,
-      bgColor: bgColor || config.bgColor || '#080c10',
-      fontColor: fontColor || config.fontColor || '#ffffff',
-      borderColor: borderColor || config.borderColor || '#00ff7f',
-      progressColor: progressColor || config.progressColor || '#00ff7f',
+    tipGoal.monthlyGoalAR = monthlyGoal;
+    tipGoal.currentTipsAR = currentAmount;
+
+    const config = {
+      monthlyGoal,
+      currentAmount,
+      bgColor: bgColor || '#080c10',
+      fontColor: fontColor || '#ffffff',
+      borderColor: borderColor || '#00ff7f',
+      progressColor: progressColor || '#00ff7f',
       audioSource: audioSource || 'remote',
       ...(audioFile ? { customAudioUrl: audioFile } : {})
     };
-    
-    fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-    
-    tipGoal.monthlyGoalAR = parseFloat(goalAmount);
-    tipGoal.currentTipsAR = parseFloat(startingAmount || 0);
-    
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'audioSettingsUpdate',
-          data: {
-            audioSource: audioSource || 'remote',
-            hasCustomAudio: !!audioFile,
-            audioFileName: audioFile ? path.basename(audioFile) : null
-          }
-        }));
-      }
-    });
-    
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'tipGoalUpdate',
-          data: {
-            success: true,
-            monthlyGoal: tipGoal.monthlyGoalAR,
-            currentTips: tipGoal.currentTipsAR,
-            ...newConfig
-          }
-        }));
-      }
-    });
-    
+    fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
+
+    tipGoal.sendGoalUpdate();
+
     res.json({
       success: true,
-      monthlyGoal: tipGoal.monthlyGoalAR,
-      currentTips: tipGoal.currentTipsAR,
-      ...newConfig
+      monthlyGoal,
+      currentAmount,
+      ...config
     });
   } catch (error) {
     console.error('Error updating tip goal:', error);
@@ -706,7 +697,158 @@ app.get('/api/custom-audio', (_req, res) => {
   }
 });
 
+
 app.use(express.static('public'));
+
+const raffleImageUpload = multer({ dest: './public/uploads/raffle/' });
+
+app.get('/api/raffle/settings', (_req, res) => {
+  // console.log('[DEBUG] GET /api/raffle/settings called');
+  try {
+    const settings = raffle.getSettings();
+    // console.log('[DEBUG] raffle.getSettings() result:', settings);
+    res.json(settings);
+  } catch (error) {
+    console.error('Error in GET /api/raffle/settings:', error);
+    res.status(500).json({ error: 'Error getting raffle settings', details: error.message });
+  }
+});
+
+app.get('/api/raffle/state', (_req, res) => {
+  // console.log('[DEBUG] GET /api/raffle/state called');
+  try {
+    const state = raffle.getPublicState();
+    // console.log('[DEBUG] raffle.getPublicState() result:', state);
+    res.json(state);
+  } catch (error) {
+    console.error('Error in GET /api/raffle/state:', error);
+    res.status(500).json({ error: 'Error getting raffle state', details: error.message });
+  }
+});
+
+app.post('/api/raffle/settings', express.json(), (req, res) => {
+  try {
+    // console.log('[DEBUG] POST /api/raffle/settings body:', req.body);
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ success: false, error: 'No data provided' });
+    }
+
+    const settings = {
+      command: req.body.command ? String(req.body.command).trim() : 'sorteo',
+      prize: req.body.prize ? String(req.body.prize).trim() : '',
+      duration: req.body.duration ? parseInt(req.body.duration) : 5,
+      maxWinners: req.body.maxWinners ? parseInt(req.body.maxWinners) : 1,
+      enabled: req.body.enabled === true || req.body.enabled === 'true' || req.body.enabled === 1 || req.body.enabled === '1',
+      mode: req.body.mode || 'manual',
+      interval: req.body.interval ? parseInt(req.body.interval) : 5,
+      imageUrl: req.body.imageUrl || ''
+    };
+
+    if (!settings.command) {
+      return res.status(400).json({ success: false, error: 'Command is required' });
+    }
+    if (!settings.prize) {
+      return res.status(400).json({ success: false, error: 'Prize is required' });
+    }
+    if (isNaN(settings.duration) || settings.duration <= 0) {
+      return res.status(400).json({ success: false, error: 'Duration must be a positive number' });
+    }
+    if (isNaN(settings.maxWinners) || settings.maxWinners <= 0) {
+      return res.status(400).json({ success: false, error: 'Max winners must be a positive number' });
+    }
+
+    raffle.saveSettings(settings);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error in POST /api/raffle/settings:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/start', (_req, res) => {
+  try {
+    raffle.start();
+    broadcastRaffleState();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/stop', (_req, res) => {
+  try {
+    raffle.stop();
+    broadcastRaffleState();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/pause', (_req, res) => {
+  try {
+    raffle.pause();
+    broadcastRaffleState();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/resume', (_req, res) => {
+  try {
+    raffle.resume();
+    broadcastRaffleState();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/draw', (_req, res) => {
+  try {
+    const winner = raffle.drawWinner();
+    broadcastRaffleWinner(winner);
+    broadcastRaffleState();
+    res.json({ success: true, winner });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/reset', (_req, res) => {
+  try {
+    raffle.resetWinners();
+    broadcastRaffleState();
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const imageUrl = `/uploads/raffle/${req.file.filename}`;
+
+  raffle.imageUrl = imageUrl;
+  raffle.saveSettingsToFile();
+  res.json({ imageUrl });
+});
+
+function broadcastRaffleState() {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState() }));
+    }
+  });
+}
+function broadcastRaffleWinner(winner) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ type: 'raffle_winner', winner }));
+    }
+  });
+}
 
 app.get('/api/modules', (_req, res) => {
   let tipGoalColors = {};
@@ -731,14 +873,14 @@ app.get('/api/modules', (_req, res) => {
 });
 
 app.get('/api/ar-price', async (_req, res) => {
-    try {
-        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
-        if (response.status !== 200) throw new Error('Failed to fetch from CoinGecko');
-        res.json({ arweave: { usd: response.data.arweave.usd } });
-    } catch (error) {
-        console.error('Error fetching AR price:', error);
-        res.status(500).json({ error: 'Failed to fetch AR price' });
-    }
+  try {
+    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
+    if (response.status !== 200) throw new Error('Failed to fetch from CoinGecko');
+    res.json({ arweave: { usd: response.data.arweave.usd } });
+  } catch (error) {
+    console.error('Error fetching AR price:', error);
+    res.status(500).json({ error: 'Failed to fetch AR price' });
+  }
 });
 
 server.on('upgrade', (req, socket, head) => {
@@ -754,14 +896,18 @@ wss.on('connection', (ws) => {
     data: {
       lastTip: lastTip.getLastDonation(),
       tipGoal: tipGoal.getGoalProgress(),
-      persistentTips: externalNotifications.getStatus().lastTips
+      persistentTips: externalNotifications.getStatus().lastTips,
+      raffle: raffle.getPublicState()
     }
   }));
 
   ws.on('message', (message) => {
     try {
       const msg = JSON.parse(message);
-      console.log('Message from client:', msg);
+      if (msg.type === 'get_raffle_state') {
+        ws.send(JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState() }));
+      }
+
     } catch (error) {
       console.error('Error parsing message from client:', error);
     }

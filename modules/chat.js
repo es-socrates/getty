@@ -69,7 +69,7 @@ class ChatModule {
       let avatarUrl = null;
       let channelTitle = null;
       const claimId = comment.channel_id || comment.channel_claim_id;
-      
+
       if (claimId) {
         try {
           const { avatar, title } = await this.fetchChannelAvatar(claimId);
@@ -88,14 +88,38 @@ class ChatModule {
         message: comment.comment,
         credits: comment.support_amount || 0,
         avatar: avatarUrl,
-        timestamp: comment.timestamp || Date.now()
+        timestamp: comment.timestamp || Date.now(),
+        userId: comment.channel_id || comment.channel_claim_id || comment.channel_name,
+        username: channelTitle || comment.channel_name || 'Anonymous'
       };
+
+      try {
+        const raffle = global.gettyRaffleInstance;
+        if (
+          raffle &&
+          typeof raffle.addParticipant === 'function' &&
+          raffle.active &&
+          !raffle.paused &&
+          typeof raffle.command === 'string' &&
+          typeof chatMessage.message === 'string'
+        ) {
+          const msg = chatMessage.message.trim().toLowerCase();
+          const cmd = raffle.command.trim().toLowerCase();
+          if (msg === cmd || msg === cmd.replace(/^!/, '') || msg === '!' + cmd) {
+            const added = raffle.addParticipant(chatMessage.username, chatMessage.userId);
+            if (added) {
+              Logger.info(`[Giveaway] New participant: ${chatMessage.username}`);
+            }
+          }
+        }
+      } catch (err) {
+        Logger.error('[Giveaway] Error trying to add participant:', err);
+      }
 
       this.history.push(chatMessage);
       if (this.history.length > this.MAX_HISTORY) {
         this.history.shift();
       }
-      
       this.notifyFrontend(chatMessage);
     }
   }

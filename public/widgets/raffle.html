@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raffle Widget</title>
+    <link rel="stylesheet" href="/css/output.css">
+    <link rel="stylesheet" href="raffle.css">
+</head>
+<body>
+    <div class="raffle-container" id="raffleContainer">
+        <div id="raffleInactive" class="text-center text-gray-400 text-lg" style="display:none;">
+            <span data-i18n="raffleInactive">The draw is inactive or not configured.</span>
+        </div>
+
+        <div id="raffleActiveContent" style="display:none;">
+            <div id="raffleTimer" class="text-center text-lg font-bold text-yellow-300 mb-2" style="display:none;"></div>
+            <div class="raffle-header">
+                <h2 class="raffle-title">Active Raffle</h2>
+                <div class="participant-count">
+                    <span id="participantCount">0</span> <span data-i18n="raffleParticipants">participants</span>
+                </div>
+            </div>
+            <div class="raffle-prize">
+                <img id="prizeImage" src="" alt="Prize" class="prize-image hidden">
+                <div>
+                    <div class="font-medium" data-i18n="rafflePrizeLabel">Prize:</div>
+                    <div id="prizeName" class="text-yellow-300"><span data-i18n="raffleLoading">Loading...</span></div>
+                </div>
+            </div>
+            <div class="participants-list" id="participantsList">
+
+            </div>
+            <div class="stats">
+                <div><span data-i18n="raffleCommand">Command:</span> <span id="raffleCommand" class="font-mono">!giveaway</span></div>
+                <div><span data-i18n="raffleWinners">Winners:</span> <span id="winnersCount">0</span></div>
+            </div>
+        </div>
+
+        <div id="winnerDisplay" class="winner-display" style="display:none;">
+            <div class="winner-icon">🏆</div>
+            <div class="text-xl" style="font-weight: 600;" data-i18n="raffleWinnerTitle">We have a winner!</div>
+            <div class="winner-name" id="winnerName"></div>
+            <div class="text-lg" data-i18n="rafflePrizeLabel"></div>
+            <div class="winner-prize" id="winnerPrize"></div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
+                <div class="winner-command" id="winnerCommand"></div>
+                <div class="winner-icon" style="font-size:2rem;">🎉</div>
+                <div class="winner-timestamp text-gray-400 text-sm" id="winnerTimestamp"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'raffle-winner-data';
+        const EXPIRATION_DAYS = 7;
+        let raffleData = {
+            winner: null,
+            prize: null,
+            command: null,
+            imageUrl: null,
+            timestamp: null,
+            participants: []
+        };
+
+        function loadSavedData() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    if (parsed.timestamp && (Date.now() - parsed.timestamp) < (EXPIRATION_DAYS * 24 * 60 * 60 * 1000)) {
+                        raffleData = parsed;
+                        return true;
+                    }
+                } catch (e) {
+                    console.error('Error parsing saved raffle data:', e);
+                }
+            }
+            return false;
+        }
+
+        function saveWinnerData(winner, prize, command, imageUrl) {
+            raffleData = {
+                winner,
+                prize,
+                command,
+                imageUrl,
+                timestamp: Date.now(),
+                participants: raffleData.participants
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(raffleData));
+        }
+
+        function showWinnerFromStorage() {
+            if (raffleData.winner) {
+                document.getElementById('winnerName').textContent = raffleData.winner;
+                document.getElementById('winnerPrize').textContent = raffleData.prize || '---';
+                document.getElementById('winnerCommand').textContent = `Command: ${raffleData.command || '!giveaway'}`;
+                if (raffleData.timestamp) {
+                    const date = new Date(raffleData.timestamp);
+                    document.getElementById('winnerTimestamp').textContent = `Winner announced on ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+                }
+                document.getElementById('raffleInactive').style.display = 'none';
+                document.getElementById('raffleActiveContent').style.display = 'none';
+                document.getElementById('winnerDisplay').style.display = 'flex';
+                return true;
+            }
+            return false;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const hasWinner = loadSavedData();
+            if (hasWinner) {
+                showWinnerFromStorage();
+            }
+            connectWebSocket();
+        });
+
+        let ws;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 3000;
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const wsUrl = protocol + window.location.host + '/ws';
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                reconnectAttempts = 0;
+                console.log('WebSocket connected');
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('WebSocket message:', data);
+                    if (data.type === 'raffle_state') {
+
+                        if (data.reset === true) {
+                            raffleData = {
+                                winner: null,
+                                prize: null,
+                                command: data.command || '!giveaway',
+                                imageUrl: null,
+                                timestamp: null,
+                                participants: []
+                            };
+                            localStorage.removeItem(STORAGE_KEY);
+                        }
+                        updateRaffleState(data);
+                    } else if (data.type === 'raffle_winner') {
+                        handleWinner(data);
+                    }
+                } catch (e) {
+                    console.error('Error parsing WebSocket message:', e);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(connectWebSocket, reconnectDelay);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                ws.close();
+            };
+        }
+
+        function handleWinner(winnerData) {
+            console.log('Handling winner:', winnerData);
+            let winnerName = '';
+            let prize = '';
+            let command = '';
+            let imageUrl = '';
+            if (winnerData) {
+                if (typeof winnerData.winner === 'string') {
+                    winnerName = winnerData.winner;
+                    prize = winnerData.prize || '';
+                    command = winnerData.command || '';
+                    imageUrl = winnerData.imageUrl || '';
+                } else if (typeof winnerData.winner === 'object' && winnerData.winner !== null) {
+                    winnerName = winnerData.winner.winner || winnerData.winner.username || winnerData.winner.name || '';
+                    prize = winnerData.winner.prize || winnerData.prize || '';
+                    command = winnerData.winner.command || winnerData.command || '';
+                    imageUrl = winnerData.winner.imageUrl || winnerData.imageUrl || '';
+                }
+                if (winnerName) {
+                    saveWinnerData(winnerName, prize, command, imageUrl);
+                    showWinnerFromStorage();
+                }
+            }
+        }
+
+        function updateRaffleState(state) {
+            if (state.command && raffleData.command && state.command !== raffleData.command) {
+                raffleData = {
+                    winner: null,
+                    prize: null,
+                    command: state.command,
+                    imageUrl: null,
+                    timestamp: null,
+                    participants: []
+                };
+                localStorage.removeItem(STORAGE_KEY);
+            }
+            const raffleInactive = document.getElementById('raffleInactive');
+            const raffleActiveContent = document.getElementById('raffleActiveContent');
+            const winnerDisplay = document.getElementById('winnerDisplay');
+
+            if (raffleData.winner) {
+                showWinnerFromStorage();
+                return;
+            }
+
+            if (!state.enabled || (!state.active && !state.paused)) {
+                raffleInactive.style.display = '';
+                raffleActiveContent.style.display = 'none';
+                winnerDisplay.style.display = 'none';
+                return;
+            }
+
+            raffleInactive.style.display = 'none';
+            raffleActiveContent.style.display = '';
+            winnerDisplay.style.display = 'none';
+
+            document.getElementById('participantCount').textContent = state.participants ? state.participants.length : 0;
+            document.getElementById('winnersCount').textContent = state.totalWinners || 0;
+            document.getElementById('raffleCommand').textContent = state.command || '!giveaway';
+            document.getElementById('prizeName').textContent = state.prize || '---';
+
+            const img = document.getElementById('prizeImage');
+            if (state.imageUrl) {
+                img.src = state.imageUrl;
+                img.classList.remove('hidden');
+            } else {
+                img.classList.add('hidden');
+            }
+
+            const list = document.getElementById('participantsList');
+            list.innerHTML = '';
+            if (state.participants && state.participants.length > 0) {
+                state.participants.forEach(p => {
+                    let username = '';
+                    if (typeof p === 'object' && p !== null) {
+                        username = p.username || p.name || '';
+                    } else if (typeof p === 'string') {
+                        username = (p.length > 20) ? '' : p;
+                    }
+                    if (!username) username = 'Spaceman';
+                    const div = document.createElement('div');
+                    div.className = 'participant';
+                    div.textContent = username;
+                    list.appendChild(div);
+                });
+            } else {
+                const div = document.createElement('div');
+                div.className = 'text-center text-gray-400';
+                div.textContent = 'No participants yet';
+                list.appendChild(div);
+            }
+
+            if (state.command) {
+                raffleData.command = state.command;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(raffleData));
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+@import url('/css/output.css');
+
+.raffle-container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  box-sizing: border-box;
+  background: #0a0e12;
+  border-radius: 0.5rem;
+  color: white;
+}
+.raffle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.raffle-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+.raffle-prize {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.prize-image {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  margin-right: 0.5rem;
+}
+.participants-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin: 0.5rem 0;
+  max-height: 220px;
+  /* scroll visible */
+  scrollbar-width: thin;
+  scrollbar-color: #4ade80 #222;
+}
+.participant {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #a0aec0;
+}
+.winner-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  text-align: center;
+  padding: 1rem;
+}
+.winner-name {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #00ff7f;
+  margin: 0.5rem 0;
+}
+.winner-prize {
+  font-size: 1.2rem;
+  color: #facb15;
+  font-weight: 600;
+}
+.winner-icon {
+  font-size: 3rem;
+}
+.winner-command {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #eee;
+  margin-top: 0.5rem;
+}
+.winner-timestamp {
+  color: #eee;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.participants-list::-webkit-scrollbar {
+  width: 8px;
+}
+.participants-list::-webkit-scrollbar-thumb {
+  background: #00ff7f;
+  border-radius: 4px;
+}
+.participants-list::-webkit-scrollbar-track {
+  background: #222;
+  border-radius: 4px;
+}

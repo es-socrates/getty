@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
             document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
-            document.getElementById('starting-amount').value = data.tipGoal.currentTips || 0;
+            document.getElementById('starting-amount').value = data.tipGoal.currentAmount || 0;
             document.getElementById('chat-url').value = data.chat.chatUrl || '';
             document.getElementById('tts-enabled').checked = data.tipWidget?.ttsEnabled || false;
             document.getElementById('tip-goal-bg-color').value = data.tipGoal.bgColor || '#080c10';
@@ -40,9 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tts-enabled').checked = false;
         });
     
-    document.querySelectorAll('.save-btn').forEach(btn => {
+    document.querySelectorAll('.save-btn[data-module]').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const module = e.currentTarget.dataset.module;
+            if (!module) {
+                showAlert('Error: Button has no data-module defined.', 'error');
+                return;
+            }
             await saveSettings(module);
         });
     });
@@ -94,7 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     });
     
+
     async function saveSettings(module) {
+        if (!module) {
+            showAlert('Error: No module specified for saving.', 'error');
+            return;
+        }
         try {
             let endpoint = '';
             let data = {};
@@ -112,39 +121,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         fromColor: document.getElementById('last-tip-from-color').value
                     };
                     break;
-                    
-                case 'tipGoal':
+                case 'tipGoal': {
+                    endpoint = '/api/tip-goal';
+                    const goalAmountInput = document.getElementById('goal-amount');
+                    const startingAmountInput = document.getElementById('starting-amount');
                     const goalAudioSource = document.querySelector('input[name="goal-audio-source"]:checked')?.value || 'remote';
-                    
-                    const formData = new FormData();
-
-                    formData.append('goalAmount', document.getElementById('goal-amount').value);
-                    formData.append('startingAmount', document.getElementById('starting-amount').value || '0');
-                    formData.append('bgColor', document.getElementById('tip-goal-bg-color').value);
-                    formData.append('fontColor', document.getElementById('tip-goal-font-color').value);
-                    formData.append('borderColor', document.getElementById('tip-goal-border-color').value);
-                    formData.append('progressColor', document.getElementById('tip-goal-progress-color').value);
-                    formData.append('audioSource', goalAudioSource);
-                    
-                    if (goalAudioSource === 'custom' && currentGoalAudioFile) {
-                        formData.append('audioFile', currentGoalAudioFile);
+                    if (!goalAmountInput) {
+                        console.error('[tipGoal] goal-amount input not found');
+                        showAlert('Goal amount field (goal-amount) does not exist.', 'error');
+                        return;
                     }
-                    
-                    const response = await fetch('/api/tip-goal', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Error saving tip goal settings');
+                    const monthlyGoal = Number(goalAmountInput.value);
+                    const currentAmount = startingAmountInput ? Number(startingAmountInput.value || '0') : 0;
+                    if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
+                        console.error('[tipGoal] monthlyGoal invalid:', monthlyGoal);
+                        showAlert('Monthly goal must be a number greater than 0.', 'error');
+                        return;
                     }
-    
-                    const responseData = await response.json();
-                    showAlert('Goal configuration saved successfully', 'success');
-                    updateStatus('tipGoal-status', responseData.active || false);
-                    return;
-                    
+                    data = {
+                        monthlyGoal,
+                        currentAmount: isNaN(currentAmount) ? 0 : currentAmount,
+                        bgColor: document.getElementById('tip-goal-bg-color').value,
+                        fontColor: document.getElementById('tip-goal-font-color').value,
+                        borderColor: document.getElementById('tip-goal-border-color').value,
+                        progressColor: document.getElementById('tip-goal-progress-color').value,
+                        audioSource: goalAudioSource
+                    };
+                    break;
+                }
                 case 'chat':
                     endpoint = '/api/chat';
                     data = {
@@ -192,7 +196,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             if (!response.ok) {
-                const errorData = await response.json();
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = { error: 'Failed to save settings' };
+                }
                 throw new Error(errorData.error || 'Failed to save settings');
             }
             

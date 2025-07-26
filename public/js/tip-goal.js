@@ -162,14 +162,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function processTipData(data) {
+        const current = data.currentAmount ?? data.currentTips ?? data.current ?? 0;
+        const goal = data.monthlyGoal ?? data.goal ?? 10;
+        const rate = data.exchangeRate ?? data.rate ?? 0;
         return {
-            current: data.currentTips || data.current || 0,
-            goal: data.monthlyGoal || data.goal || 10,
-            progress: Math.min(((data.currentTips || data.current || 0) / (data.monthlyGoal || data.goal || 10)) * 100, 100),
-            rate: data.exchangeRate || data.rate || 0,
-            usdValue: ((data.currentTips || data.current || 0) * (data.exchangeRate || data.rate || 0)).toFixed(2),
-            goalUsd: ((data.monthlyGoal || data.goal || 10) * (data.exchangeRate || data.rate || 0)).toFixed(2),
-            lastDonation: data.lastDonationTimestamp || data.lastDonation,
+            current,
+            goal,
+            progress: Math.min((current / goal) * 100, 100),
+            rate,
+            usdValue: (current * rate).toFixed(2),
+            goalUsd: (goal * rate).toFixed(2),
+            lastDonation: data.lastDonationTimestamp ?? data.lastDonation,
             bgColor: data.bgColor,
             fontColor: data.fontColor,
             borderColor: data.borderColor,
@@ -206,7 +209,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const previousProgress = currentData ? currentData.progress : 0;
                     currentData = processTipData(msg.data);
                     const newProgress = currentData.progress;
-                    
                     if (newProgress >= 100 && previousProgress < 100) {
                         hasReachedGoal = true;
                         hasPlayedGoalSound = false;
@@ -216,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         hasReachedGoal = newProgress >= 100;
                     }
-                    
                     updateGoalDisplay(currentData);
                 } else if (msg.type === 'init' && msg.data?.tipGoal) {
                     msg.data.tipGoal = { ...msg.data.tipGoal, ...tipGoalColors };

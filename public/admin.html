@@ -88,6 +88,12 @@
                         </svg>
                         <span data-i18n="chat"></span>
                     </button>
+                    <button class="sidebar-link" data-tab="raffle">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M17,2A2,2 0 0,1 19,4V20A2,2 0 0,1 17,22H7A2,2 0 0,1 5,20V4A2,2 0 0,1 7,2H17M12,17A2,2 0 1,0 12,13A2,2 0 0,0 12,17M12,7A2,2 0 1,0 12,11A2,2 0 0,0 12,7Z" />
+                        </svg>
+                        <span data-i18n="raffleTitle"></span>
+                    </button>
                     <button class="sidebar-link" data-tab="external">
                         <svg viewBox="0 0 24 24" class="sidebar-icon">
                             <path fill="currentColor" d="M14.4,22H9.6C8.71,22 8,21.29 8,20.4V17.6C8,16.71 8.71,16 9.6,16H14.4C15.29,16 16,16.71 16,17.6V20.4C16,21.29 15.29,22 14.4,22M20.4,16H17.6C16.71,16 16,15.29 16,14.4V9.6C16,8.71 16.71,8 17.6,8H20.4C21.29,8 22,8.71 22,9.6V14.4C22,15.29 21.29,16 20.4,16M14.4,8H9.6C8.71,8 8,7.29 8,6.4V3.6C8,2.71 8.71,2 9.6,2H14.4C15.29,2 16,2.71 16,3.6V6.4C16,7.29 15.29,8 14.4,8M6.4,16H3.6C2.71,16 2,15.29 2,14.4V9.6C2,8.71 2.71,8 3.6,8H6.4C7.29,8 8,8.71 8,9.6V14.4C8,15.29 7.29,16 6.4,16Z" />
@@ -100,7 +106,7 @@
             <div class="sidebar-footer">
                 <div class="connection-status">
                     <span class="status-dot connected"></span>
-                    <span>Connected</span>
+                    <span data-i18n="connected"></span>
                 </div>
             </div>
         </aside>
@@ -110,48 +116,91 @@
                 <h2 class="tab-title" data-i18n="systemStatus"></h2>
                 <div class="status-grid">
                     <div class="status-card">
-                        <div class="status-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.99H19V11C19,7.9 16.97,5.17 14,4.29V6.69L16,8L12.5,10.3L9,8L11,6.69V4.29C8.03,5.17 6,7.9 6,11V12H12V15H8V17H16V15H12V11.99Z" />
-                            </svg>
-                        </div>
-                        <h3 data-i18n="lastTip"></h3>
-                        <p class="status-value active" id="lastTip-status" data-i18n="active"></p>
+                        <div class="status-title" data-i18n="lastTip"></div>
+                        <div class="status-value" id="lastTip-status"></div>
                     </div>
                     <div class="status-card">
-                        <div class="status-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21" />
-                            </svg>
-                        </div>
-                        <h3 data-i18n="notifications"></h3>
-                        <p class="status-value active" id="tipWidget-status" data-i18n="active"></p>
+                        <div class="status-title" data-i18n="tipWidget"></div>
+                        <div class="status-value" id="tipWidget-status"></div>
                     </div>
                     <div class="status-card">
-                        <div class="status-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,10.5A1.5,1.5 0 0,1 13.5,12A1.5,1.5 0 0,1 12,13.5A1.5,1.5 0 0,1 10.5,12A1.5,1.5 0 0,1 12,10.5M7.5,10.5A1.5,1.5 0 0,1 9,12A1.5,1.5 0 0,1 7.5,13.5A1.5,1.5 0 0,1 6,12A1.5,1.5 0 0,1 7.5,10.5M16.5,10.5A1.5,1.5 0 0,1 18,12A1.5,1.5 0 0,1 16.5,13.5A1.5,1.5 0 0,1 15,12A1.5,1.5 0 0,1 16.5,10.5Z" />
-                            </svg>
-                        </div>
-                        <h3 data-i18n="tipGoal"></h3>
-                        <p class="status-value active" id="tipGoal-status" data-i18n="active"></p>
+                        <div class="status-title" data-i18n="tipGoal"></div>
+                        <div class="status-value" id="tipGoal-status"></div>
                     </div>
                     <div class="status-card">
-                        <div class="status-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path fill="currentColor" d="M12,3C17.5,3 22,6.58 22,11C22,15.42 17.5,19 12,19C10.76,19 9.57,18.82 8.47,18.5C5.55,21 2,21 2,21C4.33,18.67 4.7,17.1 4.75,16.5C3.05,15.07 2,13.13 2,11C2,6.58 6.5,3 12,3Z" />
-                            </svg>
-                        </div>
-                        <h3 data-i18n="chat"></h3>
-                        <p class="status-value inactive" id="chat-status" data-i18n="inactive"></p>
+                        <div class="status-title" data-i18n="chat"></div>
+                        <div class="status-value" id="chat-status"></div>
                     </div>
                 </div>
                 <button class="refresh-btn" id="refresh-status">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="vertical-align:middle;">
+                        <path d="M12 6V3L7 8l5 5V9c3.31 0 6 2.69 6 6 0 3.31-2.69 6-6 6s-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
                     </svg>
-                    <span data-i18n="updateStatus"></span>
+                    <span class="sr-only" data-i18n="refresh"></span>
                 </button>
+            </section>
+
+            <section class="admin-tab" id="raffle-tab">
+                <h2 class="tab-title"><span data-i18n="raffleTitle"></span></h2>
+                <div class="form-card">
+                    <div class="form-group">
+                        <label for="raffle-command" data-i18n="raffleCommandLabel"></label>
+                        <input type="text" id="raffle-command" placeholder="!giveaway" data-i18n-placeholder="raffleCommandPlaceholder">
+                    </div>
+                    <div class="form-group">
+                        <label for="raffle-prize" data-i18n="rafflePrizeLabel"></label>
+                        <input type="text" id="raffle-prize" placeholder="Prize name or description" data-i18n-placeholder="rafflePrizePlaceholder">
+                    </div>
+                    <div class="form-group">
+                        <label for="raffle-image" data-i18n="rafflePrizeImageLabel"></label>
+                        <input type="file" id="raffle-image" accept="image/*">
+                        <div id="raffle-image-preview" style="margin-top:8px;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="raffleStatusLabel">Status:</label>
+                        <span id="raffle-status" class="font-bold" data-i18n="raffleInactive"></span>
+                    </div>
+                    <div class="form-group flex gap-2">
+                        <button id="raffle-start" class="save-btn" data-i18n="raffleStart"></button>
+                        <button id="raffle-pause" class="save-btn" data-i18n="rafflePause"></button>
+                        <button id="raffle-resume" class="save-btn" data-i18n="raffleResume"></button>
+                        <button id="raffle-stop" class="save-btn" data-i18n="raffleStop"></button>
+                        <button id="raffle-draw" class="save-btn" data-i18n="raffleDrawWinner"></button>
+                        <button id="raffle-reset" class="save-btn danger-btn" data-i18n="raffleResetWinners"></button>
+                    </div>
+                    <div class="form-group">
+                        <div class="form-group">
+                            <label for="raffle-max-winners" data-i18n="raffleMaxWinnersLabel"></label>
+                            <input type="number" id="raffle-max-winners" min="1" value="1" data-i18n-placeholder="raffleMaxWinnersPlaceholder">
+                        </div>
+                        <div class="form-group">
+                            <label for="raffle-enabled">
+                                <input type="checkbox" id="raffle-enabled" checked>
+                                <span data-i18n="raffleEnabled"></span>
+                            </label>
+                        </div>
+                        <button id="raffle-save" class="save-btn" type="button" data-i18n="saveSettings"></button>
+                    </div>
+                </div>
+                <div class="widget-card">
+                    <h3 class="widget-title" data-i18n="raffleCurrentParticipants"></h3>
+                    <div id="raffle-participants" style="min-height:40px;"></div>
+                    <div id="raffle-winners" style="margin-top:10px;"></div>
+                </div>
+                <div class="widget-card">
+                    <h3 class="widget-title" data-i18n="obsIntegration"></h3>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <input type="text" id="raffle-widget-url" value="http://localhost:3000/widgets/raffle.html" readonly>
+                            <button class="copy-btn" onclick="copyToClipboard('raffle-widget-url')">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                </svg>
+                                <span data-i18n="copy"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section class="admin-tab" id="last-tip-tab">
@@ -249,11 +298,11 @@
                 <div class="form-card">
                     <div class="form-group">
                         <label for="goal-amount" data-i18n="monthlyGoal"></label>
-                        <input type="number" id="goal-amount" value="10">
+<input type="number" id="goal-amount" name="monthlyGoal" value="10">
                     </div>
                     <div class="form-group">
                         <label for="starting-amount" data-i18n="initialAmount"></label>
-                        <input type="number" id="starting-amount" value="0">
+                        <input type="number" id="starting-amount" name="starting-amount" value="0" min="0" required>
                     </div>
                     
                     <div class="color-settings">
@@ -695,87 +744,54 @@
     </div>
 </div>
 
+<script src="/js/raffle-admin.js"></script>
 <script src="/js/languages.js"></script>
 <script src="/js/admin.js"></script>
 <script>
+
     document.addEventListener('DOMContentLoaded', function() {
-        const tabButtons = document.querySelectorAll('.sidebar-link');
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
         const tabs = document.querySelectorAll('.admin-tab');
-        
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                tabButtons.forEach(btn => btn.classList.remove('active'));
+        sidebarLinks.forEach(btn => {
+            btn.addEventListener('click', function() {
+                sidebarLinks.forEach(l => l.classList.remove('active'));
                 tabs.forEach(tab => tab.classList.remove('active'));
-                
-                button.classList.add('active');
-                
-                const tabId = button.getAttribute('data-tab') + '-tab';
-                document.getElementById(tabId).classList.add('active');
+                btn.classList.add('active');
+                const tabId = btn.getAttribute('data-tab');
+                const tabSection = document.getElementById(tabId + '-tab');
+                if (tabSection) tabSection.classList.add('active');
             });
         });
 
-        const baseUrl = window.location.origin;
-        document.getElementById('last-tip-url').value = `${baseUrl}/widgets/last-tip`;
-        document.getElementById('tip-goal-url').value = `${baseUrl}/widgets/tip-goal`;
-        document.getElementById('tip-notification-url').value = `${baseUrl}/widgets/tip-notification`;
-        document.getElementById('obs-chat-url').value = `${baseUrl}/widgets/chat`;
-        document.getElementById('obs-chat-horizontal-url').value = `${baseUrl}/widgets/chat?horizontal=1`;
-        
-        const audioRemote = document.getElementById('audio-remote');
-        const audioCustom = document.getElementById('audio-custom');
-        const customAudioSection = document.getElementById('custom-audio-section');
-        const audioPreview = document.getElementById('audio-preview');
-        const audioFileInput = document.getElementById('custom-audio-file');
-        const playBtn = document.getElementById('play-audio');
-        const removeBtn = document.getElementById('remove-audio');
-        
-        audioRemote.addEventListener('change', function() {
-            if(this.checked) {
-                customAudioSection.style.display = 'none';
-            }
-        });
-        
-        audioCustom.addEventListener('change', function() {
-            if(this.checked) {
-                customAudioSection.style.display = 'block';
-            }
-        });
-        
-        audioFileInput.addEventListener('change', function(e) {
-            if(this.files && this.files[0]) {
-                const file = this.files[0];
-                const fileName = file.name;
-                const fileSize = (file.size / 1024).toFixed(2) + ' KB';
-                
-                document.getElementById('audio-name').textContent = fileName;
-                document.getElementById('audio-size').textContent = fileSize;
-                
-                audioPreview.style.display = 'flex';
-            }
-        });
-        
-        removeBtn.addEventListener('click', function() {
-            audioFileInput.value = '';
-            audioPreview.style.display = 'none';
-        });
-        
-        document.querySelectorAll('input[type="color"]').forEach(colorPicker => {
-            colorPicker.addEventListener('input', function() {
-                const hexValue = this.nextElementSibling;
-                hexValue.textContent = this.value;
-            });
-        });
-        
-        document.querySelectorAll('.reset-colors-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const formCard = this.closest('.form-card');
-                formCard.querySelectorAll('input[type="color"]').forEach(colorPicker => {
-                    const defaultValue = colorPicker.getAttribute('value');
-                    colorPicker.value = defaultValue;
-                    colorPicker.nextElementSibling.textContent = defaultValue;
-                });
-            });
-        });
+        const raffleWidgetUrl = document.getElementById('raffle-widget-url');
+        if (raffleWidgetUrl) {
+            raffleWidgetUrl.value = window.location.origin + '/widgets/raffle.html';
+        }
+
+        const lastTipWidgetUrl = document.getElementById('last-tip-url');
+        if (lastTipWidgetUrl) {
+            lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip.html';
+        }
+
+        const tipGoalWidgetUrl = document.getElementById('tip-goal-url');
+        if (tipGoalWidgetUrl) {
+            tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal.html';
+        }
+
+        const tipNotificationUrl = document.getElementById('tip-notification-url');
+        if (tipNotificationUrl) {
+            tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification.html';
+        }
+
+        const obsChatUrl = document.getElementById('obs-chat-url');
+        if (obsChatUrl) {
+            obsChatUrl.value = window.location.origin + '/widgets/chat.html';
+        }
+
+        const obsChatHorizontalUrl = document.getElementById('obs-chat-horizontal-url');
+        if (obsChatHorizontalUrl) {
+            obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat.html?horizontal=1';
+        }
     });
 
     function copyToClipboard(elementId) {
