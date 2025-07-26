@@ -14,7 +14,7 @@ class RaffleModule {
         this.wss = wss;
         this.active = false;
         this.paused = false;
-        this.command = '!sorteo';
+        this.command = '!giveaway';
         this.prize = '';
         this.imageUrl = '';
         this.duration = 5;
@@ -35,7 +35,7 @@ class RaffleModule {
         try {
             if (fs.existsSync(this.settingsFile)) {
                 const data = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8'));
-                this.command = data.command || '!sorteo';
+                this.command = data.command || '!giveaway';
                 this.prize = data.prize || '';
                 this.imageUrl = data.imageUrl || '';
                 this.active = !!data.active;
