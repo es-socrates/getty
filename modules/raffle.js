@@ -229,7 +229,7 @@ class RaffleModule {
         if (this.timer) clearTimeout(this.timer);
         this.endTime = null;
         this.saveSettingsToFile();
-        // Broadcast con bandera de reset
+
         if (this.wss) {
             const state = {
                 type: 'raffle_state',
