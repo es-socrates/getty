@@ -6,7 +6,7 @@
     <title>Getty</title>
     <meta property="og:title" content="Getty" />
     <meta property="og:site_name" content="Getty"/>
-    <meta name="description" content="App widget for Odysee streamers to manage tips, goals, and chat.">
+    <meta name="description" content="Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.">
     <link rel="shortcut icon" href="/assets/getty-fav.png" />
     <link rel="stylesheet" href="/css/output.css">
     <link rel="stylesheet" href="/css/theme.css">
@@ -47,7 +47,7 @@
                 
                 <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 z-50">
                     <div class="py-1">
-                        <a href="/admin.html" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="settings"></a>
+                        <a href="/admin.html" target="_blank" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="settings"></a>
                         <div class="border-t border-border my-1"></div>
                         <div class="px-4 py-2">
                             <label for="language-selector" class="block text-sm text-gray-300 mb-1" data-i18n="language"></label>
@@ -68,7 +68,11 @@
             <div class="p-3 flex-1 flex flex-col justify-center">
                 <div id="last-donation" class="last-donation">
                     <div class="last-donation-content">
-                        <div class="notification-icon">🪙</div>
+                        <div class="notification-icon-lasttip">
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 3V2a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v1H3v3a5 5 0 0 0 4 4.9V10a5 5 0 0 0 4 4.9V19H8v2h8v-2h-3v-4.1A5 5 0 0 0 17 10v.9a5 5 0 0 0 4-4.9V3h-4zm-8 7a3 3 0 0 1-3-3V5h3v5zm10-3a3 3 0 0 1-3 3V5h3v2z"/>
+                          </svg>
+                        </div>
                         <div class="notification-text">
                             <div class="notification-title" data-i18n="loading"></div>
                             <div class="notification-amount">
@@ -78,7 +82,7 @@
                                 </div>
                                 <div class="usd-value"></div>
                             </div>
-                            <div class="notification-from" data-i18n="connectingToWallet"></div>
+                            <div class="notification-from-lasttip" data-i18n="connectingToWallet"></div>
                         </div>
                     </div>
                 </div>
@@ -122,7 +126,7 @@
     <div class="max-w-7xl mx-auto px-6">
         <div class="flex flex-col md:flex-row justify-between items-center">
             <div class="mb-4 md:mb-0">
-                <p class="font-bold" data-i18n="copyright">© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
+                <p class="font-bold" data-i18n="copyright">© 2025 <a href="https://getty.sh/" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Getty</a> - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
             </div>
             <div class="flex space-x-4">
                 <a href="https://odysee.com" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Odysee</a>

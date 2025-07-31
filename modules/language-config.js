@@ -4,11 +4,11 @@ const path = require('path');
 const serverLanguages = {
     en: {
         title: "Getty",
-        description: "App widget for Odysee streamers to manage tips, goals, and chat.",
+        description: "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
     },
     es: {
         title: "Getty",
-        description: "Aplicación de widgetds para streamers de Odysee para gestionar propinas, metas y chat.",
+        description: "Aplicación de widget para notificaciones de propinas, objetivos de propinas, recompensas de chat y visualización de alertas en tiempo real para tus directos en Odysee.",
     }
 };
 

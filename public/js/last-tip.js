@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const amountElement = document.querySelector('.notification-amount .ar-amount');
     const symbolElement = document.querySelector('.notification-amount .ar-symbol');
     const usdValueElement = document.querySelector('.notification-amount .usd-value');
-    const fromElement = document.querySelector('.notification-from');
+    const fromElement = document.querySelector('.notification-from-lasttip');
 
     const verifyElements = () => {
         if (!titleElement) console.error('Element .notification-title not found');
@@ -86,8 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const icon = document.querySelector('.notification-icon');
         if (icon) icon.style.setProperty('color', colors.iconColor || '#ca004b', 'important');
 
-        const from = document.querySelector('.notification-from');
-        if (from) from.style.setProperty('color', colors.fromColor || '#e9e9e9', 'important');
+        const from = document.querySelector('.notification-from-lasttip');
+        if (from) from.style.setProperty('color', colors.fromColor || '#817ec8', 'important');
     }
 
     async function loadColors() {
