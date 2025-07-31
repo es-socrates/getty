@@ -1,7 +1,7 @@
 {
   "name": "getty",
   "version": "1.0.0",
-  "description": "App widget for Odysee streamers to manage tips, goals, and chat.",
+  "description": "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

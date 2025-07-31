@@ -230,7 +230,7 @@ function speakMessage(message) {
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(message);
-    utterance.volume = 0.8;
+    utterance.volume = 0.9;
     utterance.rate = 1; // Normal speed
     utterance.pitch = 0.9; // A little deeper to sound more masculine
     

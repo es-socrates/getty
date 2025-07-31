@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lastDonationElement = document.getElementById('last-donation');
   const titleElement = document.querySelector('.notification-title');
   const amountElement = document.querySelector('.notification-amount');
-  const fromElement = document.querySelector('.notification-from');
+  const fromElement = document.querySelector('.notification-from-lasttip');
 
   function formatArAmount(amount) {
     const num = parseFloat(amount);

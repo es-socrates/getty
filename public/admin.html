@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Getty Admin</title>
-    <meta name="description" content="App widget for Odysee streamers to manage tips, goals, and chat.">
+    <meta name="description" content="Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="shortcut icon" href="/assets/getty-fav.png" />
     <link rel="stylesheet" href="/css/output.css">
@@ -39,7 +39,7 @@
                 
                 <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 z-50">
                     <div class="py-1">
-                        <a href="/" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="goToHome"></a>
+                        <a href="/" target="_blank" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="goToHome"></a>
                         <div class="px-4 py-2">
                             <label for="language-selector" class="block text-sm text-gray-300 mb-1" data-i18n="language"></label>
                             <select id="language-selector" class="language-selector w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white">
@@ -261,8 +261,8 @@
                             <div class="color-picker">
                                 <label for="last-tip-from-color" data-i18n="colorFrom"></label>
                                 <div class="color-input-wrapper">
-                                    <input type="color" id="last-tip-from-color" value="#e9e9e9">
-                                    <span class="color-value">#e9e9e9</span>
+                                    <input type="color" id="last-tip-from-color" value="#817ec8">
+                                    <span class="color-value">#817ec8</span>
                                 </div>
                             </div>
                         </div>
@@ -725,13 +725,13 @@
 
     <footer class="admin-footer">
         <div class="footer-content">
-            <p data-i18n="copyright">© 2025 Getty - <a href="https://opensource.org/licenses/MIT" target="_blank">MIT License</a></p>
+                <p class="font-bold" data-i18n="copyright">© 2025 <a href="https://getty.sh/" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Getty</a> - <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a></p>
             <div class="footer-links">
-                <a href="https://odysee.com" target="_blank">Odysee</a>
-                <span>|</span>
-                <a href="https://github.com/es-socrates/getty" target="_blank">GitHub</a>
-                <span>|</span>
-                <p data-i18n="independentProject"></p>
+                <a href="https://odysee.com" target="_blank" class="hover:text-primary-200 transition-colors font-bold">Odysee</a>
+                <span>-</span>
+                <a href="https://github.com/es-socrates/getty" target="_blank" class="hover:text-primary-200 transition-colors font-bold">GitHub</a>
+                <span>-</span>
+                <p class="font-bold" data-i18n="independentProject"></p>
             </div>
         </div>
     </footer>

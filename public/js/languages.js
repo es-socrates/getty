@@ -2,7 +2,7 @@ const languages = {
     en: {
         title: "Getty",
         adminTitle: "Getty Admin",
-        description: "App widget for Odysee streamers to manage tips, goals, and chat.",
+        description: "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
         goToHome: "Homepage",
         goToAdmin: "Go to admin",
         settings: "Settings",
@@ -45,7 +45,7 @@ const languages = {
         telegramChatId: "Telegram Chat ID:",
         notificationTemplate: "Notification Template:",
         templateVarsHint: "Available variables: {from}, {amount}, {usd}, {message}",
-        copyright: "© 2025 Getty - MIT License",
+        copyright: "© 2025 <a href='https://getty.sh/' target='_blank'>Getty</a> - <a href='https://opensource.org/licenses/MIT' target='_blank'>MIT License</a>",
         independentProject: "Made with love for Odysee ❤️",
         lastTipTitle: "Last tip",
         monthlyGoalTitle: "Monthly Goal",
@@ -128,7 +128,7 @@ const languages = {
     es: {
         title: "Getty",
         adminTitle: "Getty Admin",
-        description: "App para streamers de Odysee para gestionar propinas, metas y chat.",
+        description: "Aplicación de widget para notificaciones de propinas, objetivos de propinas, recompensas de chat y visualización de alertas en tiempo real para tus directos en Odysee.",
         goToHome: "Ir al inicio",
         goToAdmin: "Ir al admin",
         settings: "Configuración",
@@ -171,7 +171,7 @@ const languages = {
         telegramChatId: "ID del Chat de Telegram:",
         notificationTemplate: "Plantilla de Notificación:",
         templateVarsHint: "Variables disponibles: {from}, {amount}, {usd}, {message}",
-        copyright: "© 2025 Getty - Licencia MIT",
+        copyright: "© 2025 <a href='https://getty.sh/' target='_blank'>Getty</a> - <a href='https://opensource.org/licenses/MIT' target='_blank'>Licencia MIT</a>",
         independentProject: "Hecho con amor para Odysee ❤️",
         lastTipTitle: "Última propina",
         monthlyGoalTitle: "Meta Mensual",
@@ -305,9 +305,10 @@ class LanguageManager {
         document.querySelectorAll('[data-i18n]').forEach(element => {
             const key = element.getAttribute('data-i18n');
             const text = this.getText(key);
-            
             if (element.tagName === 'INPUT' && element.type === 'placeholder') {
                 element.placeholder = text;
+            } else if (key === 'copyright') {
+                element.innerHTML = text;
             } else {
                 element.textContent = text;
             }
@@ -321,7 +322,7 @@ class LanguageManager {
         
         const metaDescription = document.querySelector('meta[name="description"]');
         if (metaDescription) {
-            metaDescription.setAttribute('content', this.getText('description') || 'App widget for Odysee streamers to manage tips, goals, and chat.');
+            metaDescription.setAttribute('content', this.getText('description') || 'Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.');
         }
     }
     

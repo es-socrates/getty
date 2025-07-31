@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('last-tip-border-color').value = '#00ff7f';
             document.getElementById('last-tip-amount-color').value = '#00ff7f';
             document.getElementById('last-tip-icon-color').value = '#ca004b';
-            document.getElementById('last-tip-from-color').value = '#e9e9e9';
+            document.getElementById('last-tip-from-color').value = '#817ec8';
             updateLastTipColorHex();
         });
     }
