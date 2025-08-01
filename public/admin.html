@@ -94,6 +94,17 @@
                         </svg>
                         <span data-i18n="raffleTitle"></span>
                     </button>
+
+                    <button class="sidebar-link" id="liveviews-link">
+                    <span class="sidebar-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M1 12C3.5 7 8 4 12 4C16 4 20.5 7 23 12C20.5 17 16 20 12 20C8 20 3.5 17 1 12Z" class="liveviews-eye" stroke="currentColor" stroke-width="2" fill="none"/>
+                            <circle cx="12" cy="12" r="3.5" class="liveviews-eye" fill="currentColor"/>
+                        </svg>
+                    </span>
+                    <span data-i18n="sidebarliveviews"></span>
+                    </button>
+
                     <button class="sidebar-link" data-tab="external">
                         <svg viewBox="0 0 24 24" class="sidebar-icon">
                             <path fill="currentColor" d="M14.4,22H9.6C8.71,22 8,21.29 8,20.4V17.6C8,16.71 8.71,16 9.6,16H14.4C15.29,16 16,16.71 16,17.6V20.4C16,21.29 15.29,22 14.4,22M20.4,16H17.6C16.71,16 16,15.29 16,14.4V9.6C16,8.71 16.71,8 17.6,8H20.4C21.29,8 22,8.71 22,9.6V14.4C22,15.29 21.29,16 20.4,16M14.4,8H9.6C8.71,8 8,7.29 8,6.4V3.6C8,2.71 8.71,2 9.6,2H14.4C15.29,2 16,2.71 16,3.6V6.4C16,7.29 15.29,8 14.4,8M6.4,16H3.6C2.71,16 2,15.29 2,14.4V9.6C2,8.71 2.71,8 3.6,8H6.4C7.29,8 8,8.71 8,9.6V14.4C8,15.29 7.29,16 6.4,16Z" />
@@ -131,12 +142,21 @@
                         <div class="status-title" data-i18n="chat"></div>
                         <div class="status-value" id="chat-status"></div>
                     </div>
+                    <div class="status-card">
+                        <div class="status-title" data-i18n="raffleTitle"></div>
+                        <div class="status-value" id="raffle-status"></div>
+                    </div>
+                    <div class="status-card">
+                        <div class="status-title" data-i18n="sidebarliveviews"></div>
+                        <div class="status-value" id="liveviews-status"></div>
+                    </div>
                 </div>
                 <button class="refresh-btn" id="refresh-status">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" style="vertical-align:middle;">
                         <path d="M12 6V3L7 8l5 5V9c3.31 0 6 2.69 6 6 0 3.31-2.69 6-6 6s-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
                     </svg>
                     <span class="sr-only" data-i18n="refresh"></span>
+                    <span data-i18n="checkStatuses"></span>
                 </button>
             </section>
 
@@ -155,10 +175,6 @@
                         <label for="raffle-image" data-i18n="rafflePrizeImageLabel"></label>
                         <input type="file" id="raffle-image" accept="image/*">
                         <div id="raffle-image-preview" style="margin-top:8px;"></div>
-                    </div>
-                    <div class="form-group">
-                        <label data-i18n="raffleStatusLabel">Status:</label>
-                        <span id="raffle-status" class="font-bold" data-i18n="raffleInactive"></span>
                     </div>
                     <div class="form-group flex gap-2">
                         <button id="raffle-start" class="save-btn" data-i18n="raffleStart"></button>
@@ -298,7 +314,7 @@
                 <div class="form-card">
                     <div class="form-group">
                         <label for="goal-amount" data-i18n="monthlyGoal"></label>
-<input type="number" id="goal-amount" name="monthlyGoal" value="10">
+                        <input type="number" id="goal-amount" name="monthlyGoal" value="10">
                     </div>
                     <div class="form-group">
                         <label for="starting-amount" data-i18n="initialAmount"></label>
@@ -505,7 +521,6 @@
                                     <div class="upload-icon-wrapper">
                                         <svg class="upload-icon" viewBox="0 0 24 24">
                                             <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                        </svg>
                                     </div>
                                     <div class="upload-text">
                                         <h5 class="upload-title" data-i18n="uploadAudioTitle"></h5>
@@ -686,6 +701,74 @@
                 </div>
             </section>
 
+            <section class="admin-tab" id="liveviews-tab">
+            <h2 class="tab-title"><span data-i18n="sidebarliveviews"></span></h2>
+            <div class="form-card">
+                <div class="form-group">
+                    <label for="liveviews-claimid" data-i18n="liveviewsClaimId"></label>
+                    <input type="text" id="liveviews-claimid" maxlength="128" placeholder="Ejemplo: 123456789abcdef...">
+                </div>
+                <div class="form-group">
+                    <label for="liveviews-viewers-label" data-i18n="liveviewsViewersLabel"></label>
+                    <input type="text" id="liveviews-viewers-label" maxlength="32" placeholder="viewers">
+                </div>
+                <div class="color-settings">
+                    <div class="color-settings-header">
+                        <h3 class="color-settings-title" data-i18n="liveviewsColorsTitle"></h3>
+                    </div>
+                    <div class="color-grid">
+                        <div class="color-picker">
+                            <label for="liveviews-bg-color" data-i18n="liveviewsBgColor"></label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="liveviews-bg-color" value="#ffffff">
+                                <span class="color-value" id="liveviews-bg-color-hex">#ffffff</span>
+                            </div>
+                        </div>
+                        <div class="color-picker">
+                            <label for="liveviews-font-color" data-i18n="liveviewsFontColor"></label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="liveviews-font-color" value="#222222">
+                                <span class="color-value" id="liveviews-font-color-hex">#222222</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="liveviews-font-family" data-i18n="liveviewsFontFamily"></label>
+                    <select id="liveviews-font-family">
+                        <option value="Arial">Arial</option>
+                        <option value="Inter">Inter</option>
+                        <option value="Roboto">Roboto</option>
+                        <option value="Verdana">Verdana</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="liveviews-size" data-i18n="liveviewsSize"></label>
+                    <input type="number" id="liveviews-size" min="10" max="200" value="32">
+                </div>
+                <div class="form-group">
+                    <label for="liveviews-icon-input" data-i18n="liveviewsIcon"></label>
+                    <input type="file" id="liveviews-icon-input" class="file-input" accept="image/*" style="width:400px;max-width:100%;padding:6px 8px;box-sizing:border-box;">
+                    <div id="liveviews-icon-preview" style="margin-top:8px;"></div>
+                </div>
+                <button class="save-btn" id="liveviews-save" type="button">
+                    <span data-i18n="saveSettings"></span>
+                </button>
+            </div>
+            <div class="widget-card">
+                <h3 class="widget-title" data-i18n="obsIntegration"></h3>
+                <div class="form-group">
+                <label data-i18n="liveviewsWidgetUrl"></label>
+                <div class="input-group">
+                    <input type="text" id="liveviews-widget-url" readonly>
+                    <button class="copy-btn" onclick="copyToClipboard('liveviews-widget-url')">
+                    <span data-i18n="copy"></span>
+                    </button>
+                </div>
+                </div>
+            </div>
+            </section>
+
             <section class="admin-tab" id="external-tab">
                 <h2 class="tab-title" data-i18n="externalNotifications"></h2>
                 <div class="form-card">
@@ -746,121 +829,8 @@
 
 <script src="/js/raffle-admin.js"></script>
 <script src="/js/languages.js"></script>
+<script src="/js/liveviews.js"></script>
 <script src="/js/admin.js"></script>
-<script>
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const sidebarLinks = document.querySelectorAll('.sidebar-link');
-        const tabs = document.querySelectorAll('.admin-tab');
-        sidebarLinks.forEach(btn => {
-            btn.addEventListener('click', function() {
-                sidebarLinks.forEach(l => l.classList.remove('active'));
-                tabs.forEach(tab => tab.classList.remove('active'));
-                btn.classList.add('active');
-                const tabId = btn.getAttribute('data-tab');
-                const tabSection = document.getElementById(tabId + '-tab');
-                if (tabSection) tabSection.classList.add('active');
-            });
-        });
-
-        const raffleWidgetUrl = document.getElementById('raffle-widget-url');
-        if (raffleWidgetUrl) {
-            raffleWidgetUrl.value = window.location.origin + '/widgets/giveaway.html';
-        }
-
-        const lastTipWidgetUrl = document.getElementById('last-tip-url');
-        if (lastTipWidgetUrl) {
-            lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip.html';
-        }
-
-        const tipGoalWidgetUrl = document.getElementById('tip-goal-url');
-        if (tipGoalWidgetUrl) {
-            tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal.html';
-        }
-
-        const tipNotificationUrl = document.getElementById('tip-notification-url');
-        if (tipNotificationUrl) {
-            tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification.html';
-        }
-
-        const obsChatUrl = document.getElementById('obs-chat-url');
-        if (obsChatUrl) {
-            obsChatUrl.value = window.location.origin + '/widgets/chat.html';
-        }
-
-        const obsChatHorizontalUrl = document.getElementById('obs-chat-horizontal-url');
-        if (obsChatHorizontalUrl) {
-            obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat.html?horizontal=1';
-        }
-    });
-
-    function copyToClipboard(elementId) {
-        const text = document.getElementById(elementId).value;
-        navigator.clipboard.writeText(text).then(() => {
-            showCopyToast();
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-            showCopyToast(false);
-        });
-    }
-
-    function showCopyToast(success = true) {
-        const toast = document.getElementById('copy-toast');
-        const icon = toast.querySelector('.copy-icon');
-        const message = toast.querySelector('.copy-message');
-        
-        if (success) {
-            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
-            message.textContent = window.languageManager ? window.languageManager.getText('urlCopied') : 'URL copied to clipboard!';
-            toast.style.borderColor = 'var(--secondary-color)';
-        } else {
-            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
-            message.textContent = window.languageManager ? window.languageManager.getText('failedToCopy') : 'Failed to copy!';
-            toast.style.borderColor = 'var(--error-color)';
-        }
-        
-        toast.classList.add('show');
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const userMenuButton = document.getElementById('user-menu-button');
-        const userMenu = document.getElementById('user-menu');
-        const themeToggle = document.getElementById('theme-toggle');
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        document.body.classList.toggle('dark', savedTheme === 'dark');
-        
-        if (themeToggle) {
-            themeToggle.addEventListener('click', function() {
-                const isDark = document.body.classList.contains('dark');
-                document.body.classList.toggle('dark', !isDark);
-                localStorage.setItem('theme', isDark ? 'light' : 'dark');
-            });
-        }
-        
-        if (userMenuButton && userMenu) {
-            userMenuButton.addEventListener('click', function(e) {
-                e.stopPropagation();
-                userMenu.classList.toggle('opacity-0');
-                userMenu.classList.toggle('invisible');
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
-                    userMenu.classList.add('opacity-0', 'invisible');
-                }
-            });
-            
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    userMenu.classList.add('opacity-0', 'invisible');
-                }
-            });
-        }
-    });
-</script>
 </body>
 </html>

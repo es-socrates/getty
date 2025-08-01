@@ -1,0 +1,35 @@
+.live-button {
+    background-color: #f02349;
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 4px;
+    font-size: 2rem;
+    line-height: 2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+    text-align: center;
+    margin-right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    border: none;
+  }
+  
+  .viewer-count {
+    background-color: #1a1f27;
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 4px;
+    font-size: 2rem;
+    line-height: 2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+    text-align: center;
+    margin-right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    border: none;
+  }

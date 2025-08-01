@@ -691,7 +691,6 @@ input:checked + .slider:before {
     flex: 1;
 }
 
-/* Audio upload styles */
 .audio-source-selector {
     display: flex;
     flex-direction: column;
@@ -933,7 +932,19 @@ input:checked + .slider:before {
   transform: translateY(1px) scale(0.98);
 }
 
-/* Responsive styles */
+.file-input[type="file"] {
+  display: inline-block;
+  width: 180px;
+  max-width: 100%;
+  padding: 6px 8px;
+  font-size: 15px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #f9f9f9;
+  color: #222;
+  cursor: pointer;
+}
+
 @media (max-width: 768px) {
     .admin-layout {
         flex-direction: column;

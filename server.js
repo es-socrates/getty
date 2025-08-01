@@ -1,3 +1,4 @@
+const LIVEVIEWS_CONFIG_FILE = './config/liveviews-config.json';
 require('dotenv').config();
 const express = require('express');
 const WebSocket = require('ws');
@@ -18,9 +19,27 @@ const TIP_GOAL_CONFIG_FILE = './tip-goal-config.json';
 const GOAL_AUDIO_UPLOADS_DIR = './public/uploads/goal-audio';
 
 const app = express();
+app.post('/config/liveviews-config.json', express.json({ limit: '1mb' }), (req, res) => {
+  try {
+    const { bg, color, font, size, icon, claimid } = req.body;
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+    if (icon && icon.length > 1024 * 1024 * 1.4) {
+      return res.status(400).json({ error: 'The icon is too big. Maximum size: 1MB' });
+    }
+    const config = { bg, color, font, size, icon, claimid };
+    fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(config, null, 2));
+    res.json({ success: true, config });
+  } catch (error) {
+    res.status(500).json({ error: 'Error saving configuration', details: error.message });
+  }
+});
+
+app.get('/config/liveviews-config.json', (_req, res) => {
+  res.sendFile(path.resolve(__dirname, 'config/liveviews-config.json'));
+});
+
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -34,7 +53,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com; " + 
         "font-src 'self' data: blob: https://fonts.gstatic.com; " +
-        "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://api.coingecko.com https://api.telegram.org; " +
+        "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://api.coingecko.com https://api.telegram.org https://api.odysee.live; " +
         "frame-src 'self'"
     );
 
@@ -587,7 +606,7 @@ function saveAudioSettings(newSettings) {
   }
 }
 
-app.get('/api/audio-settings', (req, res) => {
+app.get('/api/audio-settings', (_req, res) => {
   // console.log('=== GET /api/audio-settings REQUEST ===');
   // console.log('Request URL:', req.url);
   // console.log('Request method:', req.method);
@@ -1208,4 +1227,40 @@ app.get('/api/goal-custom-audio', (_req, res) => {
         console.error('Error serving custom goal audio:', error);
         res.status(500).json({ error: 'Error serving custom goal audio' });
     }
+});
+
+app.get('/api/status', (_req, res) => {
+  try {
+    res.json({
+      success: true,
+      lastTip: 'OK',
+      tipWidget: 'OK',
+      tipGoal: 'OK',
+      chat: 'OK'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/save-liveviews-label', express.json(), (req, res) => {
+  const { viewersLabel } = req.body;
+  if (typeof viewersLabel !== 'string' || !viewersLabel.trim()) {
+    return res.status(400).json({ error: 'Invalid label' });
+  }
+  const configPath = path.join(__dirname, 'config', 'liveviews-config.json');
+  fs.readFile(configPath, 'utf8', (err, data) => {
+    if (err) return res.status(500).json({ error: 'The configuration file could not be read' });
+    let config;
+    try {
+      config = JSON.parse(data);
+    } catch (e) {
+      return res.status(500).json({ error: 'Invalid JSON Config' });
+    }
+    config.viewersLabel = viewersLabel;
+    fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8', (err) => {
+      if (err) return res.status(500).json({ error: 'The label could not be saved.' });
+      res.json({ success: true });
+    });
+  });
 });

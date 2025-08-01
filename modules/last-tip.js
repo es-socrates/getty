@@ -23,7 +23,10 @@ class LastTipModule {
   }
   
   async getEnhancedTransactions(address) {
+    let graphqlError = null;
+    let restError = null;
     try {
+      console.log(`[LastTip] Checking transactions for wallet: ${address}`);
       const graphqlResponse = await axios.post(`${this.ARWEAVE_GATEWAY}/graphql`, {
         query: `
           query {
@@ -44,9 +47,13 @@ class LastTipModule {
             }
           }
         `
-      }, { timeout: 15000 });
+      }, { timeout: 30000 });
 
+      if (graphqlResponse.status) {
+        console.log(`[LastTip] GraphQL response status: ${graphqlResponse.status}`);
+      }
       if (graphqlResponse.data?.data?.transactions?.edges) {
+        console.log(`[LastTip] GraphQL returned ${graphqlResponse.data.data.transactions.edges.length} edges`);
         return graphqlResponse.data.data.transactions.edges.map(edge => ({
           id: edge.node.id,
           owner: edge.node.owner.address,
@@ -55,13 +62,21 @@ class LastTipModule {
           tags: edge.node.tags
         }));
       }
+    } catch (error) {
+      graphqlError = error;
+      console.warn('[LastTip] GraphQL request failed:', error.message);
+    }
 
+    try {
       console.log('⚠️ Using REST API as a fallback');
       const restResponse = await axios.get(`${this.ARWEAVE_GATEWAY}/tx/history/${address}`, {
-        timeout: 15000
+        timeout: 30000
       });
-
+      if (restResponse.status) {
+        console.log(`[LastTip] REST response status: ${restResponse.status}`);
+      }
       if (Array.isArray(restResponse.data)) {
+        console.log(`[LastTip] REST returned ${restResponse.data.length} transactions`);
         return restResponse.data
           .filter(tx => tx.target === address)
           .map(tx => ({
@@ -71,12 +86,15 @@ class LastTipModule {
             timestamp: tx.block_timestamp
           }));
       }
-
-      return [];
     } catch (error) {
-      console.error('Error fetching transactions:', error.message);
-      return [];
+      restError = error;
+      console.warn('[LastTip] REST request failed:', error.message);
     }
+
+    if (graphqlError && restError) {
+      console.warn('[LastTip] Both GraphQL and REST requests failed. Skipping update until next interval.');
+    }
+    return [];
   }
   
   async findLatestDonation() {
@@ -91,7 +109,6 @@ class LastTipModule {
 
     for (const tx of sortedTxs) {
       const amount = Number(tx.amount);
-      
       if (!isNaN(amount) && amount > 0 && !this.processedTxs.has(tx.id)) {
         console.log(`✅ Found valid deposit: ${amount} AR from ${tx.owner.slice(0, 6)}...`);
         this.processedTxs.add(tx.id);

@@ -1,4 +1,3 @@
-// Giveaway widget logic movido desde giveaway.html
 const STORAGE_KEY = 'raffle-winner-data';
 const ACTIVE_STATE_KEY = 'raffle-active-state';
 const EXPIRATION_DAYS = 7;
@@ -123,12 +122,12 @@ function renderRaffleContent() {
         <div class="giveaway-content">
             <div class="giveaway-row">
                 <div class="giveaway-prize-image-area">
-                    <img id="prizeImage" src="${state && state.imageUrl ? state.imageUrl : ''}" alt="Imagen del premio" class="prize-image${state && state.imageUrl ? '' : ' hidden'}">
-                    <div id="prizeImagePlaceholder" class="prize-image-placeholder" style="display:${state && state.imageUrl ? 'none' : ''}">Imagen<br>del<br>premio</div>
+                    <img id="prizeImage" src="${state && state.imageUrl ? state.imageUrl : ''}" alt="Award image" class="prize-image${state && state.imageUrl ? '' : ' hidden'}">
+                    <div id="prizeImagePlaceholder" class="prize-image-placeholder" style="display:${state && state.imageUrl ? 'none' : ''}">Image<br>of<br>the<br>award</div>
                 </div>
                 <div class="giveaway-main-info">
                     <div class="giveaway-prize-name" id="prizeName">${state && state.prize ? state.prize : '<span data-i18n="raffleLoading">Loading...</span>'}</div>
-                    <div class="giveaway-participants-label" data-i18n="raffleParticipants">Participantes:</div>
+                    <div class="giveaway-participants-label" data-i18n="raffleParticipants">Participants:</div>
                     <div class="participants-list" id="participantsList">${participantsHTML}</div>
                 </div>
                 <div class="giveaway-logo-area">
@@ -140,7 +139,7 @@ function renderRaffleContent() {
                     <span id="participantCountBox">${participantCount}</span>
                 </div>
                 <div class="giveaway-command-area" id="commandArea">
-                    <span style="font-weight:600; margin-right:6px;" data-i18n="raffleCommandLabel">Comando:</span> <span id="raffleCommand" class="giveaway-command">${state && state.command ? state.command : 'Nombre del comando'}</span>
+                    <span style="font-weight:600; margin-right:6px;" data-i18n="raffleCommandLabel">Command:</span> <span id="raffleCommand" class="giveaway-command">${state && state.command ? state.command : 'Command name'}</span>
                 </div>
             </div>
         </div>

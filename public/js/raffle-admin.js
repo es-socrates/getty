@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('languageChanged', function () {
+        if (typeof updateUI === 'function' && lastState) {
+            updateUI(lastState);
+        }
+    });
     let timerBox = document.getElementById('raffle-timer');
     if (!timerBox) {
         timerBox = document.createElement('div');
@@ -25,7 +30,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const imageInput = document.getElementById('raffle-image');
     const imagePreview = document.getElementById('raffle-image-preview');
     const enabledCheckbox = document.getElementById('raffle-enabled');
-    const statusText = document.getElementById('raffle-status');
     const participantsList = document.getElementById('raffle-participants');
     const winnersList = document.getElementById('raffle-winners');
 
@@ -78,17 +82,65 @@ document.addEventListener('DOMContentLoaded', function () {
         if (errorBox) errorBox.style.display = 'none';
     }
 
+    function showSaveToast(success = true) {
+        const toast = document.getElementById('copy-toast');
+        const icon = toast.querySelector('.copy-icon');
+        const message = toast.querySelector('.copy-message');
+        if (success) {
+            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+            message.textContent = 'Configuration saved successfully';
+            toast.style.borderColor = 'var(--secondary-color)';
+        } else {
+            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+            message.textContent = 'Error saving configuration';
+            toast.style.borderColor = 'var(--error-color)';
+        }
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+
     function updateUI(state) {
         if (timerInterval) clearInterval(timerInterval);
         timerBox.style.display = 'none';
         try {
             // console.log('[raffle-admin.js] updateUI state:', state);
-            if (!state || typeof state !== 'object') return;
+            if (!state || typeof state !== 'object') {
+                lastState = {};
+                return;
+            }
             lastState = state;
+
+            const statusText = document.getElementById('raffle-status');
             if (statusText) {
-                statusText.textContent = state.active
-                    ? (state.paused ? 'Pausado' : 'Activo')
-                    : 'Inactivo';
+                let statusKey = 'not_configured';
+                if (state.enabled) {
+                    if (state.active) {
+                        statusKey = state.paused ? 'paused' : 'active';
+                    } else {
+                        statusKey = 'inactive';
+                    }
+                }
+                statusText.textContent = getStatusTextI18n(statusKey);
+            }
+            function getStatusTextI18n(key) {
+                const keyMap = {
+                    active: 'raffleActive',
+                    paused: 'rafflePaused',
+                    inactive: 'raffleInactive',
+                    not_configured: 'raffleNotConfigured'
+                };
+                const i18nKey = keyMap[key] || 'raffleNotConfigured';
+                if (window.languageManager && typeof window.languageManager.getText === 'function') {
+                    return window.languageManager.getText(i18nKey);
+                }
+                return {
+                    raffleActive: 'The draw is active',
+                    rafflePaused: 'The draw is paused',
+                    raffleInactive: 'The draw is inactive',
+                    raffleNotConfigured: 'The draw is not configured'
+                }[i18nKey];
             }
             if (enabledCheckbox) enabledCheckbox.checked = !!state.enabled;
             const commandInput = document.getElementById('raffle-command');
@@ -124,9 +176,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             username = p[1].username || p[1].name || '';
                         } else if (typeof p === 'object' && p !== null) {
                             username = p.username || p.name || '';
-                        } else if (typeof p === 'string') {
-
-                            username = (p.length > 20) ? '' : p;
+                        } else if (typeof p === 'string' && p.length <= 20) {
+                            username = p;
                         }
                         if (!username) username = 'Spaceman';
 
@@ -192,10 +243,28 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(r => r.json())
             .then(res => {
-                if (res.success) fetchSettings();
-                else showError(res.error || 'Error saving settings.');
+                if (res.success) {
+                    fetchSettings();
+                    showSaveToast(true);
+
+                    if (typeof updateUI === 'function') {
+                        updateUI({
+                            ...data,
+                            enabled: data.enabled,
+                            active: false,
+                            paused: false
+                        });
+                    }
+                }
+                else {
+                    showSaveToast(false);
+                    showError(res.error || 'Error saving settings.');
+                }
             })
-            .catch(() => showError('Error saving settings.'));
+            .catch(() => {
+                showSaveToast(false);
+                showError('Error saving settings.');
+            });
     }
 
     function uploadImage(e) {

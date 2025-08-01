@@ -154,7 +154,7 @@ body:not(.dark) .sidebar-title {
 }
 
 body:not(.dark) .sidebar-link {
-  color: var(--text-secondary) !important;
+  color: #2b2e33 !important
 }
 
 body:not(.dark) .sidebar-link:hover {

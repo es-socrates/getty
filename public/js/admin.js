@@ -918,3 +918,242 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('DOMContentLoaded', loadAudioSettings);
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    fetch('/config/liveviews-config.json')
+        .then(res => res.json())
+        .then(cfg => {
+            if (cfg) {
+                if (document.getElementById('liveviews-claimid')) document.getElementById('liveviews-claimid').value = cfg.claimid || '';
+                if (document.getElementById('liveviews-bg-color')) document.getElementById('liveviews-bg-color').value = cfg.bg || '#ffffff';
+                if (document.getElementById('liveviews-font-color')) document.getElementById('liveviews-font-color').value = cfg.color || '#222222';
+                if (document.getElementById('liveviews-font-family')) document.getElementById('liveviews-font-family').value = cfg.font || 'Arial';
+                if (document.getElementById('liveviews-size')) document.getElementById('liveviews-size').value = cfg.size || 32;
+                
+                const iconPreview = document.getElementById('liveviews-icon-preview');
+                if (iconPreview) {
+                    iconPreview.innerHTML = '';
+                    if (cfg.icon && cfg.icon.startsWith('data:image')) {
+                        const img = document.createElement('img');
+                        img.src = cfg.icon;
+                        img.alt = 'Liveviews Icon';
+                        img.style.maxHeight = '48px';
+                        img.style.maxWidth = '48px';
+                        img.style.borderRadius = '8px';
+                        iconPreview.appendChild(img);
+                    }
+                }
+            }
+        });
+
+    const liveviewsIconInput = document.getElementById('liveviews-icon');
+    if (liveviewsIconInput) {
+        liveviewsIconInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const iconPreview = document.getElementById('liveviews-icon-preview');
+            if (file && iconPreview) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    iconPreview.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = ev.target.result;
+                    img.alt = 'Liveviews Icon';
+                    img.style.maxHeight = '48px';
+                    img.style.maxWidth = '48px';
+                    img.style.borderRadius = '8px';
+                    iconPreview.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            } else if (iconPreview) {
+                iconPreview.innerHTML = '';
+            }
+        });
+    }
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const tabs = document.querySelectorAll('.admin-tab');
+    sidebarLinks.forEach(btn => {
+        btn.addEventListener('click', function() {
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            tabs.forEach(tab => tab.classList.remove('active'));
+            btn.classList.add('active');
+            let tabId = btn.getAttribute('data-tab');
+
+            if (!tabId && btn.id === 'liveviews-link') {
+                tabId = 'liveviews';
+            }
+            const tabSection = document.getElementById(tabId + '-tab');
+            if (tabSection) tabSection.classList.add('active');
+        });
+    });
+
+    const raffleWidgetUrl = document.getElementById('raffle-widget-url');
+    if (raffleWidgetUrl) {
+        raffleWidgetUrl.value = window.location.origin + '/widgets/giveaway.html';
+    }
+
+    const lastTipWidgetUrl = document.getElementById('last-tip-url');
+    if (lastTipWidgetUrl) {
+        lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip.html';
+    }
+
+    const tipGoalWidgetUrl = document.getElementById('tip-goal-url');
+    if (tipGoalWidgetUrl) {
+        tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal.html';
+    }
+
+    const tipNotificationUrl = document.getElementById('tip-notification-url');
+    if (tipNotificationUrl) {
+        tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification.html';
+    }
+
+    const obsChatUrl = document.getElementById('obs-chat-url');
+    if (obsChatUrl) {
+        obsChatUrl.value = window.location.origin + '/widgets/chat.html';
+    }
+
+    const obsChatHorizontalUrl = document.getElementById('obs-chat-horizontal-url');
+    if (obsChatHorizontalUrl) {
+        obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat.html?horizontal=1';
+    }
+
+    const liveviewsWidgetUrl = document.getElementById('liveviews-widget-url');
+    if (liveviewsWidgetUrl) {
+        liveviewsWidgetUrl.value = window.location.origin + '/widgets/liveviews.html';
+    }
+
+    const liveviewsSaveBtn = document.getElementById('liveviews-save');
+    if (liveviewsSaveBtn) {
+        liveviewsSaveBtn.addEventListener('click', function() {
+            const iconImg = document.getElementById('liveviews-icon-preview').querySelector('img');
+            const config = {
+                claimid: document.getElementById('liveviews-claimid').value,
+                bg: document.getElementById('liveviews-bg-color').value,
+                color: document.getElementById('liveviews-font-color').value,
+                font: document.getElementById('liveviews-font-family').value,
+                size: parseInt(document.getElementById('liveviews-size').value) || 32,
+                icon: iconImg ? iconImg.src : ''
+            };
+            fetch('/config/liveviews-config.json', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            }).then(res => {
+                if (res.ok) {
+                    showUnifiedSaveToast(true);
+                } else {
+                    showUnifiedSaveToast(false);
+                }
+            });
+        });
+    }
+
+    function showUnifiedSaveToast(success = true) {
+        let toast = document.getElementById('copy-toast');
+        const icon = toast.querySelector('.copy-icon');
+        const message = toast.querySelector('.copy-message');
+        if (success) {
+            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+            message.textContent = 'Configuration saved successfully';
+            toast.style.borderColor = 'var(--secondary-color)';
+        } else {
+            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+            message.textContent = 'Error saving configuration';
+            toast.style.borderColor = 'var(--error-color)';
+        }
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+
+    const lastTipStatus = document.getElementById('lastTip-status');
+    const tipWidgetStatus = document.getElementById('tipWidget-status');
+    const tipGoalStatus = document.getElementById('tipGoal-status');
+    const chatStatus = document.getElementById('chat-status');
+
+    function updateStatus() {
+        fetch('/api/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    lastTipStatus.textContent = data.lastTip;
+                    tipWidgetStatus.textContent = data.tipWidget;
+                    tipGoalStatus.textContent = data.tipGoal;
+                    chatStatus.textContent = data.chat;
+                } else {
+                    console.error('Error fetching status:', data.message);
+                }
+            })
+            .catch(error => console.error('Error fetching status:', error));
+    }
+
+    updateStatus();
+    setInterval(updateStatus, 30000);
+
+    window.copyToClipboard = function(elementId) {
+        const text = document.getElementById(elementId).value;
+        navigator.clipboard.writeText(text).then(() => {
+            showCopyToast();
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showCopyToast(false);
+        });
+    }
+
+    window.showCopyToast = function(success = true) {
+        const toast = document.getElementById('copy-toast');
+        const icon = toast.querySelector('.copy-icon');
+        const message = toast.querySelector('.copy-message');
+        
+        if (success) {
+            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+            message.textContent = window.languageManager ? window.languageManager.getText('urlCopied') : 'URL copied to clipboard!';
+            toast.style.borderColor = 'var(--secondary-color)';
+        } else {
+            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+            message.textContent = window.languageManager ? window.languageManager.getText('failedToCopy') : 'Failed to copy!';
+            toast.style.borderColor = 'var(--error-color)';
+        }
+        
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000);
+    }
+
+    const userMenuButton = document.getElementById('user-menu-button');
+    const userMenu = document.getElementById('user-menu');
+    const themeToggle = document.getElementById('theme-toggle');
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.classList.toggle('dark', savedTheme === 'dark');
+    
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            const isDark = document.body.classList.contains('dark');
+            document.body.classList.toggle('dark', !isDark);
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        });
+    }
+    
+    if (userMenuButton && userMenu) {
+        userMenuButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userMenu.classList.toggle('opacity-0');
+            userMenu.classList.toggle('invisible');
+        });
+        
+        document.addEventListener('click', function(e) {
+            if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
+                userMenu.classList.add('opacity-0', 'invisible');
+            }
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                userMenu.classList.add('opacity-0', 'invisible');
+            }
+        });
+    }
+});
