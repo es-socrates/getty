@@ -44,7 +44,7 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  // console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
 
 const wss = new WebSocket.Server({ noServer: true });
@@ -79,11 +79,11 @@ function setupWebSocketListeners() {
     wss.removeAllListeners('tip');
     
     wss.on('tip', (tipData) => {
-        console.log('[Main] Tip event received:', {
-            from: tipData.from,
-            amount: tipData.amount,
-            source: tipData.source || 'direct'
-        });
+        // console.log('[Main] Tip event received:', {
+        //     from: tipData.from,
+        //     amount: tipData.amount,
+        //     source: tipData.source || 'direct'
+        // });
         
         externalNotifications.handleIncomingTip(tipData).catch(error => {
             console.error('[Main] Error processing tip:', error);
@@ -588,14 +588,14 @@ function saveAudioSettings(newSettings) {
 }
 
 app.get('/api/audio-settings', (req, res) => {
-  console.log('=== GET /api/audio-settings REQUEST ===');
-  console.log('Request URL:', req.url);
-  console.log('Request method:', req.method);
-  console.log('=======================================');
+  // console.log('=== GET /api/audio-settings REQUEST ===');
+  // console.log('Request URL:', req.url);
+  // console.log('Request method:', req.method);
+  // console.log('=======================================');
   
   try {
     const settings = loadAudioSettings();
-    console.log('Sending audio settings:', settings);
+    // console.log('Sending audio settings:', settings);
     res.json(settings);
   } catch (error) {
     console.error('Error getting audio settings:', error);
@@ -604,13 +604,13 @@ app.get('/api/audio-settings', (req, res) => {
 });
 
 app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
-  console.log('=== POST /api/audio-settings REQUEST ===');
-  console.log('Request URL:', req.url);
-  console.log('Request method:', req.method);
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
-  console.log('Request file:', req.file);
-  console.log('=========================================');
+  // console.log('=== POST /api/audio-settings REQUEST ===');
+  // console.log('Request URL:', req.url);
+  // console.log('Request method:', req.method);
+  // console.log('Request headers:', req.headers);
+  // console.log('Request body:', req.body);
+  // console.log('Request file:', req.file);
+  // console.log('=========================================');
   
   try {
     const { audioSource } = req.body;
@@ -628,11 +628,11 @@ app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
       settings.audioFileName = req.file.originalname;
       settings.audioFileSize = req.file.size;
       
-      console.log('Saved custom audio:', {
-        filename: req.file.filename,
-        originalname: req.file.originalname,
-        size: req.file.size
-      });
+      // console.log('Saved custom audio:', {
+      //   filename: req.file.filename,
+      //   originalname: req.file.originalname,
+      //   size: req.file.size
+      // });
     } else if (audioSource === 'remote') {
       settings.hasCustomAudio = false;
       settings.audioFileName = null;
@@ -641,7 +641,7 @@ app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
       const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
       if (fs.existsSync(customAudioPath)) {
         fs.unlinkSync(customAudioPath);
-        console.log('Custom audio removed');
+        // console.log('Custom audio removed');
       }
     }
 
@@ -890,7 +890,7 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  console.log('New WebSocket connection');
+  // console.log('New WebSocket connection');
   ws.send(JSON.stringify({
     type: 'init',
     data: {
@@ -969,7 +969,7 @@ app.post('/api/test-donation', express.json(), (req, res) => {
     try {
         const { amount = 5.00, from = 'TestUser', message = 'Test donation!' } = req.body;
         
-        console.log('🧪 Test donation received:', { amount, from, message });
+        // console.log('🧪 Test donation received:', { amount, from, message });
         
         const donationData = {
             type: 'donation',
