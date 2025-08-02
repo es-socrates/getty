@@ -8,9 +8,17 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
+            document.getElementById('tip-goal-wallet-address').value = data.tipGoal.walletAddress || '';
             document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
             document.getElementById('starting-amount').value = data.tipGoal.currentAmount || 0;
-            document.getElementById('chat-url').value = data.chat.chatUrl || '';
+            
+            let claimId = '';
+            if (data.chat.chatUrl && data.chat.chatUrl.startsWith('wss://sockety.odysee.tv/ws/commentron?id=')) {
+                claimId = data.chat.chatUrl.split('id=')[1] || '';
+            } else {
+                claimId = data.chat.chatUrl || '';
+            }
+            document.getElementById('chat-url').value = claimId;
             document.getElementById('tts-enabled').checked = data.tipWidget?.ttsEnabled || false;
             document.getElementById('tip-goal-bg-color').value = data.tipGoal.bgColor || '#080c10';
             document.getElementById('tip-goal-font-color').value = data.tipGoal.fontColor || '#ffffff';
@@ -139,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                     data = {
+                        walletAddress: document.getElementById('tip-goal-wallet-address').value.trim(),
                         monthlyGoal,
                         currentAmount: isNaN(currentAmount) ? 0 : currentAmount,
                         bgColor: document.getElementById('tip-goal-bg-color').value,
@@ -151,8 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 case 'chat':
                     endpoint = '/api/chat';
+                    const claimId = document.getElementById('chat-url').value.trim();
                     data = {
-                        chatUrl: document.getElementById('chat-url').value.trim(),
+                        chatUrl: `wss://sockety.odysee.tv/ws/commentron?id=${claimId}`,
                         bgColor: document.getElementById('chat-bg-color').value,
                         msgBgColor: document.getElementById('chat-msg-bg-color').value,
                         msgBgAltColor: document.getElementById('chat-msg-bg-alt-color').value,

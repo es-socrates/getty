@@ -8,9 +8,11 @@ class TipGoalModule {
         }
 
         this.wss = wss;
-        this.walletAddress = process.env.WALLET_ADDRESS || '';
-        this.monthlyGoalAR = parseFloat(process.env.GOAL_AR) || 10;
-        this.currentTipsAR = parseFloat(process.env.STARTING_AR) || 0;
+        this.walletAddress = '';
+        this.monthlyGoalAR = 10;
+        this.currentTipsAR = 0;
+        this.loadWalletAddress();
+
         this.AR_TO_USD = 0;
         this.processedTxs = new Set();
         this.lastDonationTimestamp = null;
@@ -23,10 +25,47 @@ class TipGoalModule {
         
         this.init();
     }
+
+    loadWalletAddress() {
+        const fs = require('fs');
+        const path = require('path');
+        const configDir = path.join(process.cwd(), 'config');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        const configPath = path.join(configDir, 'tip-goal-config.json');
+        const tipGoalDefault = {
+            walletAddress: '',
+            monthlyGoal: 10,
+            currentAmount: 0,
+            bgColor: '#080c10',
+            fontColor: '#ffffff',
+            borderColor: '#00ff7f',
+            progressColor: '#00ff7f',
+            audioSource: 'remote'
+        };
+        if (!fs.existsSync(configPath)) {
+            fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2));
+        }
+        try {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.walletAddress) {
+                this.walletAddress = config.walletAddress;
+            }
+            if (typeof config.monthlyGoal === 'number') {
+                this.monthlyGoalAR = config.monthlyGoal;
+            }
+            if (typeof config.currentAmount === 'number') {
+                this.currentTipsAR = config.currentAmount;
+            }
+        } catch (e) {
+            console.error('[TipGoal] Error reading wallet address from config:', e);
+        }
+    }
     
     async init() {
         if (!this.walletAddress) {
-            console.error('❌ ERROR: WALLET_ADDRESS is missing in .env');
+            console.error('❌ ERROR: walletAddress is missing in tip-goal-config.json');
             return;
         }
         
@@ -240,30 +279,36 @@ class TipGoalModule {
                 }));
             }
         });
-
-        console.log('📊 Goal update sent:', {
-            current: updateData.currentTips.toFixed(2),
-            goal: updateData.monthlyGoal.toFixed(2),
-            progress: updateData.progress.toFixed(1) + '%',
-            rate: this.AR_TO_USD
-        });
     }
     
     updateWalletAddress(newAddress) {
         if (!newAddress || newAddress === this.walletAddress) {
+
             return this.getStatus();
         }
-        
-        console.log(`🔄 Updating wallet address to: ${newAddress.slice(0, 8)}...`);
         this.walletAddress = newAddress;
-        process.env.WALLET_ADDRESS = newAddress;
+        const fs = require('fs');
+        const path = require('path');
+        const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+        let config = {};
+        if (fs.existsSync(configPath)) {
+            try {
+                config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            } catch (e) {
+                console.error('[TipGoal] Error reading config for wallet update:', e);
+            }
+        }
+        config.walletAddress = newAddress;
+        try {
+            fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        } catch (e) {
+            console.error('[TipGoal] Error writing wallet address to config:', e);
+        }
         this.processedTxs = new Set();
-        this.currentTipsAR = parseFloat(process.env.STARTING_AR) || 0;
+        this.currentTipsAR = 0;
         this.lastDonationTimestamp = null;
-        
         this.sendGoalUpdate();
         this.checkTransactions(true);
-        
         return this.getStatus();
     }
     
