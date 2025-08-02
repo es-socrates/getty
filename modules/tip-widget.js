@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { getWalletAddress } = require('./tip-goal');
 
 const COLORS = {
   debug: '\x1b[36m',    // Cyan
@@ -68,31 +69,14 @@ class TipWidgetModule {
     this.wss = wss;
     this.ttsEnabled = true; // Default value
     this.ARWEAVE_GATEWAY = 'https://arweave.net';
-    this.walletAddress = '';
-    this.loadWalletAddress();
+    this.walletAddress = getWalletAddress();
     this.processedTxs = new Set();
     this.init();
-  }
-
-  loadWalletAddress() {
-    const fs = require('fs');
-    const path = require('path');
-    const configPath = path.join(process.cwd(), 'tip-goal-config.json');
-    if (fs.existsSync(configPath)) {
-      try {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (config.walletAddress) {
-          this.walletAddress = config.walletAddress;
-        }
-      } catch (e) {
-        Logger.error('[TipWidget] Error reading wallet address from config:', e);
-      }
-    }
   }
   
   init() {
     if (!this.walletAddress) {
-      Logger.error('walletAddress is missing in tip-goal-config.json');
+      Logger.error('walletAddress is missing in configuration file');
       return;
     }
     Logger.info('Initializing Tip Widget Module', {
