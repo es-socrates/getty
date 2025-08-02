@@ -1,12 +1,11 @@
-const LIVEVIEWS_CONFIG_FILE = './config/liveviews-config.json';
-require('dotenv').config();
+const path = require('path');
+const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const express = require('express');
 const WebSocket = require('ws');
-const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
 const multer = require('multer');
-const SETTINGS_FILE = './tts-settings.json';
+const SETTINGS_FILE = path.join(process.cwd(), 'tts-settings.json');
 
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
@@ -14,9 +13,9 @@ const TipGoalModule = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
-const GOAL_AUDIO_CONFIG_FILE = './config/goal-audio-settings.json';
-const TIP_GOAL_CONFIG_FILE = './tip-goal-config.json';
-const GOAL_AUDIO_UPLOADS_DIR = './public/uploads/goal-audio';
+const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
+const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'tip-goal-config.json');
+const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
 
 const app = express();
 app.post('/config/liveviews-config.json', express.json({ limit: '1mb' }), (req, res) => {
@@ -63,7 +62,7 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
-  // console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
 });
 
 const wss = new WebSocket.Server({ noServer: true });
@@ -82,28 +81,10 @@ const raffle = new RaffleModule(wss);
 
 global.gettyRaffleInstance = raffle;
 
-// console.log('[DEBUG] Registrando endpoints de la rifa:');
-// console.log('[DEBUG] GET  /api/raffle/settings');
-// console.log('[DEBUG] GET  /api/raffle/state');
-// console.log('[DEBUG] POST /api/raffle/settings');
-// console.log('[DEBUG] POST /api/raffle/start');
-// console.log('[DEBUG] POST /api/raffle/stop');
-// console.log('[DEBUG] POST /api/raffle/pause');
-// console.log('[DEBUG] POST /api/raffle/resume');
-// console.log('[DEBUG] POST /api/raffle/draw');
-// console.log('[DEBUG] POST /api/raffle/reset');
-// console.log('[DEBUG] POST /api/raffle/upload-image');
-
 function setupWebSocketListeners() {
     wss.removeAllListeners('tip');
     
     wss.on('tip', (tipData) => {
-        // console.log('[Main] Tip event received:', {
-        //     from: tipData.from,
-        //     amount: tipData.amount,
-        //     source: tipData.source || 'direct'
-        // });
-        
         externalNotifications.handleIncomingTip(tipData).catch(error => {
             console.error('[Main] Error processing tip:', error);
         });
@@ -212,14 +193,10 @@ app.post('/api/tts-setting', express.json(), (req, res) => {
     }
 });
 
-const LAST_TIP_CONFIG_FILE = './last-tip-config.json';
+const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'last-tip-config.json');
 app.post('/api/last-tip', express.json(), (req, res) => {
   try {
     const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, fromColor } = req.body;
-    if (!walletAddress) {
-      return res.status(400).json({ error: "Wallet address is required" });
-    }
-
     let config = {};
     if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
       config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
@@ -231,10 +208,11 @@ app.post('/api/last-tip', express.json(), (req, res) => {
       borderColor: borderColor || config.borderColor || '#00ff7f',
       amountColor: amountColor || config.amountColor || '#00ff7f',
       iconColor: iconColor || config.iconColor || '#ca004b',
-      fromColor: fromColor || config.fromColor || '#e9e9e9'
+      fromColor: fromColor || config.fromColor || '#e9e9e9',
+      walletAddress: walletAddress || config.walletAddress || ''
     };
     fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-    const result = lastTip.updateWalletAddress(walletAddress);
+    const result = lastTip.updateWalletAddress(newConfig.walletAddress);
     res.json({
       success: true,
       ...result,
@@ -249,7 +227,7 @@ app.post('/api/last-tip', express.json(), (req, res) => {
   }
 });
 
-const goalAudioDir = './public/uploads/goal-audio';
+const goalAudioDir = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
 if (!fs.existsSync(goalAudioDir)) {
     fs.mkdirSync(goalAudioDir, { recursive: true });
 }
@@ -290,8 +268,9 @@ const goalAudioUpload = multer({
   }
 });
 
-app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), (req, res) => {
+app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), async (req, res) => {
   try {
+    const walletAddress = req.body.walletAddress || '';
     const monthlyGoal = parseFloat(req.body.monthlyGoal || req.body.goalAmount);
     const currentAmount = parseFloat(
       req.body.currentAmount || req.body.startingAmount || req.body.currentTips || '0'
@@ -300,45 +279,61 @@ app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), (req, res) => {
     const fontColor = req.body.fontColor;
     const borderColor = req.body.borderColor;
     const progressColor = req.body.progressColor;
-    const audioSource = req.body.audioSource;
+    const audioSource = req.body.audioSource || 'remote';
+
+    if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
+      return res.status(400).json({ error: "Valid goal amount is required" });
+    }
+
+    tipGoal.updateWalletAddress(walletAddress);
+    tipGoal.monthlyGoalAR = monthlyGoal;
+    tipGoal.currentTipsAR = currentAmount;
 
     let audioFile = null;
     if (req.file) {
       audioFile = '/uploads/goal-audio/' + req.file.filename;
     }
 
-    if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
-      return res.status(400).json({ 
-        error: "Valid goal amount is required",
-        details: `Received: ${JSON.stringify({monthlyGoal: req.body.monthlyGoal, goalAmount: req.body.goalAmount})}`
-      });
-    }
-
-    tipGoal.monthlyGoalAR = monthlyGoal;
-    tipGoal.currentTipsAR = currentAmount;
-
     const config = {
+      walletAddress,
       monthlyGoal,
       currentAmount,
       bgColor: bgColor || '#080c10',
       fontColor: fontColor || '#ffffff',
       borderColor: borderColor || '#00ff7f',
       progressColor: progressColor || '#00ff7f',
-      audioSource: audioSource || 'remote',
+      audioSource,
       ...(audioFile ? { customAudioUrl: audioFile } : {})
     };
     fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
 
+    const audioSettings = {
+      audioSource,
+      hasCustomAudio: audioSource === 'custom' && !!req.file,
+      audioFileName: req.file ? req.file.originalname : null,
+      audioFileSize: req.file ? req.file.size : 0
+    };
+    fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(audioSettings, null, 2));
+
     tipGoal.sendGoalUpdate();
+
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: 'goalAudioSettingsUpdate',
+          data: audioSettings
+        }));
+      }
+    });
 
     res.json({
       success: true,
-      monthlyGoal,
-      currentAmount,
-      ...config
+      active: true,
+      ...config,
+      ...audioSettings
     });
   } catch (error) {
-    console.error('Error updating tip goal:', error);
+    console.error('Error in /api/tip-goal:', error);
     res.status(500).json({ 
       error: "Internal server error",
       details: error.message 
@@ -346,11 +341,11 @@ app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), (req, res) => {
   }
 });
 
-const CHAT_CONFIG_FILE = './chat-config.json';
+const CHAT_CONFIG_FILE = path.join(process.cwd(), 'chat-config.json');
 
 app.post('/api/chat', express.json(), (req, res) => {
   try {
-    const { chatUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = req.body;
+    const { chatUrl, odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = req.body;
     if (!chatUrl) {
       return res.status(400).json({ error: "Chat URL is required" });
     }
@@ -361,6 +356,8 @@ app.post('/api/chat', express.json(), (req, res) => {
     }
     const newConfig = {
       ...config,
+      chatUrl,
+      odyseeWsUrl: odyseeWsUrl || config.odyseeWsUrl || '',
       bgColor: bgColor || config.bgColor || '#080c10',
       msgBgColor: msgBgColor || config.msgBgColor || '#0a0e12',
       msgBgAltColor: msgBgAltColor || config.msgBgAltColor || '#0d1114',
@@ -607,14 +604,8 @@ function saveAudioSettings(newSettings) {
 }
 
 app.get('/api/audio-settings', (_req, res) => {
-  // console.log('=== GET /api/audio-settings REQUEST ===');
-  // console.log('Request URL:', req.url);
-  // console.log('Request method:', req.method);
-  // console.log('=======================================');
-  
   try {
     const settings = loadAudioSettings();
-    // console.log('Sending audio settings:', settings);
     res.json(settings);
   } catch (error) {
     console.error('Error getting audio settings:', error);
@@ -623,14 +614,6 @@ app.get('/api/audio-settings', (_req, res) => {
 });
 
 app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
-  // console.log('=== POST /api/audio-settings REQUEST ===');
-  // console.log('Request URL:', req.url);
-  // console.log('Request method:', req.method);
-  // console.log('Request headers:', req.headers);
-  // console.log('Request body:', req.body);
-  // console.log('Request file:', req.file);
-  // console.log('=========================================');
-  
   try {
     const { audioSource } = req.body;
     
@@ -647,11 +630,6 @@ app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
       settings.audioFileName = req.file.originalname;
       settings.audioFileSize = req.file.size;
       
-      // console.log('Saved custom audio:', {
-      //   filename: req.file.filename,
-      //   originalname: req.file.originalname,
-      //   size: req.file.size
-      // });
     } else if (audioSource === 'remote') {
       settings.hasCustomAudio = false;
       settings.audioFileName = null;
@@ -660,7 +638,6 @@ app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
       const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
       if (fs.existsSync(customAudioPath)) {
         fs.unlinkSync(customAudioPath);
-        // console.log('Custom audio removed');
       }
     }
 
@@ -722,10 +699,8 @@ app.use(express.static('public'));
 const raffleImageUpload = multer({ dest: './public/uploads/raffle/' });
 
 app.get('/api/raffle/settings', (_req, res) => {
-  // console.log('[DEBUG] GET /api/raffle/settings called');
   try {
     const settings = raffle.getSettings();
-    // console.log('[DEBUG] raffle.getSettings() result:', settings);
     res.json(settings);
   } catch (error) {
     console.error('Error in GET /api/raffle/settings:', error);
@@ -734,10 +709,8 @@ app.get('/api/raffle/settings', (_req, res) => {
 });
 
 app.get('/api/raffle/state', (_req, res) => {
-  // console.log('[DEBUG] GET /api/raffle/state called');
   try {
     const state = raffle.getPublicState();
-    // console.log('[DEBUG] raffle.getPublicState() result:', state);
     res.json(state);
   } catch (error) {
     console.error('Error in GET /api/raffle/state:', error);
@@ -747,7 +720,6 @@ app.get('/api/raffle/state', (_req, res) => {
 
 app.post('/api/raffle/settings', express.json(), (req, res) => {
   try {
-    // console.log('[DEBUG] POST /api/raffle/settings body:', req.body);
     if (!req.body || typeof req.body !== 'object') {
       return res.status(400).json({ success: false, error: 'No data provided' });
     }
@@ -882,6 +854,7 @@ app.get('/api/modules', (_req, res) => {
   if (fs.existsSync(CHAT_CONFIG_FILE)) {
     chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
   }
+  // Ensure odyseeWsUrl is included in chat config
   res.json({
     lastTip: { ...lastTip.getStatus(), ...lastTipColors },
     tipWidget: tipWidget.getStatus(),
@@ -909,7 +882,6 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  // console.log('New WebSocket connection');
   ws.send(JSON.stringify({
     type: 'init',
     data: {

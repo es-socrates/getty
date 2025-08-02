@@ -5,19 +5,51 @@ class LastTipModule {
   constructor(wss) {
     this.wss = wss;
     this.ARWEAVE_GATEWAY = 'https://arweave.net';
-    this.walletAddress = process.env.WALLET_ADDRESS;
+    this.walletAddress = null;
     this.lastDonation = null;
     this.processedTxs = new Set();
-    
+    this.loadWalletAddress();
     this.init();
+  }
+
+  loadWalletAddress() {
+    const fs = require('fs');
+    const path = require('path');
+    const configDir = path.join(process.cwd(), 'config');
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    const lastTipConfigPath = path.join(configDir, 'last-tip-config.json');
+    const lastTipDefault = {
+      walletAddress: '',
+      bgColor: '#080c10',
+      fontColor: '#ffffff',
+      borderColor: '#00ff7f',
+      amountColor: '#00ff7f',
+      iconColor: '#ca004b',
+      fromColor: '#817ec8'
+    };
+    if (!fs.existsSync(lastTipConfigPath)) {
+      fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2));
+      console.log('[LastTip] last-tip-config.json created with default values');
+    }
+
+    try {
+      const config = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
+      if (config.walletAddress) {
+        this.walletAddress = config.walletAddress;
+      }
+    } catch (e) {
+      console.error('[LastTip] Error reading wallet address from config:', e);
+    }
   }
   
   init() {
     if (!this.walletAddress) {
-      console.error('❌ ERROR: WALLET_ADDRESS is missing in .env');
+      console.error('❌ ERROR: walletAddress is missing in last-tip-config.json');
       return;
     }
-    
     this.updateLatestDonation();
     setInterval(() => this.updateLatestDonation(), 60000);
   }
@@ -157,7 +189,24 @@ class LastTipModule {
     this.walletAddress = newAddress;
     this.processedTxs = new Set();
     this.lastDonation = null;
-    process.env.WALLET_ADDRESS = newAddress;
+
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(process.cwd(), 'last-tip-config.json');
+    let config = {};
+    if (fs.existsSync(configPath)) {
+      try {
+        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      } catch (e) {
+        console.error('[LastTip] Error reading config for wallet update:', e);
+      }
+    }
+    config.walletAddress = newAddress;
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    } catch (e) {
+      console.error('[LastTip] Error writing wallet address to config:', e);
+    }
     this.updateLatestDonation();
     return this.getStatus();
   }

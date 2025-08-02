@@ -16,7 +16,23 @@ class RaffleModule {
         this.participants = new Map();
         this.previousWinners = new Set();
         this.settingsFile = path.join(__dirname, '../raffle-settings.json');
+        this.ensureSettingsFile();
         this.loadSettings();
+    }
+
+    ensureSettingsFile() {
+        if (!fs.existsSync(this.settingsFile)) {
+            const raffleDefault = {
+                command: '!giveaway',
+                prize: '',
+                maxWinners: 1,
+                enabled: true,
+                participants: [],
+                winners: []
+            };
+            fs.writeFileSync(this.settingsFile, JSON.stringify(raffleDefault, null, 2));
+            console.log('[Raffle] raffle-settings.json created with default values');
+        }
     }
 
     loadSettings() {
