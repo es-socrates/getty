@@ -192,7 +192,8 @@ class LastTipModule {
 
     const fs = require('fs');
     const path = require('path');
-    const configPath = path.join(process.cwd(), 'last-tip-config.json');
+    const configDir = path.join(process.cwd(), 'config');
+    const configPath = path.join(configDir, 'last-tip-config.json');
     let config = {};
     if (fs.existsSync(configPath)) {
       try {

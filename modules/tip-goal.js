@@ -1,3 +1,31 @@
+function getWalletAddress() {
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+    if (fs.existsSync(configPath)) {
+        try {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            return config.walletAddress || '';
+        } catch (e) {
+            console.error('[TipGoal] Error reading wallet address from config:', e);
+        }
+    }
+    return '';
+}
+
+function getGoalConfig() {
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+    if (fs.existsSync(configPath)) {
+        try {
+            return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        } catch (e) {
+            console.error('[TipGoal] Error reading goal config:', e);
+        }
+    }
+    return null;
+}
 const axios = require('axios');
 const WebSocket = require('ws');
 
@@ -374,4 +402,8 @@ class TipGoalModule {
     }
 }
 
-module.exports = TipGoalModule;
+module.exports = {
+    TipGoalModule,
+    getWalletAddress,
+    getGoalConfig
+};

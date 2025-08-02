@@ -9,7 +9,7 @@ const SETTINGS_FILE = path.join(process.cwd(), 'tts-settings.json');
 
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
-const TipGoalModule = require('./modules/tip-goal');
+const { TipGoalModule } = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
@@ -213,6 +213,10 @@ app.post('/api/last-tip', express.json(), (req, res) => {
     };
     fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
     const result = lastTip.updateWalletAddress(newConfig.walletAddress);
+
+    if (typeof tipWidget.updateWalletAddress === 'function') {
+      tipWidget.updateWalletAddress(newConfig.walletAddress);
+    }
     res.json({
       success: true,
       ...result,
@@ -1222,14 +1226,36 @@ app.post('/api/save-liveviews-label', express.json(), (req, res) => {
   }
   const configPath = path.join(__dirname, 'config', 'liveviews-config.json');
   fs.readFile(configPath, 'utf8', (err, data) => {
-    if (err) return res.status(500).json({ error: 'The configuration file could not be read' });
     let config;
-    try {
-      config = JSON.parse(data);
-    } catch (e) {
-      return res.status(500).json({ error: 'Invalid JSON Config' });
+    if (err) {
+
+      config = {
+        bg: '#fff',
+        color: '#222',
+        font: 'Arial',
+        size: 32,
+        icon: '',
+        claimid: '',
+        viewersLabel
+      };
+    } else {
+      try {
+        config = JSON.parse(data);
+        if (typeof config !== 'object' || config === null) config = {};
+      } catch (e) {
+        
+        config = {
+          bg: '#fff',
+          color: '#222',
+          font: 'Arial',
+          size: 32,
+          icon: '',
+          claimid: '',
+          viewersLabel
+        };
+      }
+      config.viewersLabel = viewersLabel;
     }
-    config.viewersLabel = viewersLabel;
     fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8', (err) => {
       if (err) return res.status(500).json({ error: 'The label could not be saved.' });
       res.json({ success: true });

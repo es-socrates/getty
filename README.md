@@ -43,12 +43,10 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 1. Clone this repository or download the files.
 2. Open the terminal in the getty folder.
 3. Run this command to install the dependencies: **npm install**
-4. Rename the file **.env.example to .env**
-5. Edit **.env** file, then replace the three (3) xxx's with your **AR (Arweave)** wallet address on Odysee. And replace the other (3) xxx's with the **ClaimID** of your livestream on Odysee.
-6. Run the **npm run build** command to build the app.
-7. Then run **npm start**.
-8. The server will run the app with the address http://localhost:3000.
-9. Open Getty in your web browser and configure your widgets.
+4. Run the **npm run build** command to build the app.
+5. Then run **npm start**.
+6. The server will run the app with the address http://localhost:3000.
+7. Open Getty in your web browser and configure your widgets in admin.
 
 ## Visit Getty in the browser:
 

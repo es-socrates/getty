@@ -6,9 +6,7 @@ public/css/output.css
 chat-config.json
 external-notifications-config.json
 language-settings.json
-last-tip-config.json
-tip-goal-config.json
 tts-settings.json
-liveviews-config.json
 notifications-config.json
 raffle-settings.json
+config/*.json
