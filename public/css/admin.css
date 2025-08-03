@@ -1028,3 +1028,98 @@ input:checked + .slider:before {
         justify-content: flex-end;
     }
 }
+
+.socialmedia-list-horizontal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.socialmedia-list-horizontal li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-bg, #181c22);
+    border-radius: 4px;
+    padding: 6px 16px 6px 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    font-size: 15px;
+    transition: background 0.2s;
+}
+.socialmedia-list-horizontal .social-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--darker-bg, #222);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+}
+.socialmedia-list-horizontal .social-name {
+    font-weight: 600;
+    color: var(--text-color, #fff);
+    margin-right: 8px;
+}
+.socialmedia-list-horizontal .social-remove {
+    background: transparent;
+    border: none;
+    color: var(--error-color, #ff5555);
+    font-size: 18px;
+    cursor: pointer;
+    margin-left: 4px;
+    padding: 0 4px;
+    border-radius: 50%;
+    transition: background 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.socialmedia-list-horizontal .social-remove:hover {
+    background: rgba(255,85,85,0.12);
+}
+@media (prefers-color-scheme: dark) {
+  .socialmedia-list-horizontal li {
+    background: #181c22;
+    color: #fff;
+  }
+  .socialmedia-list-horizontal .social-icon {
+    background: #222;
+  }
+}
+@media (prefers-color-scheme: light) {
+  .socialmedia-list-horizontal li {
+    background: #f3f4f6;
+    color: #222;
+  }
+  .socialmedia-list-horizontal .social-icon {
+    background: #e0e0e0;
+  }
+  .socialmedia-list-horizontal .social-name {
+    color: #222;
+  }
+}
+
+.socialmedia-section {
+    margin-bottom: 32px;
+}
+.socialmedia-form {
+    margin-bottom: 20px;
+}
+.socialmedia-list-label {
+    margin-bottom: 12px;
+    margin-top: 8px;
+    display: block;
+    font-weight: 600;
+    font-size: 1rem;
+}
+.socialmedia-list-horizontal {
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+.save-socialmedia-btn {
+    margin-top: 18px;
+    margin-bottom: 24px;
+}

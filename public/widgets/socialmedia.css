@@ -1,0 +1,76 @@
+.socialmedia-widget {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 18px 0;
+    background: transparent;
+    font-family: 'Inter', Arial, sans-serif;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.socialmedia-panel {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: var(--card-bg, #181c22);
+    border-radius: 20px;
+    padding: 8px 18px 8px 10px;
+    min-width: 90px;
+    margin: 0;
+    border: 1.5px solid #00ff7f33;
+    box-shadow: none;
+    transition: none;
+}
+.socialmedia-panel:hover {
+    border-color: #00ff7f99;
+}
+.socialmedia-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--darker-bg, #222);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    margin-bottom: 0;
+    filter: none;
+}
+.socialmedia-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-color, #fff);
+    margin-right: 8px;
+    margin-bottom: 0;
+    letter-spacing: 0.02em;
+    text-shadow: none;
+}
+.socialmedia-link {
+    color: #00ff7f;
+    font-size: 1rem;
+    word-break: break-all;
+    text-decoration: none;
+    transition: none;
+}
+.socialmedia-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+  .socialmedia-widget {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 0;
+  }
+  .socialmedia-panel {
+    padding: 8px 12px;
+    min-width: 70px;
+    flex-direction: row;
+  }
+  .socialmedia-icon {
+    width: 24px;
+    height: 24px;
+  }
+}

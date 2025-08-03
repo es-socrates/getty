@@ -1,4 +1,92 @@
 document.addEventListener('DOMContentLoaded', () => {
+    let socialmediaConfig = [];
+
+    const socialmediaForm = document.getElementById('socialmedia-form');
+    const socialmediaList = document.getElementById('socialmedia-list');
+    const saveSocialmediaBtn = document.getElementById('save-socialmedia-config');
+
+    function renderSocialmediaList() {
+        if (!socialmediaList) return;
+        socialmediaList.innerHTML = '';
+        socialmediaConfig.forEach((item, idx) => {
+            const li = document.createElement('li');
+            li.className = 'socialmedia-item';
+            li.innerHTML = `
+                <span class="icon">${getSocialIconSVG(item.icon)}</span>
+                <span class="name">${item.name}</span>
+                <button class="remove-socialmedia" data-idx="${idx}" title="Remove">×</button>
+            `;
+            socialmediaList.appendChild(li);
+        });
+    }
+
+    function getSocialIconSVG(icon) {
+        switch(icon) {
+            case 'x': return '<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="currentColor"/><text x="12" y="14" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="600" fill="#fff" font-family="Arial, sans-serif">X</text></svg>';
+            case 'odysee': return '<img src="/assets/odysee.png" alt="Odysee" style="height:24px;">';
+            case 'instagram': return '<svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M7 2C4.24 2 2 4.24 2 7v10c0 2.76 2.24 5 5 5h10c2.76 0 5-2.24 5-5V7c0-2.76-2.24-5-5-5H7zm10 2c1.65 0 3 1.35 3 3v10c0 1.65-1.35 3-3 3H7c-1.65 0-3-1.35-3-3V7c0-1.65 1.35-3 3-3h10zm-5 3a5 5 0 100 10 5 5 0 000-10zm0 2a3 3 0 110 6 3 3 0 010-6zm6.5-.5a1 1 0 100 2 1 1 0 000-2z"/></svg>';
+            case 'youtube': return '<svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M10 15l5.19-3L10 9v6zm12-3c0-5.52-4.48-10-10-10S2 6.48 2 12s4.48 10 10 10 10-4.48 10-10zm-2 0c0 4.41-3.59 8-8 8s-8-3.59-8-8 3.59-8 8-8 8 3.59 8 8z"/></svg>';
+            case 'rumble': return '<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/><path fill="#fff" d="M12 7l5 10H7z"/></svg>';
+            case 'telegram': return '<svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M2 21l21-9-21-9v18zm2-2.18V5.18L19.82 12 4 18.82z"/></svg>';
+            default: return '';
+        }
+    }
+
+    function loadSocialmediaConfig() {
+        fetch('/api/socialmedia-config')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && Array.isArray(data.config)) {
+                    socialmediaConfig = data.config;
+                    renderSocialmediaList();
+                }
+            });
+    }
+
+    if (socialmediaForm) {
+        socialmediaForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = document.getElementById('socialmedia-name').value.trim();
+            const icon = document.getElementById('socialmedia-icon').value;
+            const link = document.getElementById('socialmedia-link').value.trim();
+            if (!name || !icon || !link) return;
+            socialmediaConfig.push({ name, icon, link });
+            renderSocialmediaList();
+            socialmediaForm.reset();
+        });
+    }
+
+    if (socialmediaList) {
+        socialmediaList.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-socialmedia')) {
+                const idx = parseInt(e.target.dataset.idx);
+                if (!isNaN(idx)) {
+                    socialmediaConfig.splice(idx, 1);
+                    renderSocialmediaList();
+                }
+            }
+        });
+    }
+
+    if (saveSocialmediaBtn) {
+        saveSocialmediaBtn.addEventListener('click', function() {
+            fetch('/api/socialmedia-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config: socialmediaConfig })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Social network settings saved', 'success');
+                } else {
+                    showAlert('Error saving settings', 'error');
+                }
+            });
+        });
+    }
+
+    loadSocialmediaConfig();
     fetch('/api/modules')
         .then(response => {
             if (!response.ok) {
@@ -48,12 +136,41 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tts-enabled').checked = false;
         });
     
+    function isValidArweaveAddress(address) {
+        return /^[A-Za-z0-9-_]{43}$/.test(address);
+    }
+
+    function validateWalletInputs() {
+        const walletInput = document.getElementById('wallet-address');
+        const tipGoalWalletInput = document.getElementById('tip-goal-wallet-address');
+        let valid = true;
+        let message = '';
+        if (walletInput && walletInput.value.trim() && !isValidArweaveAddress(walletInput.value.trim())) {
+            valid = false;
+            message = window.languageManager ? window.languageManager.getText('invalidArweaveWalletLastTip') : 'The wallet address (Last Tip) is not valid for the Arweave network.';
+        }
+        if (tipGoalWalletInput && tipGoalWalletInput.value.trim() && !isValidArweaveAddress(tipGoalWalletInput.value.trim())) {
+            valid = false;
+            message = window.languageManager ? window.languageManager.getText('invalidArweaveWalletTipGoal') : 'The wallet address (Tip Goal) is not valid for the Arweave network.';
+        }
+        if (!valid) {
+            showAlert(message, 'error');
+        }
+        return valid;
+    }
+
     document.querySelectorAll('.save-btn[data-module]').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const module = e.currentTarget.dataset.module;
             if (!module) {
                 showAlert('Error: Button has no data-module defined.', 'error');
                 return;
+            }
+
+            if (module === 'lastTip' || module === 'tipGoal') {
+                if (!validateWalletInputs()) {
+                    return;
+                }
             }
             await saveSettings(module);
         });

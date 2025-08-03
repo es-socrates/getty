@@ -58,7 +58,7 @@
             <div class="sidebar-section">
                 <h3 class="sidebar-title">Widgets</h3>
                 <nav class="sidebar-nav">
-                    <button class="sidebar-link active" data-tab="system-status">
+                    <button class="sidebar-link active" data-tab="system-status" type="button">
                         <svg viewBox="0 0 24 24" class="sidebar-icon">
                             <path fill="currentColor" d="M21,16V14L13,9V3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5V9L2,14V16L10,13.5V19L8,20.5V22L11.5,21L15,22V20.5L13,19V13.5L21,16Z" />
                         </svg>
@@ -110,6 +110,13 @@
                             <path fill="currentColor" d="M14.4,22H9.6C8.71,22 8,21.29 8,20.4V17.6C8,16.71 8.71,16 9.6,16H14.4C15.29,16 16,16.71 16,17.6V20.4C16,21.29 15.29,22 14.4,22M20.4,16H17.6C16.71,16 16,15.29 16,14.4V9.6C16,8.71 16.71,8 17.6,8H20.4C21.29,8 22,8.71 22,9.6V14.4C22,15.29 21.29,16 20.4,16M14.4,8H9.6C8.71,8 8,7.29 8,6.4V3.6C8,2.71 8.71,2 9.6,2H14.4C15.29,2 16,2.71 16,3.6V6.4C16,7.29 15.29,8 14.4,8M6.4,16H3.6C2.71,16 2,15.29 2,14.4V9.6C2,8.71 2.71,8 3.6,8H6.4C7.29,8 8,8.71 8,9.6V14.4C8,15.29 7.29,16 6.4,16Z" />
                         </svg>
                         <span data-i18n="externalServices"></span>
+                    </button>
+
+                    <button class="sidebar-link" data-tab="socialmedia" type="button">
+                        <svg viewBox="0 0 24 24" class="sidebar-icon">
+                            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                        </svg>
+                        <span data-i18n="socialMediaSidebar"></span>
                     </button>
                 </nav>
             </div>
@@ -806,6 +813,53 @@
                         </svg>
                         <span data-i18n="saveSettings"></span>
                     </button>
+                </div>
+            </section>
+
+            <section class="admin-tab" id="socialmedia-tab">
+                <h2 class="tab-title" data-i18n="socialMediaTitle"></h2>
+                <div class="form-card">
+                    <form id="socialmedia-form">
+                        <div class="form-group">
+                            <label for="socialmedia-name" data-i18n="socialMediaNameLabel"></label>
+                            <input type="text" id="socialmedia-name" required placeholder="E.g: Odysee">
+                        </div>
+                        <div class="form-group">
+                            <label for="socialmedia-icon" data-i18n="socialMediaIconLabel"></label>
+                            <select id="socialmedia-icon" required>
+                                <option value="x">X (Twitter)</option>
+                                <option value="odysee">Odysee</option>
+                                <option value="instagram">Instagram</option>
+                                <option value="youtube">YouTube</option>
+                                <option value="rumble">Rumble</option>
+                                <option value="telegram">Telegram</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="socialmedia-link">Enlace</label>
+                            <input type="url" id="socialmedia-link" required placeholder="https://example.com/social">
+                        </div>
+                        <button type="submit" class="save-btn" data-i18n="socialMediaAddBtn"></button>
+                    </form>
+                    <div id="socialmedia-list-panel">
+                        <ul id="socialmedia-list" class="socialmedia-list-horizontal"></ul>
+                        <button id="save-socialmedia-config" class="save-btn" data-i18n="socialMediaSaveBtn"></button>
+                    </div>
+                    <div class="widget-card" style="margin-top:24px;">
+                        <h3 class="widget-title" data-i18n="obsIntegration"></h3>
+                        <div class="form-group">
+                            <label for="socialmedia-widget-url" data-i18n="socialMediaWidgetTitle"></label>
+                            <div class="input-group">
+                                <input type="text" id="socialmedia-widget-url" value="http://localhost:3000/widgets/socialmedia.html" readonly>
+                                <button class="copy-btn" onclick="copyToClipboard('socialmedia-widget-url')">
+                                    <svg viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                    </svg>
+                                    <span data-i18n="copy"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>

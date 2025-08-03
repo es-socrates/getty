@@ -13,6 +13,8 @@ const { TipGoalModule } = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
+const SocialMediaModule = require('./modules/socialmedia');
+const socialMediaModule = new SocialMediaModule();
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'tip-goal-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
@@ -174,6 +176,28 @@ app.post('/api/tts-language', express.json(), (req, res) => {
 });
 
 app.use(express.json());
+
+app.get('/api/socialmedia-config', (_req, res) => {
+    try {
+        const config = socialMediaModule.loadConfig();
+        res.json({ success: true, config });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/api/socialmedia-config', express.json(), (req, res) => {
+    try {
+        const config = req.body.config;
+        if (!Array.isArray(config)) {
+            return res.status(400).json({ success: false, error: 'Invalid config format' });
+        }
+        socialMediaModule.saveConfig(config);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 app.post('/api/tts-setting', express.json(), (req, res) => {
     try {
@@ -542,6 +566,10 @@ app.get('/widgets/chat', (_req, res) => {
 
 app.get('/obs-help', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/obs-integration.html'));
+});
+
+app.get('/widgets/socialmedia', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public/widgets/socialmedia.html'));
 });
 
 const AUDIO_CONFIG_FILE = './audio-settings.json';

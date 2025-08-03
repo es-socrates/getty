@@ -145,6 +145,16 @@ const languages = {
         raffleInactive: 'The draw is stopped',
         raffleActiveTitle: "Active",
         liveviewsViewersLabel: "Custom label for viewers:",
+        invalidArweaveWalletLastTip: "The wallet address (Last Tip) is not valid for the Arweave network.",
+        invalidArweaveWalletTipGoal: "The wallet address (Tip Goal) is not valid for the Arweave network.",
+        socialMediaSidebar: "Social Networks",
+        socialMediaTitle: "Social Networks",
+        socialMediaNameLabel: "Name",
+        socialMediaIconLabel: "Icon",
+        socialMediaAddBtn: "Add",
+        socialMediaSaveBtn: "Save configuration",
+        socialMediaWidgetTitle: "OBS Integration",
+        socialMediaWidgetUrlLabel: "OBS Link:",
     },
     
     es: {
@@ -293,6 +303,15 @@ const languages = {
         raffleInactive: 'El sorteo está detenido',
         raffleActiveTitle: "Activo",
         liveviewsViewersLabel: "Etiqueta personalizada para espectadores:",
+        invalidArweaveWalletLastTip: "La dirección de billetera (Última Propina) no es válida para la red Arweave.",
+        invalidArweaveWalletTipGoal: "La dirección de billetera (Meta de Propinas) no es válida para la red Arweave.",
+        socialMediaSidebar: "Redes sociales",
+        socialMediaTitle: "Redes sociales",
+        socialMediaNameLabel: "Nombre",
+        socialMediaIconLabel: "Icono",
+        socialMediaAddBtn: "Agregar",
+        socialMediaSaveBtn: "Guardar configuración",
+        socialMediaWidgetTitle: "Widget para OBS"
     }
 };
 
