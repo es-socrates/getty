@@ -18,7 +18,7 @@
     padding: 8px 18px 8px 10px;
     min-width: 90px;
     margin: 0;
-    border: 1.5px solid #00ff7f33;
+    border-left: 8px solid rgb(0, 255, 127) !important;
     box-shadow: none;
     transition: none;
 }
