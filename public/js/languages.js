@@ -150,11 +150,13 @@ const languages = {
         socialMediaSidebar: "Social Networks",
         socialMediaTitle: "Social Networks",
         socialMediaNameLabel: "Name",
+        socialMediaLinkLabel: "Link",
         socialMediaIconLabel: "Icon",
         socialMediaAddBtn: "Add",
         socialMediaSaveBtn: "Save configuration",
         socialMediaWidgetTitle: "OBS Integration",
         socialMediaWidgetUrlLabel: "OBS Link:",
+        socialMediaCustomIconLabel: "Custom Icon"
     },
     
     es: {
@@ -308,10 +310,12 @@ const languages = {
         socialMediaSidebar: "Redes sociales",
         socialMediaTitle: "Redes sociales",
         socialMediaNameLabel: "Nombre",
+        socialMediaLinkLabel: "Enlace",
         socialMediaIconLabel: "Icono",
         socialMediaAddBtn: "Agregar",
         socialMediaSaveBtn: "Guardar configuración",
-        socialMediaWidgetTitle: "Widget para OBS"
+        socialMediaWidgetTitle: "Widget para OBS",
+        socialMediaCustomIconLabel: "Icono personalizado"
     }
 };
 
