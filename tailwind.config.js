@@ -1,7 +1,9 @@
 module.exports = {
   content: [
-    "./public/**/*.html",
-    "./src/**/*.{js,jsx,ts,tsx}"
+    './src/**/*.html',
+    './src/**/*.js',
+    './public/**/*.html',
+    './public/**/*.js',
   ],
   darkMode: 'class',
   theme: {
