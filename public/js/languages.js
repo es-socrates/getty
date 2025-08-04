@@ -301,7 +301,7 @@ const languages = {
         raffleInactive: 'El sorteo está detenido',
         raffleActiveTitle: "Activo",
         liveviewsViewersLabel: "Etiqueta personalizada para espectadores:",
-        invalidArweaveWallet: "La dirección de billetera (Última Propina) no es válida para la red Arweave.",
+        invalidArweaveWalletLastTip: "La dirección de billetera (Última Propina) no es válida para la red Arweave.",
         invalidArweaveWalletTipGoal: "La dirección de billetera (Meta de Propinas) no es válida para la red Arweave.",
         socialMediaSidebar: "Redes sociales",
         socialMediaTitle: "Redes sociales",
