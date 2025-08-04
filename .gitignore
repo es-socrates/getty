@@ -1,5 +1,8 @@
 node_modules/
 public/css/output.css
+public/index.html
+public/admin.html
+public/min/*.js
 .env
 .DS_Store
 *.log
