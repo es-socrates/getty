@@ -6,6 +6,7 @@ const axios = require('axios');
 const fs = require('fs');
 const multer = require('multer');
 const SETTINGS_FILE = path.join(process.cwd(), 'tts-settings.json');
+const OBS_WS_CONFIG_FILE = path.join(__dirname, 'config', 'obs-ws-config.json');
 
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
@@ -125,6 +126,15 @@ function saveSettings(newSettings) {
     } catch (error) {
         console.error('Error saving settings:', error);
     }
+}
+
+async function connectOBS(ip, port, password) {
+  try {
+    await obs.connect(`ws://${ip}:${port}`, password);
+    console.log('Conectado a OBS WebSocket');
+  } catch (error) {
+    console.error('Error de conexión:', error);
+  }
 }
 
 app.get('/api/tts-setting', (_req, res) => {
@@ -1289,4 +1299,44 @@ app.post('/api/save-liveviews-label', express.json(), (req, res) => {
       res.json({ success: true });
     });
   });
+});
+
+let obsWsConfig = { ip: '', port: '', password: '' };
+if (fs.existsSync(OBS_WS_CONFIG_FILE)) {
+  try {
+    obsWsConfig = JSON.parse(fs.readFileSync(OBS_WS_CONFIG_FILE, 'utf8'));
+  } catch (e) {
+    console.error('Error loading OBS WebSocket config:', e);
+  }
+}
+
+const { OBSWebSocket } = require('obs-websocket-js');
+const obs = new OBSWebSocket();
+
+async function connectOBS() {
+  try {
+    if (obsWsConfig.ip && obsWsConfig.port) {
+      await obs.connect(`ws://${obsWsConfig.ip}:${obsWsConfig.port}`, obsWsConfig.password);
+      console.log('Connected to OBS WebSocket');
+    }
+  } catch (error) {
+    console.error('Error connecting to OBS:', error);
+  }
+}
+
+connectOBS();
+
+app.get('/api/obs-ws-config', (_req, res) => {
+  res.json(obsWsConfig);
+});
+
+app.post('/api/obs-ws-config', express.json(), async (req, res) => {
+  obsWsConfig = req.body;
+  try {
+    fs.writeFileSync(OBS_WS_CONFIG_FILE, JSON.stringify(obsWsConfig, null, 2));
+    await connectOBS();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ success: false, error: 'Could not save OBS WebSocket config.' });
+  }
 });

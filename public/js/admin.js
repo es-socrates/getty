@@ -19,10 +19,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             li.innerHTML = `
                 <span class="icon">${iconHTML}</span>
-                <span class="name">${item.name}</span>
+                <span class="name">${escapeHTML(item.name)}</span>
                 <button class="remove-socialmedia" data-idx="${idx}" title="Remove">×</button>
             `;
             socialmediaList.appendChild(li);
+        });
+    }
+
+    function escapeHTML(str) {
+        return String(str).replace(/[&<>"']/g, function(match) {
+            switch (match) {
+                case "&": return "&amp;";
+                case "<": return "&lt;";
+                case ">": return "&gt;";
+                case '"': return "&quot;";
+                case "'": return "&#39;";
+            }
         });
     }
 
@@ -480,6 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.classList.remove('show');
         }, 3000);
     }
+    window.showAlert = showAlert;
 
     fetch('/api/tts-language')
         .then(response => {
@@ -1142,6 +1155,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('DOMContentLoaded', loadAudioSettings);
 });
+
+function loadObsWsConfig() {
+    fetch('/api/obs-ws-config')
+        .then(res => res.json())
+        .then(cfg => {
+            if (cfg) {
+                document.getElementById('obs-ws-ip').value = cfg.ip || '';
+                document.getElementById('obs-ws-port').value = cfg.port || '';
+                document.getElementById('obs-ws-password').value = cfg.password || '';
+            }
+        });
+}
+
+const saveObsWsBtn = document.getElementById('save-obs-ws-settings');
+if (saveObsWsBtn) {
+    saveObsWsBtn.addEventListener('click', function() {
+        const config = {
+            ip: document.getElementById('obs-ws-ip').value,
+            port: document.getElementById('obs-ws-port').value,
+            password: document.getElementById('obs-ws-password').value
+        };
+        fetch('/api/obs-ws-config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        }).then(res => {
+            if (res.ok) {
+                showAlert('OBS WebSocket settings saved', 'success');
+            } else {
+                showAlert('Error saving OBS WebSocket settings', 'error');
+            }
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', loadObsWsConfig);
 
 document.addEventListener('DOMContentLoaded', function() {
     

@@ -154,7 +154,14 @@ const languages = {
         socialMediaSaveBtn: "Save configuration",
         socialMediaWidgetTitle: "OBS Integration",
         socialMediaWidgetUrlLabel: "OBS Link:",
-        socialMediaCustomIconLabel: "Custom Icon"
+        socialMediaCustomIconLabel: "Custom Icon",
+        obsWsIpLabel: "OBS WebSocket IP",
+        obsWsIpPlaceholder: "127.0.0.1",
+        obsWsPortLabel: "OBS WebSocket Port",
+        obsWsPortPlaceholder: "4455",
+        obsWsPasswordLabel: "OBS WebSocket Password",
+        obsWsPasswordPlaceholder: "Password (if set)",
+        saveObsWsSettings: "Save OBS connection"
     },
     
     es: {
@@ -311,7 +318,14 @@ const languages = {
         socialMediaAddBtn: "Agregar",
         socialMediaSaveBtn: "Guardar configuración",
         socialMediaWidgetTitle: "Widget para OBS",
-        socialMediaCustomIconLabel: "Icono personalizado"
+        socialMediaCustomIconLabel: "Icono personalizado",
+        obsWsIpLabel: "IP de OBS WebSocket",
+        obsWsIpPlaceholder: "127.0.0.1",
+        obsWsPortLabel: "Puerto de OBS WebSocket",
+        obsWsPortPlaceholder: "4455",
+        obsWsPasswordLabel: "Contraseña de OBS WebSocket",
+        obsWsPasswordPlaceholder: "Contraseña (si aplica)",
+        saveObsWsSettings: "Guardar conexión OBS"
     }
 };
 

@@ -184,12 +184,42 @@
                         <div id="raffle-image-preview" style="margin-top:8px;"></div>
                     </div>
                     <div class="form-group flex gap-2">
-                        <button id="raffle-start" class="save-btn" data-i18n="raffleStart"></button>
-                        <button id="raffle-pause" class="save-btn" data-i18n="rafflePause"></button>
-                        <button id="raffle-resume" class="save-btn" data-i18n="raffleResume"></button>
-                        <button id="raffle-stop" class="save-btn" data-i18n="raffleStop"></button>
-                        <button id="raffle-draw" class="save-btn" data-i18n="raffleDrawWinner"></button>
-                        <button id="raffle-reset" class="save-btn danger-btn" data-i18n="raffleResetWinners"></button>
+                        <button id="raffle-start" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                                <path fill="currentColor" d="M3 21V3l18 9-18 9z"/>
+                            </svg>
+                            <span data-i18n="raffleStart"></span>
+                        </button>
+                        <button id="raffle-pause" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
+                            <span data-i18n="rafflePause"></span>
+                        </button>
+                        <button id="raffle-resume" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                            </svg>
+                            <span data-i18n="raffleResume"></span>
+                        </button>
+                        <button id="raffle-stop" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <rect fill="currentColor" x="6" y="6" width="12" height="12"/>
+                            </svg>
+                            <span data-i18n="raffleStop"></span>
+                        </button>
+                        <button id="raffle-draw" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                            </svg>
+                            <span data-i18n="raffleDrawWinner"></span>
+                        </button>
+                        <button id="raffle-reset" class="save-btn danger-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                            </svg>
+                            <span data-i18n="raffleResetWinners"></span>
+                        </button>
                     </div>
                     <div class="form-group">
                         <div class="form-group">
@@ -202,7 +232,12 @@
                                 <span data-i18n="raffleEnabled"></span>
                             </label>
                         </div>
-                        <button id="raffle-save" class="save-btn" type="button" data-i18n="saveSettings"></button>
+                        <button id="raffle-save" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                            </svg>
+                            <span data-i18n="saveSettings"></span>
+                        </button>
                     </div>
                 </div>
                 <div class="widget-card">
@@ -764,6 +799,9 @@
                     <div id="liveviews-icon-preview" style="margin-top:8px;"></div>
                 </div>
                 <button class="save-btn" id="liveviews-save" type="button">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                    </svg>
                     <span data-i18n="saveSettings"></span>
                 </button>
             </div>
@@ -814,6 +852,22 @@
                         <span data-i18n="saveSettings"></span>
                     </button>
                 </div>
+                <div class="form-group">
+                <label for="obs-ws-ip" data-i18n="obsWsIpLabel"></label>
+                <input type="text" id="obs-ws-ip" placeholder="127.0.0.1" data-i18n-placeholder="obsWsIpPlaceholder">
+
+                <label for="obs-ws-port" data-i18n="obsWsPortLabel"></label>
+                <input type="number" id="obs-ws-port" placeholder="4455" data-i18n-placeholder="obsWsPortPlaceholder">
+
+                <label for="obs-ws-password" data-i18n="obsWsPasswordLabel"></label>
+                <input type="password" id="obs-ws-password" placeholder="Password (if set)" data-i18n-placeholder="obsWsPasswordPlaceholder">
+
+                <button class="save-btn" id="save-obs-ws-settings">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                    </svg>
+                    <span data-i18n="saveSettings"></span>
+                </button>
             </section>
 
             <section class="admin-tab" id="socialmedia-tab">
@@ -849,7 +903,12 @@
                     </form>
                     <div id="socialmedia-list-panel">
                         <ul id="socialmedia-list" class="socialmedia-list-horizontal"></ul>
-                        <button id="save-socialmedia-config" class="save-btn" data-i18n="socialMediaSaveBtn"></button>
+                        <button id="save-socialmedia-config" class="save-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                            </svg>
+                            <span data-i18n="saveSettings"></span>
+                        </button>
                     </div>
                     <div class="widget-card" style="margin-top:24px;">
                         <h3 class="widget-title" data-i18n="obsIntegration"></h3>
