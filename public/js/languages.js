@@ -161,7 +161,16 @@ const languages = {
         obsWsPortPlaceholder: "4455",
         obsWsPasswordLabel: "OBS WebSocket Password",
         obsWsPasswordPlaceholder: "Password (if set)",
-        saveObsWsSettings: "Save OBS connection"
+        saveObsWsSettings: "Save OBS connection",
+        obsWsReminderTitle: "Important:",
+        obsWsReminderDesc: "When configuring OBS WebSocket with a remote IP, the widget URLs will change so OBS can access them from that address. You must use the remote IP, not the one sent by OBS.",
+        obsWsReminderNetwork: "- Make sure the IP and port are accessible from your network.",
+        obsWsReminderRemoteUrl: "- OBS must use the new widget URL (remote IP), not localhost.",
+        obsWsReminderLocalMode: "- If you don't use OBS WebSocket, widgets will work in localhost mode.",
+        obsWsReminderUpdateUrl: "- If you change the IP, update the widget URLs in OBS.",
+        obsWsReminderFirewall: "- Make sure your firewall allows connections to the OBS port.",
+        obsWsReminderNetworkConfig: "- If you have issues, check your network and firewall configuration.",
+        obsWsReminderCopyUrl: "- You can copy the updated URL from each integration panel in Getty."
     },
     
     es: {
@@ -325,7 +334,16 @@ const languages = {
         obsWsPortPlaceholder: "4455",
         obsWsPasswordLabel: "Contraseña de OBS WebSocket",
         obsWsPasswordPlaceholder: "Contraseña (si aplica)",
-        saveObsWsSettings: "Guardar conexión OBS"
+        saveObsWsSettings: "Guardar conexión OBS",
+        obsWsReminderTitle: "Importante:",
+        obsWsReminderDesc: "Al configurar OBS WebSocket con una IP remota, las URLs de los widgets cambiarán para que OBS pueda acceder desde esa dirección. Debes usar la IP remota, no la que envía OBS.",
+        obsWsReminderNetwork: "- Verifica que la IP y el puerto sean accesibles desde tu red.",
+        obsWsReminderRemoteUrl: "- OBS debe usar la nueva URL (IP remota) del widget, no localhost.",
+        obsWsReminderLocalMode: "- Si no usas WebSocket de OBS, los widgets funcionarán en modo localhost.",
+        obsWsReminderUpdateUrl: "- Si cambias la IP, actualiza las URLs de los widgets en OBS.",
+        obsWsReminderFirewall: "- Asegúrate de que el firewall permita conexiones al puerto de OBS.",
+        obsWsReminderNetworkConfig: "- Si tienes problemas, revisa la configuración de red y firewall.",
+        obsWsReminderCopyUrl: "- Puedes copiar la URL actualizada desde cada panel de integración en Getty."
     }
 };
 

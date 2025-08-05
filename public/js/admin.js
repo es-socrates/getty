@@ -1156,6 +1156,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('DOMContentLoaded', loadAudioSettings);
 });
 
+function setWidgetUrlsFromObsConfig(cfg) {
+    // If no IP or port is configured, use localhost:3000 by default
+    const ip = cfg && cfg.ip ? cfg.ip : 'localhost';
+    const port = cfg && cfg.port ? cfg.port : '3000';
+    const baseUrl = `http://${ip}:${port}`;
+    const widgetUrls = {
+        'raffle-widget-url': `${baseUrl}/widgets/giveaway.html`,
+        'last-tip-url': `${baseUrl}/widgets/last-tip.html`,
+        'tip-goal-url': `${baseUrl}/widgets/tip-goal.html`,
+        'tip-notification-url': `${baseUrl}/widgets/tip-notification.html`,
+        'obs-chat-url': `${baseUrl}/widgets/chat.html`,
+        'obs-chat-horizontal-url': `${baseUrl}/widgets/chat.html?horizontal=1`,
+        'liveviews-widget-url': `${baseUrl}/widgets/liveviews.html`,
+        'socialmedia-widget-url': `${baseUrl}/widgets/socialmedia.html`
+    };
+    Object.entries(widgetUrls).forEach(([id, url]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = url;
+    });
+}
+
 function loadObsWsConfig() {
     fetch('/api/obs-ws-config')
         .then(res => res.json())
@@ -1164,6 +1185,7 @@ function loadObsWsConfig() {
                 document.getElementById('obs-ws-ip').value = cfg.ip || '';
                 document.getElementById('obs-ws-port').value = cfg.port || '';
                 document.getElementById('obs-ws-password').value = cfg.password || '';
+                setWidgetUrlsFromObsConfig(cfg);
             }
         });
 }
