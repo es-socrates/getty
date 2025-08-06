@@ -16,9 +16,11 @@ const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
 const SocialMediaModule = require('./modules/socialmedia');
 const socialMediaModule = new SocialMediaModule();
+
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
+const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
 
 const LIVEVIEWS_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'liveviews');
 if (!fs.existsSync(LIVEVIEWS_UPLOADS_DIR)) {
@@ -135,6 +137,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
 });
 
+
 const wss = new WebSocket.Server({ noServer: true });
 
 const lastTip = new LastTipModule(wss);
@@ -150,6 +153,17 @@ const RaffleModule = require('./modules/raffle');
 const raffle = new RaffleModule(wss);
 
 global.gettyRaffleInstance = raffle;
+
+try {
+  if (fs.existsSync(CHAT_CONFIG_FILE)) {
+    const chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+    if (chatConfig.chatUrl && typeof chatConfig.chatUrl === 'string' && chatConfig.chatUrl.startsWith('wss://')) {
+      chat.updateChatUrl(chatConfig.chatUrl);
+    }
+  }
+} catch (e) {
+  console.error('Error loading chat config for auto-activation:', e);
+}
 
 function setupWebSocketListeners() {
     wss.removeAllListeners('tip');
@@ -460,8 +474,6 @@ app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), async (req, res) 
     });
   }
 });
-
-const CHAT_CONFIG_FILE = path.join(process.cwd(), 'chat-config.json');
 
 app.post('/api/chat', express.json(), (req, res) => {
   try {
