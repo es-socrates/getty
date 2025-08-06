@@ -447,7 +447,6 @@
                                     <div class="upload-icon-wrapper">
                                         <svg class="upload-icon" viewBox="0 0 24 24">
                                             <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                        </svg>
                                     </div>
                                     <div class="upload-text">
                                         <h5 class="upload-title" data-i18n="uploadAudioTitle"></h5>
@@ -577,7 +576,6 @@
                                     <div class="upload-icon-wrapper">
                                         <svg class="upload-icon" viewBox="0 0 24 24">
                                             <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                        </svg>
                                     </div>
                                     <div class="upload-text">
                                         <h5 class="upload-title" data-i18n="uploadAudioTitle"></h5>
@@ -807,6 +805,13 @@
                     <label for="liveviews-icon-input" data-i18n="liveviewsIcon"></label>
                     <input type="file" id="liveviews-icon-input" class="file-input" accept="image/*" style="width:400px;max-width:100%;padding:6px 8px;box-sizing:border-box;">
                     <div id="liveviews-icon-preview" style="margin-top:8px;"></div>
+                    <div id="liveviews-icon-meta" style="font-size:12px;color:#888;margin-top:4px;"></div>
+                    <button type="button" id="liveviews-remove-icon" class="icon-remove-btn" style="display:none;margin-top:6px;background:transparent;border:none;cursor:pointer;padding:0;outline:none;">
+                        <span style="display:inline-flex;align-items:center;gap:6px;color:#ca004b;font-weight:500;font-size:15px;">
+                            <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="12" fill="#ffe6e6"/><path fill="#ca004b" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
+                            <span data-i18n="remove"></span>
+                        </span>
+                    </button>
                 </div>
                 <button class="save-btn" id="liveviews-save" type="button">
                     <svg viewBox="0 0 24 24" width="16" height="16">
@@ -951,10 +956,9 @@
                                 <button class="copy-btn" onclick="copyToClipboard('socialmedia-widget-url')">
                                     <svg viewBox="0 0 24 24" width="16" height="16">
                                         <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
-                                    </svg>
-                                    <span data-i18n="copy"></span>
-                                </button>
-                            </div>
+                                </svg>
+                                <span data-i18n="copy"></span>
+                            </button>
                         </div>
                     </div>
                 </div>

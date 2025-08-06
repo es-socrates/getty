@@ -20,15 +20,72 @@ const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-se
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
 
-const app = express();
-app.post('/config/liveviews-config.json', express.json({ limit: '1mb' }), (req, res) => {
-  try {
-    const { bg, color, font, size, icon, claimid } = req.body;
+const LIVEVIEWS_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'liveviews');
+if (!fs.existsSync(LIVEVIEWS_UPLOADS_DIR)) {
+  fs.mkdirSync(LIVEVIEWS_UPLOADS_DIR, { recursive: true });
+}
+const liveviewsStorage = multer.diskStorage({
+  destination: function (_req, _file, cb) {
+    cb(null, LIVEVIEWS_UPLOADS_DIR);
+  },
+  filename: function (_req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, 'icon' + ext);
+  }
+});
+const liveviewsUpload = multer({
+  storage: liveviewsStorage,
+  limits: { fileSize: 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  }
+});
 
-    if (icon && icon.length > 1024 * 1024 * 1.4) {
-      return res.status(400).json({ error: 'The icon is too big. Maximum size: 1MB' });
+const app = express();
+
+function getLiveviewsConfigWithDefaults(partial) {
+  return {
+    bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
+    color: typeof partial.color === 'string' && partial.color.trim() ? partial.color : '#222',
+    font: typeof partial.font === 'string' && partial.font.trim() ? partial.font : 'Arial',
+    size: typeof partial.size === 'string' && partial.size.trim() ? partial.size : '32',
+    icon: typeof partial.icon === 'string' ? partial.icon : '',
+    claimid: typeof partial.claimid === 'string' ? partial.claimid : '',
+    viewersLabel: typeof partial.viewersLabel === 'string' && partial.viewersLabel.trim() ? partial.viewersLabel : 'viewers'
+  };
+}
+
+app.post('/config/liveviews-config.json', liveviewsUpload.single('icon'), (req, res) => {
+  try {
+    const body = req.body || {};
+    const removeIcon = body.removeIcon === '1';
+    let prev = {};
+    if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+      try {
+        prev = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+      } catch (e) { prev = {}; }
     }
-    const config = { bg, color, font, size, icon, claimid };
+
+    let iconUrl = '';
+    if (req.file) {
+      iconUrl = '/uploads/liveviews/' + req.file.filename;
+    } else if (!removeIcon && prev.icon) {
+      iconUrl = prev.icon;
+    }
+    if (removeIcon && prev.icon) {
+      const iconPath = path.join(process.cwd(), 'public', prev.icon.replace(/^\//, ''));
+      if (fs.existsSync(iconPath)) {
+        try { fs.unlinkSync(iconPath); } catch (e) {}
+      }
+      iconUrl = '';
+    }
+
+    const config = getLiveviewsConfigWithDefaults({
+      ...prev,
+      ...body,
+      icon: iconUrl
+    });
     fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(config, null, 2));
     res.json({ success: true, config });
   } catch (error) {
@@ -36,8 +93,18 @@ app.post('/config/liveviews-config.json', express.json({ limit: '1mb' }), (req, 
   }
 });
 
+
 app.get('/config/liveviews-config.json', (_req, res) => {
-  res.sendFile(path.resolve(__dirname, 'config/liveviews-config.json'));
+  try {
+    let config = {};
+    if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+      config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+    }
+    config = getLiveviewsConfigWithDefaults(config);
+    res.json(config);
+  } catch (e) {
+    res.json(getLiveviewsConfigWithDefaults({}));
+  }
 });
 
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
@@ -354,7 +421,7 @@ app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), async (req, res) 
       ...(audioFile ? { customAudioUrl: audioFile } : {})
     };
     fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
-    
+
     fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify({
       audioSource,
       hasCustomAudio,
@@ -911,7 +978,7 @@ app.get('/api/modules', (_req, res) => {
   if (fs.existsSync(CHAT_CONFIG_FILE)) {
     chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
   }
-  
+
   res.json({
     lastTip: { ...lastTip.getStatus(), ...lastTipColors },
     tipWidget: tipWidget.getStatus(),
