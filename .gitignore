@@ -6,7 +6,6 @@ public/min/*.js
 .env
 .DS_Store
 *.log
-chat-config.json
 external-notifications-config.json
 language-settings.json
 tts-settings.json

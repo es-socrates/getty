@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         userContainer.className = 'message-user-container';
 
         const username = (msg.channelTitle || 'Anonymous');
-        const displayUsername = username.length > 12 ? username.slice(0, 12) + '…' : username;
+        const displayUsername = username.length > 17 ? username.slice(0, 17) + '' : username;
         const style = getCyberpunkStyle(username);
 
         const usernameElement = document.createElement('span');
