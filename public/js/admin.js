@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ config: socialmediaConfig })
             })
             .then(res => res.json())
-            .then(data => {
+            .then((data) => {
                 if (data.success) {
                     showAlert('Social network settings saved', 'success');
                 } else {
@@ -372,17 +372,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         showAlert('Monthly goal must be a number greater than 0.', 'error');
                         return;
                     }
-                    data = {
-                        walletAddress: document.getElementById('tip-goal-wallet-address').value.trim(),
-                        monthlyGoal,
-                        currentAmount: isNaN(currentAmount) ? 0 : currentAmount,
-                        bgColor: document.getElementById('tip-goal-bg-color').value,
-                        fontColor: document.getElementById('tip-goal-font-color').value,
-                        borderColor: document.getElementById('tip-goal-border-color').value,
-                        progressColor: document.getElementById('tip-goal-progress-color').value,
-                        audioSource: goalAudioSource
-                    };
-                    break;
+
+                    const formData = new FormData();
+                    formData.append('walletAddress', document.getElementById('tip-goal-wallet-address').value.trim());
+                    formData.append('monthlyGoal', monthlyGoal);
+                    formData.append('currentAmount', isNaN(currentAmount) ? 0 : currentAmount);
+                    formData.append('bgColor', document.getElementById('tip-goal-bg-color').value);
+                    formData.append('fontColor', document.getElementById('tip-goal-font-color').value);
+                    formData.append('borderColor', document.getElementById('tip-goal-border-color').value);
+                    formData.append('progressColor', document.getElementById('tip-goal-progress-color').value);
+                    formData.append('audioSource', goalAudioSource);
+
+                    const goalAudioCustom = document.getElementById('goal-audio-custom');
+                    const goalAudioFileInput = document.getElementById('goal-custom-audio-file');
+                    if (goalAudioSource === 'custom' && goalAudioCustom && goalAudioCustom.checked && goalAudioFileInput && goalAudioFileInput.files.length > 0) {
+                        formData.append('audioFile', goalAudioFileInput.files[0]);
+                    }
+
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        let errorData;
+                        try {
+                            errorData = await response.json();
+                        } catch (e) {
+                            errorData = { error: 'Failed to save settings' };
+                        }
+                        throw new Error(errorData.error || 'Failed to save settings');
+                    }
+
+                    const result = await response.json();
+                    showAlert('Configuration saved successfully', 'success');
+                    updateStatus(`${module}-status`, result.active || result.connected || false);
+                    return;
                 }
                 case 'chat':
                     endpoint = '/api/chat';

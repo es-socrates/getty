@@ -51,7 +51,7 @@ const languages = {
         spanish: "Español",
         ttsHint: "Enable or disable text-to-speech for tip notifications",
         liveChatSettings: "Live Chat Settings",
-        chatUrl: "Chat URL:",
+        chatUrl: "ClaimID of the live stream on Odysee:",
         chatWidgetUrl: "Chat Widget URL:",
         externalServices: "External Services",
         externalNotifications: "External Notifications",
@@ -170,7 +170,9 @@ const languages = {
         obsWsReminderUpdateUrl: "- If you change the IP, update the widget URLs in OBS.",
         obsWsReminderFirewall: "- Make sure your firewall allows connections to the OBS port.",
         obsWsReminderNetworkConfig: "- If you have issues, check your network and firewall configuration.",
-        obsWsReminderCopyUrl: "- You can copy the updated URL from each integration panel in Getty."
+        obsWsReminderCopyUrl: "- You can copy the updated URL from each integration panel in Getty.",
+        raffleWarningTitle: "Warning:",
+        raffleWarningChat: "For the <b>participant counter</b> to work properly, make sure you have <b>chat enabled</b> from the Getty administration.",
     },
     
     es: {
@@ -225,7 +227,7 @@ const languages = {
         spanish: "Español",
         ttsHint: "Habilitar o deshabilitar texto a voz para notificaciones de propinas",
         liveChatSettings: "Configuración de chat en vivo",
-        chatUrl: "URL del chat:",
+        chatUrl: "ClaimID del directo en Odysee:",
         chatWidgetUrl: "URL del widget de chat:",
         externalServices: "Servicios externos",
         externalNotifications: "Notificaciones externas",
@@ -343,7 +345,9 @@ const languages = {
         obsWsReminderUpdateUrl: "- Si cambias la IP, actualiza las URLs de los widgets en OBS.",
         obsWsReminderFirewall: "- Asegúrate de que el firewall permita conexiones al puerto de OBS.",
         obsWsReminderNetworkConfig: "- Si tienes problemas, revisa la configuración de red y firewall.",
-        obsWsReminderCopyUrl: "- Puedes copiar la URL actualizada desde cada panel de integración en Getty."
+        obsWsReminderCopyUrl: "- Puedes copiar la URL actualizada desde cada panel de integración en Getty.",
+        raffleWarningTitle: "Advertencia:",
+        raffleWarningChat: "Para que el <b>contador de participantes</b> funcione correctamente, asegúrate de tener <b>el chat habilitado</b> desde la administración de Getty.",
     }
 };
 
@@ -396,13 +400,15 @@ class LanguageManager {
     
     updatePageLanguage() {
         document.documentElement.lang = this.currentLanguage;
-        
+
         document.querySelectorAll('[data-i18n]').forEach(element => {
             const key = element.getAttribute('data-i18n');
             const text = this.getText(key);
             if (element.tagName === 'INPUT' && element.type === 'placeholder') {
                 element.placeholder = text;
             } else if (key === 'copyright') {
+                element.innerHTML = text;
+            } else if (/<[a-z][\s\S]*>/i.test(text)) {
                 element.innerHTML = text;
             } else {
                 element.textContent = text;

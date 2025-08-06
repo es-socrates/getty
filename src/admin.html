@@ -169,6 +169,18 @@
 
             <section class="admin-tab" id="raffle-tab">
                 <h2 class="tab-title"><span data-i18n="raffleTitle"></span></h2>
+                    <div class="widget-card" style="background:#fffbe6;border:1px solid #ffe066;color:#b58900;margin-top:12px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <svg width="24" height="24" fill="none" style="flex-shrink:0;">
+                            <circle cx="12" cy="12" r="12" fill="#ffe066"/>
+                            <path d="M12 8v4m0 4h.01" stroke="#b58900" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <div>
+                            <strong data-i18n="raffleWarningTitle"></strong>
+                            <span data-i18n="raffleWarningChat"></span>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-card">
                     <div class="form-group">
                         <label for="raffle-command" data-i18n="raffleCommandLabel"></label>
@@ -245,20 +257,20 @@
                     <div id="raffle-participants" style="min-height:40px;"></div>
                     <div id="raffle-winners" style="margin-top:10px;"></div>
                 </div>
-                <div class="widget-card">
-                    <h3 class="widget-title" data-i18n="obsIntegration"></h3>
-                    <div class="form-group">
-                        <div class="input-group">
-                            <input type="text" id="raffle-widget-url" value="http://localhost:3000/widgets/raffle.html" readonly>
-                            <button class="copy-btn" onclick="copyToClipboard('raffle-widget-url')">
-                                <svg viewBox="0 0 24 24" width="16" height="16">
-                                    <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
-                                </svg>
-                                <span data-i18n="copy"></span>
-                            </button>
-                        </div>
+            <div class="widget-card">
+                <h3 class="widget-title" data-i18n="obsIntegration"></h3>
+                <div class="form-group">
+                    <div class="input-group">
+                        <input type="text" id="raffle-widget-url" value="http://localhost:3000/widgets/raffle.html" readonly>
+                        <button class="copy-btn" onclick="copyToClipboard('raffle-widget-url')">
+                            <svg viewBox="0 0 24 24" width="16" height="16">
+                                <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                            </svg>
+                            <span data-i18n="copy"></span>
+                        </button>
                     </div>
                 </div>
+            </div>
             </section>
 
             <section class="admin-tab" id="last-tip-tab">
@@ -408,77 +420,75 @@
                         </div>
                     </div>
             
+                <div class="form-group">
                     <div class="form-group">
-                        <div class="form-group">
-                            <h4 class="form-section-title" data-i18n="goalAudioTitle"></h4>
-                            
-                            <div class="audio-source-selector">
-                                <div class="radio-option">
-                                    <input type="radio" id="goal-audio-remote" name="goal-audio-source" value="remote">
-                                    <label for="goal-audio-remote">
-                                        <span class="radio-label" data-i18n="useRemoteAudio"></span>
-                                        <span class="radio-description" data-i18n="remoteAudioDescription"></span>
-                                    </label>
-                                </div>
-                                
-                                <div class="radio-option">
-                                    <input type="radio" id="goal-audio-custom" name="goal-audio-source" value="custom">
-                                    <label for="goal-audio-custom">
-                                        <span class="radio-label" data-i18n="useCustomAudio"></span>
-                                        <span class="radio-description" data-i18n="customAudioDescription"></span>
-                                    </label>
-                                </div>
+                        <h4 class="form-section-title" data-i18n="goalAudioTitle"></h4>
+                        <div class="audio-source-selector">
+                            <div class="radio-option">
+                                <input type="radio" id="goal-audio-remote" name="goal-audio-source" value="remote">
+                                <label for="goal-audio-remote">
+                                    <span class="radio-label" data-i18n="useRemoteAudio"></span>
+                                    <span class="radio-description" data-i18n="remoteAudioDescription"></span>
+                                </label>
                             </div>
-                            
-                            <div class="audio-upload-container" id="goal-custom-audio-section">
-                                <div class="file-upload-box">
-                                    <input type="file" id="goal-custom-audio-file" accept=".mp3" class="file-input">
-                                    <label for="goal-custom-audio-file" class="upload-label">
-                                        <div class="upload-icon-wrapper">
-                                            <svg class="upload-icon" viewBox="0 0 24 24">
-                                                <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                                            </svg>
+                            <div class="radio-option">
+                                <input type="radio" id="goal-audio-custom" name="goal-audio-source" value="custom">
+                                <label for="goal-audio-custom">
+                                    <span class="radio-label" data-i18n="useCustomAudio"></span>
+                                    <span class="radio-description" data-i18n="customAudioDescription"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="audio-status" id="goal-audio-status" style="margin:8px 0 8px 0;font-size:14px;color:#888;display:none;"></div>
+                        <div class="audio-upload-container" id="goal-custom-audio-section" style="display:none;">
+                            <div class="file-upload-box">
+                                <input type="file" id="goal-custom-audio-file" accept=".mp3" class="file-input">
+                                <label for="goal-custom-audio-file" class="upload-label">
+                                    <div class="upload-icon-wrapper">
+                                        <svg class="upload-icon" viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                                        </svg>
+                                    </div>
+                                    <div class="upload-text">
+                                        <h5 class="upload-title" data-i18n="uploadAudioTitle"></h5>
+                                        <p class="upload-instructions" data-i18n="uploadAudioInstructions"></p>
+                                        <p class="upload-requirements" data-i18n="uploadAudioRequirements"></p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="audio-preview" id="goal-audio-preview" style="display:none;">
+                                <div class="audio-info">
+                                    <div class="audio-icon">
+                                        <svg viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M3,9V15H7L12,20V4L7,9H3Z" />
+                                        </svg>
+                                    </div>
+                                    <div class="audio-details">
+                                        <div class="audio-name" id="goal-audio-name"></div>
+                                        <div class="audio-meta">
+                                            <span class="audio-size" id="goal-audio-size"></span>
+                                            <span class="audio-duration" id="goal-audio-duration"></span>
                                         </div>
-                                        <div class="upload-text">
-                                            <h5 class="upload-title" data-i18n="uploadAudioTitle"></h5>
-                                            <p class="upload-instructions" data-i18n="uploadAudioInstructions"></p>
-                                            <p class="upload-requirements" data-i18n="uploadAudioRequirements"></p>
-                                        </div>
-                                    </label>
+                                    </div>
                                 </div>
-                                
-                                <div class="audio-preview" id="goal-audio-preview">
-                                    <div class="audio-info">
-                                        <div class="audio-icon">
-                                            <svg viewBox="0 0 24 24">
-                                                <path fill="currentColor" d="M3,9V15H7L12,20V4L7,9H3Z" />
-                                            </svg>
-                                        </div>
-                                        <div class="audio-details">
-                                            <div class="audio-name" id="goal-audio-name"></div>
-                                            <div class="audio-meta">
-                                                <span class="audio-size" id="goal-audio-size"></span>
-                                                <span class="audio-duration" id="goal-audio-duration"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="audio-actions">
-                                        <button type="button" class="audio-action-btn play-btn" id="play-goal-audio">
-                                            <svg viewBox="0 0 24 24">
-                                                <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z" />
-                                            </svg>
-                                            <span data-i18n="play"></span>
-                                        </button>
-                                        <button type="button" class="audio-action-btn remove-btn" id="remove-goal-audio">
-                                            <svg viewBox="0 0 24 24">
-                                                <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
-                                            </svg>
-                                            <span data-i18n="remove"></span>
-                                        </button>
-                                    </div>
+                                <div class="audio-actions">
+                                    <button type="button" class="audio-action-btn play-btn" id="play-goal-audio">
+                                        <svg viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+                                        </svg>
+                                        <span data-i18n="play"></span>
+                                    </button>
+                                    <button type="button" class="audio-action-btn remove-btn" id="remove-goal-audio">
+                                        <svg viewBox="0 0 24 24">
+                                            <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                                        </svg>
+                                        <span data-i18n="remove"></span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
+                        <small class="form-hint" data-i18n="audioHint"></small>
+                    </div>
             
                     <button class="save-btn" data-module="tipGoal">
                         <svg viewBox="0 0 24 24" width="16" height="16">

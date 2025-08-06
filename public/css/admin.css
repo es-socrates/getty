@@ -85,6 +85,11 @@ body {
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
 }
 
 .sidebar-section {
@@ -171,7 +176,6 @@ body {
 .admin-main {
     flex: 1;
     padding: 2rem;
-    overflow-y: auto;
     background: #0f1214;
 }
 

@@ -24,40 +24,118 @@ document.addEventListener('DOMContentLoaded', () => {
     const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
 
     function playGoalSound() {
+        let audioUrl;
+        let logMessage;
         if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
-            const audioUrl = '/api/goal-audio';
-            const timestamp = new Date().getTime();
-            const audio = new Audio(`${audioUrl}?t=${timestamp}`);
-            audio.volume = 0.9;
-            audio.play()
-                .then(() => {})
-                .catch(e => {
-                    console.error('Error playing custom audio, falling back to remote audio');
-                    playRemoteAudio();
-                });
+            audioUrl = '/api/goal-audio';
+            logMessage = '🎵 Custom goal audio played';
         } else {
-            playRemoteAudio();
+            audioUrl = REMOTE_SOUND_URL;
+            logMessage = '🎵 Remote goal sound played';
         }
-        
-        function playRemoteAudio() {
-            const audio = new Audio(REMOTE_SOUND_URL);
-            audio.volume = 0.9;
-            audio.play()
-                .then(() => {})
-                .catch(e => console.error('Error playing remote audio'));
+        const audio = new Audio(audioUrl);
+        audio.volume = 0.9;
+        audio.play()
+            .then(() => console.log(logMessage))
+            .catch(e => {
+                console.error('Error playing audio:', e);
+                if (audioSettings.audioSource === 'custom') {
+                    console.log('Fallback to remote audio');
+                    const fallbackAudio = new Audio(REMOTE_SOUND_URL);
+                    fallbackAudio.volume = 0.9;
+                    fallbackAudio.play()
+                        .then(() => console.log('🎵 Fallback remote sound played'))
+                        .catch(fallbackError => console.error('Error playing fallback audio:', fallbackError));
+                }
+            });
+    }
+
+    if (window.location.pathname.includes('admin')) {
+
+        const remoteRadio = document.getElementById('goal-audio-remote');
+        const customRadio = document.getElementById('goal-audio-custom');
+        const customSection = document.getElementById('goal-custom-audio-section');
+        const audioStatus = document.getElementById('goal-audio-status');
+        const fileInput = document.getElementById('goal-custom-audio-file');
+        const preview = document.getElementById('goal-audio-preview');
+        const nameEl = document.getElementById('goal-audio-name');
+        const sizeEl = document.getElementById('goal-audio-size');
+        const durationEl = document.getElementById('goal-audio-duration');
+        const playBtn = document.getElementById('play-goal-audio');
+        const removeBtn = document.getElementById('remove-goal-audio');
+
+        function updateAudioUI() {
+            if (!remoteRadio || !customRadio || !customSection || !audioStatus) return;
+            if (remoteRadio.checked) {
+                customSection.style.display = 'none';
+                audioStatus.style.display = 'block';
+                audioStatus.textContent = '🔊 ' + (audioSettings.hasCustomAudio ? 'Remote Audio (custom one is saved, but not active))' : 'Remote audio');
+            } else if (customRadio.checked) {
+                customSection.style.display = 'block';
+                if (audioSettings.hasCustomAudio) {
+                    audioStatus.style.display = 'block';
+                    audioStatus.textContent = '🎵 Custom Audio Active';
+                    if (preview) preview.style.display = 'block';
+                } else {
+                    audioStatus.style.display = 'block';
+                    audioStatus.textContent = '⚠️ No Custom Audio Saved';
+                    if (preview) preview.style.display = 'none';
+                }
+            }
         }
+
+        if (fileInput && preview && nameEl && sizeEl && durationEl) {
+            fileInput.addEventListener('change', function () {
+                const file = fileInput.files[0];
+                if (file) {
+                    nameEl.textContent = file.name;
+                    sizeEl.textContent = (file.size / 1024).toFixed(1) + ' KB';
+                    const audio = document.createElement('audio');
+                    audio.src = URL.createObjectURL(file);
+                    audio.addEventListener('loadedmetadata', function () {
+                        durationEl.textContent = (audio.duration ? (audio.duration >= 60 ? Math.floor(audio.duration / 60) + ':' + String(Math.round(audio.duration % 60)).padStart(2, '0') : audio.duration.toFixed(2) + 's') : '');
+                    });
+                    preview.style.display = 'block';
+                } else {
+                    preview.style.display = 'none';
+                }
+            });
+        }
+
+        if (playBtn && fileInput) {
+            playBtn.addEventListener('click', function () {
+                const file = fileInput.files[0];
+                if (file) {
+                    const audio = new Audio(URL.createObjectURL(file));
+                    audio.play();
+                }
+            });
+        }
+
+        if (removeBtn && fileInput) {
+            removeBtn.addEventListener('click', function () {
+                fileInput.value = '';
+                if (preview) preview.style.display = 'none';
+            });
+        }
+
+        if (remoteRadio && customRadio) {
+            remoteRadio.addEventListener('change', updateAudioUI);
+            customRadio.addEventListener('change', updateAudioUI);
+        }
+
+        setTimeout(updateAudioUI, 300);
     }
 
     async function loadAudioSettings() {
         try {
-            const response = await fetch('/api/audio-settings');
+            const response = await fetch('/api/goal-audio-settings');
             if (response.ok) {
                 const data = await response.json();
                 audioSettings = {
                     audioSource: data.audioSource || 'remote',
                     hasCustomAudio: data.hasCustomAudio || false
                 };
-
             }
         } catch (error) {
             console.error('Error loading audio settings:', error);
@@ -197,10 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (msg.type === 'audioSettingsUpdate') {
                     audioSettings = {
                         audioSource: msg.data.audioSource || 'remote',
-                        hasCustomAudio: msg.data.hasCustomAudio || false,
-                        audioFileName: msg.data.audioFileName || null
+                        hasCustomAudio: msg.data.hasCustomAudio || false
                     };
-
                     return;
                 }
 
