@@ -62,8 +62,24 @@ function renderRaffleContent() {
         if (window.languageManager) window.languageManager.updatePageLanguage();
         return;
     }
+    
+    let winnerNames = [];
+    if (Array.isArray(raffleData.winner)) {
+        winnerNames = raffleData.winner;
+    } else if (raffleData.winner) {
+        winnerNames = [raffleData.winner];
+    }
 
     if (raffleData.winner) {
+        let winnerNameHTML = '';
+        if (winnerNames.length > 2) {
+            winnerNameHTML = `<span class="winner-name-fade" id="winnerNameFade"></span>`;
+        } else {
+            winnerNameHTML = winnerNames.map(name =>
+                `<span class="winner-name">${name.length > 12 ? name.slice(0, 12) + '…' : name}</span>`
+            ).join(', ');
+        }
+
         container.innerHTML = `
         <div class="winner-display">
             <div class="winner-flex-row">
@@ -73,6 +89,7 @@ function renderRaffleContent() {
                 </div>
                 <div class="winner-info-area">
                     <div class="winner-icon" aria-label="Trophy" title="Trophy">
+                        <!-- SVG omitted for brevity -->
                         <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <ellipse cx="18" cy="32" rx="10" ry="3" fill="#d3a74f"/>
                             <rect x="13" y="25" width="10" height="5" rx="2" fill="#e6c15a"/>
@@ -84,7 +101,9 @@ function renderRaffleContent() {
                         </svg>
                     </div>
                     <div class="text-xl" style="font-weight: 700; color: #00ff7f" data-i18n="raffleWinnerTitle">¡Tenemos un ganador!</div>
-                    <div class="winner-name" style="font-weight: 600; color: #fff;" id="winnerName">${raffleData.winner}</div>
+                    <div class="winner-name" style="font-weight: 600; color: #fff;" id="winnerName">
+                        ${winnerNameHTML}
+                    </div>
                     <div class="text-lg" style="font-weight: 600; color: #fff;" data-i18n="rafflePrizeLabel"></div>
                     <div class="winner-prize" style="font-weight: 600; color: #fff;" id="winnerPrize">${raffleData.prize || '---'}</div>
                     <div class="winner-command" style="font-weight: 600; color: #fff;" id="winnerCommand">
@@ -97,6 +116,21 @@ function renderRaffleContent() {
         </div>
         `;
         if (window.languageManager) window.languageManager.updatePageLanguage();
+        if (winnerNames.length > 2) {
+            const fadeElem = document.getElementById('winnerNameFade');
+            let idx = 0;
+            function showNextWinner() {
+                if (!fadeElem) return;
+                fadeElem.style.opacity = 0;
+                setTimeout(() => {
+                    fadeElem.textContent = winnerNames[idx].length > 12 ? winnerNames[idx].slice(0, 12) + '…' : winnerNames[idx];
+                    fadeElem.style.opacity = 1;
+                    idx = (idx + 1) % winnerNames.length;
+                }, 400);
+            }
+            showNextWinner();
+            setInterval(showNextWinner, 5000);
+        }
         return;
     }
 
@@ -211,24 +245,41 @@ function connectWebSocket() {
 }
 
 function handleWinner(winnerData) {
-    let winnerName = '';
+    let winnerNames = [];
     let prize = '';
     let command = '';
     let imageUrl = '';
     if (winnerData) {
-        if (typeof winnerData.winner === 'string') {
-            winnerName = winnerData.winner;
+        if (Array.isArray(winnerData.winner)) {
+            winnerNames = winnerData.winner;
+            prize = winnerData.prize || '';
+            command = winnerData.command || '';
+            imageUrl = winnerData.imageUrl || '';
+        } else if (typeof winnerData.winner === 'string') {
+            winnerNames = [winnerData.winner];
             prize = winnerData.prize || '';
             command = winnerData.command || '';
             imageUrl = winnerData.imageUrl || '';
         } else if (typeof winnerData.winner === 'object' && winnerData.winner !== null) {
-            winnerName = winnerData.winner.winner || winnerData.winner.username || winnerData.winner.name || '';
+
+            winnerNames = [
+                winnerData.winner.winner ||
+                winnerData.winner.username ||
+                winnerData.winner.name ||
+                ''
+            ];
             prize = winnerData.winner.prize || winnerData.prize || '';
             command = winnerData.winner.command || winnerData.command || '';
             imageUrl = winnerData.winner.imageUrl || winnerData.imageUrl || '';
         }
-        if (winnerName) {
-            saveWinnerData(winnerName, prize, command, imageUrl);
+        if (winnerNames.length > 0 && winnerNames.some(name => !!name)) {
+
+            saveWinnerData(
+                winnerNames.length === 1 ? winnerNames[0] : winnerNames,
+                prize,
+                command,
+                imageUrl
+            );
             renderRaffleContent();
         }
     }
