@@ -147,8 +147,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         usernameElement.textContent = displayUsername + '';
 
         const membershipIcons = [
-            'crown', 'star', 'diamond', 'heart', 'rocket',
-            'moon', 'fire', 'ghost', 'alien', 'dragon'
+            'crown', 'star', 'hamburger', 'heart', 'tongue',
+            'beer', 'laugh', 'cry', 'serious', 'cool'
         ];
         let hash = 0;
         for (let i = 0; i < username.length; i++) {
