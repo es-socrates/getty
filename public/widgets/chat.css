@@ -155,7 +155,7 @@ body {
     flex-grow: 1;
     min-width: 0;
     font-family: var(--odysee-font-family);
-    font-size: 13px;
+    font-size: 14px;
     color: #fff;
     font-weight: 600;
     line-height: 1.4;
@@ -324,13 +324,16 @@ body {
 }
 
 .membership-icon {
-width: 18px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     margin-right: 4px;
     vertical-align: middle;
     display: inline-block;
     position: relative;
     top: 0px;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(145,71,255,0.12);
+    background-color: #23232a;
 }
 
 .membership-icon.crown {
@@ -351,8 +354,8 @@ width: 18px;
 .membership-icon.heart {
     background: url('../assets/icons/heart.png') no-repeat center;
     background-size: contain;
-    width: 20px;
-    top: 1px;
+    width: 18px;
+    top: 2px;
 }
 
 .membership-icon.tongue {
@@ -478,9 +481,9 @@ width: 18px;
 }
 .horizontal-chat .message-text-inline {
     display: inline;
-    font-size: 13px;
+    font-size: 14px;
     color: #fff;
-    font-weight: 400;
+    font-weight: 500;
     margin: 0;
     line-height: 1.1;
 }

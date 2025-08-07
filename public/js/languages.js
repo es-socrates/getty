@@ -160,6 +160,14 @@ const languages = {
         obsWsPortLabel: "OBS WebSocket Port",
         obsWsPortPlaceholder: "4455",
         obsWsPasswordLabel: "OBS WebSocket Password",
+        chatThemeLabel: "Chat theme:",
+        chatThemeSelect: "Select theme",
+        chatThemeEdit: "Create/Edit theme",
+        chatThemePreview: "Theme preview",
+        chatThemeNamePlaceholder: "Theme name",
+        chatThemeCSSPlaceholder: "Theme CSS",
+        chatThemeSave: "Save theme",
+        chatThemeDelete: "Delete theme",
         obsWsPasswordPlaceholder: "Password (if set)",
         saveObsWsSettings: "Save OBS connection",
         obsWsReminderTitle: "Important:",
@@ -173,6 +181,11 @@ const languages = {
         obsWsReminderCopyUrl: "- You can copy the updated URL from each integration panel in Getty.",
         raffleWarningTitle: "Warning:",
         raffleWarningChat: "For the <b>participant counter</b> to work properly, make sure you have <b>chat enabled</b> from the Getty administration.",
+        chatThemeCopyLabel: "Theme CSS for OBS:",
+        chatThemeCopyBtn: "Copy CSS",
+        chatThemeCopySuccess: "CSS copied to clipboard",
+        chatThemeDeleteOnlyCustom: "Only custom themes can be deleted.",
+        chatThemeCancel: "Cancel"
     },
     
     es: {
@@ -335,6 +348,14 @@ const languages = {
         obsWsPortLabel: "Puerto de OBS WebSocket",
         obsWsPortPlaceholder: "4455",
         obsWsPasswordLabel: "Contraseña de OBS WebSocket",
+        chatThemeLabel: "Tema del chat:",
+        chatThemeSelect: "Seleccionar tema",
+        chatThemeEdit: "Crear/Editar tema",
+        chatThemePreview: "Vista previa del tema",
+        chatThemeNamePlaceholder: "Nombre del tema",
+        chatThemeCSSPlaceholder: "CSS del tema",
+        chatThemeSave: "Guardar tema",
+        chatThemeDelete: "Eliminar tema",
         obsWsPasswordPlaceholder: "Contraseña (si aplica)",
         saveObsWsSettings: "Guardar conexión OBS",
         obsWsReminderTitle: "Importante:",
@@ -348,6 +369,11 @@ const languages = {
         obsWsReminderCopyUrl: "- Puedes copiar la URL actualizada desde cada panel de integración en Getty.",
         raffleWarningTitle: "Advertencia:",
         raffleWarningChat: "Para que el <b>contador de participantes</b> funcione correctamente, asegúrate de tener <b>el chat habilitado</b> desde la administración de Getty.",
+        chatThemeCopyLabel: "CSS del tema para OBS:",
+        chatThemeCopyBtn: "Copiar CSS",
+        chatThemeCopySuccess: "CSS copiado al portapapeles",
+        chatThemeDeleteOnlyCustom: "Solo se pueden eliminar temas personalizados.",
+        chatThemeCancel: "Cancelar"
     }
 };
 

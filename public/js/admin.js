@@ -1,4 +1,259 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    const chatThemeSelect = document.getElementById('chat-theme-select');
+    const chatThemeEditBtn = document.getElementById('edit-chat-theme');
+    const chatThemePreview = document.getElementById('chat-theme-preview');
+    const chatThemeCSSInput = document.getElementById('chat-theme-css');
+    const chatThemeNameInput = document.getElementById('chat-theme-name');
+    const chatThemeSaveBtn = document.getElementById('save-chat-theme');
+
+    const defaultThemes = [
+        {
+            name: 'Twitch',
+            css: `:root { --bg-main: #18181b; --bg-message: #23232a; --bg-message-alt: #1e1e24; --border: #9147ff; --text: #f7f7fa; --username: #a970ff; --donation: #f7c948; --donation-bg: #9147ff; }
+            .message { background: #111; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+            .message.odd { background: #111; border-left: 6px solid var(--border); }
+            .message-username.cyberpunk { color: var(--username); text-shadow: 0 0 4px #9147ff; }
+            .message-text-inline { color: #f7f7fa; }
+            .message.has-donation { background: #f7c948; border-left: 6px solid #f7c948; }
+            .message.has-donation .message-username { color: #9147ff; }
+            .message.has-donation .message-text-inline { color: #23232a !important; }`
+        },
+        {
+            name: 'Oscuro',
+            css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
+            .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; }
+            .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; }
+            .message-username.cyberpunk { color: var(--username); }
+            .message-text-inline { color: var(--text); }
+            .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
+            .message.has-donation .message-username { color: var(--donation); }
+            .message.has-donation .message-text-inline { color: #fff !important; }`
+        }
+    ];
+
+    function getCustomThemes() {
+        try {
+            return JSON.parse(localStorage.getItem('chatCustomThemes') || '[]');
+        } catch { return []; }
+    }
+    function saveCustomThemes(themes) {
+        localStorage.setItem('chatCustomThemes', JSON.stringify(themes));
+    }
+    function getAllThemes() {
+        return [...defaultThemes, ...getCustomThemes()];
+    }
+    function renderThemeOptions() {
+        if (!chatThemeSelect) return;
+        chatThemeSelect.innerHTML = '';
+        getAllThemes().forEach((theme, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.textContent = theme.name;
+            chatThemeSelect.appendChild(opt);
+        });
+
+        const customThemes = getCustomThemes();
+        if (customThemes.length > 0) {
+            let removeBtn = document.getElementById('remove-custom-theme-btn');
+            if (!removeBtn) {
+                removeBtn = document.createElement('button');
+                removeBtn.id = 'remove-custom-theme-btn';
+                removeBtn.textContent = 'Remove Custom Theme';
+                removeBtn.style.margin = '8px 0 0 0';
+                chatThemeSelect.parentNode.appendChild(removeBtn);
+            }
+            removeBtn.onclick = function() {
+                const idx = parseInt(chatThemeSelect.value);
+                if (idx >= defaultThemes.length) {
+                    const customIdx = idx - defaultThemes.length;
+                    customThemes.splice(customIdx, 1);
+                    saveCustomThemes(customThemes);
+                    renderThemeOptions();
+                    chatThemeSelect.selectedIndex = 0;
+                    applyThemePreview(0);
+                    showCopyThemeCSS();
+                }
+            };
+        } else {
+            const btn = document.getElementById('remove-custom-theme-btn');
+            if (btn) btn.remove();
+        }
+    }
+    function applyThemePreview(idx) {
+        if (!chatThemePreview) return;
+        const theme = getAllThemes()[idx];
+        chatThemePreview.innerHTML = `
+            <div class="message">
+                <span class="message-username cyberpunk">User</span>
+                <span class="message-text-inline">This is an example message!</span>
+            </div>
+            <div class="message odd">
+                <span class="message-username cyberpunk">OtherUser</span>
+                <span class="message-text-inline">Another example message.</span>
+            </div>
+            <div class="message has-donation">
+                <span class="message-username">Tip User</span>
+                <span class="message-text-inline">Tip received!</span>
+            </div>
+        `;
+        let styleTag = chatThemePreview.querySelector('style');
+        if (styleTag) styleTag.remove();
+        styleTag = document.createElement('style');
+        styleTag.textContent = theme.css;
+        chatThemePreview.appendChild(styleTag);
+    }
+
+    function showCopyThemeCSS() {
+        const idx = chatThemeSelect ? chatThemeSelect.value : 0;
+        const theme = getAllThemes()[idx];
+        let container = document.getElementById('chat-theme-css-copy-container');
+        if (!container && chatThemeSelect) {
+            container = document.createElement('div');
+            container.id = 'chat-theme-css-copy-container';
+            container.style.margin = '18px 0';
+            container.innerHTML = `
+                <label for="chat-theme-css-copy" style="font-weight:bold;">Theme CSS for OBS:</label><br>
+                <textarea id="chat-theme-css-copy" readonly style="width:100%;height:120px;font-family:monospace;font-size:13px;margin-top:6px;"></textarea>
+                <button id="copy-chat-theme-css" style="margin-top:8px;">Copy CSS</button>
+            `;
+            chatThemeSelect.parentNode.appendChild(container);
+        }
+        if (container) {
+            const textarea = container.querySelector('#chat-theme-css-copy');
+            if (textarea) textarea.value = theme.css || '';
+            const copyBtn = container.querySelector('#copy-chat-theme-css');
+            if (copyBtn) {
+                copyBtn.onclick = function() {
+                    textarea.select();
+                    document.execCommand('copy');
+                    showAlert('CSS copied to clipboard', 'success');
+                };
+            }
+        }
+    }
+
+    if (chatThemeSelect) {
+        renderThemeOptions();
+        chatThemeSelect.addEventListener('change', () => {
+            applyThemePreview(chatThemeSelect.value);
+            showCopyThemeCSS();
+        });
+
+        chatThemeSelect.selectedIndex = 0;
+        applyThemePreview(0);
+        showCopyThemeCSS();
+    }
+    if (chatThemeEditBtn) {
+        chatThemeEditBtn.addEventListener('click', () => {
+            const idx = chatThemeSelect.value;
+            const theme = getAllThemes()[idx];
+            if (theme) {
+                chatThemeNameInput.value = theme.name || '';
+                chatThemeCSSInput.value = theme.css || '';
+            } else {
+                chatThemeNameInput.value = '';
+                chatThemeCSSInput.value = '';
+            }
+            document.getElementById('chat-theme-editor').style.display = 'block';
+        });
+    }
+    if (chatThemeSaveBtn) {
+        chatThemeSaveBtn.addEventListener('click', () => {
+            const name = chatThemeNameInput.value.trim();
+            const css = chatThemeCSSInput.value.trim();
+            if (!name || !css) return alert('Name and CSS required');
+            const customThemes = getCustomThemes();
+
+            if (customThemes.some(t => t.name === name)) {
+                const newName = prompt('A theme with that name already exists. Please enter a different name:', name + ' copy');
+                if (!newName) return;
+                customThemes.push({ name: newName, css });
+            } else {
+                customThemes.push({ name, css });
+            }
+            saveCustomThemes(customThemes);
+            renderThemeOptions();
+            chatThemeSelect.value = getAllThemes().length - 1;
+            applyThemePreview(chatThemeSelect.value);
+            document.getElementById('chat-theme-editor').style.display = 'none';
+            localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
+            showCopyThemeCSS();
+        });
+    }
+    if (chatThemeCSSInput) {
+        chatThemeCSSInput.addEventListener('input', () => {
+            applyThemePreview(chatThemeSelect.value);
+        });
+    }
+
+    const chatThemeDeleteBtn = document.getElementById('delete-chat-theme');
+    const chatThemeSaveBtnEditor = document.getElementById('save-chat-theme-editor');
+    const chatThemeCancelBtnEditor = document.getElementById('cancel-chat-theme-editor');
+    const chatThemeCSSCopyBtn = document.getElementById('copy-chat-theme-css');
+
+    if (chatThemeDeleteBtn) {
+        chatThemeDeleteBtn.onclick = function() {
+            const idx = parseInt(chatThemeSelect.value);
+            if (idx >= defaultThemes.length) {
+                const customThemes = getCustomThemes();
+                const customIdx = idx - defaultThemes.length;
+                if (confirm('Are you sure you want to delete this custom theme?')) {
+                    customThemes.splice(customIdx, 1);
+                    saveCustomThemes(customThemes);
+                    renderThemeOptions();
+                    chatThemeSelect.selectedIndex = 0;
+                    applyThemePreview(0);
+                    showCopyThemeCSS();
+                }
+            } else {
+                const message = window.languageManager ? window.languageManager.getText('chatThemeDeleteOnlyCustom') : 'You can only delete custom themes.';
+                showAlert(message, 'error');
+            }
+        };
+    }
+
+    if (chatThemeSaveBtnEditor) {
+        chatThemeSaveBtnEditor.onclick = function() {
+            const name = chatThemeNameInput.value.trim();
+            const css = chatThemeCSSInput.value.trim();
+            if (!name || !css) return alert('Name and CSS are required');
+            const customThemes = getCustomThemes();
+            if (customThemes.some(t => t.name === name)) {
+                const newName = prompt('A topic with that name already exists. Please enter a different name:', name + ' copy');
+                if (!newName) return;
+                customThemes.push({ name: newName, css });
+            } else {
+                customThemes.push({ name, css });
+            }
+            saveCustomThemes(customThemes);
+            renderThemeOptions();
+            chatThemeSelect.value = getAllThemes().length - 1;
+            applyThemePreview(chatThemeSelect.value);
+            document.getElementById('chat-theme-editor').style.display = 'none';
+            localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
+            showCopyThemeCSS();
+        };
+    }
+
+    if (chatThemeCancelBtnEditor) {
+        chatThemeCancelBtnEditor.onclick = function() {
+            document.getElementById('chat-theme-editor').style.display = 'none';
+        };
+    }
+
+    if (chatThemeCSSCopyBtn) {
+        chatThemeCSSCopyBtn.onclick = function() {
+            const textarea = document.getElementById('chat-theme-css-copy');
+            if (textarea) {
+                textarea.select();
+                document.execCommand('copy');
+                const message = window.languageManager ? window.languageManager.getText('chatThemeCopySuccess') : 'CSS copied to clipboard';
+                showAlert(message, 'success');
+            }
+        };
+    }
+
     let socialmediaConfig = [];
 
     const socialmediaForm = document.getElementById('socialmedia-form');
@@ -412,6 +667,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'chat':
                     endpoint = '/api/chat';
                     const claimId = document.getElementById('chat-url').value.trim();
+                    const themeIdx = document.getElementById('chat-theme-select').value;
+                    const selectedTheme = getAllThemes()[themeIdx];
                     data = {
                         chatUrl: `wss://sockety.odysee.tv/ws/commentron?id=${claimId}`,
                         bgColor: document.getElementById('chat-bg-color').value,
@@ -422,8 +679,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         usernameColor: document.getElementById('chat-username-color').value,
                         usernameBgColor: document.getElementById('chat-username-bg-color').value,
                         donationColor: document.getElementById('chat-donation-color').value,
-                        donationBgColor: document.getElementById('chat-donation-bg-color').value
+                        donationBgColor: document.getElementById('chat-donation-bg-color').value,
+                        themeCSS: selectedTheme ? selectedTheme.css : ''
                     };
+                    if (selectedTheme && selectedTheme.css) {
+                        localStorage.setItem('chatLiveThemeCSS', selectedTheme.css);
+                    }
                     break;
                     
                 case 'externalNotifications':
