@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadColors() {
         if (!isOBSWidget) return;
         try {
-            const res = await fetch('/api/modules');
+            const res = await fetch(`/api/modules?nocache=${Date.now()}`);
             const data = await res.json();
             if (data.chat) {
                 chatColors = {
@@ -292,4 +292,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isHorizontal) {
         chatContainer.classList.add('horizontal-chat');
     }
+
+    function applyChatTheme(themeCSS) {
+        let styleTag = document.getElementById('chat-theme-style');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'chat-theme-style';
+            document.head.appendChild(styleTag);
+        }
+        styleTag.textContent = themeCSS;
+    }
+
+    let lastThemeCSS = '';
+    async function fetchAndApplyTheme() {
+        try {
+            const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+            const config = await res.json();
+            if (config.themeCSS && config.themeCSS !== lastThemeCSS) {
+                lastThemeCSS = config.themeCSS;
+                applyChatTheme(config.themeCSS);
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'chatLiveThemeCSS') {
+            applyChatTheme(e.newValue || '');
+        }
+    });
 });
+
+function saveSettings(section) {
+    const data = {};
+    if (section === 'chat') {
+        const themeIdx = document.getElementById('chat-theme-select').value;
+        const selectedTheme = getAllThemes()[themeIdx];
+        data.themeName = selectedTheme.name;
+        data.themeCSS = selectedTheme.css;
+    }
+}

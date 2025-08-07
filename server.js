@@ -58,6 +58,19 @@ function getLiveviewsConfigWithDefaults(partial) {
   };
 }
 
+app.get('/api/chat-config', (_req, res) => {
+  try {
+    let config = {};
+    if (fs.existsSync(CHAT_CONFIG_FILE)) {
+      config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+    }
+    config.themeCSS = config.themeCSS || '';
+    res.json(config);
+  } catch (e) {
+    res.status(500).json({ error: 'Error loading chat config', details: e.message });
+  }
+});
+
 app.post('/config/liveviews-config.json', liveviewsUpload.single('icon'), (req, res) => {
   try {
     const body = req.body || {};

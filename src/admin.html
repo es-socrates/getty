@@ -726,6 +726,49 @@
                     </button>
                 </div>
 
+                <div>
+                    <label for="chat-theme-select" data-i18n="chatThemeLabel" style="font-weight:600;font-size:16px;margin-bottom:6px;display:block;"></label>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <select id="chat-theme-select" style="min-width:180px; min-height:36px; font-size:16px; background:#fff; color:#222; border:2px solid #9eb474; border-radius:6px; padding:6px 12px; appearance: auto;"></select>
+                        <button id="edit-chat-theme" class="theme-btn" style="background:#f3f4f6;color:#1e293b;border:1.5px solid #9eb474;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;" data-i18n="chatThemeEdit">
+                            <svg width="18" height="18" fill="none" style="vertical-align:middle;"><path d="M3 17.25V21h3.75l11.06-11.06-3.75-3.75L3 17.25zm14.71-10.04a1.003 1.003 0 0 0 0-1.42l-2.5-2.5a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="#9147ff"/></svg>
+                            <span style="font-weight:500;"></span>
+                        </button>
+                        <button id="save-chat-theme" class="theme-btn" style="background:#9eb474;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;" data-i18n="chatThemeSave">
+                            <svg width="18" height="18" fill="none" style="vertical-align:middle;"><path d="M17 3H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7V5h10v14zm-5-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="#fff"/></svg>
+                            <span style="font-weight:500;"></span>
+                        </button>
+                        <button id="delete-chat-theme" class="theme-btn danger-btn" style="background:#fff;color:#ca004b;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;" data-i18n="chatThemeDelete">
+                            <svg width="18" height="18" fill="none" style="vertical-align:middle;"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="#ca004b"/></svg>
+                            <span style="font-weight:500;"></span>
+                        </button>
+                    </div>
+                </div>
+
+                    <div id="chat-theme-css-copy-container" style="margin:18px 0;">
+                        <label for="chat-theme-css-copy" style="font-weight:bold;" data-i18n="chatThemeCopyLabel"></label><br>
+                        <textarea id="chat-theme-css-copy" readonly style="width:100%;height:120px;font-family:monospace;font-size:13px;margin-top:6px;border:1.5px solid #9eb474;border-radius:6px;background:#f9fafb;color:#222;resize:vertical;box-shadow:0 1px 4px rgba(145,71,255,0.07);"></textarea>
+                        <button id="copy-chat-theme-css" class="theme-btn" style="margin-top:8px;background:#38bdf8;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:background .2s;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;"><rect x="8" y="7" width="11" height="14" rx="2" fill="#fff"/><rect x="3" y="3" width="13" height="18" rx="2" stroke="#fff" stroke-width="2" fill="none"/></svg>
+                            <span style="font-weight:500;" data-i18n="chatThemeCopyBtn"></span>
+                        </button>
+                    </div>
+                    <div id="chat-theme-preview" style="margin:16px 0; border:1.5px solid #9eb474; border-radius: 8px; padding:12px;background:#f9fafb;box-shadow:0 1px 4px rgba(145,71,255,0.07);" data-i18n="chatThemePreview"></div>
+                    <div id="chat-theme-editor" style="display:none;margin-top:12px;">
+                        <input id="chat-theme-name" placeholder="Nombre del tema" data-i18n-placeholder="chatThemeNamePlaceholder" style="width:100%;margin-bottom:8px;padding:8px 12px;font-size:15px;border:1.5px solid #9eb474;border-radius:6px;background:#fff;" />
+                        <textarea id="chat-theme-css" rows="8" style="width:100%;margin-bottom:8px;padding:8px 12px;font-family:monospace;font-size:14px;border:1.5px solid #9eb474;border-radius:6px;background:#f9fafb;resize:vertical;box-shadow:0 1px 4px rgba(145,71,255,0.07);" placeholder="CSS del tema" data-i18n-placeholder="chatThemeCSSPlaceholder"></textarea>
+                        <div style="display:flex;gap:10px;">
+                            <button id="save-chat-theme-editor" class="theme-btn" style="background:#9eb474;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:background .2s;" data-i18n="chatThemeSave">
+                                <svg width="18" height="18" fill="none" style="vertical-align:middle;"><path d="M17 3H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H7V5h10v14zm-5-3c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="#fff"/></svg>
+                                <span style="font-weight:500;"></span>
+                            </button>
+                            <button id="cancel-chat-theme-editor" class="theme-btn" style="background:#f3f4f6;color:#9147ff;border:1.5px solid #9147ff;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:background .2s;" data-i18n="chatThemeCancel">
+                                <svg width="18" height="18" fill="none" style="vertical-align:middle;"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" fill="#9147ff"/></svg>
+                                <span style="font-weight:500;"></span>
+                            </button>
+                        </div>
+                    </div>
+
                 <div class="widget-card">
                     <h3 class="widget-title" data-i18n="obsIntegration"></h3>
                     <div class="form-group">
@@ -808,9 +851,9 @@
                     <div id="liveviews-icon-meta" style="font-size:12px;color:#888;margin-top:4px;"></div>
                     <button type="button" id="liveviews-remove-icon" class="icon-remove-btn" style="display:none;margin-top:6px;background:transparent;border:none;cursor:pointer;padding:0;outline:none;">
                         <span style="display:inline-flex;align-items:center;gap:6px;color:#ca004b;font-weight:500;font-size:15px;">
-                            <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="12" fill="#ffe6e6"/><path fill="#ca004b" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/></svg>
-                            <span data-i18n="remove"></span>
-                        </span>
+                            <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="12" fill="#ffe6e6"/><path fill="#ca004b" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                        </svg>
+                        <span data-i18n="remove"></span>
                     </button>
                 </div>
                 <button class="save-btn" id="liveviews-save" type="button">
