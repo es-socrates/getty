@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('#raffle-tab .form-card')?.prepend(timerBox);
     }
     let timerInterval = null;
-    // console.log('raffle-admin.js loaded');
+
     const saveBtn = document.getElementById('raffle-save');
     const startBtn = document.getElementById('raffle-start');
     const stopBtn = document.getElementById('raffle-stop');
@@ -105,7 +105,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (timerInterval) clearInterval(timerInterval);
         timerBox.style.display = 'none';
         try {
-            // console.log('[raffle-admin.js] updateUI state:', state);
             if (!state || typeof state !== 'object') {
                 lastState = {};
                 return;
@@ -229,12 +228,28 @@ document.addEventListener('DOMContentLoaded', function () {
     function saveSettings(e) {
         e.preventDefault();
         clearError();
+        const commandVal = document.getElementById('raffle-command')?.value.trim() || '';
+        const prizeVal = document.getElementById('raffle-prize')?.value.trim() || '';
+        if (!prizeVal) {
+            showError('Please enter a prize name.');
+            return;
+        }
+
+        let img = imagePreview && imagePreview.src ? imagePreview.src : '';
+        try {
+            if (img) {
+                const u = new URL(img, window.location.origin);
+                if (u.pathname.startsWith('/uploads/raffle/')) {
+                    img = u.pathname;
+                }
+            }
+        } catch {}
         const data = {
-            command: document.getElementById('raffle-command')?.value.trim() || '',
-            prize: document.getElementById('raffle-prize')?.value.trim() || '',
+            command: commandVal,
+            prize: prizeVal,
             maxWinners: Number(document.getElementById('raffle-max-winners')?.value) || 1,
             enabled: enabledCheckbox?.checked || false,
-            imageUrl: imagePreview && imagePreview.src ? imagePreview.src : ''
+            imageUrl: img
         };
         fetch('/api/raffle/settings', {
             method: 'POST',

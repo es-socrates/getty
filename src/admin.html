@@ -185,6 +185,7 @@
                     <div class="form-group">
                         <label for="raffle-command" data-i18n="raffleCommandLabel"></label>
                         <input type="text" id="raffle-command" placeholder="!giveaway" data-i18n-placeholder="raffleCommandPlaceholder">
+                        <small class="form-hint" data-i18n="raffleCommandHint"></small>
                     </div>
                     <div class="form-group">
                         <label for="raffle-prize" data-i18n="rafflePrizeLabel"></label>
@@ -359,6 +360,31 @@
                                 <span data-i18n="copy"></span>
                             </button>
                         </div>
+                    </div>
+                </div>
+                <div class="widget-card" style="margin-top:16px;">
+                    <h3 class="widget-title" data-i18n="obsIntegration"></h3>
+                    <div class="form-group">
+                        <p data-i18n="obsIntegrationHelpIntro"></p>
+                    </div>
+                    <div class="form-group">
+                        <h4 class="form-section-title" data-i18n="obsAvailableWidgetsTitle"></h4>
+                        <ul style="margin:6px 0 0 18px;">
+                            <li data-i18n="obsWidgetLastTip"></li>
+                            <li data-i18n="obsWidgetTipGoal"></li>
+                            <li data-i18n="obsWidgetTipNotification"></li>
+                            <li data-i18n="obsWidgetChat"></li>
+                            <li data-i18n="obsWidgetPersistentNotifications"></li>
+                        </ul>
+                        <p style="margin-top:8px;" data-i18n="obsWidgetsJsonHelp"></p>
+                    </div>
+                    <div class="form-group">
+                        <h4 class="form-section-title" data-i18n="obsTipsTitle"></h4>
+                        <ul style="margin:6px 0 0 18px;">
+                            <li data-i18n="obsTipShutdownSource"></li>
+                            <li data-i18n="obsTipScaleCss"></li>
+                            <li data-i18n="obsTipFirewall"></li>
+                        </ul>
                     </div>
                 </div>
             </section>
@@ -1031,9 +1057,9 @@
 </div>
 
 <script src="/js/min/raffle-admin.js"></script>
-<script src="/js/min/languages.js"></script>
+<script src="/js/min/languages.js?v=1.0.4"></script>
 <script src="/js/min/liveviews.js"></script>
-<script src="/js/min/admin.js"></script>
+<script src="/js/min/admin.js?v=1.0.6"></script>
 
 </body>
 </html>

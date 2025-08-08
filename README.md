@@ -67,6 +67,14 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 
 ![getty](https://thumbs.odycdn.com/6dd538e00705ebaf66e6a179ea7a8c59.webp)
 
+## Developer Notes
+
+- API map: see docs/ROUTES.md for a full list of endpoints and their modules.
+- Run tests:
+	- npm test
+  
+Most HTTP routes have been modularized under the routes/ directory to improve maintainability and testability.
+
 Getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
 
 **This is an independent project; it is not an official Odysee product.**

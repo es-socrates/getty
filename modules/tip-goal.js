@@ -51,7 +51,9 @@ class TipGoalModule {
         this.exchangeRateInterval = 3600000;
         this.transactionCheckInterval = 60000;
         
-        this.init();
+        if (process.env.NODE_ENV !== 'test') {
+            this.init();
+        }
     }
 
     loadWalletAddress() {
@@ -85,6 +87,33 @@ class TipGoalModule {
             }
             if (typeof config.currentAmount === 'number') {
                 this.currentTipsAR = config.currentAmount;
+            }
+            if (!this.walletAddress) {
+                try {
+                    const lastTipConfigPath1 = path.join(configDir, 'last-tip-config.json');
+                    const lastTipConfigPath2 = path.join(process.cwd(), 'last-tip-config.json');
+                    let lastTipWallet = '';
+                    if (fs.existsSync(lastTipConfigPath1)) {
+                        const lt = JSON.parse(fs.readFileSync(lastTipConfigPath1, 'utf8'));
+                        if (lt && typeof lt.walletAddress === 'string' && lt.walletAddress.trim()) {
+                            lastTipWallet = lt.walletAddress.trim();
+                        }
+                    }
+                    if (!lastTipWallet && fs.existsSync(lastTipConfigPath2)) {
+                        const lt2 = JSON.parse(fs.readFileSync(lastTipConfigPath2, 'utf8'));
+                        if (lt2 && typeof lt2.walletAddress === 'string' && lt2.walletAddress.trim()) {
+                            lastTipWallet = lt2.walletAddress.trim();
+                        }
+                    }
+                    if (lastTipWallet) {
+                        this.walletAddress = lastTipWallet;
+
+                        const updated = { ...tipGoalDefault, ...config, walletAddress: lastTipWallet };
+                        try { fs.writeFileSync(configPath, JSON.stringify(updated, null, 2)); } catch {}
+                    }
+                } catch (e) {
+
+                }
             }
         } catch (e) {
             console.error('[TipGoal] Error reading wallet address from config:', e);
@@ -336,7 +365,9 @@ class TipGoalModule {
         this.currentTipsAR = 0;
         this.lastDonationTimestamp = null;
         this.sendGoalUpdate();
-        this.checkTransactions(true);
+        if (process.env.NODE_ENV !== 'test') {
+            this.checkTransactions(true);
+        }
         return this.getStatus();
     }
     

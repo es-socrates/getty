@@ -16,7 +16,9 @@ class ChatModule {
     this.history = [];
     this.MAX_HISTORY = 100;
     
-    this.init();
+    if (process.env.NODE_ENV !== 'test') {
+      this.init();
+    }
   }
   
   init() {
@@ -50,7 +52,9 @@ class ChatModule {
     this.ws.on('close', () => {
       console.log('Connection closed, reconnecting...');
       this.notifyStatus(false);
-      setTimeout(() => this.connect(this.chatUrl), 5000);
+      if (process.env.NODE_ENV !== 'test') {
+        setTimeout(() => this.connect(this.chatUrl), 5000);
+      }
     });
 
     this.ws.on('message', async (data) => {
@@ -103,9 +107,12 @@ class ChatModule {
           typeof raffle.command === 'string' &&
           typeof chatMessage.message === 'string'
         ) {
-          const msg = chatMessage.message.trim().toLowerCase();
-          const cmd = raffle.command.trim().toLowerCase();
-          if (msg === cmd || msg === cmd.replace(/^!/, '') || msg === '!' + cmd) {
+
+          const msg = (chatMessage.message || '').trim().toLowerCase();
+          const cmd = (raffle.command || '').trim().toLowerCase();
+          const msgNorm = msg.replace(/^!+/, '');
+          const cmdNorm = cmd.replace(/^!+/, '');
+          if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
             const added = raffle.addParticipant(chatMessage.username, chatMessage.userId);
             if (added) {
               Logger.info(`[Giveaway] New participant: ${chatMessage.username}`);

@@ -1,3 +1,4 @@
+const WebSocket = require('ws');
 
 const fs = require('fs');
 const path = require('path');
@@ -217,7 +218,7 @@ class RaffleModule {
                 reset: true
             };
             this.wss.clients.forEach(client => {
-                if (client.readyState === 1 || client.readyState ===  WebSocket.OPEN) {
+                if (client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify(state));
                 }
             });
@@ -241,7 +242,7 @@ class RaffleModule {
             totalWinners: this.previousWinners.size
         };
         this.wss.clients.forEach(client => {
-            if (client.readyState === 1 || client.readyState ===  WebSocket.OPEN) {
+            if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(state));
             }
         });
@@ -254,7 +255,7 @@ class RaffleModule {
             ...winnerData
         };
         this.wss.clients.forEach(client => {
-            if (client.readyState === 1 || client.readyState === WebSocket.OPEN) {
+            if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(message));
             }
         });

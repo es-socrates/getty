@@ -1,9 +1,12 @@
 node_modules/
+.env
+/public/uploads/*
+!/public/uploads/.gitkeep
+/public/js/min
 public/css/output.css
 public/index.html
 public/admin.html
 public/min/*.js
-.env
 .DS_Store
 *.log
 external-notifications-config.json

@@ -11,11 +11,12 @@ const Logger = {
 class ExternalNotifications {
     constructor(wss) {
         this.wss = wss;
-        this.configFile = path.join(__dirname, 'external-notifications-config.json');
+    this.configFile = path.join(process.cwd(), 'config', 'external-notifications-config.json');
+    this.legacyConfigFile = path.join(__dirname, 'external-notifications-config.json');
         this.lastTips = [];
-        this.discordWebhook = '';
-        this.telegramBotToken = '';
-        this.telegramChatId = '';
+        this.discordWebhook = process.env.DISCORD_WEBHOOK || '';
+        this.telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '';
+        this.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
         this.template = 'New tip from {from}: {amount} AR (${usd}) - "{message}"';
 
         this.loadConfig();
@@ -31,9 +32,6 @@ class ExternalNotifications {
             config: {
                 hasDiscord: !!this.discordWebhook,
                 hasTelegram: !!(this.telegramBotToken && this.telegramChatId),
-                discordWebhook: this.discordWebhook,
-                telegramBotToken: this.telegramBotToken,
-                telegramChatId: this.telegramChatId,
                 template: this.template
             },
             lastUpdated: new Date().toISOString()
@@ -42,13 +40,29 @@ class ExternalNotifications {
 
     loadConfig() {
         try {
+            if (!fs.existsSync(this.configFile) && fs.existsSync(this.legacyConfigFile)) {
+                try {
+                    const legacyData = fs.readFileSync(this.legacyConfigFile, 'utf8');
+                    const legacyJson = JSON.parse(legacyData);
+                    const cfgDir = path.dirname(this.configFile);
+                    if (!fs.existsSync(cfgDir)) {
+                        fs.mkdirSync(cfgDir, { recursive: true });
+                    }
+                    fs.writeFileSync(this.configFile, JSON.stringify(legacyJson, null, 2));
+                    try { fs.unlinkSync(this.legacyConfigFile); } catch {}
+                    console.log('[ExternalNotifications] Migrated config to /config');
+                } catch (e) {
+                    console.error('[ExternalNotifications] Migration failed:', e.message);
+                }
+            }
+
             if (fs.existsSync(this.configFile)) {
                 const rawData = fs.readFileSync(this.configFile, 'utf8');
                 const config = JSON.parse(rawData);
                 
-                this.discordWebhook = config.discordWebhook || '';
-                this.telegramBotToken = config.telegramBotToken || '';
-                this.telegramChatId = config.telegramChatId || '';
+                if (!this.discordWebhook) this.discordWebhook = config.discordWebhook || '';
+                if (!this.telegramBotToken) this.telegramBotToken = config.telegramBotToken || '';
+                if (!this.telegramChatId) this.telegramChatId = config.telegramChatId || '';
                 this.template = config.template || this.template;
                 this.lastTips = config.lastTips || [];
 
@@ -64,21 +78,34 @@ class ExternalNotifications {
 
     async saveConfig(config) {
         try {
-            const data = JSON.stringify({
-                discordWebhook: config.discordWebhook,
-                telegramBotToken: config.telegramBotToken,
-                telegramChatId: config.telegramChatId,
-                template: config.template,
-                lastTips: this.lastTips
-            }, null, 2);
-
-            fs.writeFileSync(this.configFile, data);
-            console.log('[ExternalNotifications] Config saved');
-
-            this.discordWebhook = config.discordWebhook;
-            this.telegramBotToken = config.telegramBotToken;
-            this.telegramChatId = config.telegramChatId;
+            const cfgDir = path.dirname(this.configFile);
+            if (!fs.existsSync(cfgDir)) {
+                fs.mkdirSync(cfgDir, { recursive: true });
+            }
+            if (!process.env.DISCORD_WEBHOOK && typeof config.discordWebhook === 'string') {
+                this.discordWebhook = config.discordWebhook;
+            }
+            if (!process.env.TELEGRAM_BOT_TOKEN && typeof config.telegramBotToken === 'string') {
+                this.telegramBotToken = config.telegramBotToken;
+            }
+            if (!process.env.TELEGRAM_CHAT_ID && typeof config.telegramChatId === 'string') {
+                this.telegramChatId = config.telegramChatId;
+            }
             this.template = config.template;
+
+            const persistSecrets = !process.env.DISCORD_WEBHOOK && !process.env.TELEGRAM_BOT_TOKEN && !process.env.TELEGRAM_CHAT_ID;
+            const filePayload = {
+                template: this.template,
+                lastTips: this.lastTips
+            };
+            if (persistSecrets) {
+                filePayload.discordWebhook = this.discordWebhook;
+                filePayload.telegramBotToken = this.telegramBotToken;
+                filePayload.telegramChatId = this.telegramChatId;
+            }
+
+            fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
+            console.log('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
         } catch (error) {
             console.error('[ExternalNotifications] Error saving config:', error);
             throw error;

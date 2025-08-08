@@ -71,7 +71,9 @@ class TipWidgetModule {
     this.ARWEAVE_GATEWAY = 'https://arweave.net';
     this.walletAddress = getWalletAddress();
     this.processedTxs = new Set();
-    this.init();
+    if (process.env.NODE_ENV !== 'test') {
+      this.init();
+    }
   }
   
   init() {
@@ -84,7 +86,9 @@ class TipWidgetModule {
       gateway: this.ARWEAVE_GATEWAY
     });
     this.checkTransactions();
-    setInterval(() => this.checkTransactions(), 30000);
+    if (process.env.NODE_ENV !== 'test') {
+      setInterval(() => this.checkTransactions(), 30000);
+    }
   }
   
   async getAddressTransactions(address) {

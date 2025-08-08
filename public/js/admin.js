@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="message-text-inline">This is an example message!</span>
             </div>
             <div class="message odd">
-                <span class="message-username cyberpunk">OtherUser</span>
+                <span class="message-username cyberpunk">Other User</span>
                 <span class="message-text-inline">Another example message.</span>
             </div>
             <div class="message has-donation">
@@ -260,6 +260,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const socialmediaList = document.getElementById('socialmedia-list');
     const saveSocialmediaBtn = document.getElementById('save-socialmedia-config');
 
+    async function saveSocialmediaConfig() {
+        try {
+            const res = await fetch('/api/socialmedia-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config: socialmediaConfig })
+            });
+            const data = await res.json().catch(() => ({ success: false }));
+            if (!res.ok || !data.success) {
+                throw new Error(data && data.error ? data.error : 'Error saving settings');
+            }
+            showAlert('Social network settings saved', 'success');
+        } catch (e) {
+            console.error('[socialmedia] save failed:', e);
+            showAlert(e.message || 'Error saving settings', 'error');
+        }
+    }
+
     function renderSocialmediaList() {
         if (!socialmediaList) return;
         socialmediaList.innerHTML = '';
@@ -414,6 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             socialmediaConfig.push({ name, icon, link, customIcon });
             renderSocialmediaList();
+            saveSocialmediaConfig();
             socialmediaForm.reset();
             customIconUpload.style.display = 'none';
             customIconBase64 = '';
@@ -427,6 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isNaN(idx)) {
                     socialmediaConfig.splice(idx, 1);
                     renderSocialmediaList();
+                    saveSocialmediaConfig();
                 }
             }
         });
@@ -434,19 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saveSocialmediaBtn) {
         saveSocialmediaBtn.addEventListener('click', function() {
-            fetch('/api/socialmedia-config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ config: socialmediaConfig })
-            })
-            .then(res => res.json())
-            .then((data) => {
-                if (data.success) {
-                    showAlert('Social network settings saved', 'success');
-                } else {
-                    showAlert('Error saving settings', 'error');
-                }
-            });
+            saveSocialmediaConfig();
         });
     }
 
@@ -458,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return response.json();
         })
-        .then(data => {
+    .then(data => {
             document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
             document.getElementById('tip-goal-wallet-address').value = data.tipGoal.walletAddress || '';
             document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
@@ -478,15 +486,36 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tip-goal-progress-color').value = data.tipGoal.progressColor || '#00ff7f';
             
             if (data.externalNotifications && data.externalNotifications.config) {
-                document.getElementById('discord-webhook').value = data.externalNotifications.config.discordWebhook || '';
-                document.getElementById('telegram-bot-token').value = data.externalNotifications.config.telegramBotToken || '';
-                document.getElementById('telegram-chat-id').value = data.externalNotifications.config.telegramChatId || '';
+                if (typeof data.externalNotifications.config.discordWebhook === 'string') {
+                    document.getElementById('discord-webhook').value = data.externalNotifications.config.discordWebhook || '';
+                }
+                if (typeof data.externalNotifications.config.telegramBotToken === 'string') {
+                    document.getElementById('telegram-bot-token').value = data.externalNotifications.config.telegramBotToken || '';
+                }
+                if (typeof data.externalNotifications.config.telegramChatId === 'string') {
+                    document.getElementById('telegram-chat-id').value = data.externalNotifications.config.telegramChatId || '';
+                }
             }
             updateStatus('lastTip-status', data.lastTip.active);
             updateStatus('tipWidget-status', data.tipWidget.active);
             updateStatus('tipGoal-status', data.tipGoal.active);
             updateStatus('chat-status', data.chat.connected);
-            return fetch('/api/tts-setting');
+
+            const preloadExternal = fetch('/api/external-notifications')
+                .then(r => r.ok ? r.json() : null)
+                .then(ext => {
+                    if (ext && ext.config) {
+                        if (document.getElementById('discord-webhook') && ext.config.discordWebhook)
+                            document.getElementById('discord-webhook').value = ext.config.discordWebhook;
+                        if (document.getElementById('telegram-bot-token') && ext.config.telegramBotToken)
+                            document.getElementById('telegram-bot-token').value = ext.config.telegramBotToken;
+                        if (document.getElementById('telegram-chat-id') && ext.config.telegramChatId)
+                            document.getElementById('telegram-chat-id').value = ext.config.telegramChatId;
+                    }
+                })
+                .catch(() => {});
+
+            return Promise.resolve(preloadExternal).then(() => fetch('/api/tts-setting'));
         })
         .then(response => {
             if (!response.ok) throw new Error('Failed to load TTS settings');

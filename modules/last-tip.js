@@ -9,7 +9,9 @@ class LastTipModule {
     this.lastDonation = null;
     this.processedTxs = new Set();
     this.loadWalletAddress();
-    this.init();
+    if (process.env.NODE_ENV !== 'test') {
+      this.init();
+    }
   }
 
   loadWalletAddress() {
@@ -51,7 +53,9 @@ class LastTipModule {
       return;
     }
     this.updateLatestDonation();
-    setInterval(() => this.updateLatestDonation(), 60000);
+    if (process.env.NODE_ENV !== 'test') {
+      setInterval(() => this.updateLatestDonation(), 60000);
+    }
   }
   
   async getEnhancedTransactions(address) {

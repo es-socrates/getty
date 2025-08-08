@@ -1,10 +1,16 @@
 const path = require('path');
+require('dotenv').config();
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const express = require('express');
+const compression = require('compression');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const WebSocket = require('ws');
 const axios = require('axios');
 const fs = require('fs');
 const multer = require('multer');
+const { z } = require('zod');
 const SETTINGS_FILE = path.join(process.cwd(), 'tts-settings.json');
 const OBS_WS_CONFIG_FILE = path.join(__dirname, 'config', 'obs-ws-config.json');
 
@@ -14,37 +20,36 @@ const { TipGoalModule } = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
+const registerTtsRoutes = require('./routes/tts');
+const registerLanguageRoutes = require('./routes/language');
 const SocialMediaModule = require('./modules/socialmedia');
 const socialMediaModule = new SocialMediaModule();
+const registerChatRoutes = require('./routes/chat');
+const registerExternalNotificationsRoutes = require('./routes/external-notifications');
+const registerAudioSettingsRoutes = require('./routes/audio-settings');
+const registerGoalAudioRoutes = require('./routes/goal-audio');
+const registerTipGoalRoutes = require('./routes/tip-goal');
+const registerRaffleRoutes = require('./routes/raffle');
+const registerSocialMediaRoutes = require('./routes/socialmedia');
+const registerLastTipRoutes = require('./routes/last-tip');
+const registerObsRoutes = require('./routes/obs');
+const registerLiveviewsRoutes = require('./routes/liveviews');
 
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'last-tip-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
 const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
 
-const LIVEVIEWS_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'liveviews');
-if (!fs.existsSync(LIVEVIEWS_UPLOADS_DIR)) {
-  fs.mkdirSync(LIVEVIEWS_UPLOADS_DIR, { recursive: true });
-}
-const liveviewsStorage = multer.diskStorage({
-  destination: function (_req, _file, cb) {
-    cb(null, LIVEVIEWS_UPLOADS_DIR);
-  },
-  filename: function (_req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, 'icon' + ext);
-  }
-});
-const liveviewsUpload = multer({
-  storage: liveviewsStorage,
-  limits: { fileSize: 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files are allowed'));
-  }
-});
-
 const app = express();
+
+try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
+try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
+
+const limiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((req,res,next)=>next());
+const strictLimiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 10 }) : ((req,res,next)=>next());
+
+app.use(compression());
 
 function getLiveviewsConfigWithDefaults(partial) {
   return {
@@ -58,76 +63,12 @@ function getLiveviewsConfigWithDefaults(partial) {
   };
 }
 
-app.get('/api/chat-config', (_req, res) => {
-  try {
-    let config = {};
-    if (fs.existsSync(CHAT_CONFIG_FILE)) {
-      config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-    }
-    config.themeCSS = config.themeCSS || '';
-    res.json(config);
-  } catch (e) {
-    res.status(500).json({ error: 'Error loading chat config', details: e.message });
-  }
-});
-
-app.post('/config/liveviews-config.json', liveviewsUpload.single('icon'), (req, res) => {
-  try {
-    const body = req.body || {};
-    const removeIcon = body.removeIcon === '1';
-    let prev = {};
-    if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-      try {
-        prev = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-      } catch (e) { prev = {}; }
-    }
-
-    let iconUrl = '';
-    if (req.file) {
-      iconUrl = '/uploads/liveviews/' + req.file.filename;
-    } else if (!removeIcon && prev.icon) {
-      iconUrl = prev.icon;
-    }
-    if (removeIcon && prev.icon) {
-      const iconPath = path.join(process.cwd(), 'public', prev.icon.replace(/^\//, ''));
-      if (fs.existsSync(iconPath)) {
-        try { fs.unlinkSync(iconPath); } catch (e) {}
-      }
-      iconUrl = '';
-    }
-
-    const config = getLiveviewsConfigWithDefaults({
-      ...prev,
-      ...body,
-      icon: iconUrl
-    });
-    fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(config, null, 2));
-    res.json({ success: true, config });
-  } catch (error) {
-    res.status(500).json({ error: 'Error saving configuration', details: error.message });
-  }
-});
-
-
-app.get('/config/liveviews-config.json', (_req, res) => {
-  try {
-    let config = {};
-    if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-      config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-    }
-    config = getLiveviewsConfigWithDefaults(config);
-    res.json(config);
-  } catch (e) {
-    res.json(getLiveviewsConfigWithDefaults({}));
-  }
-});
-
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     res.setHeader(
         'Content-Security-Policy',
@@ -144,12 +85,28 @@ app.use((req, res, next) => {
     next();
 });
 
-const PORT = process.env.PORT || 3000;
-
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res.sendStatus(204);
+  }
+  next();
 });
 
+app.use((req, _res, next) => {
+  try {
+    const isApi = req.path && req.path.startsWith('/api/');
+    const isSafeMethod = req.method === 'GET' || req.method === 'HEAD';
+    if (isApi && isSafeMethod && req.path.length > 5 && req.path.endsWith('/')) {
+      const trimmedPath = req.path.replace(/\/+$/, '');
+      const query = req.url.slice(req.path.length);
+      req.url = trimmedPath + query;
+    }
+  } catch {}
+  next();
+});
 
 const wss = new WebSocket.Server({ noServer: true });
 
@@ -167,199 +124,26 @@ const raffle = new RaffleModule(wss);
 
 global.gettyRaffleInstance = raffle;
 
-try {
-  if (fs.existsSync(CHAT_CONFIG_FILE)) {
-    const chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-    if (chatConfig.chatUrl && typeof chatConfig.chatUrl === 'string' && chatConfig.chatUrl.startsWith('wss://')) {
-      chat.updateChatUrl(chatConfig.chatUrl);
-    }
-  }
-} catch (e) {
-  console.error('Error loading chat config for auto-activation:', e);
-}
+registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE);
 
-function setupWebSocketListeners() {
-    wss.removeAllListeners('tip');
-    
-    wss.on('tip', (tipData) => {
-        externalNotifications.handleIncomingTip(tipData).catch(error => {
-            console.error('[Main] Error processing tip:', error);
-        });
-    });
-}
-
-setupWebSocketListeners();
-
-function loadSettings() {
-    try {
-        if (fs.existsSync(SETTINGS_FILE)) {
-            const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-            return {
-                ttsEnabled: typeof settings.ttsEnabled === 'boolean' ? settings.ttsEnabled : true,
-                ttsLanguage: settings.ttsLanguage || 'en'
-            };
-        }
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
-    return { ttsEnabled: true, ttsLanguage: 'en' }; // Default language
-}
-
-function saveSettings(newSettings) {
-    let current = {};
-    try {
-        if (fs.existsSync(SETTINGS_FILE)) {
-            current = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-        }
-    } catch (error) {
-        console.error('Error reading settings for merge:', error);
-    }
-    const merged = { ...current, ...newSettings };
-    try {
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2));
-    } catch (error) {
-        console.error('Error saving settings:', error);
-    }
-}
-
-async function connectOBS(ip, port, password) {
+if (process.env.NODE_ENV !== 'test') {
   try {
-    await obs.connect(`ws://${ip}:${port}`, password);
-    console.log('Conectado a OBS WebSocket');
-  } catch (error) {
-    console.error('Error de conexión:', error);
+    if (fs.existsSync(CHAT_CONFIG_FILE)) {
+      const chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+      if (chatConfig.chatUrl && typeof chatConfig.chatUrl === 'string' && chatConfig.chatUrl.startsWith('wss://')) {
+        chat.updateChatUrl(chatConfig.chatUrl);
+      }
+    }
+  } catch (e) {
+    console.error('Error loading chat config for auto-activation:', e);
   }
 }
 
-app.get('/api/tts-setting', (_req, res) => {
-    const settings = loadSettings();
-    res.json({ ttsEnabled: settings.ttsEnabled });
-});
+registerTtsRoutes(app, wss, limiter);
+registerLiveviewsRoutes(app, strictLimiter);
+registerSocialMediaRoutes(app, socialMediaModule, strictLimiter);
 
-app.post('/api/tts-setting', express.json(), (req, res) => {
-    const { ttsEnabled } = req.body;
-    saveSettings({ ttsEnabled: Boolean(ttsEnabled) });
-    
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'ttsSettingUpdate',
-                data: { ttsEnabled: Boolean(ttsEnabled) }
-            }));
-        }
-    });
-    
-    res.json({ 
-        success: true, 
-        ttsEnabled: Boolean(ttsEnabled),
-        message: "TTS setting updated successfully"
-    });
-});
-
-app.get('/api/tts-language', (_req, res) => {
-    const settings = loadSettings();
-    res.json({ ttsLanguage: settings.ttsLanguage || 'en' });
-});
-
-app.post('/api/tts-language', express.json(), (req, res) => {
-    const { ttsLanguage } = req.body;
-    if (!ttsLanguage || (ttsLanguage !== 'en' && ttsLanguage !== 'es')) {
-        return res.status(400).json({ success: false, error: 'Invalid ttsLanguage value' });
-    }
-    saveSettings({ ttsLanguage });
-
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'ttsLanguageUpdate',
-                data: { ttsLanguage }
-            }));
-        }
-    });
-    res.json({ success: true, ttsLanguage, message: 'TTS language updated successfully' });
-});
-
-app.use(express.json());
-
-app.get('/api/socialmedia-config', (_req, res) => {
-    try {
-        const config = socialMediaModule.loadConfig();
-        res.json({ success: true, config });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/socialmedia-config', express.json(), (req, res) => {
-    try {
-        const config = req.body.config;
-        if (!Array.isArray(config)) {
-            return res.status(400).json({ success: false, error: 'Invalid config format' });
-        }
-        socialMediaModule.saveConfig(config);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
-
-app.post('/api/tts-setting', express.json(), (req, res) => {
-    try {
-        const { ttsEnabled } = req.body;
-        
-        res.json({ 
-            success: true, 
-            ttsEnabled: Boolean(ttsEnabled),
-            message: "TTS setting updated successfully"
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            success: false,
-            error: "Internal server error",
-            details: error.message 
-        });
-    }
-});
-
-const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'last-tip-config.json');
-app.post('/api/last-tip', express.json(), (req, res) => {
-  try {
-    const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, fromColor } = req.body;
-    let config = {};
-    if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-      config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
-    }
-    const newConfig = {
-      ...config,
-      bgColor: bgColor || config.bgColor || '#080c10',
-      fontColor: fontColor || config.fontColor || '#ffffff',
-      borderColor: borderColor || config.borderColor || '#00ff7f',
-      amountColor: amountColor || config.amountColor || '#00ff7f',
-      iconColor: iconColor || config.iconColor || '#ca004b',
-      fromColor: fromColor || config.fromColor || '#e9e9e9',
-      walletAddress: walletAddress || config.walletAddress || ''
-    };
-    fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-    const result = lastTip.updateWalletAddress(newConfig.walletAddress);
-
-    if (typeof tipWidget.updateWalletAddress === 'function') {
-      tipWidget.updateWalletAddress(newConfig.walletAddress);
-    }
-    res.json({
-      success: true,
-      ...result,
-      ...newConfig
-    });
-  } catch (error) {
-    console.error('Error updating last tip:', error);
-    res.status(500).json({
-      error: "Internal server error",
-      details: error.message
-    });
-  }
-});
-
-
+registerLastTipRoutes(app, lastTip, tipWidget);
 if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
@@ -400,173 +184,11 @@ const goalAudioUpload = multer({
   }
 });
 
-app.post('/api/tip-goal', goalAudioUpload.single('audioFile'), async (req, res) => {
-  try {
-    const walletAddress = req.body.walletAddress || '';
-    const monthlyGoal = parseFloat(req.body.monthlyGoal || req.body.goalAmount);
-    const currentAmount = parseFloat(
-      req.body.currentAmount || req.body.startingAmount || req.body.currentTips || '0'
-    );
-    const bgColor = req.body.bgColor;
-    const fontColor = req.body.fontColor;
-    const borderColor = req.body.borderColor;
-    const progressColor = req.body.progressColor;
-    const audioSource = req.body.audioSource || 'remote';
+registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE);
 
-    if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
-      return res.status(400).json({ error: "Valid goal amount is required" });
-    }
+registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter);
 
-    tipGoal.updateWalletAddress(walletAddress);
-    tipGoal.monthlyGoalAR = monthlyGoal;
-    tipGoal.currentTipsAR = currentAmount;
-
-    let audioFile = null;
-    let hasCustomAudio = false;
-    let audioFileName = null;
-    let audioFileSize = 0;
-
-    if (audioSource === 'custom' && req.file) {
-      audioFile = '/uploads/goal-audio/' + req.file.filename;
-      hasCustomAudio = true;
-      audioFileName = req.file.originalname;
-      audioFileSize = req.file.size;
-    }
-
-    const config = {
-      walletAddress,
-      monthlyGoal,
-      currentAmount,
-      bgColor: bgColor || '#080c10',
-      fontColor: fontColor || '#ffffff',
-      borderColor: borderColor || '#00ff7f',
-      progressColor: progressColor || '#00ff7f',
-      audioSource,
-      hasCustomAudio,
-      audioFileName,
-      audioFileSize,
-      ...(audioFile ? { customAudioUrl: audioFile } : {})
-    };
-    fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
-
-    fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify({
-      audioSource,
-      hasCustomAudio,
-      audioFileName,
-      audioFileSize,
-      ...(audioFile ? { customAudioUrl: audioFile } : {})
-    }, null, 2));
-
-    tipGoal.sendGoalUpdate();
-
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'goalAudioSettingsUpdate',
-          data: {
-            audioSource,
-            hasCustomAudio,
-            audioFileName,
-            audioFileSize,
-            ...(audioFile ? { customAudioUrl: audioFile } : {})
-          }
-        }));
-      }
-    });
-
-    res.json({
-      success: true,
-      active: true,
-      ...config
-    });
-  } catch (error) {
-    console.error('Error in /api/tip-goal:', error);
-    res.status(500).json({
-      error: "Internal server error",
-      details: error.message
-    });
-  }
-});
-
-app.post('/api/chat', express.json(), (req, res) => {
-  try {
-    const { chatUrl, odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = req.body;
-    if (!chatUrl) {
-      return res.status(400).json({ error: "Chat URL is required" });
-    }
-
-    let config = {};
-    if (fs.existsSync(CHAT_CONFIG_FILE)) {
-      config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-    }
-    const newConfig = {
-      ...config,
-      chatUrl,
-      odyseeWsUrl: odyseeWsUrl || config.odyseeWsUrl || '',
-      bgColor: bgColor || config.bgColor || '#080c10',
-      msgBgColor: msgBgColor || config.msgBgColor || '#0a0e12',
-      msgBgAltColor: msgBgAltColor || config.msgBgAltColor || '#0d1114',
-      borderColor: borderColor || config.borderColor || '#161b22',
-      textColor: textColor || config.textColor || '#e6edf3',
-      usernameColor: usernameColor || config.usernameColor || '#fff',
-      usernameBgColor: usernameBgColor || config.usernameBgColor || '#11ff79',
-      donationColor: donationColor || config.donationColor || '#1bdf5f',
-      donationBgColor: donationBgColor || config.donationBgColor || '#ececec'
-    };
-    fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-    const result = chat.updateChatUrl(chatUrl);
-    res.json({
-      success: true,
-      ...result,
-      ...newConfig
-    });
-  } catch (error) {
-    console.error('Error updating chat:', error);
-    res.status(500).json({
-      error: "Internal server error",
-      details: error.message
-    });
-  }
-});
-
-app.post('/api/external-notifications', async (req, res) => {
-  try {
-    const { discordWebhook, telegramBotToken, telegramChatId, template } = req.body;
-    
-    if (!discordWebhook && !(telegramBotToken && telegramChatId)) {
-      return res.status(400).json({ 
-        error: "Either Discord webhook or Telegram credentials are required",
-        success: false
-      });
-    }
-    
-    await externalNotifications.saveConfig({
-      discordWebhook,
-      telegramBotToken,
-      telegramChatId,
-      template: template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"'
-    });
-    
-    res.json({ 
-      success: true, 
-      status: externalNotifications.getStatus(),
-      message: "Settings saved successfully"
-    });
-  } catch (error) {
-    console.error('Error saving external notifications config:', error);
-    res.status(500).json({ 
-      success: false,
-      error: "Internal server error",
-      details: error.message 
-    });
-  }
-});
-
-app.get('/api/external-notifications', (_req, res) => {
-  res.json(externalNotifications.getStatus());
-});
-
-app.post('/api/test-tip', (req, res) => {
+app.post('/api/test-tip', limiter, (req, res) => {
   try {
     const { amount, from, message } = req.body;
     if (typeof amount === 'undefined' || typeof from === 'undefined') {
@@ -594,15 +216,6 @@ app.post('/api/test-tip', (req, res) => {
     res.json({ ok: true, sent: donation });
   } catch (error) {
     res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/last-donation', (_req, res) => {
-  const lastDonation = lastTip.getLastDonation();
-  if (lastDonation) {
-    res.json(lastDonation);
-  } else {
-    res.status(404).json({ error: "No donation found" });
   }
 });
 
@@ -752,243 +365,21 @@ function saveAudioSettings(newSettings) {
   }
 }
 
-app.get('/api/audio-settings', (_req, res) => {
-  try {
-    const settings = loadAudioSettings();
-    res.json(settings);
-  } catch (error) {
-    console.error('Error getting audio settings:', error);
-    res.status(500).json({ error: 'Error al cargar configuración de audio' });
+registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE);
+
+
+app.use(express.static('public', {
+  etag: true,
+  lastModified: true,
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
   }
-});
+}));
 
-app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
-  try {
-    const { audioSource } = req.body;
-    
-    if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
-      return res.status(400).json({ error: 'Invalid audio source' });
-    }
-
-    let settings = {
-      audioSource: audioSource
-    };
-
-    if (audioSource === 'custom' && req.file) {
-      settings.hasCustomAudio = true;
-      settings.audioFileName = req.file.originalname;
-      settings.audioFileSize = req.file.size;
-      
-    } else if (audioSource === 'remote') {
-      settings.hasCustomAudio = false;
-      settings.audioFileName = null;
-      settings.audioFileSize = 0;
-      
-      const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
-      if (fs.existsSync(customAudioPath)) {
-        fs.unlinkSync(customAudioPath);
-      }
-    }
-
-    const success = saveAudioSettings(settings);
-    
-    if (success) {
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({
-            type: 'audioSettingsUpdate',
-            data: settings
-          }));
-        }
-      });
-      
-      res.json({ 
-        success: true, 
-        message: 'Audio configuration successfully saved',
-        settings: settings
-      });
-    } else {
-      res.status(500).json({ error: 'Error saving audio configuration' });
-    }
-  } catch (error) {
-    console.error('Error saving audio settings:', error);
-    
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'The file is too large. Maximum 1MB.' });
-    }
-    
-    if (error.message === 'Only MP3 files are allowed') {
-      return res.status(400).json({ error: error.message });
-    }
-    
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/custom-audio', (_req, res) => {
-  try {
-    const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
-    
-    if (fs.existsSync(customAudioPath)) {
-      res.setHeader('Content-Type', 'audio/mpeg');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.sendFile(path.resolve(customAudioPath));
-    } else {
-      res.status(404).json({ error: 'Custom audio not found' });
-    }
-  } catch (error) {
-    console.error('Error serving custom audio:', error);
-    res.status(500).json({ error: 'Error serving custom audio' });
-  }
-});
-
-
-app.use(express.static('public'));
-
-const raffleImageUpload = multer({ dest: './public/uploads/raffle/' });
-
-app.get('/api/raffle/settings', (_req, res) => {
-  try {
-    const settings = raffle.getSettings();
-    res.json(settings);
-  } catch (error) {
-    console.error('Error in GET /api/raffle/settings:', error);
-    res.status(500).json({ error: 'Error getting raffle settings', details: error.message });
-  }
-});
-
-app.get('/api/raffle/state', (_req, res) => {
-  try {
-    const state = raffle.getPublicState();
-    res.json(state);
-  } catch (error) {
-    console.error('Error in GET /api/raffle/state:', error);
-    res.status(500).json({ error: 'Error getting raffle state', details: error.message });
-  }
-});
-
-app.post('/api/raffle/settings', express.json(), (req, res) => {
-  try {
-    if (!req.body || typeof req.body !== 'object') {
-      return res.status(400).json({ success: false, error: 'No data provided' });
-    }
-
-    const settings = {
-      command: req.body.command ? String(req.body.command).trim() : 'sorteo',
-      prize: req.body.prize ? String(req.body.prize).trim() : '',
-      duration: req.body.duration ? parseInt(req.body.duration) : 5,
-      maxWinners: req.body.maxWinners ? parseInt(req.body.maxWinners) : 1,
-      enabled: req.body.enabled === true || req.body.enabled === 'true' || req.body.enabled === 1 || req.body.enabled === '1',
-      mode: req.body.mode || 'manual',
-      interval: req.body.interval ? parseInt(req.body.interval) : 5,
-      imageUrl: req.body.imageUrl || ''
-    };
-
-    if (!settings.command) {
-      return res.status(400).json({ success: false, error: 'Command is required' });
-    }
-    if (!settings.prize) {
-      return res.status(400).json({ success: false, error: 'Prize is required' });
-    }
-    if (isNaN(settings.duration) || settings.duration <= 0) {
-      return res.status(400).json({ success: false, error: 'Duration must be a positive number' });
-    }
-    if (isNaN(settings.maxWinners) || settings.maxWinners <= 0) {
-      return res.status(400).json({ success: false, error: 'Max winners must be a positive number' });
-    }
-
-    raffle.saveSettings(settings);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error in POST /api/raffle/settings:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/start', (_req, res) => {
-  try {
-    raffle.start();
-    broadcastRaffleState();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/stop', (_req, res) => {
-  try {
-    raffle.stop();
-    broadcastRaffleState();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/pause', (_req, res) => {
-  try {
-    raffle.pause();
-    broadcastRaffleState();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/resume', (_req, res) => {
-  try {
-    raffle.resume();
-    broadcastRaffleState();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/draw', (_req, res) => {
-  try {
-    const winner = raffle.drawWinner();
-    broadcastRaffleWinner(winner);
-    broadcastRaffleState();
-    res.json({ success: true, winner });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/reset', (_req, res) => {
-  try {
-    raffle.resetWinners();
-    broadcastRaffleState();
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const imageUrl = `/uploads/raffle/${req.file.filename}`;
-
-  raffle.imageUrl = imageUrl;
-  raffle.saveSettingsToFile();
-  res.json({ imageUrl });
-});
-
-function broadcastRaffleState() {
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState() }));
-    }
-  });
-}
-function broadcastRaffleWinner(winner) {
-  wss.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: 'raffle_winner', winner }));
-    }
-  });
-}
+registerRaffleRoutes(app, raffle, wss);
 
 app.get('/api/modules', (_req, res) => {
   let tipGoalColors = {};
@@ -1009,26 +400,43 @@ app.get('/api/modules', (_req, res) => {
     tipWidget: tipWidget.getStatus(),
     tipGoal: { ...tipGoal.getStatus(), ...tipGoalColors },
     chat: { ...chat.getStatus(), ...chatColors },
-    externalNotifications: externalNotifications.getStatus()
+    externalNotifications: (() => {
+      const st = externalNotifications.getStatus();
+
+      return {
+        active: !!st.active,
+        lastTips: st.lastTips,
+        config: {
+          hasDiscord: !!st.config?.hasDiscord,
+          hasTelegram: !!st.config?.hasTelegram,
+          template: st.config?.template || ''
+        },
+        lastUpdated: st.lastUpdated
+      };
+    })()
   });
 });
 
+let __lastArPrice = null; let __lastArPriceAt = 0;
 app.get('/api/ar-price', async (_req, res) => {
   try {
+    const now = Date.now();
+    if (__lastArPrice && now - __lastArPriceAt < 60_000) {
+      return res.json({ arweave: { usd: __lastArPrice } });
+    }
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
-    if (response.status !== 200) throw new Error('Failed to fetch from CoinGecko');
-    res.json({ arweave: { usd: response.data.arweave.usd } });
+    if (response.status !== 200 || !response.data?.arweave?.usd) throw new Error('Failed to fetch from CoinGecko');
+    __lastArPrice = response.data.arweave.usd; __lastArPriceAt = now;
+    res.json({ arweave: { usd: __lastArPrice } });
   } catch (error) {
-    console.error('Error fetching AR price:', error);
+    console.error('Error fetching AR price:', error.message);
+    if (__lastArPrice) return res.json({ arweave: { usd: __lastArPrice } });
     res.status(500).json({ error: 'Failed to fetch AR price' });
   }
 });
 
-server.on('upgrade', (req, socket, head) => {
-  wss.handleUpgrade(req, socket, head, ws => {
-    wss.emit('connection', ws, req);
-  });
-});
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
+app.get('/readyz', (_req, res) => res.json({ ok: true }));
 
 wss.on('connection', (ws) => {
   ws.send(JSON.stringify({
@@ -1074,43 +482,12 @@ app.post('/api/test-discord', express.json(), async (req, res) => {
   }
 });
 
-app.get('/api/language', (_req, res) => {
-  try {
-    const currentLanguage = languageConfig.getLanguage();
-    const availableLanguages = languageConfig.getAvailableLanguages();
-    res.json({ 
-      currentLanguage, 
-      availableLanguages 
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/language', express.json(), (req, res) => {
-  try {
-    const { language } = req.body;
-    if (!language || !languageConfig.getAvailableLanguages().includes(language)) {
-      return res.status(400).json({ error: 'Invalid language' });
-    }
-    
-    const success = languageConfig.setLanguage(language);
-    if (success) {
-      res.json({ success: true, language });
-    } else {
-      res.status(500).json({ error: 'Failed to save language setting' });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+registerLanguageRoutes(app, languageConfig);
 
 app.post('/api/test-donation', express.json(), (req, res) => {
     try {
         const { amount = 5.00, from = 'TestUser', message = 'Test donation!' } = req.body;
-        
-        // console.log('🧪 Test donation received:', { amount, from, message });
-        
+
         const donationData = {
             type: 'donation',
             amount: parseFloat(amount),
@@ -1145,135 +522,7 @@ if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
 
-function loadGoalAudioSettings() {
-    try {
-        if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
-            const settings = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
-            return {
-                audioSource: settings.audioSource || 'remote',
-                hasCustomAudio: settings.hasCustomAudio || false,
-                audioFileName: settings.audioFileName || null,
-                audioFileSize: settings.audioFileSize || 0
-            };
-        }
-    } catch (error) {
-        console.error('Error loading goal audio settings:', error);
-    }
-    return { audioSource: 'remote', hasCustomAudio: false, audioFileName: null, audioFileSize: 0 };
-}
-
-function saveGoalAudioSettings(newSettings) {
-    try {
-        const current = loadGoalAudioSettings();
-        const merged = { ...current, ...newSettings };
-        fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(merged, null, 2));
-        return true;
-    } catch (error) {
-        console.error('Error saving goal audio settings:', error);
-        return false;
-    }
-}
-
-function calculateFileHash(filePath) {
-    try {
-        const fileBuffer = fs.readFileSync(filePath);
-        return require('crypto').createHash('md5').update(fileBuffer).digest('hex');
-    } catch (error) {
-        console.error('Error calculating file hash:', error);
-        return Date.now().toString();
-    }
-}
-
-app.get('/api/goal-audio', (req, res) => {
-    try {
-        const audioDir = path.join(__dirname, 'public/uploads/goal-audio');
-        const files = fs.readdirSync(audioDir);
-        const audioFile = files.find(file => file.startsWith('goal-audio'));
-        
-        if (audioFile) {
-            const filePath = path.join(audioDir, audioFile);
-            const stats = fs.statSync(filePath);
-            const fileHash = calculateFileHash(filePath);
-            
-            res.set({
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-                'ETag': `"${fileHash}"`,
-                'Last-Modified': stats.mtime.toUTCString()
-            });
-            
-            const clientEtag = req.headers['if-none-match'];
-            if (clientEtag && clientEtag === `"${fileHash}"`) {
-                return res.status(304).end();
-            }
-            
-            const ifModifiedSince = req.headers['if-modified-since'];
-            if (ifModifiedSince && new Date(ifModifiedSince) >= new Date(stats.mtime)) {
-                return res.status(304).end();
-            }
-            
-            res.sendFile(filePath);
-        } else {
-            res.status(404).json({ error: 'No audio file found' });
-        }
-    } catch (error) {
-        console.error('Error serving goal audio:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-app.get('/api/goal-audio-settings', (_req, res) => {
-  try {
-      if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
-          const settings = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
-          res.json(settings);
-      } else {
-          res.json({ audioSource: 'remote', hasCustomAudio: false });
-      }
-  } catch (error) {
-      console.error('Error loading goal audio settings:', error);
-      res.status(500).json({ error: 'Error loading settings' });
-  }
-});
-
-app.delete('/api/goal-audio-settings', (_req, res) => {
-  try {
-      const audioPath = path.join(GOAL_AUDIO_UPLOADS_DIR, 'custom-goal-notification.mp3');
-      if (fs.existsSync(audioPath)) {
-          fs.unlinkSync(audioPath);
-      }
-      
-      saveGoalAudioSettings({
-          audioSource: 'remote',
-          hasCustomAudio: false,
-          audioFileName: null,
-          audioFileSize: 0
-      });
-      
-      res.json({ success: true });
-  } catch (error) {
-      console.error('Error deleting goal audio:', error);
-      res.status(500).json({ error: 'Error deleting audio' });
-  }
-});
-
-app.get('/api/goal-custom-audio', (_req, res) => {
-    try {
-        const customAudioPath = path.join(GOAL_AUDIO_UPLOADS_DIR, 'custom-goal-notification.mp3');
-        
-        if (fs.existsSync(customAudioPath)) {
-            res.setHeader('Content-Type', 'audio/mpeg');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.sendFile(path.resolve(customAudioPath));
-        } else {
-            res.status(404).json({ error: 'Custom goal audio not found' });
-        }
-    } catch (error) {
-        console.error('Error serving custom goal audio:', error);
-        res.status(500).json({ error: 'Error serving custom goal audio' });
-    }
-});
+registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
 
 app.get('/api/status', (_req, res) => {
   try {
@@ -1289,7 +538,7 @@ app.get('/api/status', (_req, res) => {
   }
 });
 
-app.post('/api/save-liveviews-label', express.json(), (req, res) => {
+app.post('/api/save-liveviews-label', strictLimiter, express.json(), (req, res) => {
   const { viewersLabel } = req.body;
   if (typeof viewersLabel !== 'string' || !viewersLabel.trim()) {
     return res.status(400).json({ error: 'Invalid label' });
@@ -1356,19 +605,33 @@ async function connectOBS() {
   }
 }
 
-connectOBS();
+if (process.env.NODE_ENV !== 'test') {
+  connectOBS();
+}
 
-app.get('/api/obs-ws-config', (_req, res) => {
-  res.json(obsWsConfig);
+registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOBS);
+
+app.use((req, res) => {
+  console.warn('404 Not Found:', { method: req.method, url: req.originalUrl });
+  res.status(404).json({ error: 'Not Found' });
 });
 
-app.post('/api/obs-ws-config', express.json(), async (req, res) => {
-  obsWsConfig = req.body;
-  try {
-    fs.writeFileSync(OBS_WS_CONFIG_FILE, JSON.stringify(obsWsConfig, null, 2));
-    await connectOBS();
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ success: false, error: 'Could not save OBS WebSocket config.' });
-  }
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
+
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 3000;
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
+  });
+
+  server.on('upgrade', (req, socket, head) => {
+    wss.handleUpgrade(req, socket, head, ws => {
+      wss.emit('connection', ws, req);
+    });
+  });
+}
+
+module.exports = app;
