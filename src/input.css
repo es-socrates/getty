@@ -50,12 +50,10 @@
   }
 
   .last-donation-content {
-
   @apply p-2.5 flex items-center bg-[#080c10];
   }
 
   .notification-icon-lasttip {
-
     @apply flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] rounded bg-[#9eb474] mr-[15px] ml-[5px];
   }
   .notification-icon-lasttip svg {
