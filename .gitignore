@@ -1,3 +1,4 @@
+config/*.json
 node_modules/
 .env
 /public/uploads/*
@@ -11,8 +12,6 @@ public/min/*.js
 *.log
 external-notifications-config.json
 language-settings.json
-tts-settings.json
-notifications-config.json
 raffle-settings.json
-config/*.json
 .stylelintcache
+tts-settings.json
