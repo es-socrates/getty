@@ -10,6 +10,8 @@
     "dev-server": "nodemon server.js",
     "dev-css": "npx tailwindcss -i ./src/input.css -o ./public/css/output.css --watch",
     "test": "cross-env NODE_ENV=test jest --runInBand",
+    "lint:css": "stylelint 'src/**/*.css' --cache",
+    "lint:css:fix": "stylelint 'src/**/*.css' --fix --cache",
     "build-css": "npx tailwindcss -i src/input.css -o public/css/output.css",
     "watch-css": "npx tailwindcss -i src/input.css -o public/css/output.css --watch",
     "minify-html": "npx html-minifier-terser src/index.html -o public/index.html --collapse-whitespace --remove-comments --minify-css false && npx html-minifier-terser src/admin.html -o public/admin.html --collapse-whitespace --remove-comments --minify-css false",

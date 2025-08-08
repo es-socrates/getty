@@ -50,37 +50,20 @@
   }
 
   .last-donation-content {
-    @apply p-5 flex items-center bg-[#080c10];
-    padding: 10px;
+
+  @apply p-2.5 flex items-center bg-[#080c10];
   }
 
   .notification-icon-lasttip {
-    @apply mr-4 flex items-center justify-center;
-    width: 78px;
-    height: 78px;
-    min-width: 78px;
-    min-height: 78px;
-    border-radius: 4px;
-    background: #9eb474;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 15px;
-    margin-left: 5px;
+
+    @apply flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] rounded bg-[#9eb474] mr-[15px] ml-[5px];
   }
   .notification-icon-lasttip svg {
-    width: 58px;
-    height: 58px;
-    display: block;
-    color: #fff;
-    margin-top: 5px;
+    @apply w-[58px] h-[58px] block text-white mt-[5px];
   }
   .notification-from-lasttip {
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-}
+    @apply text-xs font-semibold flex items-center;
+  }
 
   .notification-text {
     @apply flex-1;
