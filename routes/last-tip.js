@@ -14,11 +14,12 @@ function registerLastTipRoutes(app, lastTip, tipWidget) {
         borderColor: z.string().optional(),
         amountColor: z.string().optional(),
         iconColor: z.string().optional(),
-        fromColor: z.string().optional()
+        fromColor: z.string().optional(),
+        title: z.string().max(120).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-      const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, fromColor } = parsed.data;
+      const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, fromColor, title } = parsed.data;
       let config = {};
       if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
@@ -31,7 +32,8 @@ function registerLastTipRoutes(app, lastTip, tipWidget) {
         amountColor: amountColor || config.amountColor || '#00ff7f',
         iconColor: iconColor || config.iconColor || '#ca004b',
         fromColor: fromColor || config.fromColor || '#e9e9e9',
-        walletAddress: walletAddress || config.walletAddress || ''
+        walletAddress: walletAddress || config.walletAddress || '',
+        title: (typeof title === 'string' && title.trim()) ? title.trim() : (config.title || 'Last tip received 👏')
       };
       fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
       const result = lastTip.updateWalletAddress(newConfig.walletAddress);

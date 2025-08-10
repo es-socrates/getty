@@ -16,7 +16,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         fontColor: z.string().optional(),
         borderColor: z.string().optional(),
         progressColor: z.string().optional(),
-        audioSource: z.enum(['remote', 'custom']).default('remote')
+        audioSource: z.enum(['remote', 'custom']).default('remote'),
+        title: z.string().max(120).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
@@ -29,6 +30,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const borderColor = data.borderColor;
       const progressColor = data.progressColor;
       const audioSource = data.audioSource || 'remote';
+      const widgetTitle = (typeof data.title === 'string' && data.title.trim()) ? data.title.trim() : undefined;
 
       if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
         return res.status(400).json({ error: 'Valid goal amount is required' });
@@ -62,6 +64,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         hasCustomAudio,
         audioFileName,
         audioFileSize,
+        ...(widgetTitle ? { title: widgetTitle } : {}),
         ...(audioFile ? { customAudioUrl: audioFile } : {})
       };
       fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
