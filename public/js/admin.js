@@ -467,10 +467,40 @@ document.addEventListener('DOMContentLoaded', () => {
             return response.json();
         })
     .then(data => {
+            function ensureCustomTitleField(wrapperSelector, inputId, labelKey, placeholderKey, hintKey, defaultPlaceholder) {
+                const wrapper = document.querySelector(wrapperSelector);
+                if (!wrapper) return;
+                if (document.getElementById(inputId)) return;
+                const formCard = wrapper.querySelector('.form-card');
+                if (!formCard) return;
+                const walletGroup = formCard.querySelector('.form-group');
+                const fieldHTML = document.createElement('div');
+                fieldHTML.className = 'form-group';
+                const lm = window.languageManager;
+                const label = lm ? lm.getText(labelKey) : 'Custom title';
+                const placeholder = lm ? lm.getText(placeholderKey) : defaultPlaceholder;
+                const hint = lm ? lm.getText(hintKey) : 'Title shown in widget. Leave empty for default.';
+                fieldHTML.innerHTML = `\n<label for="${inputId}" data-i18n="${labelKey}">${label}</label>\n<input type="text" id="${inputId}" placeholder="${placeholder}" data-i18n-placeholder="${placeholderKey}" />\n<small class="form-hint" data-i18n="${hintKey}">${hint}</small>`;
+
+                if (walletGroup && walletGroup.nextSibling) {
+                    walletGroup.parentNode.insertBefore(fieldHTML, walletGroup.nextSibling);
+                } else if (walletGroup) {
+                    walletGroup.parentNode.appendChild(fieldHTML);
+                } else {
+                    formCard.insertBefore(fieldHTML, formCard.firstChild);
+                }
+            }
+            ensureCustomTitleField('#last-tip-tab', 'last-tip-title', 'lastTipCustomTitleLabel', 'lastTipCustomTitlePlaceholder', 'lastTipCustomTitleHint', 'Last tip received 👏');
+            ensureCustomTitleField('#tip-goal-tab', 'tip-goal-title', 'tipGoalCustomTitleLabel', 'tipGoalCustomTitlePlaceholder', 'tipGoalCustomTitleHint', '🎖️ Monthly tip goal');
             document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
             document.getElementById('tip-goal-wallet-address').value = data.tipGoal.walletAddress || '';
             document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
             document.getElementById('starting-amount').value = data.tipGoal.currentAmount || 0;
+
+            const lastTipTitleInput = document.getElementById('last-tip-title');
+            if (lastTipTitleInput) lastTipTitleInput.value = data.lastTip.title || '';
+            const tipGoalTitleInput = document.getElementById('tip-goal-title');
+            if (tipGoalTitleInput) tipGoalTitleInput.value = data.tipGoal.title || '';
             
             let claimId = '';
             if (data.chat.chatUrl && data.chat.chatUrl.startsWith('wss://sockety.odysee.tv/ws/commentron?id=')) {
@@ -636,7 +666,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         borderColor: document.getElementById('last-tip-border-color').value,
                         amountColor: document.getElementById('last-tip-amount-color').value,
                         iconColor: document.getElementById('last-tip-icon-color').value,
-                        fromColor: document.getElementById('last-tip-from-color').value
+                        fromColor: document.getElementById('last-tip-from-color').value,
+                        title: (document.getElementById('last-tip-title')?.value || '').trim()
                     };
                     break;
                 case 'tipGoal': {
@@ -666,6 +697,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append('borderColor', document.getElementById('tip-goal-border-color').value);
                     formData.append('progressColor', document.getElementById('tip-goal-progress-color').value);
                     formData.append('audioSource', goalAudioSource);
+                    const tipGoalTitle = (document.getElementById('tip-goal-title')?.value || '').trim();
+                    formData.append('title', tipGoalTitle);
 
                     const goalAudioCustom = document.getElementById('goal-audio-custom');
                     const goalAudioFileInput = document.getElementById('goal-custom-audio-file');

@@ -342,10 +342,21 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const existingClasses = goalWidget.className;
         
+        let customTitle = '🎖️ Monthly tip goal';
+        fetch('/api/modules')
+            .then(r => r.ok ? r.json() : null)
+            .then(modulesData => {
+                if (modulesData?.tipGoal?.title && modulesData.tipGoal.title.trim()) {
+                    const titleNode = goalWidget.querySelector('.goal-title');
+                    if (titleNode) titleNode.textContent = modulesData.tipGoal.title.trim();
+                }
+            })
+            .catch(()=>{});
+
         goalWidget.innerHTML = `
             <div class="goal-container">
                 <div class="goal-header">
-                    <div class="goal-title">🎖️ Monthly tip goal</div>
+                    <div class="goal-title">${customTitle.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
                     <div class="goal-amounts">
                         <span class="current-ar">${currentAR}</span>
                         <span class="goal-ar">/ ${goalAR} AR</span>

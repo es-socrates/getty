@@ -128,8 +128,23 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const formattedAmount = formatArAmount(data.amount);
         const usdValue = calculateUsdValue(data.amount);
-        
-        titleElement.textContent = 'Last tip received 👏';
+
+        try {
+            const modulesRes = await fetch('/api/modules');
+            if (modulesRes.ok) {
+                const modulesData = await modulesRes.json();
+                const customTitle = modulesData?.lastTip?.title;
+                if (customTitle && customTitle.trim()) {
+                    titleElement.textContent = customTitle.trim();
+                } else {
+                    titleElement.textContent = 'Last tip received 👏';
+                }
+            } else {
+                titleElement.textContent = 'Last tip received 👏';
+            }
+        } catch {
+            titleElement.textContent = 'Last tip received 👏';
+        }
         amountElement.textContent = formattedAmount;
         symbolElement.textContent = 'AR';
         usdValueElement.textContent = usdValue;

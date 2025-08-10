@@ -278,6 +278,11 @@
                 <h2 class="tab-title" data-i18n="lastTipSettings"></h2>
                 <div class="form-card">
                     <div class="form-group">
+                        <label for="last-tip-title" data-i18n="lastTipCustomTitleLabel"></label>
+                        <input type="text" id="last-tip-title" maxlength="120" placeholder="Last tip received 👏" data-i18n-placeholder="lastTipCustomTitlePlaceholder">
+                        <small class="form-hint" data-i18n="lastTipCustomTitleHint"></small>
+                    </div>
+                    <div class="form-group">
                         <label for="wallet-address" data-i18n="arWalletAddress"></label>
                         <input type="text" id="wallet-address" value="<%= WALLET_ADDRESS %>">
                     </div>
@@ -392,6 +397,11 @@
             <section class="admin-tab" id="tip-goal-tab">
                 <h2 class="tab-title" data-i18n="tipGoalSettings"></h2>
                 <div class="form-card">
+                    <div class="form-group">
+                        <label for="tip-goal-title" data-i18n="tipGoalCustomTitleLabel"></label>
+                        <input type="text" id="tip-goal-title" maxlength="120" placeholder="🎖️ Monthly tip goal" data-i18n-placeholder="tipGoalCustomTitlePlaceholder">
+                        <small class="form-hint" data-i18n="tipGoalCustomTitleHint"></small>
+                    </div>
                     <div class="form-group">
                         <label for="tip-goal-wallet-address" data-i18n="arWalletAddress"></label>
                         <input type="text" id="tip-goal-wallet-address" value="">

@@ -200,7 +200,13 @@ const languages = {
         chatThemeCopyBtn: "Copy CSS",
         chatThemeCopySuccess: "CSS copied to clipboard",
         chatThemeDeleteOnlyCustom: "Only custom themes can be deleted.",
-        chatThemeCancel: "Cancel"
+        chatThemeCancel: "Cancel",
+        lastTipCustomTitleLabel: "Custom title",
+        lastTipCustomTitlePlaceholder: "Last tip received 👏",
+        lastTipCustomTitleHint: "Title shown in widget. Leave empty for default.",
+        tipGoalCustomTitleLabel: "Custom title",
+        tipGoalCustomTitlePlaceholder: "🎖️ Monthly tip goal",
+        tipGoalCustomTitleHint: "Title shown in widget. Leave empty for default."
     },
     
     es: {
@@ -403,7 +409,13 @@ const languages = {
         chatThemeCopyBtn: "Copiar CSS",
         chatThemeCopySuccess: "CSS copiado al portapapeles",
         chatThemeDeleteOnlyCustom: "Solo se pueden eliminar temas personalizados.",
-        chatThemeCancel: "Cancelar"
+        chatThemeCancel: "Cancelar",
+        lastTipCustomTitleLabel: "Título personalizado",
+        lastTipCustomTitlePlaceholder: "Última propina recibida 👏",
+        lastTipCustomTitleHint: "Título mostrado en el widget. Déjalo vacío para el predeterminado.",
+        tipGoalCustomTitleLabel: "Título personalizado",
+        tipGoalCustomTitlePlaceholder: "🎖️ Meta mensual de propinas",
+        tipGoalCustomTitleHint: "Título mostrado en el widget. Déjalo vacío para el predeterminado."
     }
 };
 
