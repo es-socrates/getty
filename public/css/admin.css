@@ -1075,6 +1075,45 @@ input:checked + .slider:before {
     background: #222;
   }
 }
+
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 1500;
+}
+.confirm-overlay.show { opacity: 1; pointer-events: auto; }
+.confirm-dialog {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem 1rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: popIn .25s ease;
+}
+@keyframes popIn { from { transform: translateY(12px) scale(.96); opacity:0; } to { transform: translateY(0) scale(1); opacity:1; } }
+.confirm-content { display:flex; align-items:flex-start; gap: .75rem; }
+.confirm-icon { width:32px; height:32px; color: var(--warning-color); flex-shrink:0; }
+.confirm-title { margin:0 0 .25rem; font-size:1.05rem; font-weight:600; color: var(--text-color); }
+.confirm-message { margin:.25rem 0 .75rem; font-size:.9rem; line-height:1.4; color: var(--text-muted); }
+.confirm-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.25rem; }
+.confirm-actions button { font-family: inherit; font-size:.85rem; padding:.55rem 1.1rem; border-radius:6px; border:1px solid var(--border-color); background: var(--darker-bg); color: var(--text-color); cursor:pointer; transition: var(--transition); }
+.confirm-actions button:hover { background: var(--light-bg); }
+.confirm-ok-btn { background: var(--primary-color); border-color: var(--primary-color); color:#fff; }
+.confirm-ok-btn:hover { background: var(--primary-hover); }
+.confirm-ok-btn.danger-btn { background: var(--error-color)!important; border-color: var(--error-color)!important; }
+.confirm-ok-btn.danger-btn:hover { background: #cc4444!important; }
+.confirm-cancel-btn { background: var(--darker-bg); }
+.confirm-cancel-btn:hover { background: #1a1f25; }
 @media (prefers-color-scheme: light) {
   .socialmedia-list-horizontal li {
     background: #f3f4f6;
