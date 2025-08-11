@@ -1,5 +1,30 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const notification = document.getElementById('notification');
+    const tipWrapper = document.getElementById('tip-wrapper');
+    const gifSlot = document.getElementById('notification-gif');
+    let gifConfig = { gifPath: '', position: 'right' };
+
+    async function loadGifConfig() {
+        try {
+            const res = await fetch('/api/tip-notification-gif');
+            if (res.ok) {
+                gifConfig = await res.json();
+                applyGifConfig();
+            }
+        } catch (e) { console.error('Error loading GIF config:', e); }
+    }
+
+    function applyGifConfig() {
+        if (!tipWrapper) return;
+        tipWrapper.classList.remove('position-left','position-right','position-top','position-bottom');
+        tipWrapper.classList.add('position-' + (gifConfig.position || 'right'));
+        if (gifSlot) {
+            gifSlot.style.display = 'none';
+            gifSlot.innerHTML = '';
+        }
+    }
+
+    loadGifConfig();
     
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     if (isOBSWidget && notification) {
@@ -360,14 +385,35 @@ async function showDonationNotification(data) {
             </div>
         </div>
     `;
-
     notification.style.display = 'inline';
     notification.style.opacity = '1';
 
+    if (gifConfig.gifPath && gifSlot) {
+        const cacheBust = `${gifConfig.width||0}x${gifConfig.height||0}-${Date.now()}`;
+        gifSlot.innerHTML = `<img class="tip-gif-img" src="${gifConfig.gifPath}?v=${cacheBust}" alt="Tip GIF" />`;
+        gifSlot.style.display = 'block';
+    } else if (gifSlot) {
+        gifSlot.style.display = 'none';
+        gifSlot.innerHTML = '';
+    }
+
+    const DISPLAY_DURATION = 15000;
+    const FADE_TIME = 500;
+    const VISIBLE_TIME = DISPLAY_DURATION - FADE_TIME;
+
     setTimeout(() => {
-        notification.style.opacity = '0';
-        setTimeout(() => notification.style.display = 'none', 500);
-    }, 15000);
+        notification.classList.add('fade-out');
+        if (gifSlot) gifSlot.classList.add('fade-out');
+        setTimeout(() => {
+            notification.style.display = 'none';
+            notification.classList.remove('fade-out');
+            if (gifSlot) {
+                gifSlot.style.display = 'none';
+                gifSlot.innerHTML = '';
+                gifSlot.classList.remove('fade-out');
+            }
+        }, FADE_TIME);
+    }, VISIBLE_TIME);
 }
 
 const style = document.createElement('style');

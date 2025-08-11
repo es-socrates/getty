@@ -14,7 +14,9 @@
     overflow: hidden;
     border-left: 8px solid #9eb474;
     transform: translateX(100%);
-    animation: slideIn 0.5s forwards, fadeOut 0.5s 10s forwards;
+    animation: slideIn 0.5s forwards;
+    opacity: 1;
+    transition: opacity .5s linear;
 }
 
 .notification.tip-notification-widget {
@@ -145,3 +147,52 @@
     max-width: 100%;
     height: auto;
 }
+
+.tip-wrapper {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10000;
+}
+
+.tip-wrapper.position-left { flex-direction: row; }
+.tip-wrapper.position-right { flex-direction: row-reverse; }
+.tip-wrapper.position-top { flex-direction: column; }
+.tip-wrapper.position-bottom { flex-direction: column-reverse; }
+
+.notification-gif-slot {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.notification-gif-slot img {
+    display:block;
+    object-fit:contain;
+    opacity:1;
+    transition: opacity .5s linear;
+}
+
+.position-right .notification-gif-slot img,
+.position-left .notification-gif-slot img {
+    max-width:190px;
+    max-height:132px;
+}
+
+.position-top .notification-gif-slot img,
+.position-bottom .notification-gif-slot img {
+    max-width:380px;
+    max-height:380px;
+    width:auto;
+    height:auto;
+}
+
+.tip-wrapper .notification {
+    position: static;
+    bottom: auto;
+    right: auto;
+}
+
+.fade-out { opacity:0 !important; }

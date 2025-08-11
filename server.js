@@ -34,6 +34,7 @@ const registerSocialMediaRoutes = require('./routes/socialmedia');
 const registerLastTipRoutes = require('./routes/last-tip');
 const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
+const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
 
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
@@ -187,6 +188,7 @@ const goalAudioUpload = multer({
 registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE);
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter);
+registerTipNotificationGifRoutes(app, strictLimiter);
 
 app.post('/api/test-tip', limiter, (req, res) => {
   try {
@@ -462,7 +464,9 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    console.log('WebSocket connection closed');
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('WebSocket connection closed');
+    }
   });
 });
 
@@ -635,3 +639,19 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 module.exports = app;
+
+if (process.env.NODE_ENV === 'test') {
+  const http = require('http');
+  app.startTestServer = function startTestServer(port = 0) {
+    return new Promise(resolve => {
+      const server = http.createServer(app);
+      server.on('upgrade', (req, socket, head) => {
+        wss.handleUpgrade(req, socket, head, ws => {
+          wss.emit('connection', ws, req);
+        });
+      });
+      server.listen(port, () => resolve(server));
+    });
+  };
+  app.getWss = () => wss;
+}

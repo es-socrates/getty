@@ -206,7 +206,22 @@ const languages = {
         lastTipCustomTitleHint: "Title shown in widget. Leave empty for default.",
         tipGoalCustomTitleLabel: "Custom title",
         tipGoalCustomTitlePlaceholder: "🎖️ Monthly tip goal",
-        tipGoalCustomTitleHint: "Title shown in widget. Leave empty for default."
+        tipGoalCustomTitleHint: "Title shown in widget. Leave empty for default.",
+        notificationGifTitle: "Notification GIF",
+        notificationGifPositionLabel: "GIF Position",
+        positionRight: "Right",
+        positionLeft: "Left",
+        positionTop: "Top",
+        positionBottom: "Bottom",
+        notificationGifChooseBtn: "Choose GIF",
+        notificationGifRemoveBtn: "Remove GIF",
+        notificationGifHint: "Any size GIF (.gif). Displayed scaled max (matches notification height) or within layout.",
+        notificationGifUnifiedHint: "The GIF saves together with the notification settings; no separate save button.",
+        notificationGifOnlyGif: "Only GIF files are allowed",
+        notificationGifTooLarge: "GIF too large (max 2MB)",
+        notificationGifInvalid: "Invalid GIF file",
+        notificationGifRemoved: "GIF removed",
+        notificationGifRemoveConfirm: "Remove current GIF?"
     },
     
     es: {
@@ -415,7 +430,22 @@ const languages = {
         lastTipCustomTitleHint: "Título mostrado en el widget. Déjalo vacío para el predeterminado.",
         tipGoalCustomTitleLabel: "Título personalizado",
         tipGoalCustomTitlePlaceholder: "🎖️ Meta mensual de propinas",
-        tipGoalCustomTitleHint: "Título mostrado en el widget. Déjalo vacío para el predeterminado."
+        tipGoalCustomTitleHint: "Título mostrado en el widget. Déjalo vacío para el predeterminado.",
+        notificationGifTitle: "GIF de notificación",
+        notificationGifPositionLabel: "Posición del GIF",
+        positionRight: "Derecha",
+        positionLeft: "Izquierda",
+        positionTop: "Arriba",
+        positionBottom: "Abajo",
+        notificationGifChooseBtn: "Elegir GIF",
+        notificationGifRemoveBtn: "Eliminar GIF",
+        notificationGifHint: "Cualquier tamaño (.gif). Se mostrará un escalado máximo (altura del widget) o según el diseño.",
+        notificationGifUnifiedHint: "El GIF se guarda junto con la configuración de notificación; no hay botón separado.",
+        notificationGifOnlyGif: "Solo se permiten archivos GIF",
+        notificationGifTooLarge: "GIF demasiado grande (máx 2MB)",
+        notificationGifInvalid: "Archivo GIF no válido",
+        notificationGifRemoved: "GIF eliminado",
+        notificationGifRemoveConfirm: "¿Eliminar el GIF actual?"
     }
 };
 

@@ -566,6 +566,7 @@
                             </button>
                         </div>
                     </div>
+ 
                     <div class="form-group toggle-group">
                         <label class="toggle-label">
                             <span data-i18n="enableTextToSpeech"></span>
@@ -655,7 +656,35 @@
                         
                         <small class="form-hint" data-i18n="audioHint"></small>
                     </div>
-                    
+
+                    <div class="form-group" id="tip-gif-controls" style="margin:28px 0 24px;">
+                        <h4 class="form-section-title" data-i18n="notificationGifTitle"></h4>
+                        <p style="font-size:12px;color:#aaa;margin:4px 0 10px;" data-i18n="notificationGifUnifiedHint"></p>
+                        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:8px;">
+                            <div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">
+                                <label for="tip-gif-position" style="font-weight:600;" data-i18n="notificationGifPositionLabel"></label>
+                                <select id="tip-gif-position" style="padding:6px 10px;border:1px solid #444;border-radius:6px;background:#111;color:#fff;">
+                                    <option value="right" data-i18n="positionRight"></option>
+                                    <option value="left" data-i18n="positionLeft"></option>
+                                    <option value="top" data-i18n="positionTop"></option>
+                                    <option value="bottom" data-i18n="positionBottom"></option>
+                                </select>
+                            </div>
+                            <div style="display:flex;flex-direction:column;">
+                                <input type="file" id="tip-gif-file" accept="image/gif" style="display:none;">
+                                <button type="button" id="tip-gif-choose" class="save-btn" style="background:#444;" data-i18n="notificationGifChooseBtn"></button>
+                                <span id="tip-gif-filename" style="font-size:12px;color:#ccc;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <button type="button" id="tip-gif-remove" class="save-btn danger-btn" style="display:none;" data-i18n="notificationGifRemoveBtn"></button>
+                            </div>
+                        </div>
+                        <div id="tip-gif-preview" style="margin:8px 0;max-width:370px;max-height:370px;display:none;border:1px dashed #555;padding:4px;border-radius:6px;">
+                            <img id="tip-gif-preview-img" src="" alt="GIF Preview" style="max-width:100%;max-height:160px;display:block;margin:auto;" />
+                        </div>
+                        <small class="form-hint" data-i18n="notificationGifHint"></small>
+                    </div>
+
                     <button class="save-btn" data-module="notifications">
                         <svg viewBox="0 0 24 24" width="16" height="16">
                             <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
@@ -1067,9 +1096,9 @@
 </div>
 
 <script src="/js/min/raffle-admin.js"></script>
-<script src="/js/min/languages.js?v=1.0.4"></script>
+<script src="/js/min/languages.js?v=1.0.5"></script>
 <script src="/js/min/liveviews.js"></script>
-<script src="/js/min/admin.js?v=1.0.6"></script>
+<script src="/js/min/admin.js?v=1.0.5"></script>
 
 </body>
 </html>

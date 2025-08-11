@@ -1,4 +1,154 @@
 document.addEventListener('DOMContentLoaded', () => {
+    function ensureConfirmElements() {
+        if (document.getElementById('confirm-overlay')) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'confirm-overlay';
+        overlay.className = 'confirm-overlay';
+        overlay.innerHTML = `
+            <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+                <div class="confirm-content">
+                    <svg class="confirm-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 15h2v2h-2v-2m0-8h2v6h-2V7m1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Z"/></svg>
+                    <div class="confirm-text-wrapper">
+                        <h3 id="confirm-title" class="confirm-title">Confirm</h3>
+                        <p id="confirm-message" class="confirm-message"></p>
+                    </div>
+                </div>
+                <div class="confirm-actions">
+                    <button type="button" class="confirm-cancel-btn" id="confirm-cancel-btn">Cancel</button>
+                    <button type="button" class="confirm-ok-btn danger-btn" id="confirm-ok-btn">Remove</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+    }
+
+    async function showConfirm(message, { title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel', danger = false } = {}) {
+        ensureConfirmElements();
+        const overlay = document.getElementById('confirm-overlay');
+        const titleEl = overlay.querySelector('#confirm-title');
+        const msgEl = overlay.querySelector('#confirm-message');
+        const okBtn = overlay.querySelector('#confirm-ok-btn');
+        const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        okBtn.textContent = okLabel;
+        cancelBtn.textContent = cancelLabel;
+        if (danger) {
+            okBtn.classList.add('danger-btn');
+        } else {
+            okBtn.classList.remove('danger-btn');
+        }
+
+        return new Promise(resolve => {
+            function cleanup(result) {
+                overlay.classList.remove('show');
+                document.removeEventListener('keydown', onKey);
+                setTimeout(() => resolve(result), 200);
+            }
+            function onKey(e) {
+                if (e.key === 'Escape') cleanup(false);
+                if (e.key === 'Enter') cleanup(true);
+            }
+            okBtn.onclick = () => cleanup(true);
+            cancelBtn.onclick = () => cleanup(false);
+            overlay.onclick = (e) => { if (e.target === overlay) cleanup(false); };
+            document.addEventListener('keydown', onKey);
+            requestAnimationFrame(() => overlay.classList.add('show'));
+            okBtn.focus();
+        });
+    }
+    window.showConfirm = showConfirm;
+
+    function initTipGifControls() {
+        if (!document.getElementById('tip-gif-controls')) return;
+        wireTipGifLogic();
+        fetchTipGifConfig();
+    }
+
+    function wireTipGifLogic() {
+        const fileInput = document.getElementById('tip-gif-file');
+        const chooseBtn = document.getElementById('tip-gif-choose');
+        const removeBtn = document.getElementById('tip-gif-remove');
+        const previewWrapper = document.getElementById('tip-gif-preview');
+        const previewImg = document.getElementById('tip-gif-preview-img');
+        const filenameLabel = document.getElementById('tip-gif-filename');
+
+        if (chooseBtn && fileInput) {
+            chooseBtn.addEventListener('click', () => fileInput.click());
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                if (!e.target.files || !e.target.files[0]) return;
+                const file = e.target.files[0];
+                if (file.type !== 'image/gif' && !file.name.toLowerCase().endsWith('.gif')) {
+                    showAlert('Only GIF files are allowed', 'error');
+                    fileInput.value = '';
+                    return;
+                }
+                if (file.size > 2 * 1024 * 1024) {
+                    showAlert('GIF too large (max 2MB)', 'error');
+                    fileInput.value = '';
+                    return;
+                }
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = function() {
+                    previewImg.src = url;
+                    previewWrapper.style.display = 'block';
+                    filenameLabel.textContent = file.name + ` (${img.width}x${img.height})`;
+                };
+                img.onerror = function() {
+                    showAlert('Invalid GIF file', 'error');
+                    fileInput.value = '';
+                    URL.revokeObjectURL(url);
+                };
+                img.src = url;
+            });
+        }
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', async () => {
+                const confirmed = await showConfirm('Remove current GIF?', { title: 'Remove GIF', okLabel: 'Remove', cancelLabel: 'Cancel', danger: true });
+                if (!confirmed) return;
+                try {
+                    const res = await fetch('/api/tip-notification-gif', { method: 'DELETE' });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to remove GIF');
+                    previewImg.src = '';
+                    previewWrapper.style.display = 'none';
+                    removeBtn.style.display = 'none';
+                    document.getElementById('tip-gif-filename').textContent = '';
+                    showAlert('GIF removed', 'success');
+                } catch (err) {
+                    console.error('Error removing GIF:', err);
+                    showAlert(err.message || 'Error removing GIF', 'error');
+                }
+            });
+        }
+    }
+
+    async function fetchTipGifConfig() {
+        try {
+            const res = await fetch('/api/tip-notification-gif');
+            if (!res.ok) return;
+            const cfg = await res.json();
+            const posSel = document.getElementById('tip-gif-position');
+            const previewWrapper = document.getElementById('tip-gif-preview');
+            const previewImg = document.getElementById('tip-gif-preview-img');
+            const removeBtn = document.getElementById('tip-gif-remove');
+            if (posSel && cfg.position) posSel.value = cfg.position;
+            if (cfg.gifPath && previewImg) {
+                previewImg.src = cfg.gifPath + '?t=' + Date.now();
+                previewWrapper.style.display = 'block';
+                if (removeBtn) removeBtn.style.display = 'inline-flex';
+            }
+        } catch (e) {
+            console.warn('Could not load GIF config:', e.message);
+        }
+    }
+
+    setTimeout(initTipGifControls, 50);
 
     const chatThemeSelect = document.getElementById('chat-theme-select');
     const chatThemeEditBtn = document.getElementById('edit-chat-theme');
@@ -1406,56 +1556,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function saveNotificationSettings() {
+    async function saveNotificationSettings() {
         const audioSource = document.querySelector('input[name="audio-source"]:checked')?.value || 'remote';
         
-        const formData = new FormData();
-        formData.append('audioSource', audioSource);
-        
-        if (audioSource === 'custom' && currentAudioFile) {
-            formData.append('audioFile', currentAudioFile);
-            
+        try {
+            const audioForm = new FormData();
+            audioForm.append('audioSource', audioSource);
+            if (audioSource === 'custom' && currentAudioFile) {
+                audioForm.append('audioFile', currentAudioFile);
+            }
+            const audioRes = await fetch('/api/audio-settings', { method: 'POST', body: audioForm });
+            const audioText = await audioRes.text();
+            let audioData;
+            try { audioData = JSON.parse(audioText); } catch { throw new Error('Invalid audio response'); }
+            if (!audioRes.ok || !audioData.success) throw new Error(audioData.error || 'Audio save failed');
+            if (audioSource === 'custom' && currentAudioFile) {
+                showSavedAudioInfo(currentAudioFile.name, currentAudioFile.size);
+                currentAudioFile = null;
+            }
+
+            const pos = document.getElementById('tip-gif-position')?.value || 'right';
+            const gifInput = document.getElementById('tip-gif-file');
+            const gifFile = gifInput?.files && gifInput.files[0] ? gifInput.files[0] : null;
+            const gifForm = new FormData();
+            gifForm.append('position', pos);
+            if (gifFile) gifForm.append('gifFile', gifFile);
+            const gifRes = await fetch('/api/tip-notification-gif', { method: 'POST', body: gifForm });
+            const gifJson = await gifRes.json().catch(()=>({}));
+            if (!gifRes.ok || !gifJson.success) throw new Error(gifJson.error || 'GIF save failed');
+            if (gifJson.gifPath) {
+                const previewImg = document.getElementById('tip-gif-preview-img');
+                const previewWrapper = document.getElementById('tip-gif-preview');
+                const removeBtn = document.getElementById('tip-gif-remove');
+                if (previewImg && previewWrapper) {
+                    previewImg.src = gifJson.gifPath + '?t=' + Date.now();
+                    previewWrapper.style.display = 'block';
+                }
+                if (removeBtn) removeBtn.style.display = 'inline-flex';
+                if (gifInput) gifInput.value = '';
+            }
+
+            showAlert('Notification settings saved (audio + GIF)', 'success');
+        } catch (error) {
+            console.error('Error saving notification settings:', error);
+            showAlert(error.message || 'Error saving notification settings', 'error');
         }
-        
-        const apiUrl = window.location.origin + '/api/audio-settings';
-        
-        fetch(apiUrl, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Server error response:', text);
-                    throw new Error(`Server error: ${response.status} - ${text}`);
-                });
-            }
-            return response.text().then(text => {
-                try {
-                    const parsed = JSON.parse(text);
-                    return parsed;
-                } catch (e) {
-                    console.error('Invalid JSON response:', text);
-                    console.error('JSON parse error:', e);
-                    throw new Error('Invalid JSON response from server');
-                }
-            });
-        })
-        .then(data => {
-            if (data.success) {
-                showAlert('Audio configuration successfully saved', 'success');
-                if (audioSource === 'custom' && currentAudioFile) {
-                    showSavedAudioInfo(currentAudioFile.name, currentAudioFile.size);
-                    currentAudioFile = null;
-                }
-            } else {
-                throw new Error(data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving audio settings:', error);
-            showAlert('Error saving audio configuration', 'error');
-        });
     }
 
     window.saveNotificationSettings = saveNotificationSettings;
