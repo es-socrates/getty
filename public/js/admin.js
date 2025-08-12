@@ -179,6 +179,47 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
             .message.has-donation .message-username { color: var(--donation); }
             .message.has-donation .message-text-inline { color: #fff !important; }`
+        },
+        {
+            name: 'Minimalista',
+            css: `/* THEME_ID:MINIMALISTA_AUTO10S */
+            :root {
+                --bg-main: transparent;
+                --bg-message: rgba(14,16,20,0.72);
+                --bg-message-alt: rgba(14,16,20,0.56);
+                --border: rgba(255,255,255,0.08);
+                --text: #e8eef2;
+                --username: #ffffff;
+                --donation: #10d39e;
+                --donation-bg: rgba(16,211,158,0.12);
+            }
+            .message {
+                background: var(--bg-message);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 10px 14px;
+                margin-bottom: 6px;
+                overflow: hidden;
+                backdrop-filter: saturate(120%) blur(4px);
+                -webkit-backdrop-filter: saturate(120%) blur(4px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+                will-change: opacity, transform;
+                /* Appears from bottom to top and disappears in 10s */
+                animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards;
+            }
+            .message.odd { background: var(--bg-message-alt); }
+            .message-username.cyberpunk { color: var(--username); font-weight: 600; }
+            .message-text-inline { color: var(--text); }
+            .message.has-donation { background: var(--donation-bg); border-color: var(--donation); }
+            .message.has-donation .message-username { color: var(--donation); }
+            .message.has-donation .message-text-inline { color: #eafff7 !important; }
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(12px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes fadeOut {
+                to { opacity: 0; transform: translateY(-6px); }
+            }`
         }
     ];
 

@@ -244,6 +244,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             chatContainer.appendChild(messageEl);
             if (isAutoScroll) chatContainer.scrollTop = chatContainer.scrollHeight;
         }
+
+        const themeStyle = document.getElementById('chat-theme-style');
+        const isMinimalista = themeStyle && typeof themeStyle.textContent === 'string' && themeStyle.textContent.includes('THEME_ID:MINIMALISTA_AUTO10S');
+
+        if (isMinimalista) {
+            messageEl.addEventListener('animationend', (e) => {
+                if (e && e.animationName === 'fadeOut') {
+                    if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl);
+                }
+            });
+
+            if (isHorizontal) {
+                setTimeout(() => {
+                    if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl);
+                }, 10200);
+            }
+
+            setTimeout(() => {
+                if (!messageEl.isConnected) return;
+                const animName = getComputedStyle(messageEl).animationName || '';
+                if (isHorizontal || (typeof animName === 'string' && animName.toLowerCase().includes('fadeout'))) {
+                    if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 11000);
+        }
     }
 
     function formatText(text) {
