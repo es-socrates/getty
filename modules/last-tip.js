@@ -29,7 +29,8 @@ class LastTipModule {
       fontColor: '#ffffff',
       borderColor: '#00ff7f',
       amountColor: '#00ff7f',
-      iconColor: '#ca004b',
+      iconColor: '#ffffff',
+      iconBgColor: '#4f36ff',
       fromColor: '#817ec8'
     };
     if (!fs.existsSync(lastTipConfigPath)) {

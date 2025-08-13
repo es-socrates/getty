@@ -78,13 +78,23 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDonationElement.style.setProperty('border-left', `8px solid ${colors.borderColor || '#00ff7f'}`, 'important');
         lastDonationElement.style.setProperty('color', colors.fontColor || '#ffffff', 'important');
 
+        if (titleElement && colors.fontColor) {
+            titleElement.style.setProperty('color', colors.fontColor, 'important');
+        }
+
         const amount = document.querySelector('.notification-amount');
         if (amount) amount.style.setProperty('color', colors.amountColor || '#00ff7f', 'important');
         const arAmount = document.querySelector('.ar-amount');
         if (arAmount) arAmount.style.setProperty('color', colors.amountColor || '#00ff7f', 'important');
 
         const icon = document.querySelector('.notification-icon');
-        if (icon) icon.style.setProperty('color', colors.iconColor || '#ca004b', 'important');
+        if (icon) {
+            const ic = colors.iconColor || '#ffffff';
+            const icBg = colors.iconBgColor || '#4f36ff';
+            icon.style.setProperty('background', icBg, 'important');
+            const svg = icon.querySelector('svg');
+            if (svg) svg.style.setProperty('color', ic, 'important');
+        }
 
         const from = document.querySelector('.notification-from-lasttip');
         if (from) from.style.setProperty('color', colors.fromColor || '#817ec8', 'important');
@@ -102,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     borderColor: data.lastTip.borderColor,
                     amountColor: data.lastTip.amountColor,
                     iconColor: data.lastTip.iconColor,
+                    iconBgColor: data.lastTip.iconBgColor,
                     fromColor: data.lastTip.fromColor
                 };
             }
@@ -114,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateUI = async (data) => {
         if (!data) {
+            await loadColors();
             titleElement.textContent = 'No tips yet. Send one! 💸';
             amountElement.textContent = '0';
             symbolElement.textContent = 'AR';
@@ -212,4 +224,9 @@ document.addEventListener('DOMContentLoaded', () => {
             lastDonationElement.classList.add('update-animation');
         }
     }, 10000);
+
+    (async () => {
+        await loadColors();
+        applyCustomColors();
+    })();
 });

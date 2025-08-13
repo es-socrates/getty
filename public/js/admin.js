@@ -170,15 +170,26 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation .message-text-inline { color: #23232a !important; }`
         },
         {
+            name: 'Claro',
+            css: `:root { --bg-main: #ffffff; --bg-message: #f8fafc; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #1f2328; --username: #0969da; --donation: #ff8800; --donation-bg: #fff4e5; }
+            .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid var(--border); border-left: 6px solid transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+            .message.odd { background: var(--bg-message-alt); font-size: 17px; }
+            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 17px; }
+            .message-text-inline { color: var(--text); font-size: 17px; }
+            .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
+            .message.has-donation .message-username { color: var(--donation); font-size: 17px; }
+            .message.has-donation .message-text-inline { color: #663300 !important; font-size: 17px; }`
+        },
+        {
             name: 'Oscuro',
             css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
             .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; }
-            .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; }
-            .message-username.cyberpunk { color: var(--username); }
-            .message-text-inline { color: var(--text); }
+            .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; font-size: 17px; }
+            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 17px; }
+            .message-text-inline { color: var(--text); font-size: 17px; }
             .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
-            .message.has-donation .message-username { color: var(--donation); }
-            .message.has-donation .message-text-inline { color: #fff !important; }`
+            .message.has-donation .message-username { color: var(--donation); font-size: 17px; }
+            .message.has-donation .message-text-inline { color: #fff !important; font-size: 17px; }`
         },
         {
             name: 'Minimalista',
@@ -705,6 +716,25 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('tip-goal-font-color').value = data.tipGoal.fontColor || '#ffffff';
             document.getElementById('tip-goal-border-color').value = data.tipGoal.borderColor || '#00ff7f';
             document.getElementById('tip-goal-progress-color').value = data.tipGoal.progressColor || '#00ff7f';
+
+            const lt = data.lastTip || {};
+            const map = [
+                ['last-tip-bg-color', lt.bgColor || '#080c10'],
+                ['last-tip-font-color', lt.fontColor || '#ffffff'],
+                ['last-tip-border-color', lt.borderColor || '#00ff7f'],
+                ['last-tip-amount-color', lt.amountColor || '#00ff7f'],
+                ['last-tip-icon-color', lt.iconColor || '#ffffff'],
+                ['last-tip-icon-bg-color', lt.iconBgColor || '#4f36ff'],
+                ['last-tip-from-color', lt.fromColor || '#817ec8']
+            ];
+            map.forEach(([id, val]) => {
+                const el = document.getElementById(id);
+                if (el && typeof val === 'string') el.value = val;
+            });
+
+            if (typeof updateLastTipColorHex === 'function') {
+                try { updateLastTipColorHex(); } catch(_) {}
+            }
             
             if (data.externalNotifications && data.externalNotifications.config) {
                 if (typeof data.externalNotifications.config.discordWebhook === 'string') {
@@ -857,6 +887,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         borderColor: document.getElementById('last-tip-border-color').value,
                         amountColor: document.getElementById('last-tip-amount-color').value,
                         iconColor: document.getElementById('last-tip-icon-color').value,
+                        iconBgColor: document.getElementById('last-tip-icon-bg-color')?.value,
                         fromColor: document.getElementById('last-tip-from-color').value,
                         title: (document.getElementById('last-tip-title')?.value || '').trim()
                     };
@@ -1079,6 +1110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const borderColorEl = document.getElementById('last-tip-border-color');
         const amountColorEl = document.getElementById('last-tip-amount-color');
         const iconColorEl = document.getElementById('last-tip-icon-color');
+        const iconBgColorEl = document.getElementById('last-tip-icon-bg-color');
         const fromColorEl = document.getElementById('last-tip-from-color');
         
         const bgColorHexEl = document.getElementById('last-tip-bg-color-hex');
@@ -1086,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const borderColorHexEl = document.getElementById('last-tip-border-color-hex');
         const amountColorHexEl = document.getElementById('last-tip-amount-color-hex');
         const iconColorHexEl = document.getElementById('last-tip-icon-color-hex');
+        const iconBgColorHexEl = document.getElementById('last-tip-icon-bg-color-hex');
         const fromColorHexEl = document.getElementById('last-tip-from-color-hex');
         
         if (bgColorEl && bgColorHexEl) bgColorHexEl.textContent = bgColorEl.value;
@@ -1093,10 +1126,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
         if (amountColorEl && amountColorHexEl) amountColorHexEl.textContent = amountColorEl.value;
         if (iconColorEl && iconColorHexEl) iconColorHexEl.textContent = iconColorEl.value;
+        if (iconBgColorEl && iconBgColorHexEl) iconBgColorHexEl.textContent = iconBgColorEl.value;
         if (fromColorEl && fromColorHexEl) fromColorHexEl.textContent = fromColorEl.value;
     }
     
-    ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-color','last-tip-from-color'].forEach(id => {
+    ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-color','last-tip-icon-bg-color','last-tip-from-color'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', updateLastTipColorHex);
@@ -1114,7 +1148,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('last-tip-font-color').value = '#ffffff';
             document.getElementById('last-tip-border-color').value = '#00ff7f';
             document.getElementById('last-tip-amount-color').value = '#00ff7f';
-            document.getElementById('last-tip-icon-color').value = '#ca004b';
+            document.getElementById('last-tip-icon-color').value = '#ffffff';
+            if (document.getElementById('last-tip-icon-bg-color')) document.getElementById('last-tip-icon-bg-color').value = '#4f36ff';
             document.getElementById('last-tip-from-color').value = '#817ec8';
             updateLastTipColorHex();
         });
