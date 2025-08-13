@@ -31,7 +31,7 @@
   min-width: 78px;
   min-height: 78px;
   border-radius: 4px;
-  background: #4f36ff;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -55,14 +55,12 @@
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 5px;
-  color: #fff;
 }
 
 .notification-amount {
   font-size: 24px;
   font-weight: 800;
-  color: #00ff7f;
-  text-shadow: 0 0 1px rgba(158, 180, 116, 0.47);
+  text-shadow: none;
 }
 
 .notification-from {
@@ -113,6 +111,5 @@
 .ar-amount {
   font-size: 24px;
   font-weight: 800;
-  color: #00ff7f;
-  text-shadow: 0 0 10px rgba(0, 255, 127, 0.5);
+  text-shadow: none;
 }

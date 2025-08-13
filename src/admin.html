@@ -298,7 +298,7 @@
                                 <label for="last-tip-bg-color" data-i18n="colorBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-bg-color" value="#080c10">
-                                    <span class="color-value">#080c10</span>
+                                    <span class="color-value" id="last-tip-bg-color-hex">#080c10</span>
                                 </div>
                             </div>
                             
@@ -306,7 +306,7 @@
                                 <label for="last-tip-font-color" data-i18n="colorFont"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-font-color" value="#ffffff">
-                                    <span class="color-value">#ffffff</span>
+                                    <span class="color-value" id="last-tip-font-color-hex">#ffffff</span>
                                 </div>
                             </div>
                             
@@ -314,7 +314,7 @@
                                 <label for="last-tip-border-color" data-i18n="colorBorder"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-border-color" value="#00ff7f">
-                                    <span class="color-value">#00ff7f</span>
+                                    <span class="color-value" id="last-tip-border-color-hex">#00ff7f</span>
                                 </div>
                             </div>
                             
@@ -322,15 +322,22 @@
                                 <label for="last-tip-amount-color" data-i18n="colorAmount"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-amount-color" value="#00ff7f">
-                                    <span class="color-value">#00ff7f</span>
+                                    <span class="color-value" id="last-tip-amount-color-hex">#00ff7f</span>
                                 </div>
                             </div>
                             
                             <div class="color-picker">
                                 <label for="last-tip-icon-color" data-i18n="colorIcon"></label>
                                 <div class="color-input-wrapper">
-                                    <input type="color" id="last-tip-icon-color" value="#ca004b">
-                                    <span class="color-value">#ca004b</span>
+                                    <input type="color" id="last-tip-icon-color" value="#ffffff">
+                                    <span class="color-value" id="last-tip-icon-color-hex">#ffffff</span>
+                                </div>
+                            </div>
+                            <div class="color-picker">
+                                <label for="last-tip-icon-bg-color" data-i18n="colorIconBg"></label>
+                                <div class="color-input-wrapper">
+                                    <input type="color" id="last-tip-icon-bg-color" value="#4f36ff">
+                                    <span class="color-value" id="last-tip-icon-bg-color-hex">#4f36ff</span>
                                 </div>
                             </div>
                             
@@ -338,7 +345,7 @@
                                 <label for="last-tip-from-color" data-i18n="colorFrom"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="last-tip-from-color" value="#817ec8">
-                                    <span class="color-value">#817ec8</span>
+                                    <span class="color-value" id="last-tip-from-color-hex">#817ec8</span>
                                 </div>
                             </div>
                         </div>
@@ -566,7 +573,7 @@
                             </button>
                         </div>
                     </div>
- 
+
                     <div class="form-group toggle-group">
                         <label class="toggle-label">
                             <span data-i18n="enableTextToSpeech"></span>
