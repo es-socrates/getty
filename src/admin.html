@@ -433,7 +433,7 @@
                                 <label for="tip-goal-bg-color" data-i18n="colorBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="tip-goal-bg-color" value="#080c10">
-                                    <span class="color-value">#080c10</span>
+                                    <span class="color-value" id="tip-goal-bg-color-hex">#080c10</span>
                                 </div>
                             </div>
                             
@@ -441,7 +441,7 @@
                                 <label for="tip-goal-font-color" data-i18n="colorFont"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="tip-goal-font-color" value="#ffffff">
-                                    <span class="color-value">#ffffff</span>
+                                    <span class="color-value" id="tip-goal-font-color-hex">#ffffff</span>
                                 </div>
                             </div>
                             
@@ -449,7 +449,7 @@
                                 <label for="tip-goal-border-color" data-i18n="colorBorder"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="tip-goal-border-color" value="#00ff7f">
-                                    <span class="color-value">#00ff7f</span>
+                                    <span class="color-value" id="tip-goal-border-color-hex">#00ff7f</span>
                                 </div>
                             </div>
                             
@@ -457,7 +457,7 @@
                                 <label for="tip-goal-progress-color" data-i18n="colorProgress"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="tip-goal-progress-color" value="#00ff7f">
-                                    <span class="color-value">#00ff7f</span>
+                                    <span class="color-value" id="tip-goal-progress-color-hex">#00ff7f</span>
                                 </div>
                             </div>
                         </div>
@@ -720,7 +720,7 @@
                                 <label for="chat-bg-color" data-i18n="colorBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-bg-color" value="#080c10">
-                                    <span class="color-value">#080c10</span>
+                                    <span class="color-value" id="chat-bg-color-hex">#080c10</span>
                                 </div>
                             </div>
                             
@@ -728,7 +728,7 @@
                                 <label for="chat-msg-bg-color" data-i18n="colorMsgBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-msg-bg-color" value="#0a0e12">
-                                    <span class="color-value">#0a0e12</span>
+                                    <span class="color-value" id="chat-msg-bg-color-hex">#0a0e12</span>
                                 </div>
                             </div>
                             
@@ -736,7 +736,7 @@
                                 <label for="chat-msg-bg-alt-color" data-i18n="colorMsgAltBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-msg-bg-alt-color" value="#0d1114">
-                                    <span class="color-value">#0d1114</span>
+                                    <span class="color-value" id="chat-msg-bg-alt-color-hex">#0d1114</span>
                                 </div>
                             </div>
                             
@@ -744,7 +744,7 @@
                                 <label for="chat-border-color" data-i18n="colorMsgBorder"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-border-color" value="#161b22">
-                                    <span class="color-value">#161b22</span>
+                                    <span class="color-value" id="chat-border-color-hex">#161b22</span>
                                 </div>
                             </div>
                             
@@ -752,7 +752,7 @@
                                 <label for="chat-text-color" data-i18n="colorMsgText"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-text-color" value="#e6edf3">
-                                    <span class="color-value">#e6edf3</span>
+                                    <span class="color-value" id="chat-text-color-hex">#e6edf3</span>
                                 </div>
                             </div>
                             
@@ -760,7 +760,7 @@
                                 <label for="chat-username-color" data-i18n="colorMsgUsername"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-username-color" value="#FFFFFF">
-                                    <span class="color-value">#ffffff</span>
+                                    <span class="color-value" id="chat-username-color-hex">#ffffff</span>
                                 </div>
                             </div>
                             
@@ -768,7 +768,7 @@
                                 <label for="chat-username-bg-color" data-i18n="colorMsgUsernameBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-username-bg-color" value="#11ff79">
-                                    <span class="color-value">#11ff79</span>
+                                    <span class="color-value" id="chat-username-bg-color-hex">#11ff79</span>
                                 </div>
                             </div>
                             
@@ -776,7 +776,7 @@
                                 <label for="chat-donation-color" data-i18n="colorMsgDonation"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-donation-color" value="#1bdf5f">
-                                    <span class="color-value">#1bdf5f</span>
+                                    <span class="color-value" id="chat-donation-color-hex">#1bdf5f</span>
                                 </div>
                             </div>
                             
@@ -784,7 +784,7 @@
                                 <label for="chat-donation-bg-color" data-i18n="colorMsgDonationBg"></label>
                                 <div class="color-input-wrapper">
                                     <input type="color" id="chat-donation-bg-color" value="#ececec">
-                                    <span class="color-value">#ececec</span>
+                                    <span class="color-value" id="chat-donation-bg-color-hex">#ececec</span>
                                 </div>
                             </div>
                         </div>
@@ -819,7 +819,7 @@
 
                     <div id="chat-theme-css-copy-container" style="margin:18px 0;">
                         <label for="chat-theme-css-copy" style="font-weight:bold;" data-i18n="chatThemeCopyLabel"></label><br>
-                        <textarea id="chat-theme-css-copy" readonly style="width:100%;height:120px;font-family:monospace;font-size:13px;margin-top:6px;border:1.5px solid #9eb474;border-radius:6px;background:#f9fafb;color:#222;resize:vertical;box-shadow:0 1px 4px rgba(145,71,255,0.07);"></textarea>
+                        <textarea id="chat-theme-css-copy" readonly style="width:100%;height:180px;font-family:monospace;font-size:13px;margin-top:6px;border:1.5px solid #9eb474;border-radius:6px;background:#f9fafb;color:#222;resize:vertical;box-shadow:0 1px 4px rgba(145,71,255,0.07);padding:10px 10px 10px 10px;"></textarea>
                         <button id="copy-chat-theme-css" class="theme-btn" style="margin-top:8px;background:#38bdf8;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:15px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:background .2s;">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="vertical-align:middle;"><rect x="8" y="7" width="11" height="14" rx="2" fill="#fff"/><rect x="3" y="3" width="13" height="18" rx="2" stroke="#fff" stroke-width="2" fill="none"/></svg>
                             <span style="font-weight:500;" data-i18n="chatThemeCopyBtn"></span>
