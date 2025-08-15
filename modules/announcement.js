@@ -43,12 +43,15 @@ class AnnouncementModule {
     this.state = loadConfig();
     this._timer = null;
     if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    this.start();
+    if (process.env.NODE_ENV !== 'test') {
+      this.start();
+    }
   }
 
   start() {
     this.stop();
-    this.scheduleNext();
+  if (process.env.NODE_ENV === 'test') return;
+  this.scheduleNext();
   }
 
   stop() {
@@ -67,6 +70,9 @@ class AnnouncementModule {
       try { this.broadcastRandomMessage(); } catch (e) { console.error('[announcement] broadcast error', e); }
       this.scheduleNext();
     }, cooldown);
+    if (this._timer && typeof this._timer.unref === 'function') {
+      try { this._timer.unref(); } catch {}
+    }
   }
 
   broadcastRandomMessage() {
