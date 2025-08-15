@@ -35,6 +35,7 @@ const registerLastTipRoutes = require('./routes/last-tip');
 const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
+const registerAnnouncementRoutes = require('./routes/announcement');
 
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
@@ -47,8 +48,13 @@ const app = express();
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
 try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
 
-const limiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((req,res,next)=>next());
-const strictLimiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 10 }) : ((req,res,next)=>next());
+const limiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((_req,_res,next)=>next());
+const strictLimiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 10 }) : ((_req,_res,next)=>next());
+const announcementLimiters = {
+  config: rateLimit ? rateLimit({ windowMs: 60_000, max: 20 }) : ((_req,_res,next)=>next()),
+  message: rateLimit ? rateLimit({ windowMs: 60_000, max: 30 }) : ((_req,_res,next)=>next()),
+  favicon: rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((_req,_res,next)=>next())
+};
 
 app.use(compression());
 
@@ -114,6 +120,8 @@ const wss = new WebSocket.Server({ noServer: true });
 const lastTip = new LastTipModule(wss);
 const tipWidget = new TipWidgetModule(wss);
 const chat = new ChatModule(wss);
+const { AnnouncementModule } = require('./modules/announcement');
+const announcementModule = new AnnouncementModule(wss);
 const externalNotifications = new ExternalNotifications(wss);
 const languageConfig = new LanguageConfig();
 
@@ -189,6 +197,7 @@ registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOA
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter);
 registerTipNotificationGifRoutes(app, strictLimiter);
+registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 
 app.post('/api/test-tip', limiter, (req, res) => {
   try {
@@ -274,6 +283,11 @@ app.get('/obs/widgets', (req, res) => {
         width: 380,
         height: 500
       }
+    },
+    announcement: {
+      name: "Announcements",
+      url: `${baseUrl}/widgets/announcement`,
+      params: { position: "top-center", width: 600, height: 200, duration: 10 }
     }
   };
   
@@ -294,6 +308,9 @@ app.get('/widgets/tip-notification', (_req, res) => {
 
 app.get('/widgets/chat', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/widgets/chat.html'));
+});
+app.get('/widgets/announcement', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public/widgets/announcement.html'));
 });
 
 app.get('/obs-help', (_req, res) => {
@@ -620,7 +637,7 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-app.use((err, req, res, _next) => {
+app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
@@ -654,4 +671,16 @@ if (process.env.NODE_ENV === 'test') {
     });
   };
   app.getWss = () => wss;
+  app.getAnnouncementModule = () => announcementModule;
+  app.disposeGetty = () => {
+    try { if (lastTip.dispose) lastTip.dispose(); } catch {}
+    try { if (tipWidget.dispose) tipWidget.dispose(); } catch {}
+    try { if (chat.dispose) chat.dispose(); } catch {}
+    try { if (announcementModule.dispose) announcementModule.dispose(); } catch {}
+    try { if (externalNotifications.dispose) externalNotifications.dispose(); } catch {}
+    try { if (tipGoal.dispose) tipGoal.dispose(); } catch {}
+    try { if (raffle.dispose) raffle.dispose(); } catch {}
+    try { wss.clients.forEach(c=>{ try { c.terminate(); } catch {} }); } catch {}
+    try { wss.close(); } catch {}
+  };
 }
