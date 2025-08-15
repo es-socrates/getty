@@ -419,6 +419,26 @@ app.get('/api/modules', (_req, res) => {
     tipWidget: tipWidget.getStatus(),
     tipGoal: { ...tipGoal.getStatus(), ...tipGoalColors },
     chat: { ...chat.getStatus(), ...chatColors },
+    announcement: (() => {
+      try {
+        const mod = announcementModule;
+        const cfg = mod.getPublicConfig();
+        const enabledMessages = cfg.messages.filter(m=>m.enabled).length;
+        return {
+          active: enabledMessages > 0,
+          totalMessages: cfg.messages.length,
+          enabledMessages,
+          cooldownSeconds: cfg.cooldownSeconds
+        };
+      } catch { return { active: false, totalMessages: 0, enabledMessages: 0 }; }
+    })(),
+    socialmedia: (() => {
+      try {
+        const cfg = socialMediaModule.loadConfig();
+        const count = Array.isArray(cfg) ? cfg.length : (cfg && typeof cfg === 'object' ? Object.keys(cfg).length : 0);
+        return { configured: count > 0, entries: count };
+      } catch { return { configured: false, entries: 0 }; }
+    })(),
     externalNotifications: (() => {
       const st = externalNotifications.getStatus();
 

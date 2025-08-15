@@ -39,6 +39,11 @@ class TipGoalModule {
         this.walletAddress = '';
         this.monthlyGoalAR = 10;
         this.currentTipsAR = 0;
+        this.bgColor = '#080c10';
+        this.fontColor = '#ffffff';
+        this.borderColor = '#00ff7f';
+        this.progressColor = '#00ff7f';
+        this.title = '🎖️ Monthly tip goal';
         this.loadWalletAddress();
 
         this.AR_TO_USD = 0;
@@ -72,7 +77,8 @@ class TipGoalModule {
             fontColor: '#ffffff',
             borderColor: '#00ff7f',
             progressColor: '#00ff7f',
-            audioSource: 'remote'
+            audioSource: 'remote',
+            title: '🎖️ Monthly tip goal'
         };
         if (!fs.existsSync(configPath)) {
             fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2));
@@ -88,6 +94,11 @@ class TipGoalModule {
             if (typeof config.currentAmount === 'number') {
                 this.currentTipsAR = config.currentAmount;
             }
+            if (typeof config.bgColor === 'string') this.bgColor = config.bgColor;
+            if (typeof config.fontColor === 'string') this.fontColor = config.fontColor;
+            if (typeof config.borderColor === 'string') this.borderColor = config.borderColor;
+            if (typeof config.progressColor === 'string') this.progressColor = config.progressColor;
+            if (typeof config.title === 'string' && config.title.trim()) this.title = config.title.trim();
             if (!this.walletAddress) {
                 try {
                     const lastTipConfigPath1 = path.join(configDir, 'last-tip-config.json');
@@ -331,7 +342,12 @@ class TipGoalModule {
             usdValue: (this.currentTipsAR * this.AR_TO_USD).toFixed(2),
             goalUsd: (this.monthlyGoalAR * this.AR_TO_USD).toFixed(2),
             lastDonationTimestamp: this.lastDonationTimestamp,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            bgColor: this.bgColor,
+            fontColor: this.fontColor,
+            borderColor: this.borderColor,
+            progressColor: this.progressColor,
+            title: this.title
         };
 
         this.wss.clients.forEach(client => {
@@ -342,6 +358,30 @@ class TipGoalModule {
                 }));
             }
         });
+
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+            let existing = {};
+            if (fs.existsSync(configPath)) {
+                try { existing = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
+            }
+            const merged = {
+                ...existing,
+                walletAddress: this.walletAddress,
+                monthlyGoal: this.monthlyGoalAR,
+                currentAmount: this.currentTipsAR,
+                bgColor: this.bgColor,
+                fontColor: this.fontColor,
+                borderColor: this.borderColor,
+                progressColor: this.progressColor,
+                title: this.title
+            };
+            fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+        } catch (e) {
+
+        }
     }
     
     updateWalletAddress(newAddress) {
@@ -425,7 +465,12 @@ class TipGoalModule {
                 new Date(this.lastExchangeRateUpdate.getTime() + this.exchangeRateInterval) : null,
             nextTransactionCheck: this.lastTransactionCheck ? 
                 new Date(this.lastTransactionCheck.getTime() + this.transactionCheckInterval) : null,
-            ...this.getGoalProgress()
+            ...this.getGoalProgress(),
+            bgColor: this.bgColor,
+            fontColor: this.fontColor,
+            borderColor: this.borderColor,
+            progressColor: this.progressColor,
+            title: this.title
         };
     }
 

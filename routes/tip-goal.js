@@ -69,6 +69,16 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       };
       fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
 
+      try {
+        if (typeof tipGoal === 'object' && tipGoal) {
+          if (bgColor) tipGoal.bgColor = bgColor;
+          if (fontColor) tipGoal.fontColor = fontColor;
+          if (borderColor) tipGoal.borderColor = borderColor;
+          if (progressColor) tipGoal.progressColor = progressColor;
+          if (widgetTitle) tipGoal.title = widgetTitle;
+        }
+      } catch {}
+
       fs.writeFileSync(
         GOAL_AUDIO_CONFIG_FILE,
         JSON.stringify(

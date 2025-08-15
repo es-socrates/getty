@@ -859,6 +859,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateStatus('tipWidget-status', data.tipWidget.active);
                 updateStatus('tipGoal-status', data.tipGoal.active);
                 updateStatus('chat-status', data.chat.connected);
+                if (data.socialmedia) {
+                    updateStatus('socialmedia-status', data.socialmedia.configured);
+                }
+                if (data.announcement) {
+                    updateStatus('announcement-status', data.announcement.active);
+                }
                 showAlert('Updated status', 'success');
             })
             .catch(error => {
