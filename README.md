@@ -26,6 +26,9 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 5. 📢 Discord/Telegram Integration: Send tip notifications to your Discord server or Telegram group.
 6. 🗣 Text-to-Speech (TTS): Listen out loud to chat messages when you get tips!
 7. 🎉 Custom Commands: Increase the Excitement in your Sweepstakes with Custom Commands!
+8. ❇️ Announcement: Create random messages for your viewers.
+9. #️⃣ Social media: Show your social media accounts.
+10. 💬 Live Chat: Add a chat widget to your OBS with different themes.
 
 ![getty](https://thumbs.odycdn.com/b944d452caa9337c2011960099ffa970.webp)
 
@@ -44,9 +47,11 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 2. Open the terminal in the getty folder.
 3. Run this command to install the dependencies: **npm install**
 4. Run the **npm run build** command to build the app.
-5. Then run **npm start**.
+5. Then run **npm start** or **npm run start:prod**.
 6. The server will run the app with the address http://localhost:3000.
 7. Open Getty in your web browser and configure your widgets in admin.
+
+**Important:** If you download an update from Getty, you must repeat the installation process. In some cases, there may be new dependencies to install, so the process may need to be repeated.
 
 ## Visit Getty in the browser:
 
@@ -71,12 +76,14 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 
 - API map: see docs/ROUTES.md for a full list of endpoints and their modules.
 - Run tests:
-	- npm test
+- npm test
   
 Most HTTP routes have been modularized under the routes/ directory to improve maintainability and testability.
 
 Getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
 
 **This is an independent project; it is not an official Odysee product.**
+
+Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
 
 ## Made with love for Odysee ❤️

@@ -51,4 +51,4 @@ class LanguageConfig {
     }
 }
 
-module.exports = LanguageConfig; 
+module.exports = LanguageConfig;
