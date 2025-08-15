@@ -135,11 +135,17 @@ class TipGoalModule {
                 () => this.updateExchangeRate(), 
                 this.exchangeRateInterval
             );
+            if (this.exchangeRateIntervalId && typeof this.exchangeRateIntervalId.unref === 'function') {
+                try { this.exchangeRateIntervalId.unref(); } catch {}
+            }
             
             this.transactionCheckIntervalId = setInterval(
                 () => this.checkTransactions(), 
                 this.transactionCheckInterval
             );
+            if (this.transactionCheckIntervalId && typeof this.transactionCheckIntervalId.unref === 'function') {
+                try { this.transactionCheckIntervalId.unref(); } catch {}
+            }
             
             console.log('✅ TipGoalModule initialized successfully');
         } catch (error) {
@@ -430,6 +436,10 @@ class TipGoalModule {
         if (this.transactionCheckIntervalId) {
             clearInterval(this.transactionCheckIntervalId);
         }
+    }
+
+    dispose() {
+        this.cleanup();
     }
 }
 
