@@ -69,6 +69,16 @@
   color: #00ff7f;
   margin: 0.5rem 0;
 }
+.winner-name-fade {
+  display: inline-block;
+  min-width: 6ch;
+  transition: opacity .4s ease;
+  animation: winnerPulse 4s ease-in-out infinite;
+}
+@keyframes winnerPulse {
+  0%,100% { filter: drop-shadow(0 0 0px #00ff7f); }
+  50% { filter: drop-shadow(0 0 6px #00ff7f); }
+}
 .winner-prize {
   font-size: 1.2rem;
   color: #facb15;
