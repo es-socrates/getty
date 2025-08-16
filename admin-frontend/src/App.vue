@@ -66,14 +66,18 @@
                   @click="setLocale('en')"
                   class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
                   :class="{ 'bg-[var(--bg-chat)]': locale==='en' }"
-                >English</button>
+                >
+English
+</button>
               </li>
               <li>
                 <button
                   @click="setLocale('es')"
                   class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
                   :class="{ 'bg-[var(--bg-chat)]': locale==='es' }"
-                >Español</button>
+                >
+Español
+</button>
               </li>
             </ul>
           </div>

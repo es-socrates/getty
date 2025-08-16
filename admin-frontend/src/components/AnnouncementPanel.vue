@@ -1,7 +1,6 @@
 <template>
   <section class="admin-tab active" role="form">
-
-  <div class="panel-surface mb-4" aria-describedby="announce-settings-desc">
+<div class="panel-surface mb-4" aria-describedby="announce-settings-desc">
       <p id="announce-settings-desc" class="sr-only">
         Configure announcement rotation timing, theme, colors and animation.
       </p>
