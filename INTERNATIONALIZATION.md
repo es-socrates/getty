@@ -1,4 +1,4 @@
-#  Getty: Internationalization System
+#  Getty: Internationalization System (Unified JSON + Runtime)
 
 This document describes the internationalization system implemented in Getty to support multiple languages.
 
@@ -15,11 +15,12 @@ This document describes the internationalization system implemented in Getty to 
 
 ### Client (Frontend)
 
-- `public/js/languages.js` - Client-side language manager
-- `public/index.html` - Main page with translations
-- `public/admin.html` - Admin panel with translations
-- `public/css/admin.css` - Styles for the user menu
-- `public/css/styles.css` - Styles for the user menu
+- `shared-i18n/*.json` - Source locale files (authoritative translations)
+- `scripts/build-i18n.js` - Validation + runtime generator
+- `public/js/min/i18n-runtime.js` - Generated bundle for landing & widgets
+- `public/index.html` - Main page including runtime script
+- `/admin` (SPA) - Vue app using the same JSON (merged with admin extras)
+- `public/css/admin.css` / `public/css/styles.css` - Styles for user menu
 
 ### Server (Backend)
 
@@ -45,46 +46,16 @@ This document describes the internationalization system implemented in Getty to 
 
 #### Add New Translations
 
-1. **Edit `public/js/languages.js`:**
-```javascript
-const languages = {
-    en: {
-        // Add new key
-        newKey: "English text"
-    },
-    es: {
-        // Add corresponding translation
-        newKey: "Texto en español"
-    }
-};
-```
-
-2. **Use in HTML:**
-```html
-<span data-i18n="newKey">Default text</span>
-```
+1. Edit each locale file in `shared-i18n/` (e.g. add `"newKey": "English text"` to `en.json` and its translation to `es.json`).
+2. Run `npm run build:i18n` (fails if keys mismatch).
+3. Use in HTML / Vue: `<span data-i18n="newKey"></span>` or in Vue components `$t('newKey')`.
 
 #### Add a New Language
 
-1. **Add language in `public/js/languages.js`:**
-```javascript
-const languages = {
-    en: { /* English translations */ },
-    es: { /* Spanish translations */ },
-    fr: { /* new French translations */ }
-};
-```
-
-2. **Add option in the selectors:**
-```html
-<select class="language-selector">
-    <option value="en">English</option>
-    <option value="es">Español</option>
-    <option value="fr">Français</option>
-</select>
-```
-
-3. **Update `modules/language-config.js` for the server**
+1. Copy `shared-i18n/en.json` to `shared-i18n/<lang>.json` and translate values.
+2. Run `npm run build:i18n` (validator enforces identical key sets).
+3. Add `<option value="<lang>">` to the language selector in `src/index.html` (and any widget if needed).
+4. Optionally update server accepted locales if you restrict them (`modules/language-config.js`).
 
 ## Translation Structure
 
@@ -162,7 +133,7 @@ User menu styles are defined in:
 ### Common Issues
 
 1. **Translations do not load:**
-   - Make sure `languages.js` is included in the HTML
+  - Make sure `i18n-runtime.js` is included in the HTML
    - Check the browser console for errors
 
 2. **Language does not persist:**
@@ -179,8 +150,8 @@ To debug the language system:
 
 ```javascript
 // In the browser console
-console.log(window.languageManager.currentLanguage);
-console.log(window.languageManager.getText('testKey'));
+console.log(window.__i18n.current); // current lang
+console.log(window.__i18n.t('testKey')); // translation or key fallback
 ```
 
 ## Contributing
@@ -188,7 +159,7 @@ console.log(window.languageManager.getText('testKey'));
 To add translations:
 
 1. Fork the repository
-2. Add translations in `languages.js`
+2. Add translations in JSON locale files
 3. Create a pull request
 
 ## License

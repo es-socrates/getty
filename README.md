@@ -30,7 +30,7 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 9. #️⃣ Social media: Show your social media accounts.
 10. 💬 Live Chat: Add a chat widget to your OBS with different themes.
 
-![getty](https://thumbs.odycdn.com/b944d452caa9337c2011960099ffa970.webp)
+![getty](https://thumbs.odycdn.com/2524e3c28ebbf2a7b93016eff5f0e35d.webp)
 
 ## Prerequisites to start Getty
 

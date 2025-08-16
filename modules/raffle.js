@@ -51,7 +51,7 @@ class RaffleModule {
                 this.participants = new Map(data.participants || []);
                 this.previousWinners = new Set(data.previousWinners || []);
             }
-        } catch (err) {}
+    } catch {}
     }
 
     saveSettingsToFile() {
@@ -69,7 +69,7 @@ class RaffleModule {
                 previousWinners: Array.from(this.previousWinners)
             };
             fs.writeFileSync(this.settingsFile, JSON.stringify(data, null, 2));
-        } catch (err) {}
+    } catch {}
     }
 
     saveSettings(settings) {

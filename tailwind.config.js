@@ -4,6 +4,8 @@ module.exports = {
     './src/**/*.js',
     './public/**/*.html',
     './public/**/*.js',
+    './admin-frontend/index.html',
+    './admin-frontend/src/**/*.{vue,js,ts,jsx,tsx,html}',
   ],
   darkMode: 'class',
   theme: {
@@ -55,5 +57,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [require('@tailwindcss/forms')],
 }

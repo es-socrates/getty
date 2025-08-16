@@ -315,7 +315,7 @@ async function saveLiveviewsViewersLabel() {
     }
 }
 
-if (window.location.pathname.includes('admin.html')) {
+if (window.location.pathname.startsWith('/admin')) {
     document.addEventListener('DOMContentLoaded', async function () {
         await loadLiveviewsViewersLabel();
 

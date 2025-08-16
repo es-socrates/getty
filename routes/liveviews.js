@@ -47,7 +47,7 @@ function registerLiveviewsRoutes(app, strictLimiter) {
       if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
         try {
           prev = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-        } catch (e) { prev = {}; }
+  } catch { prev = {}; }
       }
 
       let iconUrl = '';
@@ -59,7 +59,7 @@ function registerLiveviewsRoutes(app, strictLimiter) {
       if (removeIcon && prev.icon) {
         const iconPath = path.join(process.cwd(), 'public', prev.icon.replace(/^\//, ''));
         if (fs.existsSync(iconPath)) {
-          try { fs.unlinkSync(iconPath); } catch (e) {}
+          try { fs.unlinkSync(iconPath); } catch {}
         }
         iconUrl = '';
       }
@@ -84,7 +84,7 @@ function registerLiveviewsRoutes(app, strictLimiter) {
       }
       config = getLiveviewsConfigWithDefaults(config);
       res.json(config);
-    } catch (e) {
+  } catch {
       res.json(getLiveviewsConfigWithDefaults({}));
     }
   });
@@ -111,7 +111,7 @@ function registerLiveviewsRoutes(app, strictLimiter) {
         try {
           config = JSON.parse(data);
           if (typeof config !== 'object' || config === null) config = {};
-        } catch (e) {
+  } catch {
           config = {
             bg: '#fff',
             color: '#222',

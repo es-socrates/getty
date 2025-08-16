@@ -71,8 +71,8 @@ class ExternalNotifications {
                     hasTelegram: !!(this.telegramBotToken && this.telegramChatId)
                 });
             }
-        } catch (error) {
-            console.error('[ExternalNotifications] Error loading config:', error);
+        } catch {
+            console.error('[ExternalNotifications] Error loading config');
         }
     }
 
@@ -106,9 +106,9 @@ class ExternalNotifications {
 
             fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
             console.log('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
-        } catch (error) {
-            console.error('[ExternalNotifications] Error saving config:', error);
-            throw error;
+        } catch {
+            console.error('[ExternalNotifications] Error saving config');
+            throw new Error('Save failed');
         }
     }
 
@@ -117,8 +117,8 @@ class ExternalNotifications {
             this.wss.removeAllListeners('tip');
             this.wss.on('tip', (tipData) => {
                 console.log('Processing tip from:', tipData.from);
-                this.handleIncomingTip(tipData).catch(error => {
-                    console.error('Error processing tip:', error);
+                this.handleIncomingTip(tipData).catch(err => {
+                    console.error('Error processing tip:', err);
                 });
             });
         }
@@ -165,9 +165,9 @@ class ExternalNotifications {
                 template: this.template
             });
 
-        } catch (error) {
-            console.error('[ExternalNotifications] Error processing tip:', error);
-            throw error;
+        } catch (err) {
+            console.error('[ExternalNotifications] Error processing tip:', err);
+            throw err;
         }
     }
 
@@ -210,15 +210,15 @@ class ExternalNotifications {
             }
 
             return true;
-        } catch (error) {
+        } catch (e) {
             console.error('Failed to send to Discord:', {
-                error: error.message,
+                error: e.message,
                 tipData: {
                     from: tipData.from,
                     amount: tipData.amount,
                     source: tipData.source
                 },
-                stack: error.stack
+                stack: e.stack
             });
             return false;
         }
@@ -240,8 +240,8 @@ class ExternalNotifications {
             });
             
             return true;
-        } catch (error) {
-            console.error('[ExternalNotifications] Telegram error:', error.message);
+        } catch (e) {
+            console.error('[ExternalNotifications] Telegram error:', e.message);
             return false;
         }
     }
@@ -254,7 +254,7 @@ class ExternalNotifications {
             
             const rate = response.data?.arweave?.usd || 5;
             return (amount * rate).toFixed(2);
-        } catch (error) {
+        } catch {
             console.warn('[ExternalNotifications] Using fallback AR price (5 USD)');
             return (amount * 5).toFixed(2);
         }

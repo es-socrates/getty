@@ -34,7 +34,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
             fs.unlinkSync(path.join(UPLOAD_DIR, f));
           }
         }
-      } catch (e) {
+  } catch {
 
       }
       cb(null, UPLOAD_DIR);
@@ -61,8 +61,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       if (fs.existsSync(CONFIG_FILE)) {
         return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
       }
-    } catch (e) {
-      console.error('[gif-config] load error', e);
+    } catch {
+      console.error('[gif-config] load error');
     }
     return { gifPath: '', position: 'right', width: 0, height: 0 };
   }
@@ -92,7 +92,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       if (req.file) {
         const filePath = path.join(UPLOAD_DIR, req.file.filename);
         let dims;
-        try { dims = readGifDimensions(filePath); } catch (e) {
+  try { dims = readGifDimensions(filePath); } catch {
           fs.unlinkSync(filePath);
           return res.status(400).json({ error: 'Invalid GIF file' });
         }
@@ -103,8 +103,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       config.position = position;
       saveConfig(config);
       res.json({ success: true, ...config });
-    } catch (e) {
-      console.error('Error saving GIF config:', e);
+    } catch (_e) {
+      console.error('Error saving GIF config:', _e);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -116,12 +116,12 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
         try {
           const fp = path.join(process.cwd(), 'public', config.gifPath.replace(/^\/+/, ''));
           if (fs.existsSync(fp)) fs.unlinkSync(fp);
-        } catch (e) { /* ignore */ }
+  } catch { /* ignore */ }
       }
       const cleared = { gifPath: '', position: 'right', width: 0, height: 0 };
       saveConfig(cleared);
       res.json({ success: true, ...cleared });
-    } catch (e) {
+  } catch {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
