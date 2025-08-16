@@ -77,10 +77,13 @@
     @apply text-lg font-bold text-white;
   }
 
-  html:not(.dark) body .last-donation .notification-title,
-  html:not(.dark) .notification-title {
-    color: #fff !important;
-  }
+html:not(.dark) .notification-title {
+  @apply text-lg font-bold text-white;
+  color: #fff !important;
+}
+html:not(.dark) body .last-donation .notification-title {
+  color: #fff !important;
+}
 
   .notification-amount {
     @apply text-2xl font-extrabold;
