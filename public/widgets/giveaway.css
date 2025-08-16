@@ -75,6 +75,11 @@ body {
   padding: 0;
 }
 
+html:not(.dark) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 .giveaway-obs-layout {
   width: 100%;
   max-width: 500px;

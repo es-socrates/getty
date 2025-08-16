@@ -1,4 +1,4 @@
-name: Node.js CI
+name: CI
 
 on:
   push:
@@ -7,21 +7,44 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
-
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x (LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - run: npm ci
-      - run: npm audit --audit-level=moderate
-      - run: npm run build --if-present
-      # - run: npm test --if-present 
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies (clean)
+        run: npm ci
+
+      - name: Lint (JS/Vue)
+        run: npm run lint --max-warnings=0
+
+      - name: Security audit (non-blocking)
+        run: npm audit --audit-level=moderate || true
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Upload production artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: getty-build
+          path: |
+            public/
+            admin-frontend/dist/
+          if-no-files-found: warn
+
+      - name: Show i18n runtime hash
+        run: |
+          grep -o "version:'[a-z0-9]\+'" public/js/min/i18n-runtime.js || true

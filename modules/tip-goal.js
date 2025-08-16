@@ -122,9 +122,7 @@ class TipGoalModule {
                         const updated = { ...tipGoalDefault, ...config, walletAddress: lastTipWallet };
                         try { fs.writeFileSync(configPath, JSON.stringify(updated, null, 2)); } catch {}
                     }
-                } catch (e) {
-
-                }
+                } catch {}
             }
         } catch (e) {
             console.error('[TipGoal] Error reading wallet address from config:', e);
@@ -379,9 +377,7 @@ class TipGoalModule {
                 title: this.title
             };
             fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
-        } catch (e) {
-
-        }
+    } catch {}
     }
     
     updateWalletAddress(newAddress) {

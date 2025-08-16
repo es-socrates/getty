@@ -1,4 +1,3 @@
-config/*.json
 node_modules/
 .env
 /public/uploads/*
@@ -6,12 +5,12 @@ node_modules/
 /public/js/min
 public/css/output.css
 public/index.html
-public/admin.html
 public/min/*.js
 .DS_Store
 *.log
-external-notifications-config.json
 language-settings.json
-raffle-settings.json
-.stylelintcache
 tts-settings.json
+raffle-settings.json
+config/*.json
+.stylelintcache
+.eslintcache

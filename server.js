@@ -400,6 +400,8 @@ app.use(express.static('public', {
 
 registerRaffleRoutes(app, raffle, wss);
 
+const __serverStartTime = Date.now();
+
 app.get('/api/modules', (_req, res) => {
   let tipGoalColors = {};
   if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
@@ -413,6 +415,11 @@ app.get('/api/modules', (_req, res) => {
   if (fs.existsSync(CHAT_CONFIG_FILE)) {
     chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
   }
+
+  const uptimeSeconds = Math.floor((Date.now() - __serverStartTime) / 1000);
+  const wsClients = (() => {
+    try { return Array.from(wss.clients).filter(c=>c && c.readyState === 1).length; } catch { return 0; }
+  })();
 
   res.json({
     lastTip: { ...lastTip.getStatus(), ...lastTipColors },
@@ -452,7 +459,38 @@ app.get('/api/modules', (_req, res) => {
         },
         lastUpdated: st.lastUpdated
       };
-    })()
+    })(),
+    liveviews: (() => {
+      try {
+        if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+          const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+          const full = getLiveviewsConfigWithDefaults(raw || {});
+          const active = !!(full.claimid || full.icon || full.viewersLabel);
+          return {
+            active,
+            claimid: full.claimid,
+            viewersLabel: full.viewersLabel
+          };
+        }
+        return { active: false };
+      } catch { return { active: false }; }
+    })(),
+    raffle: (() => {
+      try {
+        const st = raffle.getPublicState();
+        return {
+          active: !!st.active,
+            paused: !!st.paused,
+            participants: st.participants || [],
+            totalWinners: st.totalWinners || 0
+        };
+      } catch { return { active: false, participants: [] }; }
+    })(),
+    system: {
+      uptimeSeconds,
+      wsClients,
+      env: process.env.NODE_ENV || 'development'
+    }
   });
 });
 
@@ -602,7 +640,7 @@ app.post('/api/save-liveviews-label', strictLimiter, express.json(), (req, res) 
       try {
         config = JSON.parse(data);
         if (typeof config !== 'object' || config === null) config = {};
-      } catch (e) {
+  } catch {
         
         config = {
           bg: '#fff',
@@ -651,6 +689,50 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOBS);
+
+try {
+  const adminDist = path.join(__dirname, 'public', 'admin-dist');
+  if (fs.existsSync(adminDist)) {
+    app.use('/admin', express.static(adminDist, { index: 'index.html' }));
+    app.get('/admin/*', (_req, res, next) => {
+      const indexPath = path.join(adminDist, 'index.html');
+      if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
+      next();
+    });
+  } else {
+
+    app.get(['/admin','/admin/*'], (req, res) => {
+
+      if (process.env.NODE_ENV !== 'production') {
+        const targetPath = req.originalUrl.startsWith('/admin') ? req.originalUrl : '/admin/';
+        return res.redirect(302, `http://localhost:5173${targetPath}`);
+      }
+
+      res.status(503).send('Admin UI not built. Run "npm run admin:build" to generate the SPA..');
+    });
+  }
+} catch {}
+
+app.get(['/admin.html','/admin.html/'], (_req, res) => {
+  res.redirect(301, '/admin/');
+});
+
+app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
+  try {
+    const adminDist = path.join(__dirname, 'public', 'admin-dist');
+    const indexPath = path.join(adminDist, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      return res.redirect(302, 'http://localhost:5173' + req.originalUrl);
+    }
+    return res.status(503).send('Admin UI not built. Run "npm run admin:build".');
+  } catch (e) {
+    return next(e);
+  }
+});
 
 app.use((req, res) => {
   console.warn('404 Not Found:', { method: req.method, url: req.originalUrl });

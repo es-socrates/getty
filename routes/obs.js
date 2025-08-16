@@ -13,7 +13,7 @@ function registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, 
       fs.writeFileSync(OBS_WS_CONFIG_FILE, JSON.stringify(obsWsConfig, null, 2));
       await connectOBS();
       res.json({ success: true });
-    } catch (e) {
+    } catch {
       res.status(500).json({ success: false, error: 'Could not save OBS WebSocket config.' });
     }
   });

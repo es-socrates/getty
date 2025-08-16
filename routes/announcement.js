@@ -34,8 +34,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
   app.get('/api/announcement', getLimiter('config'), (req, res) => {
     try {
       res.json({ success: true, config: announcementModule.getPublicConfig() });
-    } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+    } catch {
+      res.status(500).json({ success: false, error: 'Internal error' });
     }
   });
 
@@ -69,8 +69,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       }
   const msg = announcementModule.addMessage({ text: parsed.data.text, imageUrl, linkUrl: parsed.data.linkUrl, durationSeconds: parsed.data.durationSeconds });
       res.json({ success: true, message: msg });
-    } catch (e) {
-      res.status(500).json({ success: false, error: e.message });
+    } catch {
+      res.status(500).json({ success: false, error: 'Internal error' });
     }
   });
 
@@ -161,8 +161,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       }
       __faviconCache[key] = { dataUri, ts: now };
       res.json({ success: true, favicon: dataUri });
-    } catch (e) {
-      res.json({ success: true, favicon: null });
+      } catch {
+        res.json({ success: true, favicon: null });
     }
   });
 }

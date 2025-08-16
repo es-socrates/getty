@@ -1,6 +1,6 @@
 {
   "name": "getty",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
   "main": "server.js",
   "scripts": {
@@ -8,16 +8,21 @@
     "start:prod": "cross-env NODE_ENV=production node server.js",
     "dev": "npm-run-all --parallel dev-server dev-css",
     "dev-server": "nodemon server.js",
+    "admin:dev": "vite --config admin-frontend/vite.config.js",
+    "admin:build": "vite build --config admin-frontend/vite.config.js",
     "dev-css": "npx tailwindcss -i ./src/input.css -o ./public/css/output.css --watch",
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "lint:css": "stylelint \"src/**/*.css\" --cache",
     "lint:css:fix": "stylelint \"src/**/*.css\" --fix --cache",
     "build-css": "npx tailwindcss -i src/input.css -o public/css/output.css",
     "watch-css": "npx tailwindcss -i src/input.css -o public/css/output.css --watch",
-    "minify-html": "npx html-minifier-terser src/index.html -o public/index.html --collapse-whitespace --remove-comments --minify-css false && npx html-minifier-terser src/admin.html -o public/admin.html --collapse-whitespace --remove-comments --minify-css false",
+    "minify-html": "npx html-minifier-terser src/index.html -o public/index.html --collapse-whitespace --remove-comments --minify-css false",
     "minify-js": "npx esbuild public/js/*.js --minify --outdir=public/js/min",
     "minify-css": "npx postcss public/css/output.css -o public/css/output.css",
-    "build": "npm-run-all --sequential build-css minify-css minify-html minify-js"
+    "build:i18n": "node scripts/build-i18n.js",
+    "build": "npm-run-all --sequential build-css minify-css build:i18n admin:build minify-html minify-js",
+    "lint": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --cache --max-warnings=0",
+    "lint:fix": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --fix --cache"
   },
   "engines": {
     "node": ">=18"
@@ -38,12 +43,21 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-react-aria-components": "^1.0.0",
     "ws": "^8.13.0",
-    "zod": "^4.0.15"
+    "zod": "^4.0.15",
+    "vue-router": "^4.3.0",
+    "vue-i18n": "^9.13.1"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",
+    "@vitejs/plugin-vue": "^5.1.0",
     "@types/jest": "^30.0.0",
+    "@vue/eslint-config-standard": "^9.0.1",
     "autoprefixer": "^10.4.21",
+    "eslint": "^9.9.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^17.9.0",
+    "eslint-plugin-promise": "^6.4.0",
+    "eslint-plugin-vue": "^9.27.0",
     "cross-env": "^10.0.0",
     "cssnano": "^7.1.0",
     "esbuild": "^0.25.8",
@@ -58,6 +72,8 @@
     "stylelint-config-tailwindcss": "^1.0.0",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "vite": "^5.4.0",
+    "vue": "^3.4.38"
   }
 }

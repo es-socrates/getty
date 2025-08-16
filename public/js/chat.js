@@ -111,7 +111,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function applyChatColors() {
         if (!isOBSWidget) return;
         await loadColors();
-        setIfCustom(chatContainer, 'background', chatColors.bgColor, '#080c10');
+        if (chatColors.bgColor === 'transparent') {
+            if (chatContainer) chatContainer.style.removeProperty('background');
+        } else {
+            setIfCustom(chatContainer, 'background', chatColors.bgColor, '#080c10');
+        }
     }
 
     applyChatColors();
@@ -318,7 +322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatContainer.classList.add('horizontal-chat');
     }
 
-    function applyChatTheme(themeCSS) {
+    function applyChatTheme(themeCSS, isLightTheme) {
         let styleTag = document.getElementById('chat-theme-style');
         if (!styleTag) {
             styleTag = document.createElement('style');
@@ -326,23 +330,68 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.head.appendChild(styleTag);
         }
         styleTag.textContent = themeCSS;
+        if (chatContainer) {
+            if (isLightTheme) {
+                chatContainer.classList.add('theme-light');
+            } else {
+                chatContainer.classList.remove('theme-light');
+            }
+        }
     }
 
     let lastThemeCSS = '';
+    let serverHasTheme = false;
     async function fetchAndApplyTheme() {
         try {
             const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
             const config = await res.json();
-            if (config.themeCSS && config.themeCSS !== lastThemeCSS) {
-                lastThemeCSS = config.themeCSS;
-                applyChatTheme(config.themeCSS);
+            let isLightTheme = false;
+
+            if (config.themeCSS && config.themeCSS.includes('--text: #1f2328')) {
+                isLightTheme = true;
+            }
+            const serverCSS = (config.themeCSS || '').trim();
+            if (serverCSS) {
+                serverHasTheme = true;
+                if (serverCSS !== lastThemeCSS) {
+                    lastThemeCSS = serverCSS;
+                    applyChatTheme(serverCSS, isLightTheme);
+                }
+            } else if (!serverHasTheme) {
+                const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
+                if (local && local !== lastThemeCSS) {
+                    lastThemeCSS = local;
+                    isLightTheme = local.includes('--text: #1f2328');
+                    applyChatTheme(local, isLightTheme);
+                } else {
+                    await loadColors();
+                    const css = `
+                        .message { background: ${chatColors.msgBgColor || '#0a0e12'}; color: ${chatColors.textColor || '#e6edf3'}; border-left: 8px solid ${chatColors.borderColor || '#161b22'}; }
+                        .message.odd { background: ${chatColors.msgBgAltColor || '#0d1114'}; }
+                        .message.has-donation { background: ${chatColors.donationBgColor || '#ececec'}; }
+                        .message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'}; background: ${chatColors.usernameBgColor || '#11ff79'}; }
+                        .message-donation { color: ${chatColors.donationColor || '#1bdf5f'}; background: ${chatColors.donationBgColor || '#ececec'}; }
+                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#080c10')}; }
+                    `;
+  
+                    isLightTheme = (chatColors.textColor || '').toLowerCase() === '#1f2328';
+                    applyChatTheme(css, isLightTheme);
+                }
             }
         } catch (e) { /* ignore */ }
     }
 
+    fetchAndApplyTheme();
+    setInterval(fetchAndApplyTheme, 15000);
+
     window.addEventListener('storage', function(e) {
         if (e.key === 'chatLiveThemeCSS') {
-            applyChatTheme(e.newValue || '');
+            if (serverHasTheme) return;
+            const local = e.newValue || '';
+            if (local !== lastThemeCSS) {
+                lastThemeCSS = local;
+                applyChatTheme(local);
+            }
         }
     });
 });

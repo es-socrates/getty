@@ -1,3 +1,5 @@
+@import './theme-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -63,12 +65,21 @@
     @apply text-xs font-semibold flex items-center;
   }
 
+  html:not(.dark) .last-donation .notification-icon-lasttip svg { @apply text-white; }
+  html:not(.dark) .last-donation .notification-from-lasttip { @apply text-white; }
+  html:not(.dark) .last-donation .notification-amount .ar-symbol { @apply text-white; }
+
   .notification-text {
     @apply flex-1;
   }
 
   .notification-title {
     @apply text-lg font-bold text-white;
+  }
+
+  html:not(.dark) body .last-donation .notification-title,
+  html:not(.dark) .notification-title {
+    color: #fff !important;
   }
 
   .notification-amount {
@@ -86,7 +97,6 @@
   .message-text-inline {
     @apply text-gray-100 leading-snug text-sm break-words;
   }
-
   .message-username {
     @apply text-sm font-semibold mr-1.5 text-green-400;
   }

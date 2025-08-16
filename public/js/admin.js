@@ -173,23 +173,23 @@ document.addEventListener('DOMContentLoaded', () => {
             name: 'Claro',
             css: `:root { --bg-main: #ffffff; --bg-message: #f8fafc; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #1f2328; --username: #0969da; --donation: #ff8800; --donation-bg: #fff4e5; }
             .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid var(--border); border-left: 6px solid transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-            .message.odd { background: var(--bg-message-alt); font-size: 17px; }
-            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 17px; }
-            .message-text-inline { color: var(--text); font-size: 17px; }
+            .message.odd { background: var(--bg-message-alt); font-size: 14px; }
+            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 14px; }
+            .message-text-inline { color: var(--text); font-size: 14px; }
             .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
-            .message.has-donation .message-username { color: var(--donation); font-size: 17px; }
-            .message.has-donation .message-text-inline { color: #663300 !important; font-size: 17px; }`
+            .message.has-donation .message-username { color: var(--donation); font-size: 14px; }
+            .message.has-donation .message-text-inline { color: #663300 !important; font-size: 14px; }`
         },
         {
             name: 'Oscuro',
             css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
             .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; }
-            .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; font-size: 17px; }
-            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 17px; }
-            .message-text-inline { color: var(--text); font-size: 17px; }
+            .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; font-size: 14px; }
+            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 14px; }
+            .message-text-inline { color: var(--text); font-size: 14px; }
             .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
-            .message.has-donation .message-username { color: var(--donation); font-size: 17px; }
-            .message.has-donation .message-text-inline { color: #fff !important; font-size: 17px; }`
+            .message.has-donation .message-username { color: var(--donation); font-size: 14px; }
+            .message.has-donation .message-text-inline { color: #fff !important; font-size: 14px; }`
         },
         {
             name: 'Minimalista',

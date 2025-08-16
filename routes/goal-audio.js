@@ -106,7 +106,7 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
             try { fs.unlinkSync(path.join(GOAL_AUDIO_UPLOADS_DIR, f)); } catch {}
           }
         });
-      } catch (e) {}
+  } catch {}
 
       const file = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
       saveGoalAudioSettings(file, {

@@ -5,6 +5,18 @@ const { z } = require('zod');
 function registerLastTipRoutes(app, lastTip, tipWidget) {
   const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'last-tip-config.json');
 
+  app.get('/api/last-tip', (_req, res) => {
+    try {
+      if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+        return res.status(404).json({ error: 'No last tip config' });
+      }
+      const cfg = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+      res.json({ success: true, ...cfg });
+    } catch (e) {
+      res.status(500).json({ error: 'Error loading last tip config', details: e.message });
+    }
+  });
+
   app.post('/api/last-tip', (req, res) => {
     try {
       const schema = z.object({

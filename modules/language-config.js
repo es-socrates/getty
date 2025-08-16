@@ -5,10 +5,24 @@ const serverLanguages = {
     en: {
         title: "Getty",
         description: "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
+        chatClaimId: 'Chat Claim ID',
+        invalidClaimId: 'Invalid Claim ID',
+        announcementAnimationFade: 'Fade',
+        announcementAnimationSlideUp: 'Slide Up',
+        announcementAnimationSlideLeft: 'Slide Left',
+        announcementAnimationScale: 'Scale',
+        announcementAnimationRandom: 'Random',
     },
     es: {
         title: "Getty",
         description: "Aplicación de widget para notificaciones de propinas, objetivos de propinas, recompensas de chat y visualización de alertas en tiempo real para tus directos en Odysee.",
+        chatClaimId: 'Claim ID del Chat',
+        invalidClaimId: 'Claim ID inválido',
+        announcementAnimationFade: 'Desvanecer',
+        announcementAnimationSlideUp: 'Deslizar Arriba',
+        announcementAnimationSlideLeft: 'Deslizar Izquierda',
+        announcementAnimationScale: 'Escalar',
+        announcementAnimationRandom: 'Aleatorio',
     }
 };
 

@@ -483,9 +483,13 @@ body {
     display: inline;
     font-size: 14px;
     color: #fff;
-    font-weight: 500;
+    font-weight: 600;
     margin: 0;
     line-height: 1.1;
+}
+
+.horizontal-chat.theme-light .message-text-inline {
+    color: #1f2328 !important;
 }
 .horizontal-chat .membership-icon {
     width: 14px;

@@ -3,6 +3,27 @@ const WebSocket = require('ws');
 const { z } = require('zod');
 
 function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE) {
+
+  function readConfig() {
+    try {
+      if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+        return JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
+      }
+    } catch (e) {
+      console.error('Error reading tip goal config:', e);
+    }
+    return null;
+  }
+
+  app.get('/api/tip-goal', (_req, res) => {
+    try {
+      const cfg = readConfig();
+      if (!cfg) return res.status(404).json({ error: 'No tip goal configured' });
+      res.json({ success: true, ...cfg });
+    } catch (e) {
+      res.status(500).json({ error: 'Error loading tip goal config', details: e.message });
+    }
+  });
   app.post('/api/tip-goal', strictLimiter, goalAudioUpload.single('audioFile'), async (req, res) => {
     try {
       const schema = z.object({

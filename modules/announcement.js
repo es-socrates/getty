@@ -67,7 +67,9 @@ class AnnouncementModule {
     if (!this.state.messages.length) return;
     const cooldown = this.state.cooldownSeconds * 1000;
     this._timer = setTimeout(() => {
-      try { this.broadcastRandomMessage(); } catch (e) { console.error('[announcement] broadcast error', e); }
+      try { this.broadcastRandomMessage(); } catch {
+        console.error('[announcement] broadcast error');
+      }
       this.scheduleNext();
     }, cooldown);
     if (this._timer && typeof this._timer.unref === 'function') {
@@ -147,7 +149,7 @@ class AnnouncementModule {
       try {
         this.start();
         this.broadcastRandomMessage();
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     }
     return message;
   }
