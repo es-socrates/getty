@@ -83,7 +83,6 @@ async function copy() {
   min-width: 11rem;
   max-width: 20rem;
   padding: 0.75rem;
-  border-radius: 0.75rem;
   border: 1px solid var(--card-border);
   backdrop-filter: blur(4px);
   background: color-mix(in srgb, var(--card-bg) 70%, transparent);
@@ -113,7 +112,6 @@ async function copy() {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.375rem;
   padding: 0.25rem;
   color: var(--text-secondary);
   transition: color .2s, background .2s;
@@ -139,7 +137,6 @@ async function copy() {
   width: var(--color-size);
   height: var(--color-size);
   padding: 0;
-  border-radius: 0.5rem;
   cursor: pointer;
   border: 1px solid var(--card-border);
   background: transparent;
@@ -164,7 +161,6 @@ html.dark .swatch-ring {
   flex: 1;
   background: transparent;
   border: 1px solid var(--card-border);
-  border-radius: 0.5rem;
   padding: 0 0.5rem;
   height: var(--color-size);
   display: flex;

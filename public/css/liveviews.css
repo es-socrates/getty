@@ -1,6 +1,6 @@
 #liveviews-widget {
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--liveviews-bg, #fff);
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }

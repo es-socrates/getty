@@ -244,7 +244,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     warning.style.color = 'red';
     warning.style.fontSize = '14px';
     warning.style.marginBottom = '6px';
-    warning.innerText = 'El icono debe pesar máximo 1MB.';
+    warning.innerText = 'The icon must weigh a maximum of 1MB.';
     iconInput.parentNode.insertBefore(warning, iconInput);
     iconInput.addEventListener('change', function() {
       validateIconSize(iconInput);

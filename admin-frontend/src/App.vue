@@ -1,7 +1,7 @@
 <template>
   <a href="#main" class="skip-link">Skip to main content</a>
   <div
-    class="admin-container mx-auto px-6 py-5 transition-[padding] duration-300 max-w-[1600px]"
+    class="admin-container mx-auto px-6 py-5 transition-[padding] duration-300 max-w-[1330px]"
     :class="{ dark: isDark, compact }"
   >
     <header class="flex items-center justify-between pb-5 mb-8 border-b border-border" role="banner">
@@ -30,7 +30,7 @@
           :aria-pressed="compact.toString()"
           title="Compact mode"
         >
-          🗜️
+          📦
         </button>
         <div class="relative" @keyup.esc="menuOpen=false">
           <button
