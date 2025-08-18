@@ -746,7 +746,7 @@ app.use((err, _req, res, _next) => {
 
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3000;
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '127.0.0.1', () => {
     console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
   });
 
