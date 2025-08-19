@@ -67,7 +67,7 @@ module.exports = {
         },
       },
       borderRadius: {
-        os: '12px',
+        os: '6px',
         'os-sm': '8px',
         'os-lg': '16px',
       },

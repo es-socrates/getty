@@ -3,7 +3,7 @@
     <h3 id="chat-theme-heading" class="os-card-title mb-3">{{ t('chatThemeLabel') || 'Chat theme:' }}</h3>
     <div v-if="allThemes.length" class="form-group">
       <label :for="selectId">{{ t('chatThemeSelect') || 'Select theme' }}</label>
-      <select :id="selectId" class="select" v-model.number="selectedIdx" @change="onSelectChange" :aria-describedby="previewId">
+      <select :id="selectId" class="select mt-1" v-model.number="selectedIdx" @change="onSelectChange" :aria-describedby="previewId">
         <option v-for="(th, i) in allThemes" :key="th.name + '_' + i" :value="i">{{ th.name }}</option>
       </select>
       <div class="mt-2 flex gap-2 flex-wrap">
@@ -75,7 +75,7 @@ const defaultThemes = [
 .message-username.cyberpunk { color: var(--username); font-weight: 600; }
 .message-text-inline { color: #fff; font-weight: 600; }
 .message.has-donation { background: #ececec; border-left: 8px solid #ddb826; }
-.message.has-donation .message-username { color: #fff; }
+.message.has-donation .message-username { color: #111; }
 .message.has-donation .message-text-inline { color: #111 !important; }`
   },
   {
@@ -296,4 +296,5 @@ function copyCSS() {
 <style scoped>
 .chat-theme-preview { font-size: 14px; line-height: 1.35; }
 .chat-theme-preview .message { font-family: 'Inter', system-ui, sans-serif; }
+.chat-theme-preview .message-username { margin-right: 0.5rem; }
 </style>

@@ -30,7 +30,7 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 9. #️⃣ Social media: Show your social media accounts.
 10. 💬 Live Chat: Add a chat widget to your OBS with different themes.
 
-![getty](https://thumbs.odycdn.com/2524e3c28ebbf2a7b93016eff5f0e35d.webp)
+![getty](https://thumbs.odycdn.com/2c824f75e3a53242508da449d7b7a558.webp)
 
 ## Prerequisites to start Getty
 
@@ -60,8 +60,6 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 
 The app's admin page has all the widget links for OBS. I recommend saving the changes on the admin page and checking that all of them are active, or the ones you need.
 
-![getty](https://thumbs.odycdn.com/8c6125617bf086a6046b445de0a01772.webp)
-
 ## How to add widgets to OBS?
 
 1. Open the OBS Studio software.
@@ -70,20 +68,8 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 4. Adjust the size, position and color of each widget.
 5. You're done! The widgets will appear in your stream. Let's stream!
 
-![getty](https://thumbs.odycdn.com/6dd538e00705ebaf66e6a179ea7a8c59.webp)
-
-## Developer Notes
-
-- API map: see docs/ROUTES.md for a full list of endpoints and their modules.
-- Run tests:
-- npm test
-  
-Most HTTP routes have been modularized under the routes/ directory to improve maintainability and testability.
-
 Getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
 
-**This is an independent project; it is not an official Odysee product.**
-
-Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
+**This is an independent project; it is not an official Odysee product.** Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
 
 ## Made with love for Odysee ❤️

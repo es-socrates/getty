@@ -38,7 +38,7 @@
   .os-header-title { @apply text-sm font-semibold tracking-wide; }
   .os-header-kpi { @apply inline-flex items-center gap-1 rounded-os-sm px-2 py-1 border border-neutral-200 dark:border-neutral-800 text-[11px] os-muted bg-neutral-50 dark:bg-neutral-900; }
 
-  .os-sidebar { @apply bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 w-64 shrink-0; }
+  .os-sidebar { @apply bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800; }
   .os-sidebar-label { @apply px-3 pb-2 text-[10px] font-semibold tracking-wider uppercase os-muted; }
   .os-nav-link { @apply flex items-center gap-2 px-3 py-2 rounded-os-sm text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 hover:bg-neutral-50 dark:hover:text-neutral-100 dark:hover:bg-neutral-900 transition; }
   .os-nav-link[aria-current="page"], .os-nav-link.is-active { @apply bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-medium border border-neutral-200 dark:border-neutral-800; }
@@ -158,16 +158,31 @@
   .input-group-sm input { @apply px-2 py-1 text-xs; }
   .input-group-sm button { @apply px-3 py-1 text-xs; }
 
+  .admin-layout { --sidebar-w: 14rem; }
+  .sidebar-collapsed { --sidebar-w: 4rem; }
   .admin-sidebar {
     @apply flex flex-col gap-4 pr-4 border-r border-[var(--card-border)] backdrop-blur-sm transition-all duration-300;
     background: color-mix(in srgb, var(--card-bg) 40%, transparent);
+    box-sizing: border-box;
+  }
+  @media (min-width: 768px) {
+    .admin-layout { padding-left: var(--sidebar-w, 14rem); }
+    .admin-sidebar {
+      position: fixed;
+      left: var(--container-left, 0px);
+      top: var(--admin-top, var(--admin-header-h, 64px));
+      width: var(--sidebar-w, 14rem);
+      height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)));
+      overflow-x: visible;
+      z-index: 100;
+    }
   }
   .sidebar-collapsed .admin-sidebar { @apply w-16 pr-0; }
   .sidebar-collapsed .admin-sidebar .sidebar-title { @apply opacity-0; }
   .sidebar-collapsed .admin-sidebar .sidebar-link span:last-child { @apply hidden; }
   .sidebar-toggle-btn {
   @apply absolute -right-3 top-4 w-6 h-6 rounded-full bg-[var(--bg-chat)] flex items-center justify-center text-xs cursor-pointer shadow-sm hover:bg-[var(--card-bg)] transition;
-  z-index: 30;
+  z-index: 120;
   }
   .sidebar-toggle-icon { @apply transition-transform duration-300; }
   .sidebar-collapsed .sidebar-toggle-icon { @apply -rotate-180; }

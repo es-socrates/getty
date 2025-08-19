@@ -84,6 +84,7 @@ async function copy() {
   max-width: 20rem;
   padding: 0.75rem;
   border: 1px solid var(--card-border);
+  border-radius: 4px;
   backdrop-filter: blur(4px);
   background: color-mix(in srgb, var(--card-bg) 70%, transparent);
   position: relative;

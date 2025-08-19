@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .message-username.cyberpunk { color: var(--username); font-weight: 600; }
             .message-text-inline { color: #fff; font-weight: 600; }
             .message.has-donation { background: #ececec; border-left: 8px solid #ddb826; }
-            .message.has-donation .message-username { color: #fff; }
+            .message.has-donation .message-username { color: #111; }
             .message.has-donation .message-text-inline { color: #111 !important; }`
         },
         {

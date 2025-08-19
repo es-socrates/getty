@@ -86,11 +86,11 @@ Español
       </div>
     </header>
     <div
-      class="admin-layout flex flex-col md:flex-row gap-5"
+      class="admin-layout flex flex-col md:flex-row md:items-start gap-5"
       :class="{ 'sidebar-collapsed': sidebarCollapsed }"
     >
       <aside
-        class="admin-sidebar os-sidebar relative w-56 flex-shrink-0 transition-all duration-300"
+        class="admin-sidebar os-sidebar w-56 flex-shrink-0 transition-all duration-300"
         :class="{ 'w-16': sidebarCollapsed }"
         role="navigation"
         aria-label="Primary"
@@ -334,7 +334,7 @@ function toggleTheme() { applyTheme(!isDark.value); }
 function toggleMenu() { menuOpen.value = !menuOpen.value; }
 function handleClickOutside(e) {
   if (!menuOpen.value) return;
-  const menuEl = document.querySelector('.admin-header .relative');
+  const menuEl = document.querySelector('.os-header .relative');
   if (menuEl && !menuEl.contains(e.target)) menuOpen.value = false;
 }
 function setLocale(l) { locale.value = l; menuOpen.value = false; }
@@ -347,6 +347,43 @@ function toggleCompact() {
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value;
   try { localStorage.setItem('admin-sidebar-collapsed', sidebarCollapsed.value ? '1' : '0'); } catch {}
+  setSidebarWidthVar();
+}
+
+function setHeaderHeightVar() {
+  try {
+    const header = document.querySelector('.os-header');
+    const h = header ? header.offsetHeight : 64;
+    document.documentElement.style.setProperty('--admin-header-h', h + 'px');
+    const rect = header ? header.getBoundingClientRect() : null;
+    const headerBottom = rect ? rect.bottom : h;
+    const hs = header ? getComputedStyle(header) : null;
+    const mb = hs ? parseFloat(hs.marginBottom || '0') : 0;
+    document.documentElement.style.setProperty('--admin-top', (headerBottom + mb) + 'px');
+  } catch { /* ignore */ }
+}
+let resizeTimer = null;
+function onResize() {
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { setHeaderHeightVar(); setContainerLeftVar(); }, 100);
+}
+function onScroll() {
+  setHeaderHeightVar();
+}
+
+function setContainerLeftVar() {
+  try {
+    const container = document.querySelector('.admin-container');
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const left = Math.max(rect.left, 0);
+    document.documentElement.style.setProperty('--container-left', left + 'px');
+  } catch { /* ignore */ }
+}
+
+function setSidebarWidthVar() {
+  const w = sidebarCollapsed.value ? 64 : 224;
+  document.documentElement.style.setProperty('--sidebar-w', w + 'px');
 }
 
 onMounted(() => {
@@ -355,6 +392,11 @@ onMounted(() => {
     applyTheme(true);
   }
   window.addEventListener('click', handleClickOutside);
+  setHeaderHeightVar();
+  setContainerLeftVar();
+  setSidebarWidthVar();
+  window.addEventListener('resize', onResize);
+  window.addEventListener('scroll', onScroll, { passive: true });
 
   let c = null; try { c = localStorage.getItem('admin-compact'); } catch {}
   if (c === '1') {
@@ -364,7 +406,11 @@ onMounted(() => {
   let sc = null; try { sc = localStorage.getItem('admin-sidebar-collapsed'); } catch {}
   if (sc === '1') sidebarCollapsed.value = true;
 });
-onBeforeUnmount(() => window.removeEventListener('click', handleClickOutside));
+onBeforeUnmount(() => {
+  window.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('resize', onResize);
+  window.removeEventListener('scroll', onScroll);
+});
 
 let suppressNextDirtyPrompt = false;
 router.beforeEach((to, from, next) => {
@@ -379,6 +425,10 @@ router.beforeEach((to, from, next) => {
     }
   }
   next();
+});
+
+router.afterEach(() => {
+  setTimeout(() => { setHeaderHeightVar(); setContainerLeftVar(); }, 0);
 });
 </script>
 <style>
