@@ -236,6 +236,9 @@
   "chatThemeCSSPlaceholder": "Theme CSS",
   "chatThemeSave": "Save theme",
   "chatThemeDelete": "Delete theme",
+  "chatThemeClear": "Clear theme",
+  "chatThemeCleared": "Theme cleared",
+  "chatThemeClearError": "Could not clear theme",
   "obsWsPasswordPlaceholder": "Password (if set)",
   "saveObsWsSettings": "Save OBS connection",
   "obsWsReminderTitle": "Important:",
@@ -286,5 +289,7 @@
   "deleteCustomAudio": "Delete custom audio",
   "deletedCustomAudio": "Custom audio deleted",
   "deleteFailedCustomAudio": "Failed to delete custom audio",
-  "invalidAudioFile": "Invalid audio file. Please select a valid audio file."
+  "invalidAudioFile": "Invalid audio file. Please select a valid audio file.",
+  "raffleSettings": "Raffle settings",
+  "announcementMsgUpdated": "Announcement updated"
 }

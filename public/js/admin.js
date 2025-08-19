@@ -159,6 +159,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const defaultThemes = [
         {
+            name: 'Por defecto',
+            css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
+            .message { background: var(--bg-message); border-radius: 4px; padding: 12px; margin-bottom: 8px; box-sizing: border-box; }
+            .message.odd { background: var(--bg-message-alt); }
+            .message-username.cyberpunk { color: var(--username); font-weight: 600; }
+            .message-text-inline { color: #fff; font-weight: 600; }
+            .message.has-donation { background: #ececec; border-left: 8px solid #ddb826; }
+            .message.has-donation .message-username { color: #fff; }
+            .message.has-donation .message-text-inline { color: #111 !important; }`
+        },
+        {
             name: 'Twitch',
             css: `:root { --bg-main: #18181b; --bg-message: #23232a; --bg-message-alt: #1e1e24; --border: #9147ff; --text: #f7f7fa; --username: #a970ff; --donation: #f7c948; --donation-bg: #9147ff; }
             .message { background: #111; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }

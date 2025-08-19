@@ -12,6 +12,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        neutral: {
+          0: '#ffffff',
+          50: '#fafafa',
+          100: '#f4f4f5',
+          200: '#e4e4e7',
+          300: '#d4d4d8',
+          400: '#a1a1aa',
+          500: '#71717a',
+          600: '#52525b',
+          700: '#3f3f46',
+          800: '#27272a',
+          900: '#18181b',
+          950: '#09090b',
+        },
         primary: {
           DEFAULT: '#ca004b',
           50: '#fdf2f7',
@@ -27,7 +41,6 @@ module.exports = {
         },
         success: '#00ff7f',
         error: '#ff4d4f',
-        // Dark theme colors
         background: {
           DEFAULT: 'var(--bg-background)',
           dark: '#09080d',
@@ -52,6 +65,14 @@ module.exports = {
           primary: 'var(--text-primary)',
           secondary: 'var(--text-secondary)',
         },
+      },
+      borderRadius: {
+        os: '12px',
+        'os-sm': '8px',
+        'os-lg': '16px',
+      },
+      boxShadow: {
+        os: '0 1px 2px rgba(15, 15, 15, 0.06), 0 1px 1px rgba(15, 15, 15, 0.04)',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

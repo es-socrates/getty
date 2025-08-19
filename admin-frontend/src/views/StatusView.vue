@@ -1,44 +1,30 @@
 <template>
   <section class="admin-tab active">
-  <div class="panel-surface mb-4">
-      <h3 class="widget-title mb-2">{{ t('statusModules') }}</h3>
-      <div
-        class="grid"
-        style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;"
-      >
-        <div
-          v-for="m in modulesList"
-            :key="m.key"
-            class="status-tile"
-            :style="{ border: '1px solid var(--card-border)', background: 'var(--card-bg)', padding: '12px', borderRadius: '8px' }"
-        >
-          <div
-            style="font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;"
-          >
-            <span
-              :style="{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: m.active ? '#16a34a' : '#64748b'
-              }"
-            ></span>
+    <OsCard :title="t('statusModules')" class="mb-4">
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
+        <div v-for="m in modulesList" :key="m.key" class="os-subtle p-3 rounded-os-sm">
+          <div class="flex items-center gap-2 font-semibold text-sm">
+            <span :class="['w-2 h-2 rounded-full', m.active ? 'bg-[#16a34a]' : 'bg-neutral-400']"></span>
             {{ m.label }}
           </div>
-          <div class="small" v-if="m.extra">{{ m.extra }}</div>
+          <div class="os-card-meta" v-if="m.extra">{{ m.extra }}</div>
         </div>
       </div>
-    </div>
-  <div class="panel-surface">
-      <h3 class="widget-title mb-2">{{ t('statusSystem') }}</h3>
-      <div class="small" style="display:flex;flex-direction:column;gap:4px;">
-        <div>{{ t('statusLocale') }}: {{ locale }}</div>
-        <div>{{ t('statusTime') }}: {{ now }}</div>
-        <div v-if="system"><span>{{ t('statusUptime') }}:</span> {{ formattedUptime }}</div>
-        <div v-if="system"><span>{{ t('statusWsClients') }}:</span> {{ system.wsClients }}</div>
-        <div v-if="system"><span>ENV:</span> {{ system.env }}</div>
-      </div>
-    </div>
+    </OsCard>
+
+    <OsCard :title="t('statusSystem')">
+      <OsTable
+        :headers="[]"
+        :rows="systemRows"
+        :cols="['col-span-3','col-span-9']"
+        :aria-label="t('statusSystem')"
+      >
+        <template #cell="{ value, colIndex }">
+          <template v-if="colIndex === 0"><span class="os-th">{{ value }}</span></template>
+          <template v-else>{{ value }}</template>
+        </template>
+      </OsTable>
+    </OsCard>
   </section>
 </template>
 
@@ -46,6 +32,8 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import OsCard from '../components/os/OsCard.vue'
+import OsTable from '../components/os/OsTable.vue'
 
 const { t, locale } = useI18n();
 const modulesList = ref([]);
@@ -61,6 +49,18 @@ function formatUptime(seconds) {
 const formattedUptime = computed(() =>
   system.value ? formatUptime(system.value.uptimeSeconds || 0) : ''
 );
+
+const systemRows = computed(() => {
+  const rows = [];
+  rows.push([t('statusLocale'), locale]);
+  rows.push([t('statusTime'), now.value]);
+  if (system.value) {
+    rows.push([t('statusUptime'), formattedUptime.value]);
+    rows.push([t('statusWsClients'), system.value.wsClients]);
+    rows.push(['ENV', system.value.env]);
+  }
+  return rows;
+});
 
 async function load() {
   try {

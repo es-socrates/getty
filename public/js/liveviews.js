@@ -1,3 +1,26 @@
+function notify(message, type = 'error') {
+  try {
+    if (window.showAlert) return window.showAlert(message, type);
+  } catch(e) {}
+  try {
+    const el = document.createElement('div');
+    el.textContent = message;
+    el.setAttribute('role','status');
+    el.style.position = 'fixed';
+    el.style.right = '12px';
+    el.style.bottom = '12px';
+    el.style.zIndex = '9999';
+    el.style.padding = '10px 12px';
+    el.style.borderRadius = '10px';
+    el.style.border = '1px solid rgba(0,0,0,.15)';
+    el.style.background = type === 'success' ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.12)';
+    el.style.color = type === 'success' ? '#065f46' : '#7f1d1d';
+    document.body.appendChild(el);
+    setTimeout(() => { el.remove(); }, 2500);
+  } catch(e) {
+    console.log(`[${type}]`, message);
+  }
+}
 async function fetchLiveviewsConfig() {
   try {
     const res = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
@@ -134,7 +157,7 @@ function validateIconSize(fileInput) {
   const file = fileInput.files[0];
   if (!file) return true;
   if (file.size > 1024 * 1024) {
-    alert('The icon is too big. Maximum size: 1MB.');
+    notify('The icon is too big. Maximum size: 1MB.', 'error');
     fileInput.value = '';
     return false;
   }
@@ -309,9 +332,9 @@ async function saveLiveviewsViewersLabel() {
                 body: JSON.stringify({ viewersLabel: label })
             });
             if (!res.ok) throw new Error('Could not save to backend');
-        } catch (e) {
-            alert('Error saving the label in the backend: ' + (e.message || e));
-        }
+    } catch (e) {
+      notify('Error saving the label in the backend: ' + (e.message || e), 'error');
+    }
     }
 }
 
@@ -455,8 +478,8 @@ if (window.location.pathname.startsWith('/admin')) {
                 viewerCountSave.style.fontFamily = config.font || 'Arial';
                 viewerCountSave.style.fontSize = (config.size || '32') + 'px';
             }
-        } catch (err) {
-            alert('Error saving configuration: ' + (err.message || err));
-        }
+    } catch (err) {
+      notify('Error saving configuration: ' + (err.message || err), 'error');
+    }
     });
 }

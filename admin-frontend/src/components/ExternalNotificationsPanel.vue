@@ -1,6 +1,6 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div class="panel-surface">
+    <OsCard>
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
         <input class="input" :class="{'input-error': errors.discordWebhook}" v-model="form.discordWebhook" placeholder="https://discord.com/api/webhooks/..." @input="validate" />
@@ -44,9 +44,9 @@
   <button class="btn" :disabled="!dirty || hasErrors || saving" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
     <span class="small" :style="{color: statusActive ? '#16a34a':'#888'}" :aria-live="dirty ? 'polite':'off'">{{ statusActive ? t('externalStatusActive'): t('externalStatusInactive') }}</span>
       </div>
-    </div>
-  
-  <div class="info-card" style="background:#f8fafc;border:1px solid #cbd5e1;padding:16px;border-radius:8px;margin-top:16px;display:flex;align-items:flex-start;gap:12px;">
+  </OsCard>
+
+  <div class="os-subtle p-4 rounded-os mt-4 flex items-start gap-3">
       <svg width="24" height="24" fill="none" style="flex-shrink:0;">
   <circle cx="12" cy="12" r="12" fill="#38bdf8" />
   <path d="M12 8v4m0 4h.01" stroke="#fff" stroke-width="2" stroke-linecap="round" />
@@ -64,7 +64,7 @@
           <li style="color:#ca004b;font-size:16px;">{{ t('obsWsReminderCopyUrl') }}</li>
         </ul>
       </div>
-    </div>
+  </div>
   </section>
 </template>
 <script setup>
@@ -75,6 +75,7 @@ import axios from 'axios';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { isHttpUrl } from '../utils/validation';
+import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
 

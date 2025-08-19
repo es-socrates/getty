@@ -27,6 +27,22 @@
 }
 
 @layer components {
+  .os-surface { @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-os shadow-os; }
+  .os-subtle { @apply bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-200/70 dark:border-neutral-800/80 rounded-os; }
+  .os-divider { @apply border-t border-neutral-200 dark:border-neutral-800; }
+  .os-muted { @apply text-neutral-500 dark:text-neutral-400; }
+  .os-strong { @apply text-neutral-900 dark:text-neutral-100; }
+
+  .os-header { @apply sticky top-0 z-40 bg-white/70 dark:bg-neutral-950/60 backdrop-blur border-b border-neutral-200 dark:border-neutral-800; }
+  .os-header-inner { @apply h-14 px-4 flex items-center gap-3; }
+  .os-header-title { @apply text-sm font-semibold tracking-wide; }
+  .os-header-kpi { @apply inline-flex items-center gap-1 rounded-os-sm px-2 py-1 border border-neutral-200 dark:border-neutral-800 text-[11px] os-muted bg-neutral-50 dark:bg-neutral-900; }
+
+  .os-sidebar { @apply bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 w-64 shrink-0; }
+  .os-sidebar-label { @apply px-3 pb-2 text-[10px] font-semibold tracking-wider uppercase os-muted; }
+  .os-nav-link { @apply flex items-center gap-2 px-3 py-2 rounded-os-sm text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 hover:bg-neutral-50 dark:hover:text-neutral-100 dark:hover:bg-neutral-900 transition; }
+  .os-nav-link[aria-current="page"], .os-nav-link.is-active { @apply bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-medium border border-neutral-200 dark:border-neutral-800; }
+  .os-icon { @apply w-4 h-4 text-neutral-400 group-hover:text-neutral-700 dark:text-neutral-500 dark:group-hover:text-neutral-200; }
   .panel-surface {
     @apply backdrop-blur-sm border border-[var(--card-border)] rounded-xl p-5 shadow-sm transition-all;
     background: color-mix(in srgb, var(--card-bg) 80%, transparent);
@@ -99,6 +115,29 @@
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-[#1e1e1e] bg-[#f59e0b] hover:bg-[#d97706] focus-visible:ring-2 focus-visible:ring-[#f59e0b];
   }
   .btn.disabled, .btn[disabled] { @apply opacity-60 cursor-not-allowed; }
+
+  .os-table {
+    @apply w-full rounded-os-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden;
+  }
+  .os-tr {
+    @apply grid grid-cols-12;
+  }
+  .os-th {
+    @apply px-3 py-2 text-[12px] font-semibold tracking-wide text-neutral-600 dark:text-neutral-300 border-b border-neutral-200 dark:border-neutral-800;
+  }
+  .os-td {
+    @apply px-3 py-2 text-sm text-neutral-800 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-800;
+  }
+
+  .os-table > .os-tr:first-child .os-th { @apply bg-neutral-50 dark:bg-neutral-900; }
+
+  .os-table > .os-tr:last-child .os-td { @apply border-b-0; }
+
+  .os-table.social-media > .os-tr {
+    grid-template-columns: 44px minmax(140px, 2fr) minmax(220px, 4fr) minmax(120px, 1.5fr) minmax(120px, 2fr) max-content;
+  }
+  .os-table.social-media .num { @apply px-1 text-center; }
+  .os-table.social-media .actions { justify-self: end; }
 
   .badge {
     @apply inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-[var(--bg-chat)] border border-[var(--card-border)];

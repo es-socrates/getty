@@ -14,7 +14,7 @@ function readConfig() {
 
 describe('Chat themeCSS API', () => {
   const basePayload = {
-    chatUrl: 'https://example.com/chat',
+    chatUrl: '28632ts7652698v2cdfro126eb70eb11793201b3',
     bgColor: '#000',
     msgBgColor: '#111'
   };

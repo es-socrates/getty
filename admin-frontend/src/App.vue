@@ -4,7 +4,7 @@
     class="admin-container mx-auto px-6 py-5 transition-[padding] duration-300 max-w-[1330px]"
     :class="{ dark: isDark, compact }"
   >
-    <header class="flex items-center justify-between pb-5 mb-8 border-b border-border" role="banner">
+  <header class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border" role="banner">
       <div class="flex items-center gap-4">
   <RouterLink to="/admin/status" class="flex items-center gap-2" aria-label="Go to Status">
           <img :src="logoLight" alt="Getty Logo" class="h-9 logo-light" />
@@ -12,6 +12,7 @@
         </RouterLink>
       </div>
       <div class="flex items-center gap-3 relative">
+        <OsKpi>{{ new Date().toLocaleDateString() }}</OsKpi>
         <button @click="toggleTheme" class="theme-toggle" title="Toggle theme">
           <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
             <path
@@ -89,7 +90,7 @@ Español
       :class="{ 'sidebar-collapsed': sidebarCollapsed }"
     >
       <aside
-        class="admin-sidebar relative w-56 flex-shrink-0 transition-all duration-300"
+        class="admin-sidebar os-sidebar relative w-56 flex-shrink-0 transition-all duration-300"
         :class="{ 'w-16': sidebarCollapsed }"
         role="navigation"
         aria-label="Primary"
@@ -113,8 +114,8 @@ Español
         <div class="sidebar-section">
           <h3 class="sidebar-title">Widgets</h3>
           <nav class="sidebar-nav">
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/status">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/status">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -131,8 +132,8 @@ Español
               </span>
               <span>{{ t('statusTitle') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/chat">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/chat">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -148,8 +149,8 @@ Español
               </span>
               <span>{{ t('chat') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/last-tip">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/last-tip">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -164,8 +165,8 @@ Español
               </span>
               <span>{{ t('lastTip') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/tip-goal">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/tip-goal">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -180,8 +181,8 @@ Español
               </span>
               <span>{{ t('tipGoal') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/raffle">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/raffle">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -199,8 +200,8 @@ Español
               </span>
               <span>{{ t('raffleTitle') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/notifications">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/notifications">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -215,8 +216,8 @@ Español
               </span>
               <span>{{ t('notifications') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/liveviews">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/liveviews">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -231,8 +232,8 @@ Español
               </span>
               <span>{{ t('liveviewsTitle') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/social-media">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/social-media">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -250,8 +251,8 @@ Español
               </span>
               <span>{{ t('socialMediaTitle') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/announcement">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/announcement">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -268,8 +269,8 @@ Español
               </span>
               <span>{{ t('announcementTitle') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link" active-class="active" to="/admin/external">
-              <span class="icon" aria-hidden="true">
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/external">
+              <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -304,6 +305,7 @@ Español
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { watch, ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import OsKpi from './components/os/OsKpi.vue'
 import { anyDirty } from './composables/useDirtyRegistry';
 import ToastHost from './components/shared/ToastHost.vue';
 import logoLight from '../../public/assets/getty.png';
@@ -415,9 +417,7 @@ router.beforeEach((to, from, next) => {
   font-size: 14px;
   line-height: 1.2;
 }
-.sidebar-link.active {
-  background: var(--sidebar-active-bg, #1e293b);
-}
+.sidebar-link.active { background: var(--sidebar-link-active-bg); color: var(--text-primary); }
 .sidebar-link .icon {
   width: 18px;
   height: 18px;
@@ -429,14 +429,6 @@ router.beforeEach((to, from, next) => {
   width: 18px;
   height: 18px;
   stroke: currentColor;
-}
-html.dark .sidebar-link.active {
-  background: var(--sidebar-link-active-bg);
-  color: #fff;
-}
-html:not(.dark) .sidebar-link.active {
-  background: #9eb474;
-  color: #fff;
 }
 
 .logo-light {

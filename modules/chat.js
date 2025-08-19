@@ -7,6 +7,19 @@ const Logger = {
     error: (...args) => console.error('[ERROR]', ...args)
 };
 
+const DEFAULT_WS_TEMPLATE = 'wss://ws-na1.odysee.com/commentron?id={claimId}';
+function resolveWsFromClaimId(claimId) {
+  try {
+    if (process.env.NODE_ENV === 'test') return null;
+    const tpl = process.env.ODYSEE_WS_TEMPLATE || DEFAULT_WS_TEMPLATE;
+    if (typeof claimId !== 'string' || !claimId.trim()) return null;
+    if (typeof tpl === 'string' && tpl.includes('{claimId}')) {
+      return tpl.replace(/\{claimId\}/g, claimId.trim());
+    }
+  } catch { /* noop */ }
+  return null;
+}
+
 class ChatModule {
   constructor(wss) {
     this.wss = wss;
@@ -219,8 +232,18 @@ class ChatModule {
   
   updateChatUrl(newUrl) {
     this.chatUrl = newUrl;
-    process.env.ODYSEE_WS_URL = newUrl;
-    this.connect(newUrl);
+
+    let effectiveUrl = newUrl;
+    if (typeof newUrl === 'string' && !/^wss?:\/\//i.test(newUrl)) {
+      const maybe = resolveWsFromClaimId(newUrl);
+      if (maybe) effectiveUrl = maybe;
+    }
+
+    process.env.ODYSEE_WS_URL = (typeof effectiveUrl === 'string' && /^wss?:\/\//i.test(effectiveUrl)) ? effectiveUrl : newUrl;
+
+    if (typeof effectiveUrl === 'string' && /^wss?:\/\//i.test(effectiveUrl) && effectiveUrl.includes('commentron')) {
+      this.connect(effectiveUrl);
+    }
     return this.getStatus();
   }
   

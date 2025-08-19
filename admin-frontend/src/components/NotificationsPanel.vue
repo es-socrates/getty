@@ -1,8 +1,8 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div class="panel-surface mb-4" aria-describedby="gif-section-desc">
+    <OsCard class="mb-4" aria-describedby="gif-section-desc">
       <p id="gif-section-desc" class="sr-only">Configure animated GIF position and upload for notifications.</p>
-      <h3 class="widget-title">GIF</h3>
+  <h3 class="os-card-title">GIF</h3>
       <div class="form-group">
         <label class="label">{{ t('notificationGifPositionLabel') }}</label>
         <select class="input" v-model="gif.position">
@@ -25,10 +25,10 @@
       </div>
       <div v-if="errors.gif" class="small mt-2" style="color:#b91c1c">{{ errors.gif }}</div>
       <div v-if="gif.gifPath" class="mt-3"><img :src="gif.gifPath" :alt="gif.fileName" style="max-height:120px" /></div>
-    </div>
-  <div class="panel-surface mb-4" aria-describedby="tts-section-desc">
+  </OsCard>
+  <OsCard class="mb-4" aria-describedby="tts-section-desc">
       <p id="tts-section-desc" class="sr-only">Configure text to speech engine settings.</p>
-      <h3 class="widget-title">TTS</h3>
+  <h3 class="os-card-title">TTS</h3>
       <div class="form-group">
         <label class="label"><input type="checkbox" v-model="tts.enabled" /> {{ t('enableTextToSpeech') }}</label>
       </div>
@@ -40,10 +40,10 @@
         </select>
       </div>
   <div class="mt-2"><button class="btn" :disabled="savingTts" type="button" @click="saveTts" :aria-busy="savingTts? 'true':'false'">{{ savingTts ? t('commonSaving') : t('saveSettings') }}</button></div>
-    </div>
-  <div class="panel-surface mb-4" aria-describedby="audio-section-desc">
+  </OsCard>
+  <OsCard class="mb-4" aria-describedby="audio-section-desc">
       <p id="audio-section-desc" class="sr-only">Configure custom audio source for notifications.</p>
-      <h3 class="widget-title">{{ t('customAudioTitle') }}</h3>
+  <h3 class="os-card-title">{{ t('customAudioTitle') }}</h3>
       <div class="form-group">
         <label class="label" for="audio-source">{{ t('audioSourceLabel') }}</label>
         <select id="audio-source" v-model="audio.audioSource" class="input">
@@ -65,14 +65,14 @@
       </div>
       <div v-if="errors.audio" class="small" style="color:#b91c1c">{{ errors.audio }}</div>
       <button class="btn mt-3" :disabled="savingAudio" type="button" @click="saveAudio" :aria-busy="savingAudio? 'true':'false'">{{ savingAudio ? t('commonSaving') : t('saveSettings') }}</button>
-    </div>
-  <div class="panel-surface mt-4">
-      <h3 class="widget-title">{{ t('obsIntegration') }}</h3>
+  </OsCard>
+  <OsCard class="mt-4">
+  <h3 class="os-card-title">{{ t('obsIntegration') }}</h3>
       <div class="form-group">
         <label class="label">{{ t('notificationWidgetUrl') }}</label>
         <CopyField :value="widgetUrl" />
       </div>
-    </div>
+  </OsCard>
   </section>
 </template>
 <script setup>
@@ -83,6 +83,7 @@ import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE, MAX_AUDIO_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
+import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
 

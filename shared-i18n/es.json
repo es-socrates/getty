@@ -236,6 +236,9 @@
   "chatThemeCSSPlaceholder": "CSS del tema",
   "chatThemeSave": "Guardar tema",
   "chatThemeDelete": "Eliminar tema",
+  "chatThemeClear": "Quitar tema",
+  "chatThemeCleared": "Tema quitado",
+  "chatThemeClearError": "No se pudo quitar el tema",
   "obsWsPasswordPlaceholder": "Contraseña (si aplica)",
   "saveObsWsSettings": "Guardar conexión OBS",
   "obsWsReminderTitle": "Importante:",
@@ -286,5 +289,7 @@
   "deleteCustomAudio": "Eliminar audio personalizado",
   "deletedCustomAudio": "Audio personalizado eliminado",
   "deleteFailedCustomAudio": "No se pudo eliminar el audio personalizado",
-  "invalidAudioFile": "Archivo de audio no válido. Selecciona un archivo de audio válido."
+  "invalidAudioFile": "Archivo de audio no válido. Selecciona un archivo de audio válido.",
+  "raffleSettings": "Configuración del sorteo",
+  "announcementMsgUpdated": "Anuncio actualizado"
 }

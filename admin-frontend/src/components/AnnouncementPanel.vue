@@ -1,10 +1,7 @@
 <template>
   <section class="admin-tab active" role="form">
-<div class="panel-surface mb-4" aria-describedby="announce-settings-desc">
-      <p id="announce-settings-desc" class="sr-only">
-        Configure announcement rotation timing, theme, colors and animation.
-      </p>
-      <h3 class="widget-title mb-2">{{ t('announcementSettings') }}</h3>
+    <OsCard class="mb-4" :title="t('announcementSettings')" aria-describedby="announce-settings-desc">
+      <p id="announce-settings-desc" class="sr-only">Configure announcement rotation timing, theme, colors and animation.</p>
       <div
         class="grid"
         style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"
@@ -66,12 +63,9 @@
           {{ t('announcementClearTest') }}
         </button>
       </div>
-    </div>
+    </OsCard>
 
-  <div class="panel-surface">
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="widget-title mb-0">{{ t('announcementAddMessage') }}</h3>
-      </div>
+    <OsCard :title="t('announcementAddMessage')">
       <form
         @submit.prevent="addMessage"
         class="grid"
@@ -210,8 +204,8 @@
         aria-labelledby="announcement-edit-title"
         @keydown.esc.prevent="closeEdit"
       >
-  <div class="modal panel-surface" style="max-width:480px;width:100%;" ref="modalRef">
-          <h3 id="announcement-edit-title" class="widget-title mb-2">
+        <div class="modal os-surface rounded-os border border-[var(--card-border)] p-4 shadow-os bg-[var(--bg-card)]" style="max-width:480px;width:100%;" ref="modalRef">
+          <h3 id="announcement-edit-title" class="os-card-title mb-2">
             {{ t('commonEdit') }}
           </h3>
           <div class="form-group">
@@ -256,7 +250,7 @@
       </div>
 
       <div class="mt-6">
-        <h3 class="widget-title mb-2">{{ t('announcementFavicon') }}</h3>
+        <h3 class="os-card-title mb-2">{{ t('announcementFavicon') }}</h3>
         <div class="flex gap-2 items-end">
           <div class="form-group" style="flex:1;">
             <label class="label">{{ t('announcementSiteUrl') }}</label>
@@ -280,15 +274,14 @@
           </div>
         </div>
       </div>
-    </div>
-  <!-- OBS Integration panel -->
-  <div class="panel-surface mt-4">
-      <h3 class="widget-title mb-2">{{ t('obsIntegration') }}</h3>
+    </OsCard>
+
+    <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
         <label class="label">{{ t('announcementWidgetUrl') }}</label>
         <CopyField :value="widgetUrl" />
       </div>
-    </div>
+    </OsCard>
   </section>
 </template>
 
@@ -299,6 +292,7 @@ import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
 import { isHttpUrl, withinRange, MAX_TITLE_LEN, MAX_ANNOUNCEMENT_IMAGE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
+import OsCard from './os/OsCard.vue';
 
 const { t } = useI18n();
 

@@ -9,7 +9,8 @@ module.exports = [
       '!public/js/*.js',
       'public/js/min/**',
       'public/admin-dist/**',
-      'public/**/i18n-runtime*.js'
+      'public/**/i18n-runtime*.js',
+      'node_modules/**'
     ] },
   {
     files: [
