@@ -1,7 +1,7 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div v-if="warning" class="panel-surface" style="background:#fffbe6;border:1px solid #ffe066;color:#b58900;margin-top:12px;">
-      <div style="display:flex;align-items:center;gap:10px;">
+    <div v-if="warning" class="os-subtle mt-3 p-4 rounded-os" role="status" aria-live="polite">
+      <div class="flex items-center gap-2">
         <svg width="24" height="24" fill="none" style="flex-shrink:0;">
           <circle cx="12" cy="12" r="12" fill="#ffe066" />
           <path d="M12 8v4m0 4h.01" stroke="#b58900" stroke-width="2" stroke-linecap="round" />
@@ -12,7 +12,7 @@
         </div>
       </div>
     </div>
-  <div class="panel-surface mt-3" aria-describedby="raffle-settings-desc">
+    <OsCard class="mt-3" aria-describedby="raffle-settings-desc" :title="t('raffleSettings') || 'Raffle settings'">
       <p id="raffle-settings-desc" class="sr-only">Configure raffle command, prize, image, max winners and actions.</p>
       <div class="form-group">
         <label class="label" for="raffle-command">{{ t('raffleCommandLabel') }}</label>
@@ -25,7 +25,7 @@
       </div>
       <div class="form-group">
         <label class="label" for="raffle-image">{{ t('rafflePrizeImageLabel') }}</label>
-      <input id="raffle-image" type="file" accept="image/*" @change="onImageSelected" aria-label="{{ t('rafflePrizeImageLabel') }}" />
+      <input id="raffle-image" type="file" accept="image/*" @change="onImageSelected" :aria-label="t('rafflePrizeImageLabel')" />
         <div v-if="form.imageUrl" style="margin-top:8px;">
           <img :src="form.imageUrl" alt="raffle" style="max-height:80px;object-fit:contain;border-radius:4px;" />
         </div>
@@ -46,13 +46,12 @@
         </label>
         <button class="btn mt-2" style="margin-top:12px;" @click="saveSettings" :disabled="savingSettings">{{ savingSettings ? t('commonSaving') : t('saveSettings') }}</button>
       </div>
-    </div>
-  <div class="panel-surface mt-3">
-      <h3 class="widget-title">{{ t('obsIntegration') }}</h3>
+    </OsCard>
+    <OsCard class="mt-3" :title="t('obsIntegration')">
       <div class="form-group">
         <CopyField :value="widgetUrl" />
       </div>
-    </div>
+    </OsCard>
   </section>
 </template>
 <script setup>
@@ -63,6 +62,7 @@ import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
 import CopyField from './shared/CopyField.vue';
 import { MAX_RAFFLE_IMAGE } from '../utils/validation';
+import OsCard from './os/OsCard.vue';
 
 const { t } = useI18n();
 

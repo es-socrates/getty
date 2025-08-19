@@ -1,6 +1,6 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div class="panel-surface">
+    <OsCard>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
         <div class="form-group" style="grid-column:1/-1;">
           <label class="label">{{ t('liveviewsClaimId') }}</label>
@@ -59,7 +59,7 @@
         <label class="label">Widget URL</label>
   <CopyField :value="widgetUrl" />
       </div>
-    </div>
+  </OsCard>
   </section>
 </template>
 <script setup>
@@ -70,6 +70,7 @@ import axios from 'axios';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
+import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
 

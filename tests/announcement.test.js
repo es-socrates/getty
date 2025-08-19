@@ -8,7 +8,7 @@ beforeAll(async () => {
   try {
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
-  } catch {}
+  } catch { /* noop for test spy setup */ }
   if (typeof app.startTestServer === 'function') {
     server = await app.startTestServer();
     base = request(server);
@@ -20,28 +20,9 @@ beforeAll(async () => {
 afterAll(done => {
   try {
     if (app.disposeGetty) app.disposeGetty();
-  } catch {}
+  } catch { /* ignore dispose errors */ }
   if (server) server.close(done); else done();
 });
-
-function waitForWsMessage(wss, predicate, timeout = 2000) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), timeout);
-    wss.clients.forEach(c => {
-      const listener = msg => {
-        try {
-          const data = JSON.parse(msg.toString());
-          if (predicate(data)) {
-            clearTimeout(timer);
-            c.removeListener('message', listener);
-            resolve(data);
-          }
-        } catch {}
-      };
-      c.on('message', listener);
-    });
-  });
-}
 
 async function createMessage(text, extra = {}) {
   const req = base.post('/api/announcement/message');
@@ -163,7 +144,7 @@ describe('Announcement WebSocket', () => {
     server = await app.startTestServer();
     address = `ws://localhost:${server.address().port}`;
   });
-  afterAll(done => { try { if (ws && ws.readyState === 1) ws.close(); } catch {}; if (server) server.close(()=>done()); else done(); });
+  afterAll(done => { try { if (ws && ws.readyState === 1) ws.close(); } catch { /* ignore ws close */ }; if (server) server.close(()=>done()); else done(); });
 
   test('receives config broadcast and manual announcement', async () => {
     const events = [];
@@ -183,7 +164,7 @@ describe('Announcement WebSocket', () => {
             clearTimeout(timeout);
             resolve();
           }
-        } catch {}
+        } catch { /* intentionally ignored */ }
       });
       ws.on('error', reject);
     });

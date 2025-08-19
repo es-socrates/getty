@@ -11,6 +11,8 @@
   --card-border: var(--border-color);
   --page-bg: var(--bg-background);
   --card-text: var(--text-primary);
+  --sidebar-link-color: #52525b;
+  --sidebar-link-active-bg: #f4f4f5;
 }
 .dark {
   --bg-background: #09080d;
@@ -21,6 +23,8 @@
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --shadow-color: rgb(0 0 0 / 30%);
+  --sidebar-link-color: #a1a1aa;
+  --sidebar-link-active-bg: #0f1214;
 }
 * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;

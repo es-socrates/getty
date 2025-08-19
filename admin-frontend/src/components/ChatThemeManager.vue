@@ -1,6 +1,6 @@
 <template>
-  <div class="panel-surface mt-4" aria-labelledby="chat-theme-heading">
-    <h3 id="chat-theme-heading" class="widget-title mb-3">{{ t('chatThemeLabel') || 'Chat theme:' }}</h3>
+  <OsCard class="mt-4" aria-labelledby="chat-theme-heading">
+    <h3 id="chat-theme-heading" class="os-card-title mb-3">{{ t('chatThemeLabel') || 'Chat theme:' }}</h3>
     <div v-if="allThemes.length" class="form-group">
       <label :for="selectId">{{ t('chatThemeSelect') || 'Select theme' }}</label>
       <select :id="selectId" class="select" v-model.number="selectedIdx" @change="onSelectChange" :aria-describedby="previewId">
@@ -11,14 +11,34 @@
         <button v-if="isCustomSelected" type="button" class="btn danger" @click="deleteCustom">
           {{ t('chatThemeDelete') || 'Delete theme' }}
         </button>
+        <button type="button" class="btn" @click="clearTheme">
+          {{ t('chatThemeClear') || 'Clear theme' }}
+        </button>
         <button type="button" class="btn" @click="copyCSS">{{ t('chatThemeCopyBtn') || 'Copy CSS' }}</button>
+      </div>
+  <div class="mt-4" :id="previewId" aria-live="polite">
+        <h4 class="text-sm font-semibold mb-2">{{ t('chatThemePreview') || 'Live preview' }}</h4>
+        <div class="chat-theme-preview os-surface p-3 rounded-os border border-[var(--card-border)] bg-[var(--bg-card)]">
+          <div class="message">
+            <span class="message-username cyberpunk">User 1</span>
+            <span class="message-text-inline">Hello world from the chat</span>
+          </div>
+          <div class="message odd">
+            <span class="message-username cyberpunk">User 2</span>
+            <span class="message-text-inline">Alternate message with different background</span>
+          </div>
+          <div class="message has-donation">
+            <span class="message-username cyberpunk">Donor</span>
+            <span class="message-text-inline">Thank you for your support!</span>
+          </div>
+        </div>
       </div>
       <div class="mt-3">
         <label class="text-sm font-medium" for="chat-theme-css-copy">{{ t('chatThemeCopyLabel') || 'Theme CSS for OBS:' }}</label>
         <textarea id="chat-theme-css-copy" class="textarea mt-1 w-full" readonly rows="10" :value="currentCSS" style="font-family:monospace; resize:vertical;"></textarea>
       </div>
     </div>
-    <div v-if="editor.open" class="mt-6 p-4 rounded-lg border border-[var(--card-border)] bg-[var(--bg-card)]" aria-labelledby="chat-theme-editor-heading">
+  <div v-if="editor.open" class="mt-6 os-surface p-4 rounded-os border border-[var(--card-border)] bg-[var(--bg-card)]" aria-labelledby="chat-theme-editor-heading">
       <h4 id="chat-theme-editor-heading" class="mb-3 text-sm font-semibold uppercase tracking-wide">
         {{ editingExisting ? (t('chatThemeEdit') || 'Edit theme') : (t('chatThemeEdit') || 'Create/Edit theme') }}
       </h4>
@@ -35,17 +55,29 @@
         <button type="button" class="btn" @click="cancelEditor">{{ t('chatThemeCancel') || 'Cancel' }}</button>
       </div>
     </div>
-  </div>
+  </OsCard>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
+import OsCard from './os/OsCard.vue';
 
 const { t } = useI18n();
 
 const defaultThemes = [
+  {
+    name: 'Por defecto',
+    css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
+.message { background: var(--bg-message); border-radius: 4px; padding: 12px; margin-bottom: 8px; box-sizing: border-box; }
+.message.odd { background: var(--bg-message-alt); }
+.message-username.cyberpunk { color: var(--username); font-weight: 600; }
+.message-text-inline { color: #fff; font-weight: 600; }
+.message.has-donation { background: #ececec; border-left: 8px solid #ddb826; }
+.message.has-donation .message-username { color: #fff; }
+.message.has-donation .message-text-inline { color: #111 !important; }`
+  },
   {
     name: 'Twitch',
     css: `:root { --bg-main: #18181b; --bg-message: #23232a; --bg-message-alt: #1e1e24; --border: #9147ff; --text: #f7f7fa; --username: #a970ff; --donation: #f7c948; --donation-bg: #9147ff; }
@@ -113,22 +145,67 @@ const isCustomSelected = computed(() => selectedIdx.value >= defaultThemes.lengt
 const currentTheme = computed(() => allThemes.value[selectedIdx.value] || allThemes.value[0] || { css: '', name: '' });
 const currentCSS = ref('');
 
+let hasUserInteracted = false;
+let cssSource = 'fallback'; // 'local' | 'server' | 'fallback'
+
+const previewCSS = computed(() => (editor.open ? (editor.css || '') : (currentCSS.value || '')));
+const PREVIEW_STYLE_ID = 'chat-theme-preview-style';
+function updatePreviewStyle(css) {
+  try {
+    let el = document.getElementById(PREVIEW_STYLE_ID);
+    if (!el) {
+      el = document.createElement('style');
+      el.id = PREVIEW_STYLE_ID;
+      document.head.appendChild(el);
+    }
+    el.textContent = css || '';
+  } catch { /* ignore */ }
+}
+
 watch(selectedIdx, () => {
   currentCSS.value = currentTheme.value.css || '';
-  persistLiveTheme();
-  debouncedPersistThemeCSS();
+  if (hasUserInteracted) {
+    persistLiveTheme();
+    debouncedPersistThemeCSS();
+  }
+  updatePreviewStyle(previewCSS.value);
 });
 
-onMounted(() => {
-  if (selectedIdx.value >= allThemes.value.length) selectedIdx.value = 0;
-  currentCSS.value = currentTheme.value.css || '';
-  persistLiveTheme();
-  debouncedPersistThemeCSS();
+onMounted(async () => {
+  try {
+    const stored = localStorage.getItem('chatLiveThemeCSS');
+    if (stored && typeof stored === 'string' && stored.trim()) {
+      currentCSS.value = stored;
+      cssSource = 'local';
+    } else {
+      const chatConfig = await fetch('/api/chat-config').then(r => r.json()).catch(() => null);
+      if (chatConfig && chatConfig.themeCSS) {
+        currentCSS.value = chatConfig.themeCSS;
+        cssSource = 'server';
+      } else {
+        currentCSS.value = currentTheme.value.css || '';
+        cssSource = 'fallback';
+      }
+    }
+
+    if (cssSource !== 'fallback') persistLiveThemeLocalOnly();
+  } catch { /* ignore */ }
+  updatePreviewStyle(previewCSS.value);
 });
+onUnmounted(() => {
+  try {
+    const el = document.getElementById(PREVIEW_STYLE_ID);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  } catch { /* ignore */ }
+});
+watch(previewCSS, css => { updatePreviewStyle(css); });
 
 function persistLiveTheme() {
   if (!currentCSS.value) return;
   localStorage.setItem('chatLiveThemeCSS', currentCSS.value);
+}
+function persistLiveThemeLocalOnly() {
+  try { if (currentCSS.value) localStorage.setItem('chatLiveThemeCSS', currentCSS.value); } catch {}
 }
 let persistTimer = null;
 function debouncedPersistThemeCSS() {
@@ -136,16 +213,15 @@ function debouncedPersistThemeCSS() {
   persistTimer = setTimeout(async () => {
     try {
       const chatConfig = await fetch('/api/chat-config').then(r => r.json()).catch(() => null);
-      if (chatConfig && chatConfig.chatUrl && currentCSS.value) {
+  if (chatConfig && chatConfig.chatUrl && currentCSS.value) {
         await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatUrl: chatConfig.chatUrl, themeCSS: currentCSS.value }) });
       }
     } catch { /* ignore */ }
   }, 600);
 }
-function onSelectChange() { persistLiveTheme(); debouncedPersistThemeCSS(); }
+function onSelectChange() { hasUserInteracted = true; persistLiveTheme(); debouncedPersistThemeCSS(); }
 
 function openEditor(editExisting) {
-  // Siempre edita el tema seleccionado (custom o default)
   editingExisting.value = !!editExisting && isCustomSelected.value;
   editor.name = currentTheme.value.name || '';
   editor.css = currentTheme.value.css || '';
@@ -164,11 +240,13 @@ function saveTheme() {
   saveCustomThemes(custom);
   editor.open = false;
   selectedIdx.value = allThemes.value.length - 1;
+  hasUserInteracted = true;
   persistLiveTheme();
+  debouncedPersistThemeCSS();
 }
 function deleteCustom() {
   if (!isCustomSelected.value) {
-    alert(t('chatThemeDeleteOnlyCustom') || 'Only custom themes can be deleted.');
+    pushToast({ type: 'error', message: t('chatThemeDeleteOnlyCustom') || 'Only custom themes can be deleted.' });
     return;
   }
   if (!confirm(t('chatThemeDelete') || 'Delete theme?')) return;
@@ -178,7 +256,23 @@ function deleteCustom() {
     custom.splice(customIdx, 1);
     saveCustomThemes(custom);
     selectedIdx.value = 0;
-    persistLiveTheme();
+  hasUserInteracted = true;
+  persistLiveTheme();
+  debouncedPersistThemeCSS();
+  }
+}
+async function clearTheme() {
+  try {
+    currentCSS.value = '';
+    hasUserInteracted = true;
+    try { localStorage.removeItem('chatLiveThemeCSS'); } catch {}
+    const chatConfig = await fetch('/api/chat-config').then(r => r.json()).catch(() => null);
+    if (chatConfig && chatConfig.chatUrl) {
+      await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatUrl: chatConfig.chatUrl, themeCSS: '' }) });
+    }
+    pushToast({ type: 'success', message: t('chatThemeCleared') || 'Theme cleared' });
+  } catch {
+    pushToast({ type: 'error', message: t('chatThemeClearError') || 'Could not clear theme' });
   }
 }
 function copyCSS() {
@@ -197,8 +291,6 @@ function copyCSS() {
   } catch { /* ignore */ }
 }
 
-watch(selectedIdx, () => { persistLiveTheme(); debouncedPersistThemeCSS(); });
-onMounted(() => { if (selectedIdx.value >= allThemes.value.length) selectedIdx.value = 0; persistLiveTheme(); debouncedPersistThemeCSS(); });
 </script>
 
 <style scoped>

@@ -21,7 +21,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath) {
   app.post('/api/chat', limiter, (req, res) => {
     try {
       const schema = z.object({
-        chatUrl: z.string().url(),
+        chatUrl: z.string().min(1),
         odyseeWsUrl: z.string().url().optional(),
         bgColor: z.string().optional(),
         msgBgColor: z.string().optional(),
@@ -36,7 +36,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath) {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid chat config' });
-      const { chatUrl, odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = parsed.data;
+      const { odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = parsed.data;
+      const chatUrl = (parsed.data.chatUrl || '').trim();
       let { themeCSS } = parsed.data;
       if (!chatUrl) {
         return res.status(400).json({ error: 'Chat URL is required' });

@@ -7,7 +7,7 @@
   flex-direction: column;
   padding: 1rem;
   box-sizing: inherit;
-  background: #0a0e12;
+  background: #080c10;
   color: white;
 }
 .raffle-header {
@@ -38,7 +38,6 @@
   overflow-y: auto;
   margin: 0.5rem 0;
   max-height: 220px;
-  /* scroll visible */
   scrollbar-width: thin;
   scrollbar-color: #4ade80 #222;
 }

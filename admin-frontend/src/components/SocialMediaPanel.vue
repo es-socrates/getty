@@ -1,64 +1,64 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div class="panel-surface" aria-describedby="sm-help">
-      <p id="sm-help" class="sr-only">{{ t('socialMediaTitle') }} list configuration. {{ t('socialMediaAddItem') }} to add entries.</p>
-      <div class="flex gap-2 mb-3" role="group" aria-label="{{ t('socialMediaTitle') }} actions">
-        <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">{{ t('socialMediaAddItem') }}</button>
-  <button class="btn" :disabled="!dirty || saving" @click="save" :aria-busy="saving ? 'true':'false'">{{ saving ? t('commonSaving') : t('socialMediaSave') }}</button>
-      </div>
-  <table style="width:100%;border-collapse:collapse;" aria-label="{{ t('socialMediaTitle') }} table">
-        <thead>
-          <tr style="text-align:left;font-size:13px;">
-            <th style="padding:4px 6px;">#</th>
-            <th style="padding:4px 6px;">{{ t('socialMediaName') }}</th>
-            <th style="padding:4px 6px;">{{ t('socialMediaLink') }}</th>
-            <th style="padding:4px 6px;">{{ t('socialMediaIcon') }}</th>
-            <th style="padding:4px 6px;">{{ t('socialMediaCustomIcon') }}</th>
-            <th style="padding:4px 6px;"></th>
-          </tr>
-        </thead>
-        <tbody>
-      <tr v-for="(item, idx) in items" :key="idx" style="border-top:1px solid #222;" :aria-rowindex="idx+1">
-            <td style="padding:4px 6px;">{{ idx+1 }}</td>
-            <td style="padding:4px 6px;">
-              <input class="input" :aria-label="t('socialMediaName') + ' ' + (idx+1)" :class="{'input-error': fieldError(idx,'name')}" v-model="item.name" @input="validateRow(idx)" :aria-invalid="!!fieldError(idx,'name')" />
-              <div v-if="fieldError(idx,'name')" class="small" style="color:#b91c1c">{{ fieldError(idx,'name') }}</div>
-            </td>
-            <td style="padding:4px 6px;">
-              <input class="input" :aria-label="t('socialMediaLink') + ' ' + (idx+1)" :class="{'input-error': fieldError(idx,'link')}" v-model="item.link" @input="validateRow(idx)" :aria-invalid="!!fieldError(idx,'link')" />
-              <div v-if="fieldError(idx,'link')" class="small" style="color:#b91c1c">{{ fieldError(idx,'link') }}</div>
-            </td>
-            <td style="padding:4px 6px;">
-        <select class="input" v-model="item.icon" @change="onIconChange(item, idx)" :aria-label="t('socialMediaIcon') + ' ' + (idx+1)">
-                <option value="x">{{ t('socialMediaIconX') }}</option>
-                <option value="instagram">{{ t('socialMediaIconInstagram') }}</option>
-                <option value="youtube">{{ t('socialMediaIconYoutube') }}</option>
-                <option value="telegram">{{ t('socialMediaIconTelegram') }}</option>
-                <option value="discord">{{ t('socialMediaIconDiscord') }}</option>
-                <option value="odysee">{{ t('socialMediaIconOdysee') }}</option>
-                <option value="rumble">{{ t('socialMediaIconRumble') }}</option>
-                <option value="custom">{{ t('socialMediaIconCustom') }}</option>
-              </select>
-            </td>
-            <td style="padding:4px 6px;">
-              <div v-if="item.icon==='custom'">
-                <input type="file" accept="image/*" @change="e=>selectCustomIcon(e, item)" :aria-label="t('socialMediaCustomIcon')" />
-                <div v-if="item.customIcon" style="margin-top:4px;">
-                  <img :src="item.customIcon" alt="custom" style="max-height:40px;object-fit:contain;" />
-                </div>
+    <OsCard :title="t('socialMediaTitle')">
+      <template #actions>
+        <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
+          <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">{{ t('socialMediaAddItem') }}</button>
+          <button class="btn" :disabled="!dirty || saving" @click="save" :aria-busy="saving ? 'true':'false'">{{ saving ? t('commonSaving') : t('socialMediaSave') }}</button>
+        </div>
+      </template>
+
+      <div class="os-table social-media" :aria-label="t('socialMediaTitle') + ' table'">
+        <div class="os-tr py-2">
+          <div class="os-th num">#</div>
+          <div class="os-th">{{ t('socialMediaName') }}</div>
+          <div class="os-th">{{ t('socialMediaLink') }}</div>
+          <div class="os-th">{{ t('socialMediaIcon') }}</div>
+          <div class="os-th">{{ t('socialMediaCustomIcon') }}</div>
+          <div class="os-th"></div>
+        </div>
+
+        <div v-for="(item, idx) in items" :key="idx" class="os-tr py-2">
+          <div class="os-td num">{{ idx+1 }}</div>
+          <div class="os-td">
+            <input class="input w-full" :aria-label="t('socialMediaName') + ' ' + (idx+1)" :class="{'input-error': fieldError(idx,'name')}" v-model="item.name" @input="validateRow(idx)" :aria-invalid="!!fieldError(idx,'name')" />
+            <div v-if="fieldError(idx,'name')" class="small" style="color:#b91c1c">{{ fieldError(idx,'name') }}</div>
+          </div>
+          <div class="os-td">
+            <input class="input w-full" :aria-label="t('socialMediaLink') + ' ' + (idx+1)" :class="{'input-error': fieldError(idx,'link')}" v-model="item.link" @input="validateRow(idx)" :aria-invalid="!!fieldError(idx,'link')" />
+            <div v-if="fieldError(idx,'link')" class="small" style="color:#b91c1c">{{ fieldError(idx,'link') }}</div>
+          </div>
+          <div class="os-td">
+            <select class="input w-full" v-model="item.icon" @change="onIconChange(item, idx)" :aria-label="t('socialMediaIcon') + ' ' + (idx+1)">
+              <option value="x">{{ t('socialMediaIconX') }}</option>
+              <option value="instagram">{{ t('socialMediaIconInstagram') }}</option>
+              <option value="youtube">{{ t('socialMediaIconYoutube') }}</option>
+              <option value="telegram">{{ t('socialMediaIconTelegram') }}</option>
+              <option value="discord">{{ t('socialMediaIconDiscord') }}</option>
+              <option value="odysee">{{ t('socialMediaIconOdysee') }}</option>
+              <option value="rumble">{{ t('socialMediaIconRumble') }}</option>
+              <option value="custom">{{ t('socialMediaIconCustom') }}</option>
+            </select>
+          </div>
+          <div class="os-td">
+            <div v-if="item.icon==='custom'">
+              <input type="file" accept="image/*" @change="e=>selectCustomIcon(e, item)" :aria-label="t('socialMediaCustomIcon')" />
+              <div v-if="item.customIcon" class="mt-1">
+                <img :src="item.customIcon" alt="custom" style="max-height:40px;object-fit:contain;" />
               </div>
-            </td>
-            <td style="padding:4px 6px;">
-              <button class="btn danger" @click="remove(idx)" :aria-label="t('socialMediaDelete') + ' ' + (idx+1)">{{ t('socialMediaDelete') }}</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+          </div>
+          <div class="os-td actions">
+            <button class="btn danger" @click="remove(idx)" :aria-label="t('socialMediaDelete') + ' ' + (idx+1)">{{ t('socialMediaDelete') }}</button>
+          </div>
+        </div>
+      </div>
+
       <div class="mt-3">
         <label class="label">{{ t('socialMediaWidgetUrl') }}</label>
         <CopyField :value="widgetUrl" />
       </div>
-    </div>
+    </OsCard>
   </section>
 </template>
 <script setup>
@@ -69,6 +69,7 @@ import axios from 'axios';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
+import OsCard from './os/OsCard.vue'
 import { isHttpUrl, MAX_CUSTOM_ICON_SIZE } from '../utils/validation';
 
 const { t } = useI18n();

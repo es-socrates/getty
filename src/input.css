@@ -5,6 +5,35 @@
 @tailwind utilities;
 
 @layer components {
+  .os-surface { @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-os shadow-os; }
+  .os-subtle { @apply bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-200/70 dark:border-neutral-800/80 rounded-os; }
+  .os-divider { @apply border-t border-neutral-200 dark:border-neutral-800; }
+  .os-muted { @apply text-neutral-500 dark:text-neutral-400; }
+  .os-strong { @apply text-neutral-900 dark:text-neutral-100; }
+
+  .os-header {
+    @apply sticky top-0 z-40 bg-white/70 dark:bg-neutral-950/60 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b border-neutral-200 dark:border-neutral-800;
+  }
+  .os-header-inner { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-3; }
+  .os-header-title { @apply text-sm font-semibold tracking-wide text-neutral-900 dark:text-neutral-100; }
+  .os-header-kpi { @apply inline-flex items-center gap-1 rounded-os-sm px-2 py-1 border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-900; }
+
+  .os-sidebar { @apply bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 w-64 shrink-0; }
+  .os-sidebar-section { @apply px-3 py-2; }
+  .os-sidebar-label { @apply px-3 pb-2 text-[10px] font-semibold tracking-wider uppercase text-neutral-500; }
+  .os-nav-link { @apply flex items-center gap-2 px-3 py-2 rounded-os-sm text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 hover:bg-neutral-50 dark:hover:text-neutral-100 dark:hover:bg-neutral-900 transition; }
+  .os-nav-link[aria-current="page"], .os-nav-link.is-active { @apply bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-medium border border-neutral-200 dark:border-neutral-800; }
+  .os-icon { @apply w-4 h-4 text-neutral-400 group-hover:text-neutral-700 dark:text-neutral-500 dark:group-hover:text-neutral-200; }
+
+  .os-card { @apply os-surface p-4; }
+  .os-card-title { @apply text-sm font-semibold mb-2 text-neutral-900 dark:text-neutral-100; }
+  .os-card-meta { @apply text-xs os-muted; }
+
+  .os-table { @apply w-full text-sm; }
+  .os-tr { @apply grid grid-cols-12 items-center border-b border-neutral-200 dark:border-neutral-800; }
+  .os-th { @apply os-muted font-semibold py-2 px-3; }
+  .os-td { @apply py-2 px-3 text-neutral-800 dark:text-neutral-200; }
+
   .dashboard-container {
     @apply max-w-7xl mx-auto p-6 bg-gray-900;
   }
@@ -74,11 +103,11 @@
   }
 
   .notification-title {
-    @apply text-lg font-bold text-white;
+    @apply text-[20px] font-extrabold mb-[5px] text-white;
   }
 
 html:not(.dark) .notification-title {
-  @apply text-lg font-bold text-white;
+  @apply text-[20px] font-extrabold text-white;
   color: #fff !important;
 }
 html:not(.dark) body .last-donation .notification-title {

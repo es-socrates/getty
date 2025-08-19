@@ -1,6 +1,6 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div class="panel-surface mb-4">
+    <OsCard class="mb-4">
       <div class="form-group">
         <label class="label" for="last-tip-title">{{ t('lastTipCustomTitleLabel') }}</label>
         <input class="input" :class="{'input-error': errors.title}" id="last-tip-title" v-model="form.title" type="text" maxlength="120" :placeholder="t('lastTipCustomTitlePlaceholder')" />
@@ -16,7 +16,7 @@
       </div>
       <div class="mt-3">
         <div class="flex justify-between items-center mb-2">
-          <h3 class="widget-title mb-0">{{ t('colorCustomizationTitle') }}</h3>
+          <h3 class="os-card-title mb-0">{{ t('colorCustomizationTitle') }}</h3>
           <button type="button" class="btn" @click="resetColors">{{ t('resetColors') }}</button>
         </div>
         <div class="flex flex-wrap gap-2">
@@ -24,14 +24,14 @@
         </div>
       </div>
   <div class="mt-3"><button class="btn" :disabled="saving" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('saveSettings') }}</button></div>
-    </div>
-  <div class="panel-surface mt-4">
-      <h3 class="widget-title">{{ t('obsIntegration') }}</h3>
+  </OsCard>
+  <OsCard class="mt-4">
+  <h3 class="os-card-title">{{ t('obsIntegration') }}</h3>
       <div class="form-group">
         <label>{{ t('lastTipWidgetUrl') }}</label>
         <CopyField :value="widgetUrl" />
       </div>
-    </div>
+  </OsCard>
   </section>
 </template>
 <script setup>
@@ -43,6 +43,7 @@ import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isLikelyWallet } from '../utils/validation';
+import OsCard from './os/OsCard.vue'
 
 const original = reactive({ snapshot: null });
 

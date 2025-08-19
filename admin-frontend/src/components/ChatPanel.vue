@@ -1,6 +1,6 @@
 <template>
   <section class="admin-tab active" role="form">
-  <div class="panel-surface mb-4" aria-describedby="chat-desc">
+    <OsCard class="mb-4" aria-describedby="chat-desc">
       <p id="chat-desc" class="sr-only">Chat configuration including chat source and colors.</p>
       <div class="form-group" :aria-labelledby="chat-url-label" aria-live="polite">
         <label class="label" :id="chat-url-label" for="chat-url">{{ t('chatClaimId') || 'Claim ID' }}</label>
@@ -24,7 +24,7 @@
       </div>
       <div class="mt-3">
         <div class="flex justify-between items-center mb-2" :aria-labelledby="colorHeadingId">
-          <h3 class="widget-title mb-0" :id="colorHeadingId">
+          <h3 class="os-card-title mb-0" :id="colorHeadingId">
             {{ t('colorCustomizationTitle') }}
           </h3>
           <button
@@ -62,18 +62,17 @@
           {{ saving ? t('commonSaving') : t('saveSettings') }}
         </button>
       </div>
-    </div>
-  <div class="panel-surface mt-4">
-      <h3 class="widget-title">{{ t('obsIntegration') }}</h3>
+    </OsCard>
+    <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
         <label>{{ t('chatWidgetUrl') }}</label>
         <CopyField :value="widgetUrl" />
       </div>
       <div class="form-group mt-2">
-      <label>{{ t('chatWidgetUrlHorizontal') || 'Chat Widget URL (Horizontal)' }}</label>
+        <label>{{ t('chatWidgetUrlHorizontal') || 'Chat Widget URL (Horizontal)' }}</label>
         <CopyField :value="widgetHorizontalUrl" />
       </div>
-    </div>
+    </OsCard>
     <ChatThemeManager />
   </section>
 </template>
@@ -87,6 +86,7 @@ import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import ChatThemeManager from './ChatThemeManager.vue';
+import OsCard from './os/OsCard.vue';
 
 const { t } = useI18n();
 const colorHeadingId = 'chat-color-heading';
@@ -105,6 +105,7 @@ const form = reactive({
   },
 });
 const transparentBg = ref(false);
+const clearedThemeCSS = ref(false);
 const errors = reactive({ chatUrl: '' });
 const CLAIM_BASE = 'wss://sockety.odysee.tv/ws/commentron?id=';
 const claimPlaceholder = 'ej: 2ab34cdef...(Claim ID)';
@@ -137,6 +138,9 @@ function resetColors() {
     donationBg: '#ececec',
   };
   transparentBg.value = false;
+
+  try { localStorage.removeItem('chatLiveThemeCSS'); } catch {}
+  clearedThemeCSS.value = true;
 }
 
 async function load() {
@@ -145,7 +149,6 @@ async function load() {
     if (data) {
       const raw = data.chatUrl || '';
       if (raw.startsWith(CLAIM_BASE)) {
-        // Extract ID after base
         form.chatUrl = raw.substring(CLAIM_BASE.length);
       } else if (raw.includes('id=')) {
         form.chatUrl = raw.split('id=')[1].split('&')[0];
@@ -178,7 +181,7 @@ async function save() {
     const claimId = extractClaimId(form.chatUrl.trim());
     const payload = {
       chatUrl: CLAIM_BASE + claimId,
-  bgColor: transparentBg.value ? 'transparent' : form.colors.bg,
+      bgColor: transparentBg.value ? 'transparent' : form.colors.bg,
       msgBgColor: form.colors.msgBg,
       msgBgAltColor: form.colors.msgBgAlt,
       borderColor: form.colors.border,
@@ -186,9 +189,8 @@ async function save() {
       usernameColor: form.colors.username,
       usernameBgColor: form.colors.usernameBg,
       donationColor: form.colors.donation,
-  donationBgColor: form.colors.donationBg,
-  // Persist currently active custom theme CSS if present
-  themeCSS: localStorage.getItem('chatLiveThemeCSS') || undefined,
+      donationBgColor: form.colors.donationBg,
+      themeCSS: clearedThemeCSS.value ? '' : (localStorage.getItem('chatLiveThemeCSS') || undefined),
     };
     await api.post('/api/chat', payload);
     original.snapshot = JSON.stringify(form);
@@ -197,6 +199,7 @@ async function save() {
     pushToast({ type: 'error', message: t('saveFailedChat') });
   } finally {
     saving.value = false;
+    clearedThemeCSS.value = false;
   }
 }
 
