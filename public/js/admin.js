@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultThemes = [
         {
             name: 'Por defecto',
-            css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
+            css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
             .message { background: var(--bg-message); border-radius: 4px; padding: 12px; margin-bottom: 8px; box-sizing: border-box; }
             .message.odd { background: var(--bg-message-alt); }
             .message-username.cyberpunk { color: var(--username); font-weight: 600; }

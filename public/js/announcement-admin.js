@@ -54,7 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadConfig() {
     fetch('/api/announcement').then(r=>r.json()).then(data => {
       if (!data.success) return;
-      cooldownInput.value = data.config.cooldownSeconds/60; // minutes
+      const secs = Number(data.config.cooldownSeconds);
+      cooldownInput.value = Number.isFinite(secs) && secs > 0 ? Math.round(secs/60) : 5; // minutes
       themeSelect.value = data.config.theme;
   if (animationModeSelect) animationModeSelect.value = data.config.animationMode || 'fade';
       if (bgColorInput) bgColorInput.value = data.config.bgColor || '#0e1014';
@@ -166,11 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (saveSettingsBtn) {
     saveSettingsBtn.addEventListener('click', () => {
-      const minutes = Number(cooldownInput.value);
+  const minutes = Number(cooldownInput.value);
   if (isNaN(minutes) || minutes <= 0) return showAlert(t('announcementInvalidCooldown'),'error');
   const defaultDur = defaultDurationInput ? Number(defaultDurationInput.value) : 10;
   const applyAll = applyAllCheckbox ? applyAllCheckbox.checked : false;
-  fetch('/api/announcement', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cooldownSeconds: minutes*60, theme: themeSelect.value, bgColor: bgColorInput.value, textColor: textColorInput.value, animationMode: animationModeSelect? animationModeSelect.value : undefined, defaultDurationSeconds: defaultDur, applyAllDurations: applyAll }) }).then(r=>r.json()).then(data => {
+  fetch('/api/announcement', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ cooldownSeconds: Math.max(60, minutes*60), theme: themeSelect.value, bgColor: bgColorInput.value, textColor: textColorInput.value, animationMode: animationModeSelect? animationModeSelect.value : undefined, defaultDurationSeconds: defaultDur, applyAllDurations: applyAll }) }).then(r=>r.json()).then(data => {
   if (!data.success) return showAlert(data.error||t('announcementErrorGeneric'),'error');
     if (applyAllCheckbox) applyAllCheckbox.checked = false;
   showAlert(t('announcementSettingsSaved'),'success');
