@@ -21,6 +21,20 @@ function notify(message, type = 'error') {
     console.log(`[${type}]`, message);
   }
 }
+
+function t(key) {
+  try {
+    if (window.__i18n && typeof window.__i18n.t === 'function') return window.__i18n.t(key);
+    if (window.languageManager && typeof window.languageManager.getText === 'function') return window.languageManager.getText(key);
+  } catch (e) {}
+  return key;
+}
+if (!window.languageManager && window.__i18n && typeof window.__i18n.t === 'function') {
+  window.languageManager = {
+    getText: (k) => window.__i18n.t(k),
+    updatePageLanguage: () => {}
+  };
+}
 async function fetchLiveviewsConfig() {
   try {
     const res = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
@@ -45,7 +59,7 @@ function applyLiveviewsConfig(config) {
     viewerCountEl.style.fontFamily = config.font;
     viewerCountEl.style.fontSize = config.size + 'px';
 
-    if (!viewerCountEl.textContent || viewerCountEl.textContent.trim() === '' || viewerCountEl.textContent === window.languageManager.getText('viewers')) {
+  if (!viewerCountEl.textContent || viewerCountEl.textContent.trim() === '' || viewerCountEl.textContent === t('viewers')) {
       viewerCountEl.textContent = config.viewersLabel || 'viewers';
     }
   }
@@ -105,7 +119,7 @@ async function fetchViewerCountAndDisplay(url) {
         if (configRes.ok) config = await configRes.json();
       } catch (e) { config = {}; }
     }
-    let customLabel = (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) ? config.viewersLabel : window.languageManager.getText('viewers');
+    let customLabel = (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) ? config.viewersLabel : t('viewers');
     let bg = config && config.bg ? config.bg : '#fff';
     let color = config && config.color ? config.color : '#222';
     let font = config && config.font ? config.font : 'Arial';
@@ -116,13 +130,13 @@ async function fetchViewerCountAndDisplay(url) {
     viewerCountEl.style.fontSize = size + 'px';
     if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
       viewerCountEl.textContent = `${data.data.ViewerCount} ${customLabel}`;
-      liveButtonEl.textContent = data.data.Live ? window.languageManager.getText('liveNow') : window.languageManager.getText('notLive');
+      liveButtonEl.textContent = data.data.Live ? t('liveNow') : t('notLive');
     } else if (data && data.data && typeof data.data.Live !== 'undefined') {
       viewerCountEl.textContent = `0 ${customLabel}`;
-      liveButtonEl.textContent = data.data.Live ? window.languageManager.getText('liveNow') : window.languageManager.getText('notLive');
+      liveButtonEl.textContent = data.data.Live ? t('liveNow') : t('notLive');
     } else {
       viewerCountEl.textContent = `0 ${customLabel}`;
-      liveButtonEl.textContent = window.languageManager.getText('notLive');
+      liveButtonEl.textContent = t('notLive');
     }
   } catch (error) {
     console.error('Error details:', error);
@@ -130,7 +144,7 @@ async function fetchViewerCountAndDisplay(url) {
     const liveButtonEl = document.getElementById('live-button');
     if (!viewerCountEl || !liveButtonEl) return;
     let config = window._liveviewsConfigCache || {};
-    let customLabel = (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) ? config.viewersLabel : window.languageManager.getText('viewers');
+    let customLabel = (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) ? config.viewersLabel : t('viewers');
     let bg = config && config.bg ? config.bg : '#fff';
     let color = config && config.color ? config.color : '#222';
     let font = config && config.font ? config.font : 'Arial';
@@ -140,7 +154,7 @@ async function fetchViewerCountAndDisplay(url) {
     viewerCountEl.style.fontFamily = font;
     viewerCountEl.style.fontSize = size + 'px';
     viewerCountEl.textContent = `0 ${customLabel}`;
-    liveButtonEl.textContent = window.languageManager.getText('notLive');
+    liveButtonEl.textContent = t('notLive');
   }
 }
 
@@ -170,9 +184,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!liveviewsStatus) return;
     if (liveviews && liveviews.active) {
       const count = typeof liveviews.count === 'number' ? liveviews.count : 0;
-      liveviewsStatus.textContent = `${window.languageManager.getText('liveNow')}: ${count} ${window.languageManager.getText('views')}`;
+      liveviewsStatus.textContent = `${t('liveNow')}: ${count} ${t('views')}`;
     } else {
-      liveviewsStatus.textContent = window.languageManager.getText('notLive');
+      liveviewsStatus.textContent = t('notLive');
     }
 
     const viewerCount = document.getElementById('viewer-count');
@@ -182,7 +196,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) {
         label = config.viewersLabel;
       } else {
-        label = window.languageManager.getText('viewers');
+        label = t('viewers');
       }
       let count = typeof liveviews.count === 'number' ? liveviews.count : 0;
       viewerCount.textContent = `${count} ${label}`;
@@ -249,17 +263,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const API_BASE = 'https://api.odysee.live/livestream/is_live?channel_claim_id=';
   const API_URL = CLAIM_ID ? `${API_BASE}${CLAIM_ID}` : '';
 
-  function startUpdatesWhenReady() {
-    if (window.languageManager) {
-      if (API_URL) {
-        startViewerCountUpdates(API_URL);
-        startAdminViewerCountUpdates(API_URL);
-      }
-    } else {
-      setTimeout(startUpdatesWhenReady, 50);
-    }
+  if (API_URL) {
+    startViewerCountUpdates(API_URL);
+    startAdminViewerCountUpdates(API_URL);
   }
-  startUpdatesWhenReady();
   const iconInput = document.getElementById('liveviews-icon-input');
   if (iconInput) {
 
@@ -440,6 +447,7 @@ if (window.location.pathname.startsWith('/admin')) {
                 const oldText = saveBtn.querySelector('span[data-i18n]')?.textContent;
                 const span = saveBtn.querySelector('span[data-i18n]');
                 if (span) span.textContent = 'Saved!';
+            if (span) span.textContent = t('saved') || 'Saved!';
                 setTimeout(() => {
                     if (span && oldText) span.textContent = oldText;
                     saveBtn.classList.remove('saved');

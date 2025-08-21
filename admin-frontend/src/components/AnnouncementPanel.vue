@@ -8,7 +8,7 @@
       >
         <div class="form-group">
           <label class="label">{{ t('announcementCooldownSeconds') }}</label>
-          <input class="input" type="number" v-model.number="settings.cooldownSeconds" />
+          <input class="input" type="number" v-model.number="cooldownMinutes" min="1" />
         </div>
         <div class="form-group">
           <label class="label">{{ t('announcementTheme') }}</label>
@@ -297,7 +297,7 @@ import OsCard from './os/OsCard.vue';
 const { t } = useI18n();
 
 const settings = ref({
-  cooldownSeconds: 30,
+  cooldownSeconds: 300,
   theme: 'vertical',
   bgColor: '#111111',
   textColor: '#ffffff',
@@ -305,6 +305,12 @@ const settings = ref({
   defaultDurationSeconds: 10,
   applyAllDurations: false,
 });
+
+const cooldownMinutes = computed({
+  get() { return Math.max(1, Math.round((settings.value.cooldownSeconds || 300) / 60)); },
+  set(v) { const n = Number(v); settings.value.cooldownSeconds = Number.isFinite(n) && n > 0 ? n * 60 : 300; }
+});
+
 const messages = ref([]);
 const newMsg = ref({ text: '', linkUrl: '', durationSeconds: 10, imageFile: null });
 const errors = ref({ text: '', linkUrl: '', durationSeconds: '' });
@@ -323,15 +329,15 @@ const savingSettings = ref(false);
 const adding = ref(false);
 const updating = ref(false);
 const modalRef = ref(null);
-// Widget URL for OBS integration
 const widgetUrl = computed(() => `${location.origin}/widgets/announcement.html`);
 
 async function load() {
   try {
     const r = await axios.get('/api/announcement');
-    if (r.data.success) {
-      Object.assign(settings.value, r.data.config.settings);
-      messages.value = r.data.config.messages;
+    if (r.data && r.data.success) {
+      const cfg = r.data.config?.settings || r.data.config || {};
+      Object.assign(settings.value, cfg);
+      messages.value = r.data.config?.messages || r.data.messages || [];
     }
   } catch {}
 }
@@ -339,7 +345,8 @@ async function load() {
 async function saveSettings() {
   try {
     savingSettings.value = true;
-    const r = await axios.post('/api/announcement', settings.value);
+    const payload = { ...settings.value };
+    const r = await axios.post('/api/announcement', payload);
     if (r.data.success) {
       pushToast({ type: 'success', message: t('announcementSavedSettings') });
       load();
