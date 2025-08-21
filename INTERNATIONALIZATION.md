@@ -20,7 +20,7 @@ This document describes the internationalization system implemented in Getty to 
 - `public/js/min/i18n-runtime.js` - Generated bundle for landing & widgets
 - `public/index.html` - Main page including runtime script
 - `/admin` (SPA) - Vue app using the same JSON (merged with admin extras)
-- `public/css/admin.css` / `public/css/styles.css` - Styles for user menu
+- `public/css/styles.css` - Legacy styles for user menu (kept for backward-compatibility; file is currently deprecated)
 
 ### Server (Backend)
 

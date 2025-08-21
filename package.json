@@ -18,11 +18,12 @@
     "watch-css": "npx tailwindcss -i src/input.css -o public/css/output.css --watch",
     "minify-html": "npx html-minifier-terser src/index.html -o public/index.html --collapse-whitespace --remove-comments --minify-css false",
     "minify-js": "npx esbuild public/js/*.js --minify --outdir=public/js/min",
-    "minify-css": "npx postcss public/css/output.css -o public/css/output.css",
+    "minify-css": "npx postcss public/css/output.css -o public/css/output.css --config postcss.config.cjs",
     "build:i18n": "node scripts/build-i18n.js",
     "build": "npm-run-all --sequential build-css minify-css build:i18n admin:build minify-html minify-js",
     "lint": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --cache --max-warnings=0",
-    "lint:fix": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --fix --cache"
+    "lint:fix": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --fix --cache",
+    "report:unused-css": "node scripts/unused-css-report.js"
   },
   "engines": {
     "node": ">=18"
@@ -67,11 +68,14 @@
     "npm-run-all": "^4.1.5",
     "postcss": "^8.5.6",
     "postcss-cli": "^11.0.1",
+    "purgecss": "^6.0.0",
+    "fast-glob": "^3.3.2",
     "stylelint": "^16.23.1",
     "stylelint-config-standard": "^39.0.0",
     "stylelint-config-tailwindcss": "^1.0.0",
     "supertest": "^7.0.0",
     "tailwindcss": "^3.4.0",
+    "micromatch": "^4.0.7",
     "tailwindcss-animate": "^1.0.7",
     "vite": "^5.4.0",
     "vue": "^3.4.38"

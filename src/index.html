@@ -28,6 +28,7 @@
         html:not(.dark) .chat-default .message { color: #fff !important; }
         html:not(.dark) .theme-light .message-text-inline { color: var(--text) !important; }
         html:not(.dark) body .last-donation .notification-title { color: #fff !important; }
+        html:not(.dark) #chat-container.theme-active:not(.theme-light) .message-text-inline { color: #fff !important; }
     </style>
 </head>
 <body class="bg-background text-gray-100 font-sans">
@@ -79,7 +80,7 @@
         
     <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
         <section class="os-card overflow-hidden flex flex-col">
-            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="lastTipTitle"></h2>
+            <h2 class="px-6 text-2xl font-semibold mb-1.5" data-i18n="lastTipTitle"></h2>
             <div class="flex-1 flex flex-col justify-center">
                 <div id="last-donation" class="last-donation">
                     <div class="last-donation-content">
@@ -105,7 +106,7 @@
         </section>
         
     <section class="os-card overflow-hidden flex flex-col">
-            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="monthlyGoalTitle"></h2>
+            <h2 class="px-6 text-2xl font-semibold mb-1.5" data-i18n="monthlyGoalTitle"></h2>
             <div class="flex-1 flex flex-col justify-center">
                 <div id="goal-widget" class="p-4">
                     <div class="goal-container"></div>
@@ -114,25 +115,25 @@
         </section>
 
     <section class="os-card overflow-hidden flex flex-col">
-            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="notificationsTitle"></h2>
+            <h2 class="px-6 text-2xl font-semibold mb-1.5" data-i18n="notificationsTitle"></h2>
             <div class="flex-1 flex flex-col justify-center">
                 <div id="notification" class="mb-2"></div>
             </div>
         </section>
 
     <section class="os-card overflow-hidden flex flex-col h-[450px]">
-            <h2 class="px-6 pt-4 text-2xl font-semibold" data-i18n="liveChatTitle"></h2>
+            <h2 class="px-6 text-2xl font-semibold mb-1.4" data-i18n="liveChatTitle"></h2>
             <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
                 <div id="chat-container"></div>
             </div>
         </section>
 
     <section class="os-card overflow-hidden flex flex-col h-[450px]">
-            <h2 class="px-6 pt-4 text-2xl font-semibold flex items-center gap-2">
+            <h2 class="px-6 text-2xl font-semibold mb-1.5 flex items-center gap-2">
                 <span data-i18n="raffleTitle"></span>
             </h2>
             <div class="flex-1 flex flex-col justify-center">
-                <iframe src="/widgets/raffle.html" class="w-full h-full min-h-[350px] border-0 rounded-lg bg-transparent" allowtransparency="true"></iframe>
+                <iframe src="/widgets/raffle.html" class="w-full min-h-[350px] border-0 rounded-lg bg-transparent" allowtransparency="true"></iframe>
             </div>
         </section>
     </main>

@@ -5,7 +5,7 @@
       :value="value"
       readonly
       @focus="$event.target.select()"
-      :aria-label="t('chatWidgetUrl')"
+      :aria-label="ariaLabel || t('chatWidgetUrl')"
     />
     <button
       class="grouped-btn"
@@ -26,6 +26,7 @@ const { t } = useI18n();
 const props = defineProps({
   value: { type: String, required: true },
   toast: { type: String, default: 'urlCopied' },
+  ariaLabel: { type: String, default: '' },
 });
 
 function copy() {

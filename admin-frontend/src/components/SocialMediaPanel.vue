@@ -55,8 +55,10 @@
       </div>
 
       <div class="mt-3">
-        <label class="label">{{ t('socialMediaWidgetUrl') }}</label>
-        <CopyField :value="widgetUrl" />
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="label mb-0">{{ t('socialMediaWidgetUrl') }}</span>
+          <CopyField :value="widgetUrl" :aria-label="t('socialMediaWidgetUrl')" />
+        </div>
       </div>
     </OsCard>
   </section>

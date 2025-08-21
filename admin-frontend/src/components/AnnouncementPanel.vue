@@ -45,7 +45,7 @@
         </div>
         <div class="form-group">
           <label class="label">{{ t('announcementApplyAll') }}</label>
-          <input type="checkbox" v-model="settings.applyAllDurations" />
+          <input type="checkbox" class="checkbox" v-model="settings.applyAllDurations" />
         </div>
       </div>
       <div class="mt-3 flex gap-2">
@@ -166,9 +166,10 @@
               <img :src="m.imageUrl" style="height:50px;object-fit:cover;border-radius:4px;" />
             </div>
             <div class="flex flex-col gap-2 items-end shrink-0" style="min-width:140px;">
-              <label class="small flex items-center gap-1">
+        <label class="small flex items-center gap-1">
                 <input
                   type="checkbox"
+          class="checkbox"
                   v-model="m.enabled"
                   @change="toggleMessageEnabled(m)"
                   :aria-label="t('announcementEnabled') + ' ' + m.text"
@@ -230,13 +231,13 @@
               v-model.number="editForm.durationSeconds"
             />
           </div>
-          <div class="form-group flex gap-2 items-center">
+      <div class="form-group flex gap-2 items-center">
             <label>
-              <input type="checkbox" v-model="editForm.enabled" />
+        <input type="checkbox" class="checkbox" v-model="editForm.enabled" />
               {{ t('announcementEnabled') }}
             </label>
             <label>
-              <input type="checkbox" v-model="editForm.removeImage" />
+        <input type="checkbox" class="checkbox" v-model="editForm.removeImage" />
               {{ t('announcementRemoveImage') }}
             </label>
           </div>
@@ -278,8 +279,10 @@
 
     <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
-        <label class="label">{{ t('announcementWidgetUrl') }}</label>
-        <CopyField :value="widgetUrl" />
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="label mb-0">{{ t('announcementWidgetUrlLabel') }}</span>
+          <CopyField :value="widgetUrl" :aria-label="t('announcementWidgetUrlLabel')" />
+        </div>
       </div>
     </OsCard>
   </section>
@@ -299,7 +302,7 @@ const { t } = useI18n();
 const settings = ref({
   cooldownSeconds: 300,
   theme: 'vertical',
-  bgColor: '#111111',
+  bgColor: '#0a0e12',
   textColor: '#ffffff',
   animationMode: 'fade',
   defaultDurationSeconds: 10,

@@ -14,3 +14,4 @@ raffle-settings.json
 config/*.json
 .stylelintcache
 .eslintcache
+/reports/

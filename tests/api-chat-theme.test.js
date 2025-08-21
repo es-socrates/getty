@@ -13,10 +13,11 @@ function readConfig() {
 }
 
 describe('Chat themeCSS API', () => {
+  const existing = readConfig();
   const basePayload = {
-    chatUrl: '28632ts7652698v2cdfro126eb70eb11793201b3',
+    chatUrl: existing.chatUrl || 'wss://localhost',
     bgColor: '#000',
-    msgBgColor: '#111'
+    msgBgColor: '#0a0e12'
   };
 
   test('persists clean themeCSS', async () => {
