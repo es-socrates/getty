@@ -30,7 +30,7 @@
       <p id="tts-section-desc" class="sr-only">Configure text to speech engine settings.</p>
   <h3 class="os-card-title">TTS</h3>
       <div class="form-group">
-        <label class="label"><input type="checkbox" v-model="tts.enabled" /> {{ t('enableTextToSpeech') }}</label>
+        <label class="label"><input type="checkbox" class="checkbox" v-model="tts.enabled" /> {{ t('enableTextToSpeech') }}</label>
       </div>
       <div class="form-group">
         <label class="label">{{ t('ttsLanguage') }}</label>
@@ -66,11 +66,12 @@
       <div v-if="errors.audio" class="small" style="color:#b91c1c">{{ errors.audio }}</div>
       <button class="btn mt-3" :disabled="savingAudio" type="button" @click="saveAudio" :aria-busy="savingAudio? 'true':'false'">{{ savingAudio ? t('commonSaving') : t('saveSettings') }}</button>
   </OsCard>
-  <OsCard class="mt-4">
-  <h3 class="os-card-title">{{ t('obsIntegration') }}</h3>
+  <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
-        <label class="label">{{ t('notificationWidgetUrl') }}</label>
-        <CopyField :value="widgetUrl" />
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="label mb-0">{{ t('notificationWidgetUrl') }}</span>
+          <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" />
+        </div>
       </div>
   </OsCard>
   </section>

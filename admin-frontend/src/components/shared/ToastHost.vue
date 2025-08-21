@@ -44,7 +44,7 @@ import { toasts, removeToast as remove } from '../../services/toast';
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.toast.success { background: #9eb474; }
+.toast.success { background: #553fee; }
 .toast.error { background: #b91c1c; }
 .toast.info { background: #0369a1; }
 </style>

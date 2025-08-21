@@ -25,11 +25,12 @@
       </div>
   <div class="mt-3"><button class="btn" :disabled="saving" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('saveSettings') }}</button></div>
   </OsCard>
-  <OsCard class="mt-4">
-  <h3 class="os-card-title">{{ t('obsIntegration') }}</h3>
+  <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
-        <label>{{ t('lastTipWidgetUrl') }}</label>
-        <CopyField :value="widgetUrl" />
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="label mb-0">{{ t('lastTipWidgetUrl') }}</span>
+          <CopyField :value="widgetUrl" :aria-label="t('lastTipWidgetUrl')" />
+        </div>
       </div>
   </OsCard>
   </section>

@@ -241,7 +241,12 @@ class ChatModule {
 
     process.env.ODYSEE_WS_URL = (typeof effectiveUrl === 'string' && /^wss?:\/\//i.test(effectiveUrl)) ? effectiveUrl : newUrl;
 
-    if (typeof effectiveUrl === 'string' && /^wss?:\/\//i.test(effectiveUrl) && effectiveUrl.includes('commentron')) {
+    if (
+      process.env.NODE_ENV !== 'test' &&
+      typeof effectiveUrl === 'string' &&
+      /^wss?:\/\//i.test(effectiveUrl) &&
+      effectiveUrl.includes('commentron')
+    ) {
       this.connect(effectiveUrl);
     }
     return this.getStatus();

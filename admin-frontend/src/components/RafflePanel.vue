@@ -42,14 +42,17 @@
         <label class="label" for="raffle-max-winners">{{ t('raffleMaxWinnersLabel') }}</label>
         <input class="input" id="raffle-max-winners" v-model.number="form.maxWinners" type="number" min="1" />
         <label style="display:flex;align-items:center;gap:6px;margin-top:8px;" @mouseenter="hoverEnabled=true" @mouseleave="hoverEnabled=false">
-          <input type="checkbox" v-model="form.enabled" /> {{ t('raffleEnabled') }}
+          <input type="checkbox" class="checkbox" v-model="form.enabled" /> {{ t('raffleEnabled') }}
         </label>
         <button class="btn mt-2" style="margin-top:12px;" @click="saveSettings" :disabled="savingSettings">{{ savingSettings ? t('commonSaving') : t('saveSettings') }}</button>
       </div>
     </OsCard>
     <OsCard class="mt-3" :title="t('obsIntegration')">
       <div class="form-group">
-        <CopyField :value="widgetUrl" />
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="label mb-0">{{ t('raffleAdminSectionWidgetLink') }}</span>
+          <CopyField :value="widgetUrl" :aria-label="t('raffleAdminSectionWidgetLink')" />
+        </div>
       </div>
     </OsCard>
   </section>

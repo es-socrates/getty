@@ -3,17 +3,80 @@
     <OsCard>
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
-        <input class="input" :class="{'input-error': errors.discordWebhook}" v-model="form.discordWebhook" placeholder="https://discord.com/api/webhooks/..." @input="validate" />
+        <div class="input-group">
+          <input
+            class="input"
+            :class="{'input-error': errors.discordWebhook}"
+            :type="reveal.discord ? 'text' : 'password'"
+            v-model="form.discordWebhook"
+            placeholder="https://discord.com/api/webhooks/..."
+            @input="validate"
+            autocomplete="off"
+          />
+          <button type="button" @click="reveal.discord = !reveal.discord" :aria-pressed="reveal.discord ? 'true' : 'false'" :aria-label="reveal.discord ? 'Hide' : 'Show'">
+            <svg v-if="!reveal.discord" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+              <path d="M1 1l22 22" />
+              <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+            </svg>
+          </button>
+        </div>
         <small v-if="errors.discordWebhook" class="small" style="color:#b91c1c">{{ errors.discordWebhook }}</small>
       </div>
 
     <div class="form-group mt-4">
       <label class="label" for="obs-ws-ip">{{ t('obsWsIpLabel') }}</label>
-      <input class="input" id="obs-ws-ip" v-model="obsForm.ip" :placeholder="t('obsWsIpPlaceholder')" @input="validateObs" />
+      <div class="input-group">
+        <input
+          class="input"
+          id="obs-ws-ip"
+          :type="reveal.obsIp ? 'text' : 'password'"
+          v-model="obsForm.ip"
+          :placeholder="t('obsWsIpPlaceholder')"
+          @input="validateObs"
+          autocomplete="off"
+        />
+        <button type="button" @click="reveal.obsIp = !reveal.obsIp" :aria-pressed="reveal.obsIp ? 'true' : 'false'" :aria-label="reveal.obsIp ? 'Hide' : 'Show'">
+          <svg v-if="!reveal.obsIp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+            <path d="M1 1l22 22" />
+            <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+          </svg>
+        </button>
+      </div>
       <label class="label mt-2" for="obs-ws-port">{{ t('obsWsPortLabel') }}</label>
       <input class="input" id="obs-ws-port" type="number" v-model="obsForm.port" :placeholder="t('obsWsPortPlaceholder')" @input="validateObs" />
       <label class="label mt-2" for="obs-ws-password">{{ t('obsWsPasswordLabel') }}</label>
-      <input class="input" id="obs-ws-password" type="password" v-model="obsForm.password" :placeholder="t('obsWsPasswordPlaceholder')" @input="validateObs" />
+      <div class="input-group">
+        <input
+          class="input"
+          id="obs-ws-password"
+          :type="reveal.obsPwd ? 'text' : 'password'"
+          v-model="obsForm.password"
+          :placeholder="t('obsWsPasswordPlaceholder')"
+          @input="validateObs"
+          autocomplete="off"
+        />
+        <button type="button" @click="reveal.obsPwd = !reveal.obsPwd" :aria-pressed="reveal.obsPwd ? 'true' : 'false'" :aria-label="reveal.obsPwd ? 'Hide' : 'Show'">
+          <svg v-if="!reveal.obsPwd" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+            <path d="M1 1l22 22" />
+            <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+          </svg>
+        </button>
+      </div>
       <small v-if="obsErrors.ip || obsErrors.port" class="small" style="color:#b91c1c">
         {{ obsErrors.ip || obsErrors.port }}
       </small>
@@ -26,7 +89,28 @@
   <div class="form-group grid mt-4" style="grid-template-columns:1fr 1fr; gap:12px;">
         <div>
           <label class="label">{{ t('externalTelegramBotToken') }}</label>
-          <input class="input" :class="{'input-error': errors.telegramBotToken}" v-model="form.telegramBotToken" placeholder="123456:ABCDEF" @input="validate" />
+          <div class="input-group">
+            <input
+              class="input"
+              :class="{'input-error': errors.telegramBotToken}"
+              :type="reveal.telegram ? 'text' : 'password'"
+              v-model="form.telegramBotToken"
+              placeholder="123456:ABCDEF"
+              @input="validate"
+              autocomplete="off"
+            />
+            <button type="button" @click="reveal.telegram = !reveal.telegram" :aria-pressed="reveal.telegram ? 'true' : 'false'" :aria-label="reveal.telegram ? 'Hide' : 'Show'">
+              <svg v-if="!reveal.telegram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+                <path d="M1 1l22 22" />
+                <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+              </svg>
+            </button>
+          </div>
           <small v-if="errors.telegramBotToken" class="small" style="color:#b91c1c">{{ errors.telegramBotToken }}</small>
         </div>
         <div>
@@ -69,7 +153,7 @@
 </template>
 <script setup>
 
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import { pushToast } from '../services/toast';
@@ -78,6 +162,8 @@ import { isHttpUrl } from '../utils/validation';
 import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
+
+const reveal = reactive({ discord: false, obsIp: false, obsPwd: false, telegram: false });
 
 const form = ref({
   discordWebhook: '',

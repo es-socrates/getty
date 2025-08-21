@@ -492,6 +492,10 @@ body {
 .horizontal-chat.theme-light .message-text-inline {
     color: #1f2328 !important;
 }
+
+.horizontal-chat.theme-light .message {
+    background: var(--bg-message-alt) !important;
+}
 .horizontal-chat .membership-icon {
     width: 14px;
     height: 14px;
@@ -531,10 +535,7 @@ body {
     vertical-align: middle;
 }
 
-.theme-light .message {
-    background: var(--bg-message) !important;
-}
-
+.theme-light .message,
 .theme-light .message.odd {
     background: var(--bg-message-alt) !important;
 }
