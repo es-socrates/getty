@@ -2,19 +2,21 @@
   <OsCard class="mt-4" aria-labelledby="chat-theme-heading">
     <h3 id="chat-theme-heading" class="os-card-title mb-3">{{ t('chatThemeLabel') || 'Chat theme:' }}</h3>
     <div v-if="allThemes.length" class="form-group">
-      <label :for="selectId">{{ t('chatThemeSelect') || 'Select theme' }}</label>
-      <select :id="selectId" class="select mt-1" v-model.number="selectedIdx" @change="onSelectChange" :aria-describedby="previewId">
-        <option v-for="(th, i) in allThemes" :key="th.name + '_' + i" :value="i">{{ th.name }}</option>
-      </select>
-      <div class="mt-2 flex gap-2 flex-wrap">
-        <button type="button" class="btn" @click="openEditor(false)">{{ t('chatThemeEdit') || 'Create/Edit theme' }}</button>
-        <button v-if="isCustomSelected" type="button" class="btn danger" @click="deleteCustom">
-          {{ t('chatThemeDelete') || 'Delete theme' }}
-        </button>
-        <button type="button" class="btn" @click="clearTheme">
-          {{ t('chatThemeClear') || 'Clear theme' }}
-        </button>
-        <button type="button" class="btn" @click="copyCSS">{{ t('chatThemeCopyBtn') || 'Copy CSS' }}</button>
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="label mb-0" :for="selectId">{{ t('chatThemeSelect') || 'Select theme' }}</label>
+        <select :id="selectId" class="select" v-model.number="selectedIdx" @change="onSelectChange" :aria-describedby="previewId">
+          <option v-for="(th, i) in allThemes" :key="th.name + '_' + i" :value="i">{{ th.name }}</option>
+        </select>
+        <div class="flex gap-2 flex-wrap">
+          <button type="button" class="btn" @click="openEditor(false)">{{ t('chatThemeEdit') || 'Create/Edit theme' }}</button>
+          <button v-if="isCustomSelected" type="button" class="btn danger" @click="deleteCustom">
+            {{ t('chatThemeDelete') || 'Delete theme' }}
+          </button>
+          <button type="button" class="btn" @click="clearTheme">
+            {{ t('chatThemeClear') || 'Clear theme' }}
+          </button>
+          <button type="button" class="btn" @click="copyCSS">{{ t('chatThemeCopyBtn') || 'Copy CSS' }}</button>
+        </div>
       </div>
   <div class="mt-4" :id="previewId" aria-live="polite">
         <h4 class="text-sm font-semibold mb-2">{{ t('chatThemePreview') || 'Live preview' }}</h4>

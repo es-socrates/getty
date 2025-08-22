@@ -196,7 +196,7 @@
   "rafflePaused": "El sorteo está en pausa",
   "raffleInactive": "El sorteo está detenido",
   "raffleActiveTitle": "Activo",
-  "liveviewsViewersLabel": "Etiqueta personalizada para espectadores:",
+  "liveviewsViewersLabel": "Etiqueta personalizada:",
   "invalidArweaveWalletLastTip": "La dirección de billetera (Última Propina) no es válida para la red Arweave.",
   "invalidArweaveWalletTipGoal": "La dirección de billetera (Meta de Propinas) no es válida para la red Arweave.",
   "socialMediaSidebar": "Redes sociales",
@@ -291,5 +291,6 @@
   "deleteFailedCustomAudio": "No se pudo eliminar el audio personalizado",
   "invalidAudioFile": "Archivo de audio no válido. Selecciona un archivo de audio válido.",
   "raffleSettings": "Configuración del sorteo",
-  "announcementMsgUpdated": "Anuncio actualizado"
+  "announcementMsgUpdated": "Anuncio actualizado",
+  "valMaxChars": "Límite de caracteres alcanzado"
 }

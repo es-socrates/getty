@@ -29,7 +29,7 @@ function registerRaffleRoutes(app, raffle, wss) {
     try {
       const schema = z.object({
         command: z.string().trim().default('!giveaway'),
-        prize: z.string().trim().min(1),
+        prize: z.string().trim().min(1).max(15),
         duration: z.coerce.number().int().positive().default(5),
         maxWinners: z.coerce.number().int().positive().default(1),
         enabled: z

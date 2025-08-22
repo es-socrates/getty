@@ -21,7 +21,13 @@
       </div>
       <div class="form-group">
         <label class="label" for="raffle-prize">{{ t('rafflePrizeLabel') }}</label>
-        <input class="input" id="raffle-prize" v-model="form.prize" type="text" :placeholder="t('rafflePrizePlaceholder')" />
+        <input class="input" id="raffle-prize" v-model="form.prize" type="text" maxlength="15" :placeholder="t('rafflePrizePlaceholder')" />
+        <div class="flex gap-2 small mt-1" style="justify-content:space-between;">
+          <small :style="form.prize.length>=15 ? 'color:#ef4444':''">
+            {{ form.prize.length>=15 ? t('valMaxChars') : '\u00A0' }}
+          </small>
+          <small aria-live="polite" aria-atomic="true">{{ t('charsUsed', { used: form.prize.length, max: 15 }) }}</small>
+        </div>
       </div>
       <div class="form-group">
         <label class="label" for="raffle-image">{{ t('rafflePrizeImageLabel') }}</label>

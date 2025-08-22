@@ -291,5 +291,6 @@
   "deleteFailedCustomAudio": "Failed to delete custom audio",
   "invalidAudioFile": "Invalid audio file. Please select a valid audio file.",
   "raffleSettings": "Raffle settings",
-  "announcementMsgUpdated": "Announcement updated"
+  "announcementMsgUpdated": "Announcement updated",
+  "valMaxChars": "Max characters reached"
 }
