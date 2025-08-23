@@ -39,7 +39,7 @@ const registerAnnouncementRoutes = require('./routes/announcement');
 
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
-const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'last-tip-config.json');
+const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
 const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
 
@@ -131,6 +131,67 @@ app.use((_req, res, next) => {
   next();
 });
 
+let __arPriceCache = { usd: 0, ts: 0, source: 'none' };
+const __AR_PRICE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function fetchArUsdFromProviders() {
+
+  try {
+    const bz = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=ARUSDT', { timeout: 5000 });
+    if (bz.data?.price) return { usd: Number(bz.data.price), source: 'binance' };
+  } catch {}
+
+  try {
+    const okx = await axios.get('https://www.okx.com/api/v5/market/ticker?instId=AR-USDT', { timeout: 5000 });
+    const last = okx.data?.data?.[0]?.last;
+    if (last) return { usd: Number(last), source: 'okx' };
+  } catch {}
+
+  try {
+    const kc = await axios.get('https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=AR-USDT', { timeout: 5000 });
+    const price = kc.data?.data?.price;
+    if (price) return { usd: Number(price), source: 'kucoin' };
+  } catch {}
+
+  try {
+    const gt = await axios.get('https://api.gateio.ws/api/v4/spot/tickers?currency_pair=AR_USDT', { timeout: 5000 });
+    const last = Array.isArray(gt.data) && gt.data[0]?.last;
+    if (last) return { usd: Number(last), source: 'gateio' };
+  } catch {}
+
+  try {
+    const cc = await axios.get('https://api.coincap.io/v2/assets/arweave', { timeout: 5000 });
+    const usd = cc.data?.data?.priceUsd;
+    if (usd) return { usd: Number(usd), source: 'coincap' };
+  } catch {}
+
+  try {
+    const cp = await axios.get('https://api.coinpaprika.com/v1/tickers/ar-arweave', { timeout: 5000 });
+    const usd = cp.data?.quotes?.USD?.price;
+    if (usd) return { usd: Number(usd), source: 'coinpaprika' };
+  } catch {}
+
+  try {
+    const cg = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd', { timeout: 5000 });
+    if (cg.data?.arweave?.usd) return { usd: Number(cg.data.arweave.usd), source: 'coingecko' };
+  } catch {}
+  return null;
+}
+
+async function getArUsdCached(force = false) {
+  const now = Date.now();
+  if (!force && __arPriceCache.usd > 0 && (now - __arPriceCache.ts) < __AR_PRICE_TTL_MS) {
+    return __arPriceCache;
+  }
+  const result = await fetchArUsdFromProviders();
+  if (result && isFinite(result.usd) && result.usd > 0) {
+    __arPriceCache = { usd: result.usd, ts: now, source: result.source };
+  } else if (__arPriceCache.usd === 0) {
+    __arPriceCache = { usd: 5, ts: now, source: 'fallback' };
+  }
+  return __arPriceCache;
+}
+
 function getLiveviewsConfigWithDefaults(partial) {
   return {
     bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
@@ -150,17 +211,17 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'self'; " +
-        "media-src 'self' blob: https://cdn.streamlabs.com; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-        "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com https://spee.ch; " + 
-        "font-src 'self' data: blob: https://fonts.gstatic.com; " +
-        "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://api.coingecko.com https://api.telegram.org https://api.odysee.live; " +
-        "frame-src 'self'"
-    );
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; " +
+    "media-src 'self' blob: https://cdn.streamlabs.com https://arweave.net https://*.arweave.net; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com https://spee.ch; " + 
+    "font-src 'self' data: blob: https://fonts.gstatic.com; " +
+    "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://*.arweave.net https://ar-io.net https://arweave.live https://arweave-search.goldsky.com https://permagate.io https://zerosettle.online https://zigza.xyz https://ario-gateway.nethermind.dev https://api.binance.com https://www.okx.com https://api.kucoin.com https://api.gateio.ws https://api.coincap.io https://api.coinpaprika.com https://api.coingecko.com https://api.viewblock.io https://api.telegram.org https://api.odysee.live; " +
+    "frame-src 'self'"
+  );
 
     next();
 });
@@ -205,6 +266,15 @@ const RaffleModule = require('./modules/raffle');
 const raffle = new RaffleModule(wss);
 
 global.gettyRaffleInstance = raffle;
+
+app.get('/api/ar-price', async (_req, res) => {
+  try {
+    const data = await getArUsdCached(false);
+    res.json({ arweave: { usd: data.usd }, source: data.source, ts: data.ts });
+  } catch {
+    res.status(500).json({ error: 'failed_to_fetch_price' });
+  }
+});
 
 registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE);
 
@@ -763,24 +833,6 @@ app.get('/api/metrics', async (_req, res) => {
   }
 });
 
-let __lastArPrice = null; let __lastArPriceAt = 0;
-app.get('/api/ar-price', async (_req, res) => {
-  try {
-    const now = Date.now();
-    if (__lastArPrice && now - __lastArPriceAt < 60_000) {
-      return res.json({ arweave: { usd: __lastArPrice } });
-    }
-    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
-    if (response.status !== 200 || !response.data?.arweave?.usd) throw new Error('Failed to fetch from CoinGecko');
-    __lastArPrice = response.data.arweave.usd; __lastArPriceAt = now;
-    res.json({ arweave: { usd: __lastArPrice } });
-  } catch (error) {
-    console.error('Error fetching AR price:', error.message);
-    if (__lastArPrice) return res.json({ arweave: { usd: __lastArPrice } });
-    res.status(500).json({ error: 'Failed to fetch AR price' });
-  }
-});
-
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 app.get('/readyz', (_req, res) => res.json({ ok: true }));
 
@@ -788,7 +840,7 @@ wss.on('connection', (ws) => {
   ws.send(JSON.stringify({
     type: 'init',
     data: {
-      lastTip: lastTip.getLastDonation(),
+  lastTip: lastTip.getLastDonation(),
       tipGoal: tipGoal.getGoalProgress(),
       persistentTips: externalNotifications.getStatus().lastTips,
       raffle: raffle.getPublicState()

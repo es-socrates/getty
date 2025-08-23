@@ -113,13 +113,11 @@ body {
     margin-bottom: 8px;
     animation: fadeIn 0.3s;
     box-sizing: border-box;
-    /* border-left: 8px solid #9eb474; */
 }
 
 .message.odd {
     background: var(--bg-message-alt);
     position: relative;
-    /* border-left: 8px solid #9eb474; */
 }
 
 .message-user-container {
@@ -147,6 +145,7 @@ body {
     flex-shrink: 0;
 }
 
+/* Base message text color for default (non-themed) chat */
 .message-text-inline {
     display: inline;
     word-break: break-word;
@@ -396,7 +395,7 @@ body {
 }
 
 .message.has-donation .message-text-inline {
-    color: #0a0e12 !important;
+    color: #111 !important;
 }
 
 .horizontal-chat#chat-container {

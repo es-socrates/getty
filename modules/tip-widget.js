@@ -68,7 +68,22 @@ class TipWidgetModule {
   constructor(wss) {
     this.wss = wss;
     this.ttsEnabled = true; // Default value
-    this.ARWEAVE_GATEWAY = 'https://arweave.net';
+    this.ARWEAVE_GATEWAYS = [
+      'https://arweave.net',
+      'https://ar-io.net',
+      'https://arweave.live',
+      'https://arweave-search.goldsky.com'
+    ];
+    if (process.env.TIP_WIDGET_EXTRA_GATEWAYS) {
+      try {
+        const extra = String(process.env.TIP_WIDGET_EXTRA_GATEWAYS)
+          .split(',').map(s=>s.trim()).filter(Boolean)
+          .map(s => (s.startsWith('http') ? s : `https://${s}`)).map(u=>u.replace(/\/$/, ''));
+        this.ARWEAVE_GATEWAYS.push(...extra);
+      } catch {}
+    }
+    this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
+    this.GRAPHQL_TIMEOUT = Number(process.env.TIP_WIDGET_GRAPHQL_TIMEOUT_MS || 10000);
     this.walletAddress = getWalletAddress();
     this.processedTxs = new Set();
     if (process.env.NODE_ENV !== 'test') {
@@ -83,7 +98,7 @@ class TipWidgetModule {
     }
     Logger.info('Initializing Tip Widget Module', {
       walletAddress: this.walletAddress.slice(0, 6) + '...' + this.walletAddress.slice(-4),
-      gateway: this.ARWEAVE_GATEWAY
+      gateways: this.ARWEAVE_GATEWAYS
     });
     this.checkTransactions();
     if (process.env.NODE_ENV !== 'test') {
@@ -94,87 +109,40 @@ class TipWidgetModule {
   async getAddressTransactions(address) {
     try {
       Logger.debug('Consulting transactions for address', address);
-      
-      const graphqlQuery = {
-        query: `
-          query GetTransactions($address: String!) {
-            transactions(
-              recipients: [$address]
-              first: 10
-              sort: HEIGHT_DESC
-            ) {
-              edges {
-                node {
-                  id
-                  owner { address }
-                  quantity { ar }
-                  block { height timestamp }
-                }
-              }
-            }
+      const query = `
+        query($recipients: [String!]) {
+          transactions(recipients: $recipients, first: 10, sort: HEIGHT_DESC) {
+            edges { node { id owner { address } quantity { ar } block { height timestamp } } }
           }
-        `,
-        variables: { address }
-      };
-      
-      Logger.debug('GraphQL query to be sent', graphqlQuery);
-
-      const graphqlResponse = await axios.post(`${this.ARWEAVE_GATEWAY}/graphql`, graphqlQuery, { 
-        timeout: 15000,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
         }
-      });
+      `;
 
-      if (graphqlResponse.data?.data?.transactions?.edges) {
-        Logger.debug('GraphQL response received', {
-          edgeCount: graphqlResponse.data.data.transactions.edges.length
-        });
-        
-        return graphqlResponse.data.data.transactions.edges.map(edge => ({
+      const tryGateway = async (gw) => {
+        const resp = await axios.post(`${gw}/graphql`, { query, variables: { recipients: [address] } }, { timeout: this.GRAPHQL_TIMEOUT });
+        const edges = resp.data?.data?.transactions?.edges || [];
+        return edges.map(edge => ({
           id: edge.node.id,
-          owner: edge.node.owner.address,
+          owner: edge.node.owner?.address,
           target: address,
-          quantity: edge.node.quantity.ar * 1e12,
+          quantity: Number(edge.node.quantity?.ar) * 1e12,
           block: edge.node.block?.height,
           timestamp: edge.node.block?.timestamp
         }));
+      };
+
+      const gws = this.ARWEAVE_GATEWAYS.slice();
+      let results = [];
+      if (typeof Promise.any === 'function') {
+        try { results = await Promise.any(gws.map(g => tryGateway(g))); } catch {}
+      } else {
+        for (const g of gws) { try { results = await tryGateway(g); break; } catch {} }
       }
 
-      Logger.warn('Using REST API as a fallback for address', address);
-      
-      const restResponse = await axios.get(`${this.ARWEAVE_GATEWAY}/tx/history/${address}`, {
-        timeout: 15000
-      });
-      
-      if (Array.isArray(restResponse.data)) {
-        Logger.debug('REST API response received', {
-          transactionCount: restResponse.data.length
-        });
-        
-        return restResponse.data.map(tx => ({
-          id: tx.txid,
-          owner: tx.owner,
-          target: tx.target || '',
-          quantity: tx.quantity,
-          block: tx.block_height,
-          timestamp: tx.block_timestamp
-        }));
-      }
-      
-      Logger.debug('No transactions found for address', address);
+      if (Array.isArray(results) && results.length) return results;
+      Logger.warn('All GraphQL gateways failed for address', address);
       return [];
     } catch (error) {
       Logger.error('Error in getAddressTransactions', error);
-      
-      if (error.response) {
-        Logger.debug('API Error response', {
-          status: error.response.status,
-          data: error.response.data
-        });
-      }
-      
       return [];
     }
   }

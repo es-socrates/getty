@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hasCustomAudio: false
     };
 
-    const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
+    const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
 
     function playGoalSound() {
         let audioUrl;
@@ -243,6 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const current = data.currentAmount ?? data.currentTips ?? data.current ?? 0;
         const goal = data.monthlyGoal ?? data.goal ?? 10;
         const rate = data.exchangeRate ?? data.rate ?? 0;
+        const themeRaw = data.theme || 'classic';
+        const theme = themeRaw === 'koku-list' ? 'modern-list' : themeRaw;
         return {
             current,
             goal,
@@ -251,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
             usdValue: (current * rate).toFixed(2),
             goalUsd: (goal * rate).toFixed(2),
             lastDonation: data.lastDonationTimestamp ?? data.lastDonation,
+            theme,
             bgColor: data.bgColor,
             fontColor: data.fontColor,
             borderColor: data.borderColor,
@@ -321,6 +324,72 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function renderModernListTheme(data) {
+        const prefersDark = (() => {
+            try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; }
+        })();
+        const themeClass = prefersDark ? 'theme-dark' : 'theme-light';
+        const t = (window.__i18n && window.__i18n.t) ? window.__i18n.t : (k=>k);
+        const titleSafe = (data.title || t('tipGoalDefaultTitle')).replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const statusCompleted = (data.progress || 0) >= 100;
+        const statusLabel = statusCompleted ? t('tipGoalCardStatusCompleted') : t('tipGoalCardStatusInProgress');
+        const targetUsd = data.goalUsd || ((data.goal || 0) * (data.rate || 0)).toFixed(2);
+
+    goalWidget.innerHTML = `
+            <div class="modern-card ${themeClass}">
+                <div class="modern-top">
+                    <div class="modern-icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 3v4M21 12h-4M12 21v-4M3 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </div>
+                    <span class="modern-pill">${statusLabel}</span>
+                </div>
+                <div class="modern-header">
+                    <h3 class="modern-title">${titleSafe}</h3>
+                </div>
+                <div class="modern-row modern-row-progress">
+                    <span class="modern-label">${t('tipGoalCardProgress')}</span>
+                    <span class="modern-value">${(data.progress || 0).toFixed(0)}%</span>
+                </div>
+                <div class="modern-progress"><div class="modern-bar" style="width:${data.progress}%"></div></div>
+                <div class="modern-row">
+                    <span class="modern-amount">$${targetUsd}</span>
+                    <span class="modern-muted">${t('tipGoalCardTarget')}</span>
+                </div>
+                <div class="modern-row modern-row-meta">
+                    <span class="modern-meta-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 2a1 1 0 0 1 1 1v1h8V3a1 1 0 1 1 2 0v1h1a2 2 0 0 1 2 2v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2h1V3a1 1 0 0 1 1-1Zm13 9H4v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7ZM5 8h14V6h-1v1a1 1 0 1 1-2 0V6H8v1a1 1 0 1 1-2 0V6H5v2Z" fill="currentColor"/></svg>
+                    </span>
+                    <span class="modern-muted">${t('tipGoalCardMonthlyGoal')}</span>
+                </div>
+                <!-- footer removed -->
+            </div>
+        `;
+
+        try {
+            goalWidget.style.removeProperty('background');
+            goalWidget.style.removeProperty('border-left');
+            goalWidget.style.removeProperty('color');
+            goalWidget.style.removeProperty('border');
+            goalWidget.style.removeProperty('padding');
+            goalWidget.style.removeProperty('width');
+        } catch(_){}
+
+        const card = goalWidget.querySelector('.modern-card');
+        const bg = data.bgColor || (prefersDark ? '#0F0F12' : '#ffffff');
+        const text = data.fontColor || (prefersDark ? '#ffffff' : '#0a0a0a');
+        const accent = data.progressColor || (prefersDark ? '#00ff7f' : '#0a0a0a');
+        const progressBg = prefersDark ? 'rgba(35,38,47,0.31)' : '#e5e7eb';
+        card.style.setProperty('--modern-bg', bg);
+        card.style.setProperty('--modern-text', text);
+        card.style.setProperty('--modern-accent', accent);
+        card.style.setProperty('--modern-progress-bg', progressBg);
+
+        const bar = goalWidget.querySelector('.modern-bar');
+        if (bar && (data.progress || 0) >= 100) {
+            bar.style.background = 'linear-gradient(90deg,#1c5928,#eaeaea)';
+        }
+    }
+
     function updateGoalDisplay(data) {
         if (!data) {
             console.warn('No data provided to updateGoalDisplay');
@@ -342,7 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const existingClasses = goalWidget.className;
         
-        let customTitle = '🎖️ Monthly tip goal';
+    const t = (window.__i18n && window.__i18n.t) ? window.__i18n.t : (k=>k);
+    let customTitle = t('tipGoalDefaultTitle');
         fetch('/api/modules')
             .then(r => r.ok ? r.json() : null)
             .then(modulesData => {
@@ -353,7 +423,28 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(()=>{});
 
-        goalWidget.innerHTML = `
+    if (data.theme === 'modern-list' && isOBSWidget) {
+
+            try {
+                goalWidget.classList.add('modern-theme');
+                goalWidget.style.removeProperty('background');
+                goalWidget.style.removeProperty('border-left');
+                goalWidget.style.removeProperty('color');
+                goalWidget.style.removeProperty('border');
+                goalWidget.style.removeProperty('padding');
+                goalWidget.style.removeProperty('width');
+            } catch(_){}
+
+            let customTitle = t('tipGoalDefaultTitle');
+            fetch('/api/modules').then(r=>r.ok?r.json():null).then(md=>{
+                if (md?.tipGoal?.title) data.title = md.tipGoal.title;
+                renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
+            }).catch(()=>{
+                renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
+            });
+        } else {
+            goalWidget.classList.remove('modern-theme');
+            goalWidget.innerHTML = `
             <div class="goal-container">
                 <div class="goal-header">
                     <div class="goal-title">${customTitle.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
@@ -369,10 +460,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+        }
         
         goalWidget.className = existingClasses;
 
-        if (isOBSWidget) {
+    if (isOBSWidget && data.theme === 'modern-list') {
+        goalWidget.classList.add('modern-theme');
+        } else {
+        goalWidget.classList.remove('modern-theme');
+        }
+
+    if (isOBSWidget && data.theme !== 'modern-list') {
             goalWidget.style.setProperty('background', bgColor, 'important');
             goalWidget.style.setProperty('border-left', `8px solid ${borderColor}`, 'important');
             goalWidget.style.setProperty('color', fontColor, 'important');
@@ -380,40 +478,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const container = goalWidget.querySelector('.goal-container');
         if (container && isOBSWidget) {
-            container.style.setProperty('background', bgColor, 'important');
-            container.style.setProperty('color', fontColor, 'important');
+            if (data.theme !== 'modern-list') {
+                container.style.setProperty('background', bgColor, 'important');
+                container.style.setProperty('color', fontColor, 'important');
+            }
         }
         const title = goalWidget.querySelector('.goal-title');
         if (title && isOBSWidget) {
-            title.style.setProperty('color', fontColor, 'important');
+            if (data.theme !== 'modern-list') title.style.setProperty('color', fontColor, 'important');
         }
         const currentAr = goalWidget.querySelector('.current-ar');
         if (currentAr && isOBSWidget) {
-            currentAr.style.setProperty('color', progressColor, 'important');
+            if (data.theme !== 'modern-list') currentAr.style.setProperty('color', progressColor, 'important');
         }
         const goalAr = goalWidget.querySelector('.goal-ar');
         if (goalAr && isOBSWidget) {
-            goalAr.style.setProperty('color', fontColor, 'important');
+            if (data.theme !== 'modern-list') goalAr.style.setProperty('color', fontColor, 'important');
         }
         const usdValue = goalWidget.querySelector('.usd-value');
         if (usdValue && isOBSWidget) {
-            usdValue.style.setProperty('color', fontColor, 'important');
+            if (data.theme !== 'modern-list') usdValue.style.setProperty('color', fontColor, 'important');
         }
         const progressContainer = goalWidget.querySelector('.progress-container');
         if (progressContainer && isOBSWidget) {
-            progressContainer.style.setProperty('background', 'rgba(35,38,47,0.31)', 'important');
+            if (data.theme !== 'modern-list') progressContainer.style.setProperty('background', 'rgba(35,38,47,0.31)', 'important');
         }
         const progressBar = goalWidget.querySelector('.progress-bar');
         if (progressBar && isOBSWidget) {
-            if (reachedGoal) {
-                progressBar.style.setProperty('background', 'linear-gradient(90deg, #1c5928, #34d755)', 'important');
+            if (data.theme === 'modern-list') {
+            } else if (reachedGoal) {
+                progressBar.style.setProperty('background', 'linear-gradient(90deg, #7058a4, #c83fee)', 'important');
             } else {
                 progressBar.style.setProperty('background', progressColor, 'important');
             }
         }
         const progressText = goalWidget.querySelector('.progress-text');
         if (progressText && isOBSWidget) {
-            progressText.style.setProperty('color', fontColor, 'important');
+            if (data.theme !== 'modern-list') progressText.style.setProperty('color', fontColor, 'important');
         }
 
         if (reachedGoal) {
@@ -481,4 +582,5 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     
     goalWidget.className = existingClasses;
+    goalWidget.classList.remove('modern-theme');
 });

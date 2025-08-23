@@ -3,7 +3,7 @@ const path = require('path');
 const { z } = require('zod');
 
 function registerLastTipRoutes(app, lastTip, tipWidget) {
-  const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'last-tip-config.json');
+  const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
 
   app.get('/api/last-tip', (_req, res) => {
     try {
@@ -52,6 +52,10 @@ function registerLastTipRoutes(app, lastTip, tipWidget) {
       fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
       const result = lastTip.updateWalletAddress(newConfig.walletAddress);
 
+      if (typeof lastTip.broadcastConfig === 'function') {
+        lastTip.broadcastConfig(newConfig);
+      }
+
       if (typeof tipWidget.updateWalletAddress === 'function') {
         tipWidget.updateWalletAddress(newConfig.walletAddress);
       }
@@ -69,14 +73,26 @@ function registerLastTipRoutes(app, lastTip, tipWidget) {
     }
   });
 
-  app.get('/last-donation', (_req, res) => {
-    const lastDonation = lastTip.getLastDonation();
-    if (lastDonation) {
-      res.json(lastDonation);
-    } else {
-      res.status(404).json({ error: 'No donation found' });
+  app.get('/last-donation', async (_req, res) => {
+    try {
+      if (!lastTip || !lastTip.walletAddress) {
+        return res.status(400).json({ error: 'No wallet configured for last tip' });
+      }
+
+      const lastDonation = lastTip.getLastDonation();
+      if (lastDonation) return res.json(lastDonation);
+
+      if (typeof lastTip.updateLatestDonation === 'function') {
+        setTimeout(() => { try { lastTip.updateLatestDonation(); } catch {} }, 0);
+        res.set('X-Refresh-Triggered', '1');
+      }
+
+      return res.status(404).json({ error: 'No donation cached yet' });
+  } catch {
+      return res.status(500).json({ error: 'Internal error fetching last donation' });
     }
   });
+
 }
 
 module.exports = registerLastTipRoutes;

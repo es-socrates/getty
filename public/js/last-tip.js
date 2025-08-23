@@ -1,4 +1,12 @@
-document.addEventListener('DOMContentLoaded', () => {
+(() => {
+    let __started = false;
+    function startOnce(fn) {
+        if (__started) return;
+        __started = true;
+        try { fn(); } catch (e) { console.error('LastTip init error:', e); }
+    }
+
+    function init() {
     const lastDonationElement = document.getElementById('last-donation');
     if (!lastDonationElement) {
         console.error('Error: Element #last-donation not found');
@@ -11,22 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const usdValueElement = document.querySelector('.notification-amount .usd-value');
     const fromElement = document.querySelector('.notification-from-lasttip');
 
-    const verifyElements = () => {
-        if (!titleElement) console.error('Element .notification-title not found');
-        if (!amountElement) console.error('Element .notification-amount .ar-amount not found');
-        if (!symbolElement) console.error('Element .notification-amount .ar-symbol not found');
-        if (!usdValueElement) console.error('Element .notification-amount .usd-value not found');
-        return titleElement && amountElement && symbolElement && usdValueElement;
-    };
-
-    if (!verifyElements()) return;
-
     if (!titleElement) {
+        console.error('Element .notification-title not found');
         return;
     }
 
     let AR_TO_USD = 0;
-    const ws = new WebSocket(`ws://${window.location.host}`);
+    const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${wsProto}://${window.location.host}`);
 
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return 'Recent';
@@ -55,24 +55,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateExchangeRate = async () => {
         try {
+            const res = await fetch('/api/ar-price').catch(()=>null);
+            if (res.ok) {
+                let data = null; try { data = await res.json(); } catch {}
+                if (data?.arweave?.usd) {
+                    AR_TO_USD = Number(data.arweave.usd) || AR_TO_USD || 5;
+                    return;
+                }
+            }
+    } catch {}
+        try {
             const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
             const data = await response.json();
             if (data.arweave?.usd) {
                 AR_TO_USD = data.arweave.usd;
-
+                return;
             }
         } catch (error) {
             console.error('Error updating exchange rate:', error);
-            AR_TO_USD = AR_TO_USD || 5;
         }
+        AR_TO_USD = AR_TO_USD || 5;
     };
 
     const isOBSWidget = window.location.pathname.includes('/widgets/');
+    let hasRenderedOnce = false;
     let lastTipColors = {};
 
     function applyCustomColors(customColors = {}) {
         if (!isOBSWidget) return;
-        const colors = { ...customColors, ...lastTipColors };
+        const colors = { ...lastTipColors, ...customColors };
 
         lastDonationElement.style.setProperty('background', colors.bgColor || '#080c10', 'important');
         lastDonationElement.style.setProperty('border-left', `8px solid ${colors.borderColor || '#00ff7f'}`, 'important');
@@ -115,6 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     iconBgColor: data.lastTip.iconBgColor,
                     fromColor: data.lastTip.fromColor
                 };
+
+                const cached = data.lastTip.lastDonation;
+                if (cached && !hasRenderedOnce) {
+                    hasRenderedOnce = true;
+                    updateUI(cached);
+                }
             }
         } catch (e) { /* ignore */ }
     }
@@ -124,16 +141,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const updateUI = async (data) => {
-        if (!data) {
+    if (!data) {
             await loadColors();
             titleElement.textContent = 'No tips yet. Send one! 💸';
-            amountElement.textContent = '0';
-            symbolElement.textContent = 'AR';
-            usdValueElement.textContent = '';
+            if (amountElement) amountElement.textContent = '0';
+            if (symbolElement) symbolElement.textContent = 'AR';
+            if (usdValueElement) usdValueElement.textContent = '';
             if (fromElement) fromElement.textContent = 'Send your first tip';
             applyCustomColors();
+
             return;
         }
+    hasRenderedOnce = true;
         
         await updateExchangeRate();
         await loadColors();
@@ -142,9 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const usdValue = calculateUsdValue(data.amount);
 
         try {
-            const modulesRes = await fetch('/api/modules');
-            if (modulesRes.ok) {
-                const modulesData = await modulesRes.json();
+            const modulesRes = await fetch('/api/modules').catch(()=>null);
+            if (modulesRes && modulesRes.ok) {
+                let modulesData = null; try { modulesData = await modulesRes.json(); } catch {}
                 const customTitle = modulesData?.lastTip?.title;
                 if (customTitle && customTitle.trim()) {
                     titleElement.textContent = customTitle.trim();
@@ -157,9 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch {
             titleElement.textContent = 'Last tip received 👏';
         }
-        amountElement.textContent = formattedAmount;
-        symbolElement.textContent = 'AR';
-        usdValueElement.textContent = usdValue;
+    if (amountElement) amountElement.textContent = formattedAmount;
+    if (symbolElement) symbolElement.textContent = 'AR';
+    if (usdValueElement) usdValueElement.textContent = usdValue;
         
         if (fromElement) {
             fromElement.textContent = `From: ${data.from?.slice(0, 22) || 'Anonymous'}... 📑`;
@@ -168,37 +187,59 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDonationElement.classList.remove('update-animation');
         void lastDonationElement.offsetWidth;
         lastDonationElement.classList.add('update-animation');
-        applyCustomColors(data);
+    applyCustomColors(data);
     };
 
     const loadInitialData = async () => {
         try {
-            const response = await fetch('/last-donation');
+            const controller = new AbortController();
+            const to = setTimeout(() => controller.abort(), 4000);
+            const response = await fetch('/last-donation', { signal: controller.signal });
+            clearTimeout(to);
             const text = await response.text();
             try {
                 const data = JSON.parse(text);
-                await updateExchangeRate();
-                await loadColors();
-                updateUI(data);
+                if (data && typeof data === 'object' && data.error) {
+                    updateUI(null);
+                } else {
+                    await updateExchangeRate();
+                    await loadColors();
+                    updateUI(data);
+                }
             } catch (jsonError) {
-                console.error('The response is not valid JSON:', text);
                 updateUI(null);
             }
-        } catch (error) {
-            console.error('Error loading initial data:', error);
+        } catch (_error) {
             updateUI(null);
         }
     };
 
     ws.onopen = async () => {
-
-        await loadColors();
+        loadColors();
+        updateExchangeRate();
         loadInitialData();
+        loadRecent();
     };
     
     ws.onmessage = async (event) => {
         try {
             const msg = JSON.parse(event.data);
+            if (msg.type === 'init' && msg.data) {
+                if (msg.data.lastTip) {
+                    await updateExchangeRate();
+                    await loadColors();
+                    updateUI(msg.data.lastTip);
+                }
+                return;
+            }
+            if (msg.type === 'lastTipConfig' && msg.data) {
+                lastTipColors = { ...lastTipColors, ...msg.data };
+                if (msg.data.title && titleElement) {
+                    titleElement.textContent = msg.data.title;
+                }
+                applyCustomColors();
+                return;
+            }
             if (msg.type === 'tip' || msg.type === 'lastTip') {
                 await updateExchangeRate();
                 await loadColors();
@@ -228,5 +269,14 @@ document.addEventListener('DOMContentLoaded', () => {
     (async () => {
         await loadColors();
         applyCustomColors();
+        updateExchangeRate();
+        loadInitialData();
     })();
-});
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => startOnce(init));
+    } else {
+        startOnce(init);
+    }
+})();

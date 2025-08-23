@@ -1,0 +1,11 @@
+{
+  "watch": ["server.js", "modules", "routes"],
+  "ignore": [
+    "config/*-cache.json",
+    "public/js/min/*",
+    "public/uploads/**",
+    "public/admin-dist/**"
+  ],
+  "ext": "js,json",
+  "exec": "node server.js"
+}

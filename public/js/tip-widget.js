@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let AR_TO_USD = 0;
     let ttsLanguage = 'en'; // Global TTS Language
 
-    const REMOTE_SOUND_URL = 'https://cdn.streamlabs.com/users/80245534/library/cash-register-2.mp3';
+    const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
     
     let audioSettings = {
         audioSource: 'remote',
@@ -45,39 +45,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     function playNotificationSound() {
         let audioUrl;
         let logMessage;
-        
         if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
             audioUrl = '/api/custom-audio';
             logMessage = '🎵 Custom audio played';
         } else {
             audioUrl = REMOTE_SOUND_URL;
-            logMessage = '🎵 Remote sound played';
+            logMessage = '🎵 Remote audio played';
         }
-        
-        const audio = new Audio(audioUrl);
-        audio.volume = 0.9;
-        audio.play()
-            .then(() => console.log(logMessage))
-            .catch(e => {
-                console.error('Error playing audio:', e);
-                if (audioSettings.audioSource === 'custom') {
-                    console.log('Fallback to remote audio');
-                    const fallbackAudio = new Audio(REMOTE_SOUND_URL);
-                    fallbackAudio.volume = 0.9;
-                    fallbackAudio.play()
-                        .then(() => console.log('🎵 Fallback remote sound played'))
-                        .catch(fallbackError => console.error('Error playing fallback audio:', fallbackError));
-                }
-            });
+        try {
+            const audio = new Audio(audioUrl);
+            audio.volume = 0.9;
+            audio.play()
+                .then(() => console.log(logMessage))
+                .catch(err => {
+                    console.error('Audio play failed:', err);
+                    if (audioUrl !== REMOTE_SOUND_URL) {
+                        const fallback = new Audio(REMOTE_SOUND_URL);
+                        fallback.volume = 0.9;
+                        fallback.play().catch(e => console.error('Fallback audio failed:', e));
+                    }
+                });
+        } catch (e) {
+            console.error('Audio init error:', e);
+        }
     }
 
     function formatText(text) {
         if (!text) return '';
-        const withoutEmojis = text.replace(/:[a-zA-Z0-9_]+:/g, '');
-        return escapeHtml(withoutEmojis).trim();
-    }
-
-    function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML

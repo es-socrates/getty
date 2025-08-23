@@ -7,7 +7,7 @@
     "start": "node server.js",
     "start:prod": "cross-env NODE_ENV=production node server.js",
     "dev": "npm-run-all --parallel dev-server dev-css",
-    "dev-server": "nodemon server.js",
+    "dev-server": "nodemon --config nodemon.json",
     "admin:dev": "vite --config admin-frontend/vite.config.js",
     "admin:build": "vite build --config admin-frontend/vite.config.js",
     "dev-css": "npx tailwindcss -i ./src/input.css -o ./public/css/output.css --watch",

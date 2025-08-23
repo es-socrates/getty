@@ -11,6 +11,13 @@
         </div>
       </div>
       <div class="form-group mt-2">
+        <label class="label" for="tip-goal-theme">{{ t('tipGoalThemeLabel') }}</label>
+        <select id="tip-goal-theme" v-model="form.theme" class="input">
+          <option value="classic">{{ t('tipGoalThemeClassic') }}</option>
+          <option value="modern-list">{{ t('tipGoalThemeKokuList03') }}</option>
+        </select>
+      </div>
+      <div class="form-group mt-2">
         <label class="label" for="tip-goal-wallet-address">{{ t('arWalletAddress') }}</label>
         <input class="input" :aria-invalid="!!errors.walletAddress" :class="{'input-error': errors.walletAddress}" id="tip-goal-wallet-address" v-model="form.walletAddress" type="text" />
         <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
@@ -88,6 +95,7 @@ const form = reactive({
   walletAddress: '',
   goalAmount: 10,
   startingAmount: 0,
+  theme: 'classic',
   colors: {
     bg: '#080c10',
     font: '#ffffff',
@@ -135,6 +143,7 @@ async function load() {
       form.goalAmount = data.monthlyGoal || data.goalAmount || form.goalAmount;
       form.startingAmount = data.currentAmount ?? form.startingAmount;
       form.title = data.title || '';
+      form.theme = data.theme || 'classic';
       form.colors.bg = data.bgColor || form.colors.bg;
       form.colors.font = data.fontColor || form.colors.font;
       form.colors.border = data.borderColor || form.colors.border;
@@ -165,6 +174,7 @@ async function save() {
       goalAmount: form.goalAmount,
       startingAmount: form.startingAmount,
       currentAmount: form.startingAmount,
+      theme: form.theme,
       bgColor: form.colors.bg,
       fontColor: form.colors.font,
       borderColor: form.colors.border,

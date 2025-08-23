@@ -163,7 +163,7 @@
   "play": "Reproducir",
   "remove": "Eliminar",
   "goalAudioTitle": "Audio de meta",
-  "raffleTitle": "Giveaway",
+  "raffleTitle": "Sorteos",
   "raffleWinnerTitle": "¡Tenemos un ganador!",
   "rafflePrizeLabel": "Premio:",
   "rafflePrizePlaceholder": "Nombre o descripción del premio",
@@ -263,6 +263,10 @@
   "tipGoalCustomTitleLabel": "Título personalizado",
   "tipGoalCustomTitlePlaceholder": "🎖️ Meta mensual de propinas",
   "tipGoalCustomTitleHint": "Título mostrado en el widget. Déjalo vacío para el predeterminado.",
+  "tipGoalThemeLabel": "Tema:",
+  "tipGoalThemeClassic": "Clásico",
+  "tipGoalThemeKokuList03": "Moderno",
+  "tipGoalWidgetUrl": "URL del widget de Meta de propinas:",
   "notificationGifTitle": "GIF de notificación",
   "notificationGifPositionLabel": "Posición del GIF",
   "positionRight": "Derecha",
@@ -334,5 +338,12 @@
   "activityTotal": "Total",
   "activityPrev": "Anterior",
   "activityNext": "Siguiente",
-  "activityShowAll": "Ver todo"
+  "activityShowAll": "Ver todo",
+  "tipGoalCardStatusCompleted": "Completado",
+  "tipGoalCardStatusInProgress": "En progreso",
+  "tipGoalCardProgress": "Progreso",
+  "tipGoalCardTarget": "meta",
+  "tipGoalCardMonthlyGoal": "Meta mensual",
+  "tipGoalCardViewDetails": "Ver detalles",
+  "tipGoalDefaultTitle": "🎖️ Meta mensual de propinas"
 }

@@ -77,7 +77,7 @@
   }
 
   .last-donation {
-    @apply text-white overflow-hidden border-l-8 border-[#9eb474] rounded-[4px];
+    @apply text-white overflow-hidden border-l-8 border-[#eaeaea] rounded-[4px];
   }
 
   .last-donation-content {
@@ -85,10 +85,10 @@
   }
 
   .notification-icon-lasttip {
-    @apply flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] rounded bg-[#9eb474] mr-[15px] ml-[5px];
+    @apply flex items-center justify-center w-[78px] h-[78px] min-w-[78px] min-h-[78px] rounded bg-[#eaeaea] mr-[15px] ml-[5px];
   }
   .notification-icon-lasttip svg {
-    @apply w-[58px] h-[58px] block text-white mt-[5px];
+    @apply w-[60px] h-[60px] block text-black mt-[2px];
   }
   .notification-from-lasttip {
     @apply text-xs font-semibold flex items-center;
@@ -149,4 +149,3 @@ html:not(.dark) body .last-donation .notification-title {
       @apply p-2;
     }
   }
-}
