@@ -58,6 +58,79 @@ const announcementLimiters = {
 
 app.use(compression());
 
+const __activityLog = [];
+const __MAX_ACTIVITY = 500;
+function __pushActivity(level, pieces) {
+  try {
+    const msg = pieces
+      .map(p => {
+        if (typeof p === 'string') return p;
+        try { return JSON.stringify(p); } catch { return String(p); }
+      })
+      .join(' ');
+    __activityLog.push({ ts: new Date().toISOString(), level, message: msg });
+    if (__activityLog.length > __MAX_ACTIVITY) __activityLog.shift();
+  } catch {}
+}
+
+try {
+  if (process.env.NODE_ENV !== 'test') {
+    const __orig = {
+      log: console.log.bind(console),
+      info: console.info ? console.info.bind(console) : console.log.bind(console),
+      warn: console.warn ? console.warn.bind(console) : console.log.bind(console),
+      error: console.error ? console.error.bind(console) : console.log.bind(console)
+    };
+    console.log = (...args) => { __pushActivity('info', args); __orig.log(...args); };
+    console.info = (...args) => { __pushActivity('info', args); __orig.info(...args); };
+    console.warn = (...args) => { __pushActivity('warn', args); __orig.warn(...args); };
+    console.error = (...args) => { __pushActivity('error', args); __orig.error(...args); };
+  }
+} catch {}
+
+let __requestTimestamps = [];
+app.use((_req, _res, next) => {
+  try {
+    const now = Date.now();
+    __requestTimestamps.push(now);
+
+    const cutoff = now - 60 * 60 * 1000;
+    if (__requestTimestamps.length > 10000) {
+      __requestTimestamps = __requestTimestamps.filter(t => t >= cutoff);
+    } else {
+
+      while (__requestTimestamps.length && __requestTimestamps[0] < cutoff) __requestTimestamps.shift();
+    }
+  } catch {}
+  next();
+});
+
+let __bytesEvents = [];
+app.use((_req, res, next) => {
+  try {
+    let bytes = 0;
+    const _write = res.write;
+    const _end = res.end;
+    res.write = function (chunk, encoding, cb) {
+      try {
+        if (chunk) bytes += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
+      } catch {}
+      return _write.call(this, chunk, encoding, cb);
+    };
+    res.end = function (chunk, encoding, cb) {
+      try {
+        if (chunk) bytes += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
+        const now = Date.now();
+        __bytesEvents.push({ ts: now, bytes });
+        const cutoff = now - 60 * 60 * 1000;
+        while (__bytesEvents.length && __bytesEvents[0].ts < cutoff) __bytesEvents.shift();
+      } catch {}
+      return _end.call(this, chunk, encoding, cb);
+    };
+  } catch {}
+  next();
+});
+
 function getLiveviewsConfigWithDefaults(partial) {
   return {
     bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
@@ -223,6 +296,7 @@ app.post('/api/test-tip', limiter, (req, res) => {
       ...donation,
       usd: (donation.amount * 5).toFixed(2)
     });
+  try { __recordTip({ amount: donation.amount, usd: (donation.amount * 5).toFixed(2), timestamp: Date.now(), source: 'test' }); } catch {}
     
     res.json({ ok: true, sent: donation });
   } catch (error) {
@@ -402,6 +476,77 @@ registerRaffleRoutes(app, raffle, wss);
 
 const __serverStartTime = Date.now();
 
+const __tipEvents = [];
+function __recordTip(evt) {
+  try {
+    if (!evt) return;
+    const ts = evt.timestamp ? (typeof evt.timestamp === 'number' ? evt.timestamp : Date.parse(evt.timestamp)) : Date.now();
+    const amount = typeof evt.amount === 'number' ? evt.amount : parseFloat(evt.amount);
+    const usd = evt.usd ? (typeof evt.usd === 'number' ? evt.usd : parseFloat(evt.usd)) : undefined;
+    if (isNaN(amount)) return;
+    __tipEvents.push({ ts: ts || Date.now(), ar: amount, usd: isNaN(usd) ? undefined : usd });
+
+    const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    while (__tipEvents.length && __tipEvents[0].ts < cutoff) __tipEvents.shift();
+  } catch {}
+}
+
+try {
+  const __origEmit = wss.emit.bind(wss);
+  wss.emit = (eventName, ...args) => {
+    try { if (eventName === 'tip' && args[0]) __recordTip(args[0]); } catch {}
+    return __origEmit(eventName, ...args);
+  };
+} catch {}
+
+app.get('/api/activity', (req, res) => {
+  try {
+    const level = typeof req.query.level === 'string' ? req.query.level : '';
+    const order = req.query.order === 'asc' ? 'asc' : 'desc';
+    const all = String(req.query.limit || '').toLowerCase() === 'all';
+    const totalItems = level ? __activityLog.filter(i => i.level === level).length : __activityLog.length;
+    const max = __MAX_ACTIVITY;
+    const rawLimit = all ? totalItems : Math.min(parseInt(req.query.limit, 10) || 100, max);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+    let items = level ? __activityLog.filter(i => i.level === level) : __activityLog.slice();
+    const total = items.length;
+    let out = [];
+    if (order === 'asc') {
+      out = items.slice(offset, offset + rawLimit);
+    } else {
+      const start = Math.max(total - offset - rawLimit, 0);
+      const end = Math.max(total - offset, 0);
+      out = items.slice(start, end).reverse();
+    }
+    res.json({ items: out, total });
+  } catch {
+    res.status(500).json({ error: 'Failed to read activity log' });
+  }
+});
+
+app.post('/api/activity/clear', strictLimiter, (_req, res) => {
+  try {
+    __activityLog.length = 0;
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to clear activity log' });
+  }
+});
+
+app.get('/api/activity/export', (req, res) => {
+  try {
+    const level = typeof req.query.level === 'string' ? req.query.level : '';
+    const items = level ? __activityLog.filter(i => i.level === level) : __activityLog;
+    const filename = `activity-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.end(JSON.stringify(items, null, 2));
+  } catch {
+    res.status(500).json({ error: 'Failed to export activity log' });
+  }
+});
+
 app.get('/api/modules', (_req, res) => {
   let tipGoalColors = {};
   if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
@@ -492,6 +637,130 @@ app.get('/api/modules', (_req, res) => {
       env: process.env.NODE_ENV || 'development'
     }
   });
+});
+
+app.get('/api/metrics', async (_req, res) => {
+  try {
+    const now = Date.now();
+    const mem = process.memoryUsage();
+    const wsClients = (() => {
+      try { return Array.from(wss.clients).filter(c=>c && c.readyState === 1).length; } catch { return 0; }
+    })();
+
+    const oneMin = now - 60 * 1000;
+    const fiveMin = now - 5 * 60 * 1000;
+    const hour = now - 60 * 60 * 1000;
+    const rpm = __requestTimestamps.filter(t => t >= oneMin).length;
+    const r5m = __requestTimestamps.filter(t => t >= fiveMin).length;
+    const r1h = __requestTimestamps.filter(t => t >= hour).length;
+
+  const bytes1m = __bytesEvents.filter(e => e.ts >= oneMin).reduce((a,b)=>a+b.bytes,0);
+  const bytes5m = __bytesEvents.filter(e => e.ts >= fiveMin).reduce((a,b)=>a+b.bytes,0);
+  const bytes1h = __bytesEvents.filter(e => e.ts >= hour).reduce((a,b)=>a+b.bytes,0);
+
+  const history = (typeof chat.getHistory === 'function') ? chat.getHistory() : [];
+  const toTs = m => {
+    try {
+      let ts = typeof m.timestamp === 'number' ? m.timestamp : new Date(m.timestamp).getTime();
+
+      if (ts && ts < 1e12) ts = ts * 1000;
+      return ts || 0;
+    } catch { return 0; }
+  };
+  const chat1m = history.filter(m => toTs(m) >= oneMin).length;
+  const chat5m = history.filter(m => toTs(m) >= fiveMin).length;
+  const chat1h = history.filter(m => toTs(m) >= hour).length;
+
+  const tips = externalNotifications.getStatus().lastTips || [];
+  const parseNum = v => (typeof v === 'number' ? v : parseFloat(v)) || 0;
+  const tipsSessionAR = tips.reduce((acc, t) => acc + parseNum(t.amount), 0);
+  const tipsSessionUSD = tips.reduce((acc, t) => acc + parseNum(t.usd), 0);
+  const tipGoalStatus = tipGoal.getStatus();
+
+  const tip1m = __tipEvents.filter(e => e.ts >= oneMin);
+  const tip5m = __tipEvents.filter(e => e.ts >= fiveMin);
+  const tip1h = __tipEvents.filter(e => e.ts >= hour);
+  const day = now - 24 * 60 * 60 * 1000;
+  const week = now - 7 * 24 * 60 * 60 * 1000;
+  const month = now - 30 * 24 * 60 * 60 * 1000;
+  const year = now - 365 * 24 * 60 * 60 * 1000;
+  const tip1d = __tipEvents.filter(e => e.ts >= day);
+  const tip1w = __tipEvents.filter(e => e.ts >= week);
+  const tip1mo = __tipEvents.filter(e => e.ts >= month);
+  const tip1y = __tipEvents.filter(e => e.ts >= year);
+  const sumAr = arr => arr.reduce((a,b)=>a+(b.ar||0),0);
+  const sumUsd = arr => arr.reduce((a,b)=>a+(b.usd||0),0);
+
+    let liveviews = { live: false, viewerCount: 0 };
+    try {
+      if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+        const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+        const cfg = getLiveviewsConfigWithDefaults(raw || {});
+        if (cfg.claimid) {
+          const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(cfg.claimid)}`;
+          const resp = await axios.get(url, { timeout: 3000 });
+          const data = resp.data && resp.data.data ? resp.data.data : {};
+          liveviews.live = !!data.Live;
+          liveviews.viewerCount = typeof data.ViewerCount === 'number' ? data.ViewerCount : 0;
+        }
+      }
+    } catch {}
+
+    res.json({
+      system: {
+        uptimeSeconds: Math.floor((now - __serverStartTime) / 1000),
+        wsClients,
+        memory: {
+          rssMB: +(mem.rss / (1024*1024)).toFixed(1),
+          heapUsedMB: +(mem.heapUsed / (1024*1024)).toFixed(1),
+          heapTotalMB: +(mem.heapTotal / (1024*1024)).toFixed(1)
+        },
+        requests: { perMin: rpm, last5m: r5m, lastHour: r1h }
+      },
+      bandwidth: {
+        bytes: {
+          perMin: bytes1m,
+          last5m: bytes5m,
+          lastHour: bytes1h
+        },
+        human: {
+          perMin: `${(bytes1m/1024).toFixed(1)} KB`,
+          last5m: `${(bytes5m/1024).toFixed(1)} KB`,
+          lastHour: `${(bytes1h/1024/1024).toFixed(2)} MB`
+        }
+      },
+      chat: {
+        connected: !!chat.getStatus?.().connected,
+        historySize: history.length,
+        perMin: chat1m,
+        last5m: chat5m,
+        lastHour: chat1h
+      },
+      tips: {
+        session: { ar: +tipsSessionAR.toFixed(2), usd: +tipsSessionUSD.toFixed(2), count: tips.length },
+        monthly: {
+          goalAR: tipGoalStatus.monthlyGoal || tipGoalStatus.monthlyGoalAR || 0,
+          currentAR: tipGoalStatus.currentTips || tipGoalStatus.currentTipsAR || 0,
+          progress: tipGoalStatus.progress || 0,
+          usdValue: tipGoalStatus.usdValue ? parseFloat(tipGoalStatus.usdValue) : undefined
+        },
+        rate: {
+          perMin: { count: tip1m.length, ar: +sumAr(tip1m).toFixed(2), usd: +sumUsd(tip1m).toFixed(2) },
+          last5m: { count: tip5m.length, ar: +sumAr(tip5m).toFixed(2), usd: +sumUsd(tip5m).toFixed(2) },
+          lastHour:{ count: tip1h.length, ar: +sumAr(tip1h).toFixed(2), usd: +sumUsd(tip1h).toFixed(2) }
+        },
+        window: {
+          last24h: { count: tip1d.length, ar: +sumAr(tip1d).toFixed(2), usd: +sumUsd(tip1d).toFixed(2) },
+          last7d:  { count: tip1w.length, ar: +sumAr(tip1w).toFixed(2), usd: +sumUsd(tip1w).toFixed(2) },
+          last30d: { count: tip1mo.length, ar: +sumAr(tip1mo).toFixed(2), usd: +sumUsd(tip1mo).toFixed(2) },
+          last365d:{ count: tip1y.length, ar: +sumAr(tip1y).toFixed(2), usd: +sumUsd(tip1y).toFixed(2) }
+        }
+      },
+      liveviews
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to compute metrics' });
+  }
 });
 
 let __lastArPrice = null; let __lastArPriceAt = 0;

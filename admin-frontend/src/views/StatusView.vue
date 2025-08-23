@@ -12,19 +12,38 @@
       </div>
     </OsCard>
 
-    <OsCard :title="t('statusSystem')">
-      <OsTable
-        :headers="[]"
-        :rows="systemRows"
-        :cols="['col-span-3','col-span-9']"
-        :aria-label="t('statusSystem')"
-      >
-        <template #cell="{ value, colIndex }">
-          <template v-if="colIndex === 0"><span class="os-th">{{ value }}</span></template>
-          <template v-else>{{ value }}</template>
-        </template>
-      </OsTable>
+    <div class="mb-4">
+      <MetricsPanel />
+    </div>
+
+    <OsCard :title="t('statusSystem')" class="mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div class="p-3 os-subtle rounded-os-sm">
+          <div class="os-th text-xs">{{ t('statusLocale') }}</div>
+          <div class="text-sm font-semibold">{{ locale }}</div>
+        </div>
+        <div class="p-3 os-subtle rounded-os-sm">
+          <div class="os-th text-xs">{{ t('statusTime') }}</div>
+          <div class="text-sm font-semibold">{{ now }}</div>
+        </div>
+        <div class="p-3 os-subtle rounded-os-sm">
+          <div class="os-th text-xs">{{ t('statusUptime') }}</div>
+          <div class="text-xl font-semibold">{{ formattedUptime }}</div>
+        </div>
+        <div class="p-3 os-subtle rounded-os-sm">
+          <div class="os-th text-xs">{{ t('statusWsClients') }}</div>
+          <div class="text-xl font-semibold">{{ system?.wsClients ?? 0 }}</div>
+        </div>
+        <div class="p-3 os-subtle rounded-os-sm">
+          <div class="os-th text-xs">ENV</div>
+          <div class="inline-flex items-center px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs font-mono uppercase tracking-wide">{{ system?.env || '—' }}</div>
+        </div>
+      </div>
     </OsCard>
+    <div class="divider"></div>
+    <div class="mb-4">
+      <ActivityPanel />
+    </div>
   </section>
 </template>
 
@@ -33,7 +52,8 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue'
-import OsTable from '../components/os/OsTable.vue'
+import ActivityPanel from '../components/ActivityPanel.vue'
+import MetricsPanel from '../components/MetricsPanel.vue'
 
 const { t, locale } = useI18n();
 const modulesList = ref([]);
@@ -49,18 +69,6 @@ function formatUptime(seconds) {
 const formattedUptime = computed(() =>
   system.value ? formatUptime(system.value.uptimeSeconds || 0) : ''
 );
-
-const systemRows = computed(() => {
-  const rows = [];
-  rows.push([t('statusLocale'), locale]);
-  rows.push([t('statusTime'), now.value]);
-  if (system.value) {
-    rows.push([t('statusUptime'), formattedUptime.value]);
-    rows.push([t('statusWsClients'), system.value.wsClients]);
-    rows.push(['ENV', system.value.env]);
-  }
-  return rows;
-});
 
 async function load() {
   try {
