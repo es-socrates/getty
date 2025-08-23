@@ -265,7 +265,7 @@
   "tipGoalCustomTitleHint": "Title shown in widget. Leave empty for default.",
   "tipGoalThemeLabel": "Theme:",
   "tipGoalThemeClassic": "Classic",
-  "tipGoalThemeKokuList03": "Modern",
+  "tipGoalThemeModern": "Modern",
   "tipGoalCardStatusInProgress": "In-progress",
   "tipGoalCardStatusCompleted": "Completed",
   "tipGoalCardProgress": "Progress",

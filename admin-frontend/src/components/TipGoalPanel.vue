@@ -14,7 +14,7 @@
         <label class="label" for="tip-goal-theme">{{ t('tipGoalThemeLabel') }}</label>
         <select id="tip-goal-theme" v-model="form.theme" class="input">
           <option value="classic">{{ t('tipGoalThemeClassic') }}</option>
-          <option value="modern-list">{{ t('tipGoalThemeKokuList03') }}</option>
+          <option value="modern-list">{{ t('tipGoalThemeModern') }}</option>
         </select>
       </div>
       <div class="form-group mt-2">

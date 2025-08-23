@@ -265,7 +265,7 @@
   "tipGoalCustomTitleHint": "Título mostrado en el widget. Déjalo vacío para el predeterminado.",
   "tipGoalThemeLabel": "Tema:",
   "tipGoalThemeClassic": "Clásico",
-  "tipGoalThemeKokuList03": "Moderno",
+  "tipGoalThemeModern": "Moderno",
   "tipGoalWidgetUrl": "URL del widget de Meta de propinas:",
   "notificationGifTitle": "GIF de notificación",
   "notificationGifPositionLabel": "Posición del GIF",
