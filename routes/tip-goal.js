@@ -33,6 +33,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         currentAmount: z.coerce.number().nonnegative().optional(),
         startingAmount: z.coerce.number().nonnegative().optional(),
         currentTips: z.coerce.number().nonnegative().optional(),
+        theme: z.enum(['classic','modern-list']).default('classic').optional(),
         bgColor: z.string().optional(),
         fontColor: z.string().optional(),
         borderColor: z.string().optional(),
@@ -46,6 +47,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const walletAddress = data.walletAddress || '';
       const monthlyGoal = typeof data.monthlyGoal === 'number' ? data.monthlyGoal : data.goalAmount;
       const currentAmount = data.currentAmount ?? data.startingAmount ?? data.currentTips ?? 0;
+      const theme = data.theme || 'classic';
       const bgColor = data.bgColor;
       const fontColor = data.fontColor;
       const borderColor = data.borderColor;
@@ -60,6 +62,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       tipGoal.updateWalletAddress(walletAddress);
       tipGoal.monthlyGoalAR = monthlyGoal;
       tipGoal.currentTipsAR = currentAmount;
+      tipGoal.theme = theme;
 
       let audioFile = null;
       let hasCustomAudio = false;
@@ -77,6 +80,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         walletAddress,
         monthlyGoal,
         currentAmount,
+        theme,
         bgColor: bgColor || '#080c10',
         fontColor: fontColor || '#ffffff',
         borderColor: borderColor || '#00ff7f',
@@ -97,6 +101,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           if (borderColor) tipGoal.borderColor = borderColor;
           if (progressColor) tipGoal.progressColor = progressColor;
           if (widgetTitle) tipGoal.title = widgetTitle;
+          if (theme) tipGoal.theme = theme;
         }
       } catch {}
 

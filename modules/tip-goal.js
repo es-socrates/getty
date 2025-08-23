@@ -43,10 +43,28 @@ class TipGoalModule {
         this.fontColor = '#ffffff';
         this.borderColor = '#00ff7f';
         this.progressColor = '#00ff7f';
+        this.theme = 'classic';
         this.title = '🎖️ Monthly tip goal';
         this.loadWalletAddress();
 
         this.AR_TO_USD = 0;
+        this.ARWEAVE_GATEWAYS = [
+            'https://arweave.net',
+            'https://ar-io.net',
+            'https://arweave.live',
+            'https://arweave-search.goldsky.com'
+        ];
+
+        if (process.env.TIP_GOAL_EXTRA_GATEWAYS) {
+            try {
+                const extra = String(process.env.TIP_GOAL_EXTRA_GATEWAYS)
+                    .split(',').map(s=>s.trim()).filter(Boolean)
+                    .map(s => (s.startsWith('http') ? s : `https://${s}`)).map(u=>u.replace(/\/$/, ''));
+                this.ARWEAVE_GATEWAYS.push(...extra);
+            } catch {}
+        }
+        this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
+        this.GRAPHQL_TIMEOUT = Number(process.env.TIP_GOAL_GRAPHQL_TIMEOUT_MS || 10000);
         this.processedTxs = new Set();
         this.lastDonationTimestamp = null;
         this.lastExchangeRateUpdate = null;
@@ -73,6 +91,7 @@ class TipGoalModule {
             walletAddress: '',
             monthlyGoal: 10,
             currentAmount: 0,
+            theme: 'classic',
             bgColor: '#080c10',
             fontColor: '#ffffff',
             borderColor: '#00ff7f',
@@ -98,6 +117,9 @@ class TipGoalModule {
             if (typeof config.fontColor === 'string') this.fontColor = config.fontColor;
             if (typeof config.borderColor === 'string') this.borderColor = config.borderColor;
             if (typeof config.progressColor === 'string') this.progressColor = config.progressColor;
+            if (typeof config.theme === 'string') {
+                this.theme = (config.theme === 'koku-list') ? 'modern-list' : config.theme;
+            }
             if (typeof config.title === 'string' && config.title.trim()) this.title = config.title.trim();
             if (!this.walletAddress) {
                 try {
@@ -163,99 +185,70 @@ class TipGoalModule {
     }
     
     async updateExchangeRate() {
+        const localUrl = `http://127.0.0.1:${process.env.PORT || 3000}/api/ar-price`;
         try {
-            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd', {
-                timeout: 5000
-            });
-            
-            if (response.data?.arweave?.usd) {
-                this.AR_TO_USD = response.data.arweave.usd;
+            const cached = await axios.get(localUrl, { timeout: 3000 });
+            const usd = cached.data?.arweave?.usd;
+            if (usd) {
+                this.AR_TO_USD = Number(usd);
                 this.lastExchangeRateUpdate = new Date();
-                console.log(`💱 Updated exchange rate: 1 AR = $${this.AR_TO_USD} USD`);
                 this.sendGoalUpdate();
                 return true;
             }
-            
-            console.warn('⚠️ No exchange rate data received from CoinGecko');
+        } catch {}
+        try {
+            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd', { timeout: 5000 });
+            if (response.data?.arweave?.usd) {
+                this.AR_TO_USD = response.data.arweave.usd;
+                this.lastExchangeRateUpdate = new Date();
+                this.sendGoalUpdate();
+                return true;
+            }
             return false;
-        } catch (error) {
-            console.error('Error updating exchange rate:', error.message);
-            this.AR_TO_USD = this.AR_TO_USD || 5;
-            return false;
+        } catch {
+                this.AR_TO_USD = this.AR_TO_USD || 5;
+                return false;
+            }
         }
-    }
     
-    async getAddressTransactions(address) {
+        async getAddressTransactions(address) {
         if (!address) {
             console.error('No address provided to getAddressTransactions');
             return [];
         }
 
-        try {
-            const graphqlQuery = {
-                query: `
-                    query GetTransactions($address: String!) {
-                        transactions(
-                            recipients: [$address]
-                            first: 10
-                            sort: HEIGHT_DESC
-                        ) {
-                            edges {
-                                node {
-                                    id
-                                    owner { address }
-                                    quantity { ar }
-                                    block { height timestamp }
-                                }
-                            }
+                const query = `
+                    query($recipients: [String!]) {
+                        transactions(recipients: $recipients, first: 25, sort: HEIGHT_DESC) {
+                            edges { node { id owner { address } quantity { ar } block { height timestamp } } }
                         }
                     }
-                `,
-                variables: { address }
-            };
+                `;
 
-            const graphqlResponse = await axios.post('https://arweave.net/graphql', graphqlQuery, {
-                timeout: 15000
-            });
+                const tryGateway = async (gw) => {
+                        const resp = await axios.post(`${gw}/graphql`, { query, variables: { recipients: [address] } }, { timeout: this.GRAPHQL_TIMEOUT });
+                        const edges = resp.data?.data?.transactions?.edges || [];
+                        if (!Array.isArray(edges)) throw new Error('Bad GraphQL shape');
+                        return edges.map(edge => ({
+                                id: edge.node.id,
+                                owner: edge.node.owner?.address,
+                                target: address,
+                                amount: edge.node.quantity?.ar,
+                                timestamp: edge.node.block?.timestamp,
+                                source: 'graphql'
+                        }));
+                };
 
-            if (graphqlResponse.data?.data?.transactions?.edges) {
-                return graphqlResponse.data.data.transactions.edges.map(edge => ({
-                    id: edge.node.id,
-                    owner: edge.node.owner.address,
-                    target: address,
-                    amount: edge.node.quantity.ar,
-                    timestamp: edge.node.block?.timestamp,
-                    source: 'graphql'
-                }));
-            }
-
-            console.log('⚠️ Using REST API as a fallback');
-            const restResponse = await axios.get(`https://arweave.net/tx/history/${address}`, {
-                timeout: 15000
-            });
-            
-            if (Array.isArray(restResponse.data)) {
-                return restResponse.data
-                    .filter(tx => tx.target === address)
-                    .map(tx => ({
-                        id: tx.txid,
-                        owner: tx.owner,
-                        target: tx.target,
-                        amount: tx.quantity / 1e12,
-                        timestamp: tx.block_timestamp,
-                        source: 'rest'
-                    }));
-            }
-            
-            return [];
-        } catch (error) {
-            console.error('Error in getAddressTransactions:', error.message);
-            if (error.response) {
-                console.error('Error response:', error.response.data);
-                console.error('Status code:', error.response.status);
-            }
-            return [];
-        }
+                const gws = this.ARWEAVE_GATEWAYS.slice();
+                let results = [];
+                if (typeof Promise.any === 'function') {
+                        try { results = await Promise.any(gws.map(g => tryGateway(g))); } catch {}
+                } else {
+                        for (const g of gws) { try { results = await tryGateway(g); break; } catch {} }
+                }
+                if (Array.isArray(results) && results.length) return results;
+                console.warn('[TipGoal] All GraphQL gateways failed; will retry next interval.');
+                return [];
     }
     
     async checkTransactions(initialLoad = false) {
@@ -341,6 +334,7 @@ class TipGoalModule {
             goalUsd: (this.monthlyGoalAR * this.AR_TO_USD).toFixed(2),
             lastDonationTimestamp: this.lastDonationTimestamp,
             lastUpdated: new Date().toISOString(),
+            theme: this.theme,
             bgColor: this.bgColor,
             fontColor: this.fontColor,
             borderColor: this.borderColor,
@@ -370,6 +364,7 @@ class TipGoalModule {
                 walletAddress: this.walletAddress,
                 monthlyGoal: this.monthlyGoalAR,
                 currentAmount: this.currentTipsAR,
+                theme: this.theme,
                 bgColor: this.bgColor,
                 fontColor: this.fontColor,
                 borderColor: this.borderColor,
@@ -462,6 +457,7 @@ class TipGoalModule {
             nextTransactionCheck: this.lastTransactionCheck ? 
                 new Date(this.lastTransactionCheck.getTime() + this.transactionCheckInterval) : null,
             ...this.getGoalProgress(),
+            theme: this.theme,
             bgColor: this.bgColor,
             fontColor: this.fontColor,
             borderColor: this.borderColor,

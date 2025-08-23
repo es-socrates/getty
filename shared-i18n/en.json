@@ -263,6 +263,15 @@
   "tipGoalCustomTitleLabel": "Custom title",
   "tipGoalCustomTitlePlaceholder": "🎖️ Monthly tip goal",
   "tipGoalCustomTitleHint": "Title shown in widget. Leave empty for default.",
+  "tipGoalThemeLabel": "Theme:",
+  "tipGoalThemeClassic": "Classic",
+  "tipGoalThemeKokuList03": "Modern",
+  "tipGoalCardStatusInProgress": "In-progress",
+  "tipGoalCardStatusCompleted": "Completed",
+  "tipGoalCardProgress": "Progress",
+  "tipGoalCardMonthlyGoal": "Monthly goal",
+  "tipGoalCardTarget": "target",
+  "tipGoalWidgetUrl": "Tip Goal Widget URL:",
   "notificationGifTitle": "Notification GIF",
   "notificationGifPositionLabel": "GIF Position",
   "positionRight": "Right",
@@ -334,5 +343,7 @@
   "activityTotal": "Total",
   "activityPrev": "Prev",
   "activityNext": "Next",
-  "activityShowAll": "Show all"
+  "activityShowAll": "Show all",
+  "tipGoalCardViewDetails": "View Details",
+  "tipGoalDefaultTitle": "🎖️ Monthly tip goal"
 }
