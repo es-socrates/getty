@@ -32,6 +32,7 @@
   .os-divider { @apply border-t border-neutral-200 dark:border-neutral-800; }
   .os-muted { @apply text-neutral-500 dark:text-neutral-400; }
   .os-strong { @apply text-neutral-900 dark:text-neutral-100; }
+  .os-card-title { font-weight: 600; }
 
   .os-header { @apply sticky top-0 z-40 bg-white/70 dark:bg-neutral-950/60 backdrop-blur border-b border-neutral-200 dark:border-neutral-800; }
   .os-header-inner { @apply h-14 px-4 flex items-center gap-3; }
@@ -94,6 +95,8 @@
   .btn-outline {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--bg-chat)] transition-colors;
   }
+
+  html:not(.dark) .btn-outline:hover { background:#111 !important; color:#fff !important; }
 
   html:not(.dark) .btn { color: #fff !important; }
   html:not(.dark) .btn-save { color: #fff !important; }
