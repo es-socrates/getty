@@ -22,13 +22,14 @@
     <link rel="stylesheet" href="/widgets/tip-notification.css">
     <link rel="stylesheet" href="/widgets/tip-goal.css">
     <link rel="stylesheet" href="/widgets/chat.css">
-    <script src="/js/min/i18n-runtime.js?v=6f175232"></script>
+    <script src="/js/min/i18n-runtime.js?v=919bc431"></script>
     <style>
         html:not(.dark) .chat-default .message.has-donation .message-text-inline { color: #111 !important; }
         html:not(.dark) .chat-default .message { color: #fff !important; }
         html:not(.dark) .theme-light .message-text-inline { color: var(--text) !important; }
         html:not(.dark) body .last-donation .notification-title { color: #fff !important; }
-        html:not(.dark) #chat-container.theme-active:not(.theme-light) .message-text-inline { color: #fff !important; }
+        html:not(.dark) #chat-container.theme-active:not(.theme-light) .message:not(.has-donation) .message-text-inline { color: #fff !important; }
+        html:not(.dark) #chat-container.theme-active:not(.theme-light) .message.has-donation .message-text-inline { color: #111 !important; }
     </style>
 </head>
 <body class="bg-background text-gray-100 font-sans">

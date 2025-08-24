@@ -97,6 +97,7 @@
   "notificationSettings": "Configuración de notificaciones",
   "notificationWidgetUrl": "URL del widget de notificaciones:",
   "enableTextToSpeech": "Habilitar texto a voz",
+  "enableTtsAllChat": "Leer todos los mensajes del chat (opcional)",
   "ttsLanguage": "Idioma TTS:",
   "english": "English",
   "spanish": "Español",

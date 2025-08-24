@@ -213,7 +213,7 @@ function extractClaimId(input) {
 function validate() {
   const claimId = extractClaimId(form.chatUrl.trim());
   const valid = /^[A-Za-z0-9]{5,64}$/.test(claimId);
-  errors.chatUrl = claimId && !valid ? t('invalidClaimId') || 'Claim ID inválido' : '';
+  errors.chatUrl = claimId && !valid ? t('invalidClaimId') || 'Invalid Claim ID' : '';
   return !errors.chatUrl;
 }
 

@@ -33,6 +33,9 @@
         <label class="label"><input type="checkbox" class="checkbox" v-model="tts.enabled" /> {{ t('enableTextToSpeech') }}</label>
       </div>
       <div class="form-group">
+        <label class="label"><input type="checkbox" class="checkbox" v-model="tts.allChat" /> {{ t('enableTtsAllChat') }}</label>
+      </div>
+      <div class="form-group">
         <label class="label">{{ t('ttsLanguage') }}</label>
         <select class="input" v-model="tts.language">
           <option value="en">{{ t('english') }}</option>
@@ -101,6 +104,7 @@ const gif = reactive({
 
 const tts = reactive({
   enabled: true,
+  allChat: false,
   language: 'en',
   original: ''
 });
@@ -131,7 +135,7 @@ const audioState = reactive({
 function isDirty() {
   return (
     JSON.stringify({ p: gif.position, g: !!gif.gifPath }) !== gif.original ||
-    JSON.stringify({ e: tts.enabled, l: tts.language }) !== tts.original ||
+    JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language }) !== tts.original ||
     JSON.stringify({ s: audio.audioSource, f: !!audio.fileName }) !== audio.original
   );
 }
@@ -202,17 +206,18 @@ async function loadTts() {
     const se = await api.get('/api/tts-setting');
     const la = await api.get('/api/tts-language');
     tts.enabled = !!se.data.ttsEnabled;
+    tts.allChat = !!se.data.ttsAllChat;
     tts.language = la.data.ttsLanguage || 'en';
-    tts.original = JSON.stringify({ e: tts.enabled, l: tts.language });
+    tts.original = JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language });
   } catch {}
 }
 
 async function saveTts() {
   try {
     savingTts.value = true;
-    await api.post('/api/tts-setting', { ttsEnabled: tts.enabled });
+    await api.post('/api/tts-setting', { ttsEnabled: tts.enabled, ttsAllChat: tts.allChat });
     await api.post('/api/tts-language', { ttsLanguage: tts.language });
-    tts.original = JSON.stringify({ e: tts.enabled, l: tts.language });
+    tts.original = JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language });
     pushToast({ type: 'success', message: t('savedNotifications') });
   } catch {
     pushToast({ type: 'error', message: t('saveFailedNotifications') });
@@ -250,7 +255,6 @@ async function loadAudio() {
     audio.audioSource = data.audioSource || 'remote';
     audio.fileName = data.audioFileName || '';
     audio.original = JSON.stringify({ s: audio.audioSource, f: !!audio.fileName });
-    // Estado de audio personalizado
     audioState.hasCustomAudio = !!data.hasCustomAudio;
     audioState.audioFileName = data.audioFileName || '';
     audioState.audioFileSize = data.audioFileSize || 0;

@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ws = new WebSocket(`ws://${window.location.host}`);
     let AR_TO_USD = 0;
     let ttsLanguage = 'en'; // Global TTS Language
+    let ttsAllChat = false; // Speak all chat messages optionally
 
     const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
     
@@ -88,7 +89,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const msg = JSON.parse(event.data);
 
             if (msg.type === 'ttsSettingUpdate') {
-                updateTTSStatus(msg.data.ttsEnabled);
+                if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) {
+                    updateTTSStatus(msg.data.ttsEnabled);
+                }
+                if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) {
+                    ttsAllChat = !!msg.data.ttsAllChat;
+                }
             }
 
             if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
@@ -144,6 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 const data = await response.json();
                 updateTTSStatus(data.ttsEnabled);
+                ttsAllChat = !!data.ttsAllChat;
             }
         } catch (error) {
             console.error('Error loading initial TTS status:', error);
@@ -241,6 +248,15 @@ async function checkTTSStatus() {
 
 checkTTSStatus();
 
+function stripEmojis(text) {
+    if (!text) return '';
+    let cleaned = text.replace(/:[^:\s]+:/g, '');
+    cleaned = cleaned.replace(/<stkr>.*?<\/stkr>/g, '');
+    cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
+    cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+    return cleaned;
+}
+
 function speakMessage(message) {
     if (!message || typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return;
@@ -248,7 +264,7 @@ function speakMessage(message) {
 
     window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(message);
+    const utterance = new SpeechSynthesisUtterance(stripEmojis(message));
     utterance.volume = 0.9;
     utterance.rate = 1; // Normal speed
     utterance.pitch = 0.9; // A little deeper to sound more masculine
@@ -351,8 +367,11 @@ async function showDonationNotification(data) {
         ? `📦 From: ${data.from.slice(0, 8)}...` 
         : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
 
-    if (ttsEnabled && data.isChatTip && formattedMessage) {
-        speakMessage(formattedMessage);
+    if (ttsEnabled) {
+        const toSpeak = formattedMessage || '';
+        if ((data.isChatTip || ttsAllChat) && toSpeak) {
+            speakMessage(toSpeak);
+        }
     }
 
     notification.innerHTML = `

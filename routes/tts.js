@@ -11,13 +11,14 @@ function loadSettings() {
       const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
       return {
         ttsEnabled: typeof settings.ttsEnabled === 'boolean' ? settings.ttsEnabled : true,
+        ttsAllChat: typeof settings.ttsAllChat === 'boolean' ? settings.ttsAllChat : false,
         ttsLanguage: settings.ttsLanguage || 'en'
       };
     }
   } catch (error) {
     console.error('Error loading settings:', error);
   }
-  return { ttsEnabled: true, ttsLanguage: 'en' };
+  return { ttsEnabled: true, ttsAllChat: false, ttsLanguage: 'en' };
 }
 
 function saveSettings(newSettings) {
@@ -40,28 +41,42 @@ function saveSettings(newSettings) {
 function registerTtsRoutes(app, wss, limiter) {
   app.get('/api/tts-setting', (_req, res) => {
     const settings = loadSettings();
-    res.json({ ttsEnabled: settings.ttsEnabled });
+    res.json({ ttsEnabled: settings.ttsEnabled, ttsAllChat: settings.ttsAllChat });
   });
 
   app.post('/api/tts-setting', limiter, (req, res) => {
-    const bodySchema = z.object({ ttsEnabled: z.coerce.boolean() });
-    const parsed = bodySchema.safeParse(req.body);
+    const bodySchema = z.object({
+      ttsEnabled: z.coerce.boolean().optional(),
+      ttsAllChat: z.coerce.boolean().optional()
+    });
+    const parsed = bodySchema.safeParse(req.body || {});
     if (!parsed.success) {
-      return res.status(400).json({ success: false, error: 'Invalid ttsEnabled value' });
+      return res.status(400).json({ success: false, error: 'Invalid payload' });
     }
-    const { ttsEnabled } = parsed.data;
-    saveSettings({ ttsEnabled });
+    let { ttsEnabled, ttsAllChat } = parsed.data;
+
+    if (typeof ttsEnabled === 'undefined' && typeof ttsAllChat === 'undefined') {
+      ttsEnabled = false;
+    }
+    const toSave = {};
+    if (typeof ttsEnabled !== 'undefined') toSave.ttsEnabled = ttsEnabled;
+    if (typeof ttsAllChat !== 'undefined') toSave.ttsAllChat = ttsAllChat;
+    saveSettings(toSave);
 
     wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({
           type: 'ttsSettingUpdate',
-          data: { ttsEnabled: Boolean(ttsEnabled) }
+          data: {
+            ...(typeof ttsEnabled !== 'undefined' ? { ttsEnabled: Boolean(ttsEnabled) } : {}),
+            ...(typeof ttsAllChat !== 'undefined' ? { ttsAllChat: Boolean(ttsAllChat) } : {})
+          }
         }));
       }
     });
 
-    res.json({ success: true, ttsEnabled: Boolean(ttsEnabled), message: 'TTS setting updated successfully' });
+    const latest = loadSettings();
+    res.json({ success: true, ...latest, message: 'TTS setting updated successfully' });
   });
 
   app.get('/api/tts-language', (_req, res) => {
