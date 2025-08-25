@@ -40,6 +40,50 @@
         </div>
       </div>
     </OsCard>
+  <OsCard :title="t('sessionTools')" class="mb-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
+        <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
+          <div class="os-th text-xs">{{ t('regeneratePublicToken') }}</div>
+          <div class="flex gap-2 items-center">
+            <button
+              class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm"
+              @click="regeneratePublic"
+        :disabled="regenLoading || !sessionStatus.supported || !sessionStatus.active"
+            >
+              {{ regenLoading ? t('commonUpdating') : t('regeneratePublicToken') }}
+            </button>
+          </div>
+          <div v-if="lastPublicToken" class="flex gap-2 items-center">
+            <input :value="lastPublicToken" readonly class="flex-1 px-2 py-1 rounded-os-sm bg-[var(--bg-chat)] border border-[var(--card-border)] text-xs font-mono" />
+            <button
+              class="px-2 py-1 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-xs"
+              @click="copyToken"
+            >
+              {{ t('commonCopy') || 'Copy' }}
+            </button>
+          </div>
+        </div>
+        <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
+          <div class="os-th text-xs">{{ t('exportConfig') }}</div>
+          <div>
+            <button
+              class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm"
+              @click="exportCfg"
+            >
+              {{ t('exportConfig') }}
+            </button>
+          </div>
+        </div>
+        <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2" v-if="sessionStatus.supported && !sessionStatus.active">
+          <div class="os-th text-xs">{{ t('newSession') }}</div>
+          <div>
+            <a href="/new-session" class="px-3 py-2 inline-block rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm">
+              {{ t('newSession') }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </OsCard>
     <div class="divider"></div>
     <div class="mb-4">
       <ActivityPanel />
@@ -54,11 +98,15 @@ import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import MetricsPanel from '../components/MetricsPanel.vue'
+import { pushToast } from '../services/toast'
 
 const { t, locale } = useI18n();
 const modulesList = ref([]);
 const now = ref(new Date().toLocaleString());
 const system = ref(null);
+const regenLoading = ref(false);
+const lastPublicToken = ref('');
+const sessionStatus = ref({ supported: false, active: false });
 
 function formatUptime(seconds) {
   if (seconds < 60) return t('statusSeconds', { n: seconds });
@@ -124,6 +172,13 @@ async function load() {
         })(),
       },
     ];
+    try {
+      const ss = await axios.get('/api/session/status');
+      sessionStatus.value = {
+        supported: !!ss?.data?.supported,
+        active: !!ss?.data?.active,
+      };
+    } catch {}
   } catch {}
 }
 onMounted(() => {
@@ -133,4 +188,34 @@ onMounted(() => {
     load();
   }, 60000);
 });
+
+async function regeneratePublic() {
+  try {
+    regenLoading.value = true;
+    const r = await axios.post('/api/session/regenerate-public');
+    const tok = r?.data?.publicToken;
+    if (tok) {
+      lastPublicToken.value = tok;
+    }
+    pushToast({ i18nKey: 'tokenRegenerated', type: 'success', timeout: 2500 });
+  } catch (e) {
+    const msg = e?.response?.data?.error || 'Failed';
+    pushToast({ message: msg, type: 'error', timeout: 3000, autoTranslate: false });
+  } finally {
+    regenLoading.value = false;
+  }
+}
+
+async function copyToken() {
+  try {
+    await navigator.clipboard.writeText(lastPublicToken.value || '');
+    pushToast({ i18nKey: 'urlCopied', type: 'success', timeout: 2000 });
+  } catch {}
+}
+
+function exportCfg() {
+  try {
+    window.location.href = '/api/session/export';
+  } catch {}
+}
 </script>

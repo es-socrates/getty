@@ -38,13 +38,21 @@ function saveSettings(newSettings) {
   }
 }
 
-function registerTtsRoutes(app, wss, limiter) {
-  app.get('/api/tts-setting', (_req, res) => {
+function registerTtsRoutes(app, wss, limiter, options = {}) {
+  const store = options.store;
+  app.get('/api/tts-setting', async (req, res) => {
+    if (store && req.ns && (req.ns.admin || req.ns.pub)) {
+      const ns = req.ns.admin || req.ns.pub;
+      const st = await store.get(ns, 'tts-settings', null);
+      if (st && typeof st === 'object') {
+        return res.json({ ttsEnabled: !!st.ttsEnabled, ttsAllChat: !!st.ttsAllChat });
+      }
+    }
     const settings = loadSettings();
     res.json({ ttsEnabled: settings.ttsEnabled, ttsAllChat: settings.ttsAllChat });
   });
 
-  app.post('/api/tts-setting', limiter, (req, res) => {
+  app.post('/api/tts-setting', limiter, async (req, res) => {
     const bodySchema = z.object({
       ttsEnabled: z.coerce.boolean().optional(),
       ttsAllChat: z.coerce.boolean().optional()
@@ -61,44 +69,76 @@ function registerTtsRoutes(app, wss, limiter) {
     const toSave = {};
     if (typeof ttsEnabled !== 'undefined') toSave.ttsEnabled = ttsEnabled;
     if (typeof ttsAllChat !== 'undefined') toSave.ttsAllChat = ttsAllChat;
-    saveSettings(toSave);
+    if (store && req.ns && req.ns.admin) {
+      const current = await store.get(req.ns.admin, 'tts-settings', {});
+      await store.set(req.ns.admin, 'tts-settings', { ...current, ...toSave });
+    } else {
+      saveSettings(toSave);
+    }
 
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'ttsSettingUpdate',
-          data: {
-            ...(typeof ttsEnabled !== 'undefined' ? { ttsEnabled: Boolean(ttsEnabled) } : {}),
-            ...(typeof ttsAllChat !== 'undefined' ? { ttsAllChat: Boolean(ttsAllChat) } : {})
-          }
-        }));
+    const payload = {
+      type: 'ttsSettingUpdate',
+      data: {
+        ...(typeof ttsEnabled !== 'undefined' ? { ttsEnabled: Boolean(ttsEnabled) } : {}),
+        ...(typeof ttsAllChat !== 'undefined' ? { ttsAllChat: Boolean(ttsAllChat) } : {})
       }
-    });
+    };
+    if (typeof wss.broadcast === 'function' && req.ns && (req.ns.admin || req.ns.pub)) {
+      wss.broadcast((req.ns.admin || req.ns.pub), payload);
+    } else {
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(payload));
+        }
+      });
+    }
 
-    const latest = loadSettings();
-    res.json({ success: true, ...latest, message: 'TTS setting updated successfully' });
+    if (store && req.ns && req.ns.admin) {
+      const latest = await store.get(req.ns.admin, 'tts-settings', { ttsEnabled: true, ttsAllChat: false });
+      return res.json({ success: true, ...latest, message: 'TTS setting updated successfully' });
+    } else {
+      const latest = loadSettings();
+      return res.json({ success: true, ...latest, message: 'TTS setting updated successfully' });
+    }
   });
 
-  app.get('/api/tts-language', (_req, res) => {
+  app.get('/api/tts-language', async (req, res) => {
+    if (store && req.ns && (req.ns.admin || req.ns.pub)) {
+      const ns = req.ns.admin || req.ns.pub;
+      const st = await store.get(ns, 'tts-settings', null);
+      if (st && typeof st === 'object' && st.ttsLanguage) {
+        return res.json({ ttsLanguage: st.ttsLanguage });
+      }
+    }
     const settings = loadSettings();
     res.json({ ttsLanguage: settings.ttsLanguage || 'en' });
   });
 
-  app.post('/api/tts-language', limiter, (req, res) => {
+  app.post('/api/tts-language', limiter, async (req, res) => {
     const bodySchema = z.object({ ttsLanguage: z.enum(['en', 'es']) });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ success: false, error: 'Invalid ttsLanguage value' });
     }
     const { ttsLanguage } = parsed.data;
-    saveSettings({ ttsLanguage });
+    if (store && req.ns && req.ns.admin) {
+      const current = await store.get(req.ns.admin, 'tts-settings', {});
+      await store.set(req.ns.admin, 'tts-settings', { ...current, ttsLanguage });
+    } else {
+      saveSettings({ ttsLanguage });
+    }
 
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'ttsLanguageUpdate', data: { ttsLanguage } }));
-      }
-    });
-    res.json({ success: true, ttsLanguage, message: 'TTS language updated successfully' });
+    const payload = { type: 'ttsLanguageUpdate', data: { ttsLanguage } };
+    if (typeof wss.broadcast === 'function' && req.ns && (req.ns.admin || req.ns.pub)) {
+      wss.broadcast((req.ns.admin || req.ns.pub), payload);
+    } else {
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(payload));
+        }
+      });
+    }
+  res.json({ success: true, ttsLanguage, message: 'TTS language updated successfully' });
   });
 }
 

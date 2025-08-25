@@ -44,6 +44,17 @@ const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'go
 const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
 
 const app = express();
+const cookieParser = require('cookie-parser');
+const { NamespacedStore } = require('./lib/store');
+
+let redisClient = null;
+try {
+  if (process.env.REDIS_URL) {
+    const Redis = require('ioredis');
+    redisClient = new Redis(process.env.REDIS_URL);
+  }
+} catch {}
+const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
 
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
 try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
@@ -206,10 +217,11 @@ function getLiveviewsConfigWithDefaults(partial) {
 
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   res.setHeader(
     'Content-Security-Policy',
@@ -219,7 +231,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com https://spee.ch; " + 
     "font-src 'self' data: blob: https://fonts.gstatic.com; " +
-    "connect-src 'self' ws://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://*.arweave.net https://ar-io.net https://arweave.live https://arweave-search.goldsky.com https://permagate.io https://zerosettle.online https://zigza.xyz https://ario-gateway.nethermind.dev https://api.binance.com https://www.okx.com https://api.kucoin.com https://api.gateio.ws https://api.coincap.io https://api.coinpaprika.com https://api.coingecko.com https://api.viewblock.io https://api.telegram.org https://api.odysee.live; " +
+    "connect-src 'self' ws://" + req.get('host') + " wss://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://*.arweave.net https://ar-io.net https://arweave.live https://arweave-search.goldsky.com https://permagate.io https://zerosettle.online https://zigza.xyz https://ario-gateway.nethermind.dev https://api.binance.com https://www.okx.com https://api.kucoin.com https://api.gateio.ws https://api.coincap.io https://api.coinpaprika.com https://api.coingecko.com https://api.viewblock.io https://api.telegram.org https://api.odysee.live; " +
     "frame-src 'self'"
   );
 
@@ -230,7 +242,7 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return res.sendStatus(204);
   }
   next();
@@ -267,6 +279,51 @@ const raffle = new RaffleModule(wss);
 
 global.gettyRaffleInstance = raffle;
 
+const ADMIN_COOKIE = 'getty_admin_token';
+const PUBLIC_COOKIE = 'getty_public_token';
+const SECURE_COOKIE = () => (process.env.NODE_ENV === 'production');
+
+function attachNamespace(req, _res, next) {
+  const adminToken = req.headers['x-getty-admin-token'] || req.cookies[ADMIN_COOKIE] || req.query.admin_token;
+  const publicToken = req.headers['x-getty-public-token'] || req.cookies[PUBLIC_COOKIE] || req.query.token;
+  req.ns = {
+    admin: typeof adminToken === 'string' ? adminToken : null,
+    pub: typeof publicToken === 'string' ? publicToken : null
+  };
+
+  if (!req.ns.pub && req.ns.admin) req.ns.pub = req.ns.admin;
+  next();
+}
+app.use(attachNamespace);
+
+app.get('/new-session', async (_req, res) => {
+  try {
+    const adminToken = NamespacedStore.genToken(24);
+    const publicToken = NamespacedStore.genToken(18);
+    await store.set(adminToken, 'meta', { createdAt: Date.now(), role: 'admin' });
+    await store.set(publicToken, 'meta', { createdAt: Date.now(), role: 'public', parent: adminToken });
+
+    await store.set(adminToken, 'publicToken', publicToken);
+    await store.set(publicToken, 'adminToken', adminToken);
+
+    const cookieOpts = {
+      httpOnly: true,
+      sameSite: 'Strict',
+      secure: SECURE_COOKIE(),
+      path: '/',
+      maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
+    };
+    res.cookie(ADMIN_COOKIE, adminToken, cookieOpts);
+    res.cookie(PUBLIC_COOKIE, publicToken, cookieOpts);
+
+    const target = '/admin/';
+
+    return res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0; url=${target}">`);
+  } catch {
+    return res.status(500).json({ error: 'failed_to_create_session' });
+  }
+});
+
 app.get('/api/ar-price', async (_req, res) => {
   try {
     const data = await getArUsdCached(false);
@@ -276,7 +333,75 @@ app.get('/api/ar-price', async (_req, res) => {
   }
 });
 
-registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE);
+async function resolveAdminNsFromReq(req) {
+  try {
+    if (!store) return null;
+    if (req.ns?.admin) return req.ns.admin;
+    if (req.ns?.pub) {
+      const admin = await store.get(req.ns.pub, 'adminToken', null);
+      return typeof admin === 'string' && admin ? admin : null;
+    }
+  } catch {}
+  return null;
+}
+
+app.post('/api/session/regenerate-public', async (req, res) => {
+  try {
+    const adminNs = await resolveAdminNsFromReq(req);
+    if (!store || !adminNs) return res.status(400).json({ error: 'no_admin_session' });
+    const newPub = NamespacedStore.genToken(18);
+    await store.set(adminNs, 'publicToken', newPub);
+    await store.set(newPub, 'adminToken', adminNs);
+    await store.set(newPub, 'meta', { createdAt: Date.now(), role: 'public', parent: adminNs });
+
+    const cookieOpts = {
+      httpOnly: true,
+      sameSite: 'Strict',
+      secure: SECURE_COOKIE(),
+      path: '/',
+      maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
+    };
+    res.cookie(PUBLIC_COOKIE, newPub, cookieOpts);
+    res.json({ ok: true, publicToken: newPub });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_regenerate', details: e?.message });
+  }
+});
+
+app.get('/api/session/status', async (req, res) => {
+  try {
+    const supported = !!process.env.REDIS_URL;
+    const adminNs = await resolveAdminNsFromReq(req);
+    const active = !!adminNs;
+    res.json({ supported, active });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_check_session', details: e?.message });
+  }
+});
+
+app.get('/api/session/export', async (req, res) => {
+  try {
+    const adminNs = await resolveAdminNsFromReq(req);
+    const useStore = !!(store && adminNs);
+    const exportObj = {};
+
+    if (useStore) {
+      exportObj.ttsSettings = await store.get(adminNs, 'tts-settings', null);
+      exportObj.chatConfig = await store.get(adminNs, 'chat-config', null);
+    } else {
+      try { exportObj.ttsSettings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch { exportObj.ttsSettings = null; }
+      try { exportObj.chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8')); } catch { exportObj.chatConfig = null; }
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="getty-config-${new Date().toISOString().replace(/[:.]/g,'-')}.json"`);
+    res.end(JSON.stringify(exportObj, null, 2));
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_export', details: e?.message });
+  }
+});
+
+registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store });
 
 if (process.env.NODE_ENV !== 'test') {
   try {
@@ -291,7 +416,7 @@ if (process.env.NODE_ENV !== 'test') {
   }
 }
 
-registerTtsRoutes(app, wss, limiter);
+registerTtsRoutes(app, wss, limiter, { store });
 registerLiveviewsRoutes(app, strictLimiter);
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter);
 
@@ -1071,10 +1196,49 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
   });
 
-  server.on('upgrade', (req, socket, head) => {
-    wss.handleUpgrade(req, socket, head, ws => {
-      wss.emit('connection', ws, req);
+  function parseCookieHeader(cookieHeader) {
+    const out = {};
+    if (typeof cookieHeader !== 'string' || !cookieHeader) return out;
+    cookieHeader.split(';').forEach(p => {
+      const idx = p.indexOf('=');
+      if (idx > -1) {
+        const k = p.slice(0, idx).trim();
+        const v = p.slice(idx + 1).trim();
+        if (k) out[k] = decodeURIComponent(v);
+      }
     });
+    return out;
+  }
+
+  // Broadcast helper with optional namespace filter
+  wss.broadcast = function(nsToken, payload) {
+    try {
+      const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+      wss.clients.forEach(client => {
+        if (client && client.readyState === 1) {
+          if (nsToken && client.nsToken && client.nsToken !== nsToken) return;
+          client.send(data);
+        }
+      });
+    } catch (e) { console.error('broadcast error', e); }
+  };
+
+  server.on('upgrade', (req, socket, head) => {
+    try {
+      const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0] || 'http';
+      const url = new URL(req.url || '/', `${proto}://${req.headers.host}`);
+      let nsToken = url.searchParams.get('token') || '';
+      if (!nsToken && req.headers.cookie) {
+        const cookies = parseCookieHeader(req.headers.cookie);
+        nsToken = cookies['getty_public_token'] || cookies['getty_admin_token'] || '';
+      }
+      wss.handleUpgrade(req, socket, head, ws => {
+        ws.nsToken = nsToken || null;
+        wss.emit('connection', ws, req);
+      });
+  } catch {
+      try { socket.destroy(); } catch {}
+    }
   });
 }
 
