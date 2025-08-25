@@ -32,6 +32,20 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 
 ![getty](https://thumbs.odycdn.com/2c824f75e3a53242508da449d7b7a558.webp)
 
+## Hosted mode (MVP)
+
+You can run Getty in a hosted, multi-tenant-like mode using ephemeral tokens:
+
+- Set REDIS_URL to enable Redis-backed session storage (recommended in Render).
+- Create a hosted session by opening /new-session. This issues:
+	- Admin token (stored in HttpOnly cookie `getty_admin_token`)
+	- Public token (HttpOnly cookie `getty_public_token`)
+- Admin API calls and settings will be stored per token namespace in Redis. Widgets can use the public token.
+
+Environment variables:
+- REDIS_URL: Redis connection string.
+- SESSION_TTL_SECONDS: Optional TTL for sessions (default 259200 = 72h).
+
 ## Prerequisites to start Getty
 
 ### Node.js

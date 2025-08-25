@@ -2,13 +2,19 @@ const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
 
-function registerChatRoutes(app, chat, limiter, chatConfigFilePath) {
+function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
+  const store = options.store;
   const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
 
-  app.get('/api/chat-config', (_req, res) => {
+  app.get('/api/chat-config', async (req, res) => {
     try {
       let config = {};
-      if (fs.existsSync(CHAT_CONFIG_FILE)) {
+
+      if (store && req.ns && (req.ns.admin || req.ns.pub)) {
+        const ns = req.ns.admin || req.ns.pub;
+        const st = await store.get(ns, 'chat-config', null);
+        if (st && typeof st === 'object') config = st;
+      } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
       }
       config.themeCSS = config.themeCSS || '';
@@ -18,7 +24,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath) {
     }
   });
 
-  app.post('/api/chat', limiter, (req, res) => {
+  app.post('/api/chat', limiter, async (req, res) => {
     try {
       const schema = z.object({
         chatUrl: z.string().min(1),
@@ -57,7 +63,10 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath) {
       }
 
       let config = {};
-      if (fs.existsSync(CHAT_CONFIG_FILE)) {
+      if (store && req.ns && req.ns.admin) {
+        const st = await store.get(req.ns.admin, 'chat-config', null);
+        if (st && typeof st === 'object') config = st;
+      } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
       }
       const newConfig = {
@@ -75,7 +84,11 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath) {
         donationBgColor: donationBgColor || config.donationBgColor || '#ececec',
         themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || '')
       };
-      fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+      if (store && req.ns && req.ns.admin) {
+        await store.set(req.ns.admin, 'chat-config', newConfig);
+      } else {
+        fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+      }
       const result = chat.updateChatUrl(chatUrl);
       res.json({ success: true, ...result, ...newConfig });
     } catch (error) {

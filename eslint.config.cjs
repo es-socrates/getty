@@ -18,6 +18,7 @@ module.exports = [
       'modules/**/*.js',
       'routes/**/*.js',
       'scripts/**/*.js',
+      'lib/**/*.js',
       '*.cjs'
     ],
     languageOptions: {
@@ -78,7 +79,8 @@ module.exports = [
       'server.js',
       'modules/**/*.js',
       'routes/**/*.js',
-      'scripts/**/*.js'
+      'scripts/**/*.js',
+      'lib/**/*.js'
     ],
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs' },
     rules: {
