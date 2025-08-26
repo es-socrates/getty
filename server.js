@@ -439,6 +439,19 @@ app.get('/api/session/export', async (req, res) => {
       exportObj.externalNotificationsConfig = fs.existsSync(extPath) ? JSON.parse(fs.readFileSync(extPath, 'utf8')) : null;
     } catch { exportObj.externalNotificationsConfig = null; }
 
+    try {
+      if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+        const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+        exportObj.liveviewsConfig = getLiveviewsConfigWithDefaults(raw || {});
+      } else {
+        exportObj.liveviewsConfig = null;
+      }
+    } catch { exportObj.liveviewsConfig = null; }
+
+    try {
+      exportObj.announcementConfig = announcementModule.getPublicConfig();
+    } catch { exportObj.announcementConfig = null; }
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="getty-config-${new Date().toISOString().replace(/[:.]/g,'-')}.json"`);
     res.end(JSON.stringify(exportObj, null, 2));
@@ -458,10 +471,12 @@ app.post('/api/session/import', async (req, res) => {
     const incomingTipGoal = (payload && typeof payload.tipGoalConfig === 'object') ? payload.tipGoalConfig : null;
     const lastTipWallet = typeof payload.lastTipWallet === 'string' ? payload.lastTipWallet : (typeof payload.lastTipAddress === 'string' ? payload.lastTipAddress : null);
     const tipGoalWallet = typeof payload.tipGoalWallet === 'string' ? payload.tipGoalWallet : (typeof payload.tipGoalAddress === 'string' ? payload.tipGoalAddress : null);
-  const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
-  const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
+    const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
+    const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
+    const incomingLiveviews = (payload && typeof payload.liveviewsConfig === 'object') ? payload.liveviewsConfig : null;
+    const incomingAnnouncement = (payload && typeof payload.announcementConfig === 'object') ? payload.announcementConfig : null;
 
-  if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal) {
+    if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal && !incomingLiveviews && !incomingAnnouncement) {
       return res.status(400).json({ error: 'no_valid_payload' });
     }
 
@@ -555,7 +570,59 @@ app.post('/api/session/import', async (req, res) => {
       } catch {}
     }
 
-    res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied }, namespaced: useStore });
+    let liveviewsApplied = false;
+    if (incomingLiveviews && typeof incomingLiveviews === 'object') {
+      try {
+        const allowedLV = ['bg','color','font','size','icon','claimid','viewersLabel'];
+        const mergedLV = (function mergeLV() {
+          const current = fs.existsSync(LIVEVIEWS_CONFIG_FILE) ? JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')) : {};
+          const filtered = {};
+          for (const k of allowedLV) {
+            if (Object.prototype.hasOwnProperty.call(incomingLiveviews, k)) filtered[k] = incomingLiveviews[k];
+          }
+          const full = getLiveviewsConfigWithDefaults({ ...current, ...filtered });
+          fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(full, null, 2));
+          return full;
+        })();
+        if (mergedLV) liveviewsApplied = true;
+      } catch {}
+    }
+
+    let announcementApplied = false;
+    if (incomingAnnouncement && typeof incomingAnnouncement === 'object') {
+      try {
+        const settingsPayload = {
+          cooldownSeconds: incomingAnnouncement.cooldownSeconds,
+          theme: incomingAnnouncement.theme,
+          bgColor: incomingAnnouncement.bgColor,
+          textColor: incomingAnnouncement.textColor,
+          animationMode: incomingAnnouncement.animationMode,
+          defaultDurationSeconds: incomingAnnouncement.defaultDurationSeconds
+        };
+        try { announcementModule.setSettings(settingsPayload); } catch {}
+        // Replace messages
+        try { announcementModule.clearMessages('all'); } catch {}
+        const msgs = Array.isArray(incomingAnnouncement.messages) ? incomingAnnouncement.messages.slice(0, 200) : [];
+        for (const m of msgs) {
+          try {
+            const text = typeof m.text === 'string' ? m.text.slice(0, 200) : '';
+            if (!text) continue;
+            const message = announcementModule.addMessage({
+              text,
+              imageUrl: typeof m.imageUrl === 'string' ? m.imageUrl : null,
+              linkUrl: typeof m.linkUrl === 'string' && m.linkUrl ? m.linkUrl : undefined,
+              durationSeconds: typeof m.durationSeconds === 'number' ? m.durationSeconds : undefined
+            });
+            if (m && m.enabled === false) {
+              try { announcementModule.updateMessage(message.id, { enabled: false }); } catch {}
+            }
+          } catch { /* ignore item */ }
+        }
+        announcementApplied = true;
+      } catch {}
+    }
+
+    res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied, liveviews: !!liveviewsApplied, announcement: !!announcementApplied }, namespaced: useStore });
   } catch (e) {
     res.status(500).json({ error: 'failed_to_import', details: e?.message });
   }

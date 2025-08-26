@@ -85,7 +85,7 @@
             >
               {{ importing ? t('commonLoading') : t('importConfig') }}
             </button>
-            <div v-if="importApplied.lastTip !== null || importApplied.tipGoal !== null || importApplied.socialmedia !== null || importApplied.external !== null" class="flex flex-wrap gap-2 text-xs mt-1">
+            <div v-if="importApplied.lastTip !== null || importApplied.tipGoal !== null || importApplied.socialmedia !== null || importApplied.external !== null || importApplied.liveviews !== null || importApplied.announcement !== null" class="flex flex-wrap gap-2 text-xs mt-1">
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('lastTip') }}:
                 <span :class="importApplied.lastTip ? 'text-green-500' : 'text-red-500'">{{ importApplied.lastTip ? '✓' : '✗' }}</span>
@@ -101,6 +101,14 @@
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('externalNotificationsTitle') }}:
                 <span :class="importApplied.external ? 'text-green-500' : 'text-red-500'">{{ importApplied.external ? '✓' : '✗' }}</span>
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+                {{ t('liveviewsTitle') }}:
+                <span :class="importApplied.liveviews ? 'text-green-500' : 'text-red-500'">{{ importApplied.liveviews ? '✓' : '✗' }}</span>
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+                {{ t('announcementTitle') }}:
+                <span :class="importApplied.announcement ? 'text-green-500' : 'text-red-500'">{{ importApplied.announcement ? '✓' : '✗' }}</span>
               </span>
             </div>
           </div>
@@ -140,11 +148,11 @@ const lastPublicToken = ref('');
 const sessionStatus = ref({ supported: false, active: false });
 const importing = ref(false);
 const fileInputEl = ref(null);
-const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null });
+const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null });
 let importAppliedTimer = null;
 
 function clearImportApplied() {
-  importApplied.value = { lastTip: null, tipGoal: null, socialmedia: null, external: null };
+  importApplied.value = { lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null };
 }
 
 function formatUptime(seconds) {
@@ -302,6 +310,8 @@ async function onImportFile(e) {
         tipGoal: typeof restored.tipGoal === 'boolean' ? restored.tipGoal : null,
         socialmedia: typeof restored.socialmedia === 'boolean' ? restored.socialmedia : null,
         external: typeof restored.external === 'boolean' ? restored.external : null,
+        liveviews: typeof restored.liveviews === 'boolean' ? restored.liveviews : null,
+        announcement: typeof restored.announcement === 'boolean' ? restored.announcement : null,
       };
       pushToast({ message: t('importedOk'), type: 'success', timeout: 2500, autoTranslate: false });
       load();
