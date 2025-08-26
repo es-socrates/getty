@@ -237,7 +237,6 @@ app.use((req, res, next) => {
       "frame-src 'self'"
     );
   } catch {
-    // Fallback minimal CSP
     res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws: wss:;");
   }
 
