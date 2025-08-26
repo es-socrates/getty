@@ -88,6 +88,14 @@ Everything you do in the admin and API calls are stored in Redis by "namespace" 
 
 If you want, adjust SESSION_TTL_SECONDS to decide how long each session lasts (default 259200 seconds = 72 hours).
 
+### Important
+
+If you want to share your widget publicly, use the widget link and add the parameter ?token=YOUR_PUBLIC_TOKEN.
+
+**Example:** `/widgets/last-tip?token=YOUR_PUBLIC_TOKEN`.
+
+Anyone with that link will see the widget data in real time; you can revoke access by regenerating the public token from the dashboard.
+
 **This is an independent project; it is not an official Odysee product.** Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
 
 ## Made with love for Odysee ❤️
