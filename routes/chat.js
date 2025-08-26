@@ -104,14 +104,14 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         if (isHosted && chatNs) {
           const newUrl = chatUrl;
           const changed = (newUrl || '') !== (prevUrl || '');
-          if (changed && newUrl) {
+          const st = chatNs.getStatus(ns) || {};
+          const running = !!st.connected;
+          if ((changed && newUrl) || (!running && newUrl)) {
             await chatNs.start(ns, newUrl);
             result = { ...(result||{}), relay: { started: true } };
-          } else if (changed && !newUrl) {
+          } else if ((changed && !newUrl) || (running && !newUrl)) {
             await chatNs.stop(ns);
             result = { ...(result||{}), relay: { stopped: true } };
-          } else {
-            // No URL change: do nothing
           }
         }
       } catch (e) {
