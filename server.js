@@ -683,6 +683,21 @@ app.get('/api/chat/status', async (req, res) => {
   } catch { res.json({ connected: false }); }
 });
 
+app.get('/api/chat/debug', async (req, res) => {
+  try {
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    const out = { ns: ns || null };
+    if (ns) {
+      out.status = chatNs.getStatus(ns) || { connected: false };
+      try { out.publicToken = await store.get(ns, 'publicToken', null); } catch {}
+      try { out.adminToken = await store.get(ns, 'adminToken', null); } catch {}
+    }
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: 'failed', details: e?.message });
+  }
+});
+
 if (process.env.NODE_ENV !== 'test') {
   try {
     if (fs.existsSync(CHAT_CONFIG_FILE)) {
