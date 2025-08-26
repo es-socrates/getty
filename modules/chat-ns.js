@@ -114,12 +114,16 @@ class ChatNsManager {
   _handleOdyseeMessage(ns, message) {
     if (message.type === 'delta' && message.data?.comment) {
       const comment = message.data.comment;
+      const channelId = comment.channel_id || comment.channel_claim_id || '';
+      const avatarUrl = channelId
+        ? `https://thumbnails.odycdn.com/optimize/s:64:64/quality:85/plain/https://thumbnails.lbry.com/channel_picture?channel_id=${encodeURIComponent(channelId)}`
+        : null;
       const chatMessage = {
         type: 'chatMessage',
         channelTitle: comment.channel_name || 'Anonymous',
         message: comment.comment,
         credits: comment.support_amount || 0,
-        avatar: null,
+        avatar: avatarUrl,
         timestamp: comment.timestamp || Date.now(),
         userId: comment.channel_id || comment.channel_claim_id || comment.channel_name,
         username: comment.channel_name || 'Anonymous'
