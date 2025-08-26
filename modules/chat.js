@@ -35,6 +35,10 @@ class ChatModule {
   }
   
   init() {
+    if (process.env.REDIS_URL) {
+      console.warn('[Chat] Hosted mode detected; global chat relay disabled to prevent cross-session leaks');
+      return;
+    }
     if (this.chatUrl) {
       this.connect(this.chatUrl);
     }
@@ -210,7 +214,10 @@ class ChatModule {
               };
 
               if (this.wss && typeof this.wss.emit === 'function') {
-                  this.wss.emit('tip', tipData);
+                  try {
+                    const ns = null;
+                    this.wss.emit('tip', tipData, ns);
+                  } catch {}
                   Logger.debug('Chat tip event emitted', tipData);
               }
           } catch (error) {
@@ -231,6 +238,10 @@ class ChatModule {
   }
   
   updateChatUrl(newUrl) {
+    if (process.env.REDIS_URL) {
+      this.chatUrl = newUrl;
+      return this.getStatus();
+    }
     this.chatUrl = newUrl;
 
     let effectiveUrl = newUrl;

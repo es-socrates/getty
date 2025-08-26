@@ -18,6 +18,7 @@ const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
 const { TipGoalModule } = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
+const ChatNsManager = require('./modules/chat-ns');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
 const registerTtsRoutes = require('./routes/tts');
@@ -304,6 +305,7 @@ const wss = new WebSocket.Server({ noServer: true });
 const lastTip = new LastTipModule(wss);
 const tipWidget = new TipWidgetModule(wss);
 const chat = new ChatModule(wss);
+const chatNs = new ChatNsManager(wss, store);
 const { AnnouncementModule } = require('./modules/announcement');
 const announcementModule = new AnnouncementModule(wss);
 const externalNotifications = new ExternalNotifications(wss);
@@ -346,7 +348,7 @@ app.get('/new-session', async (_req, res) => {
 
     const cookieOpts = {
       httpOnly: true,
-      sameSite: 'Strict',
+      sameSite: 'Lax',
       secure: SECURE_COOKIE(),
       path: '/',
       maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
@@ -394,7 +396,7 @@ app.post('/api/session/regenerate-public', async (req, res) => {
 
     const cookieOpts = {
       httpOnly: true,
-      sameSite: 'Strict',
+      sameSite: 'Lax',
       secure: SECURE_COOKIE(),
       path: '/',
       maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
@@ -628,7 +630,45 @@ app.post('/api/session/import', async (req, res) => {
   }
 });
 
-registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store });
+registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs });
+
+app.post('/api/chat/start', async (req, res) => {
+  try {
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (!ns || !store) return res.status(400).json({ error: 'no_session' });
+    const cfg = await store.get(ns, 'chat-config', null);
+    const url = cfg?.chatUrl;
+    if (!url) return res.status(400).json({ error: 'no_chat_url' });
+    await chatNs.start(ns, url);
+    res.json({ ok: true, status: chatNs.getStatus(ns) });
+  } catch (e) { res.status(500).json({ error: 'failed_to_start', details: e?.message }); }
+});
+
+app.post('/api/chat/stop', async (req, res) => {
+  try {
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (!ns) return res.status(400).json({ error: 'no_session' });
+    await chatNs.stop(ns);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'failed_to_stop', details: e?.message }); }
+});
+
+app.get('/api/chat/status', async (req, res) => {
+  try {
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (ns) {
+      const st = chatNs.getStatus(ns) || { connected: false };
+      return res.json(st);
+    }
+
+    try {
+      const base = chat.getStatus?.() || {};
+      return res.json({ connected: !!base.connected, url: base.chatUrl || null });
+    } catch {
+      return res.json({ connected: false });
+    }
+  } catch { res.json({ connected: false }); }
+});
 
 if (process.env.NODE_ENV !== 'test') {
   try {
@@ -646,8 +686,9 @@ if (process.env.NODE_ENV !== 'test') {
 registerTtsRoutes(app, wss, limiter, { store });
 registerLiveviewsRoutes(app, strictLimiter);
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter);
+registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, { store });
 
-registerLastTipRoutes(app, lastTip, tipWidget);
+registerLastTipRoutes(app, lastTip, tipWidget, { store, wss });
 if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
@@ -688,13 +729,15 @@ const goalAudioUpload = multer({
   }
 });
 
-registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE);
+registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE, { store });
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter);
+registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
+registerLiveviewsRoutes(app, strictLimiter, { store });
 registerTipNotificationGifRoutes(app, strictLimiter);
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 
-app.post('/api/test-tip', limiter, (req, res) => {
+app.post('/api/test-tip', limiter, async (req, res) => {
   try {
     const { amount, from, message } = req.body;
     if (typeof amount === 'undefined' || typeof from === 'undefined') {
@@ -708,16 +751,28 @@ app.post('/api/test-tip', limiter, (req, res) => {
       timestamp: Math.floor(Date.now() / 1000)
     };
     
-    wss.clients.forEach(client => {
-      if (client.readyState === 1) {
-        client.send(JSON.stringify({ type: 'tip', data: donation }));
-      }
-    });
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (typeof wss.broadcast === 'function' && ns) {
+      wss.broadcast(ns, { type: 'tip', data: donation });
+    } else {
+      wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+          client.send(JSON.stringify({ type: 'tip', data: donation }));
+        }
+      });
+    }
     
-    externalNotifications.handleTip({
-      ...donation,
-      usd: (donation.amount * 5).toFixed(2)
-    });
+    if (store && ns) {
+      try {
+        const cfg = await store.get(ns, 'external-notifications-config', null);
+        if (cfg) await externalNotifications.sendWithConfig(cfg, donation);
+      } catch {}
+    } else {
+      externalNotifications.handleTip({
+        ...donation,
+        usd: (donation.amount * 5).toFixed(2)
+      });
+    }
   try { __recordTip({ amount: donation.amount, usd: (donation.amount * 5).toFixed(2), timestamp: Date.now(), source: 'test' }); } catch {}
     
     res.json({ ok: true, sent: donation });
@@ -978,18 +1033,14 @@ app.get('/api/activity/export', (req, res) => {
 });
 
 app.get('/api/modules', async (req, res) => {
+  const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+  const ns = req?.ns?.admin || req?.ns?.pub || null;
+
   let tipGoalColors = {};
-  if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-    tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
-  }
   let lastTipColors = {};
-  if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-    lastTipColors = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
-  }
   let chatColors = {};
   try {
-    if (store && req.ns && (req.ns.admin || req.ns.pub)) {
-      const ns = req.ns.admin || req.ns.pub;
+    if (store && ns) {
       const st = await store.get(ns, 'chat-config', null);
       if (st && typeof st === 'object') chatColors = st;
     }
@@ -998,20 +1049,46 @@ app.get('/api/modules', async (req, res) => {
     }
   } catch {}
 
+  try {
+    if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+      tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
+    }
+  } catch {}
+  try {
+    if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+      lastTipColors = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+    }
+  } catch {}
+
+  const sanitizeIfNoNs = (obj) => {
+    if (hasNs) return obj;
+    const clone = { ...obj };
+    if (clone.walletAddress) delete clone.walletAddress;
+    return clone;
+  };
+
   const uptimeSeconds = Math.floor((Date.now() - __serverStartTime) / 1000);
   const wsClients = (() => {
     try { return Array.from(wss.clients).filter(c=>c && c.readyState === 1).length; } catch { return 0; }
   })();
 
   res.json({
-    lastTip: { ...lastTip.getStatus(), ...lastTipColors },
+    lastTip: sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }),
     tipWidget: tipWidget.getStatus(),
-    tipGoal: { ...tipGoal.getStatus(), ...tipGoalColors },
-    chat: { ...chat.getStatus(), ...chatColors },
+    tipGoal: sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }),
+    chat: (() => {
+      try {
+        const base = chat.getStatus?.() || {};
+        if (store && ns) {
+          const st = chatNs?.getStatus?.(ns) || {};
+          return { ...base, connected: !!st.connected, ...chatColors };
+        }
+        return { ...base, ...chatColors };
+      } catch { return { active: false, ...chatColors }; }
+    })(),
     announcement: (() => {
       try {
-        const mod = announcementModule;
-        const cfg = mod.getPublicConfig();
+        const cfg = announcementModule.getPublicConfig();
         const enabledMessages = cfg.messages.filter(m=>m.enabled).length;
         return {
           active: enabledMessages > 0,
@@ -1030,7 +1107,6 @@ app.get('/api/modules', async (req, res) => {
     })(),
     externalNotifications: (() => {
       const st = externalNotifications.getStatus();
-
       return {
         active: !!st.active,
         lastTips: st.lastTips,
@@ -1050,7 +1126,7 @@ app.get('/api/modules', async (req, res) => {
           const active = !!(full.claimid || full.icon || full.viewersLabel);
           return {
             active,
-            claimid: full.claimid,
+            claimid: hasNs ? full.claimid : undefined,
             viewersLabel: full.viewersLabel
           };
         }
@@ -1062,17 +1138,13 @@ app.get('/api/modules', async (req, res) => {
         const st = raffle.getPublicState();
         return {
           active: !!st.active,
-            paused: !!st.paused,
-            participants: st.participants || [],
-            totalWinners: st.totalWinners || 0
+          paused: !!st.paused,
+          participants: st.participants || [],
+          totalWinners: st.totalWinners || 0
         };
       } catch { return { active: false, participants: [] }; }
     })(),
-    system: {
-      uptimeSeconds,
-      wsClients,
-      env: process.env.NODE_ENV || 'development'
-    }
+    system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' }
   });
 });
 
@@ -1203,16 +1275,40 @@ app.get('/api/metrics', async (_req, res) => {
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 app.get('/readyz', (_req, res) => res.json({ ok: true }));
 
-wss.on('connection', (ws) => {
-  ws.send(JSON.stringify({
-    type: 'init',
-    data: {
-  lastTip: lastTip.getLastDonation(),
+wss.on('connection', async (ws) => {
+  try {
+    let ns = null;
+    try { ns = ws.nsToken || null; } catch {}
+    let initPayload = {
+      lastTip: lastTip.getLastDonation(),
       tipGoal: tipGoal.getGoalProgress(),
       persistentTips: externalNotifications.getStatus().lastTips,
       raffle: raffle.getPublicState()
+    };
+    if (ns && store) {
+      try {
+        const lt = await store.get(ns, 'last-tip-config', null);
+        const tg = await store.get(ns, 'tip-goal-config', null);
+        if (tg && typeof tg === 'object') {
+          initPayload.tipGoal = {
+            currentTips: tg.currentAmount || 0,
+            monthlyGoal: tg.monthlyGoal || 10,
+            progress: tg.monthlyGoal ? Math.min(((tg.currentAmount || 0) / tg.monthlyGoal) * 100, 100) : 0,
+            theme: tg.theme,
+            bgColor: tg.bgColor,
+            fontColor: tg.fontColor,
+            borderColor: tg.borderColor,
+            progressColor: tg.progressColor,
+            title: tg.title
+          };
+        }
+        if (lt && typeof lt === 'object') {
+          initPayload.lastTip = { lastDonation: lastTip.getLastDonation(), ...lt };
+        }
+      } catch {}
     }
-  }));
+    ws.send(JSON.stringify({ type: 'init', data: initPayload }));
+  } catch {}
 
   ws.on('message', (message) => {
     try {
@@ -1236,13 +1332,21 @@ wss.on('connection', (ws) => {
 app.post('/api/test-discord', express.json(), async (req, res) => {
   try {
     const { from, amount } = req.body;
-    const success = await externalNotifications.sendToDiscord({
+    const tip = {
       from: from || "test-user",
       amount: amount || 1,
       message: "Test notification",
       source: "test",
       timestamp: new Date().toISOString()
-    });
+    };
+    let success = false;
+    const ns = (req?.ns?.admin || req?.ns?.pub || null);
+    if (store && ns) {
+      const cfg = await store.get(ns, 'external-notifications-config', null);
+      if (cfg) success = await externalNotifications.sendWithConfig(cfg, tip);
+    } else {
+      success = await externalNotifications.sendToDiscord(tip);
+    }
     res.json({ success });
   } catch (error) {
     res.status(500).json({ error: error.message });

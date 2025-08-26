@@ -203,33 +203,36 @@ class TipWidgetModule {
 
       let clientsNotified = 0;
       
-      this.wss.clients.forEach(client => {
-          const isOpen = client.readyState === (client.OPEN || 1);
-          if (isOpen) {
-              try {
-                  const notification = {
-                      type: 'tipNotification',
-                      data: {
-                          from: data.from,
-                          amount: data.amount,
-                          txId: data.txId,
-                          message: data.message,
-                          timestamp: new Date().toISOString()
-                      }
-                  };
-                  
-                  client.send(JSON.stringify(notification));
-                  clientsNotified++;
-                  
-                  Logger.debug('Notification sent to client', {
-                      notificationType: notification.type,
-                      clientState: client.readyState
-                  });
-              } catch (error) {
-                  Logger.error('Error sending notification to client', error);
-              }
-          }
-      });
+    const hosted = !!process.env.REDIS_URL;
+    if (!hosted) {
+    this.wss.clients.forEach(client => {
+      const isOpen = client.readyState === (client.OPEN || 1);
+      if (isOpen) {
+        try {
+          const notification = {
+            type: 'tipNotification',
+            data: {
+              from: data.from,
+              amount: data.amount,
+              txId: data.txId,
+              message: data.message,
+              timestamp: new Date().toISOString()
+            }
+          };
+                    
+          client.send(JSON.stringify(notification));
+          clientsNotified++;
+                    
+          Logger.debug('Notification sent to client', {
+            notificationType: notification.type,
+            clientState: client.readyState
+          });
+        } catch (error) {
+          Logger.error('Error sending notification to client', error);
+        }
+      }
+    });
+    }
       
     try {
         if (this.wss && typeof this.wss.emit === 'function') {
@@ -242,7 +245,10 @@ class TipWidgetModule {
                 timestamp: data.timestamp || new Date().toISOString()
             };
             
-            this.wss.emit('tip', eventData);
+            try {
+              const ns = null;
+              this.wss.emit('tip', eventData, ns);
+            } catch {}
             
             Logger.debug('Tip Event issued', {
                 eventData: eventData,

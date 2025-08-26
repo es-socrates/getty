@@ -2,22 +2,31 @@ const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
 
-function registerLastTipRoutes(app, lastTip, tipWidget) {
+function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
+  const store = options.store || null;
+  const wss = options.wss || null;
   const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
 
-  app.get('/api/last-tip', (_req, res) => {
+  app.get('/api/last-tip', async (req, res) => {
     try {
-      if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-        return res.status(404).json({ error: 'No last tip config' });
+      let cfg = null;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        cfg = await store.get(ns, 'last-tip-config', null);
       }
-      const cfg = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+      if (!cfg) {
+        if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+          return res.status(404).json({ error: 'No last tip config' });
+        }
+        cfg = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+      }
       res.json({ success: true, ...cfg });
     } catch (e) {
       res.status(500).json({ error: 'Error loading last tip config', details: e.message });
     }
   });
 
-  app.post('/api/last-tip', (req, res) => {
+  app.post('/api/last-tip', async (req, res) => {
     try {
       const schema = z.object({
         walletAddress: z.string().optional(),
@@ -34,7 +43,11 @@ function registerLastTipRoutes(app, lastTip, tipWidget) {
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
       const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, iconBgColor, fromColor, title } = parsed.data;
       let config = {};
-      if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        const st = await store.get(ns, 'last-tip-config', null);
+        if (st && typeof st === 'object') config = st;
+      } else if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
       }
       const newConfig = {
@@ -49,21 +62,26 @@ function registerLastTipRoutes(app, lastTip, tipWidget) {
         walletAddress: walletAddress || config.walletAddress || '',
         title: (typeof title === 'string' && title.trim()) ? title.trim() : (config.title || 'Last tip received 👏')
       };
-      fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-      const result = lastTip.updateWalletAddress(newConfig.walletAddress);
+      if (store && ns) {
+        await store.set(ns, 'last-tip-config', newConfig);
 
-      if (typeof lastTip.broadcastConfig === 'function') {
-        lastTip.broadcastConfig(newConfig);
+        try {
+          if (wss && typeof wss.broadcast === 'function') {
+            wss.broadcast(ns, { type: 'lastTipConfig', data: newConfig });
+          }
+        } catch {}
+        return res.json({ success: true, ...newConfig });
+      } else {
+        fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+        const result = lastTip.updateWalletAddress(newConfig.walletAddress);
+        if (typeof lastTip.broadcastConfig === 'function') {
+          lastTip.broadcastConfig(newConfig);
+        }
+        if (typeof tipWidget.updateWalletAddress === 'function') {
+          tipWidget.updateWalletAddress(newConfig.walletAddress);
+        }
+        return res.json({ success: true, ...result, ...newConfig });
       }
-
-      if (typeof tipWidget.updateWalletAddress === 'function') {
-        tipWidget.updateWalletAddress(newConfig.walletAddress);
-      }
-      res.json({
-        success: true,
-        ...result,
-        ...newConfig
-      });
     } catch (error) {
       console.error('Error updating last tip:', error);
       res.status(500).json({

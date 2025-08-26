@@ -53,6 +53,13 @@
         </div>
       </div>
       <div class="mt-3">
+        <div class="flex items-center gap-2 mb-2" aria-live="polite">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs">
+            <span :style="`width:8px;height:8px;border-radius:9999px;display:inline-block;background:${connected ? '#22c55e' : '#ef4444'}`"></span>
+            <span>{{ connected ? t('connected') || 'Connected' : t('disconnected') || 'Disconnected' }}</span>
+          </span>
+          <small class="opacity-70">{{ lastStatusAt ? new Date(lastStatusAt).toLocaleTimeString() : '' }}</small>
+        </div>
         <button
           class="btn"
           :disabled="saving"
@@ -78,7 +85,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, onMounted, watch, ref } from 'vue';
+import { reactive, computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
@@ -110,6 +117,8 @@ const errors = reactive({ chatUrl: '' });
 const CLAIM_BASE = 'wss://sockety.odysee.tv/ws/commentron?id=';
 const claimPlaceholder = 'ej: 2ab34cdef...(Claim ID)';
 const saving = ref(false);
+const connected = ref(false);
+const lastStatusAt = ref(0);
 const original = reactive({ snapshot: null });
 const colorFields = [
   { key: 'bg', label: 'colorBg' },
@@ -223,4 +232,24 @@ function isChatDirty() {
 registerDirty(isChatDirty);
 watch(form, () => {}, { deep: true });
 onMounted(load);
+
+async function pollStatus() {
+  try {
+    const { data } = await api.get('/api/chat/status');
+    connected.value = !!data?.connected;
+    lastStatusAt.value = Date.now();
+  } catch {}
+}
+
+onMounted(() => {
+  pollStatus();
+  const id = setInterval(pollStatus, 5000);
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') pollStatus();
+  });
+
+  try {
+    onUnmounted(() => clearInterval(id));
+  } catch {}
+});
 </script>
