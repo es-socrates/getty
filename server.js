@@ -223,17 +223,23 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; " +
-    "media-src 'self' blob: https://cdn.streamlabs.com https://arweave.net https://*.arweave.net; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com https://spee.ch; " + 
-    "font-src 'self' data: blob: https://fonts.gstatic.com; " +
-    "connect-src 'self' ws://" + req.get('host') + " wss://" + req.get('host') + " wss://sockety.odysee.tv https://arweave.net https://*.arweave.net https://ar-io.net https://arweave.live https://arweave-search.goldsky.com https://permagate.io https://zerosettle.online https://zigza.xyz https://ario-gateway.nethermind.dev https://api.binance.com https://www.okx.com https://api.kucoin.com https://api.gateio.ws https://api.coincap.io https://api.coinpaprika.com https://api.coingecko.com https://api.viewblock.io https://api.telegram.org https://api.odysee.live; " +
-    "frame-src 'self'"
-  );
+  try {
+    const host = req.get('host');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+      "media-src 'self' blob: https://cdn.streamlabs.com https://arweave.net https://*.arweave.net; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com https://spee.ch; " + 
+      "font-src 'self' data: blob: https://fonts.gstatic.com; " +
+      `connect-src 'self' ws://${host} wss://${host} wss://sockety.odysee.tv https://arweave.net https://*.arweave.net https://ar-io.net https://arweave.live https://arweave-search.goldsky.com https://permagate.io https://zerosettle.online https://zigza.xyz https://ario-gateway.nethermind.dev https://api.binance.com https://www.okx.com https://api.kucoin.com https://api.gateio.ws https://api.coincap.io https://api.coinpaprika.com https://api.coingecko.com https://api.viewblock.io https://api.telegram.org https://api.odysee.live; ` +
+      "frame-src 'self'"
+    );
+  } catch {
+    // Fallback minimal CSP
+    res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws: wss:;");
+  }
 
     next();
 });
@@ -1146,15 +1152,8 @@ try {
       next();
     });
   } else {
-
-    app.get(['/admin','/admin/*'], (req, res) => {
-
-      if (process.env.NODE_ENV !== 'production') {
-        const targetPath = req.originalUrl.startsWith('/admin') ? req.originalUrl : '/admin/';
-        return res.redirect(302, `http://localhost:5173${targetPath}`);
-      }
-
-      res.status(503).send('Admin UI not built. Run "npm run admin:build" to generate the SPA..');
+    app.get(['/admin','/admin/*'], (_req, res) => {
+      res.status(503).send('Admin UI not built. Run "npm run admin:build" to generate the SPA.');
     });
   }
 } catch {}
@@ -1171,9 +1170,6 @@ app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
       return res.sendFile(indexPath);
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      return res.redirect(302, 'http://localhost:5173' + req.originalUrl);
-    }
     return res.status(503).send('Admin UI not built. Run "npm run admin:build".');
   } catch (e) {
     return next(e);
@@ -1192,8 +1188,8 @@ app.use((err, _req, res, _next) => {
 
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3000;
-  const server = app.listen(PORT, '127.0.0.1', () => {
-    console.log(`🚀 Liftoff! Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Liftoff! Server running on port ${PORT}`);
   });
 
   function parseCookieHeader(cookieHeader) {
