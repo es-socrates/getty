@@ -301,6 +301,7 @@ app.use((req, res, next) => {
 });
 
 const wss = new WebSocket.Server({ noServer: true });
+try { app.set('wss', wss); } catch {}
 
 const lastTip = new LastTipModule(wss);
 const tipWidget = new TipWidgetModule(wss);
@@ -416,6 +417,18 @@ app.get('/api/session/status', async (req, res) => {
     res.json({ supported, active });
   } catch (e) {
     res.status(500).json({ error: 'failed_to_check_session', details: e?.message });
+  }
+});
+
+app.get('/api/session/public-token', async (req, res) => {
+  try {
+    const adminNs = await resolveAdminNsFromReq(req);
+    if (!store || !adminNs) return res.status(400).json({ error: 'no_admin_session' });
+    const pub = await store.get(adminNs, 'publicToken', null);
+    if (typeof pub !== 'string' || !pub) return res.status(404).json({ error: 'not_found' });
+    res.json({ publicToken: pub });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_get_public', details: e?.message });
   }
 });
 
@@ -953,6 +966,10 @@ app.use(express.static('public', {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=300');
     }
   }
 }));
@@ -1546,13 +1563,15 @@ if (process.env.NODE_ENV !== 'test') {
     return out;
   }
 
-  // Broadcast helper with optional namespace filter
   wss.broadcast = function(nsToken, payload) {
     try {
       const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
       wss.clients.forEach(client => {
         if (client && client.readyState === 1) {
-          if (nsToken && client.nsToken && client.nsToken !== nsToken) return;
+
+          if (nsToken) {
+            if (client.nsToken !== nsToken) return;
+          }
           client.send(data);
         }
       });

@@ -25,7 +25,18 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       }
       if (!cfg) cfg = readConfig();
       if (!cfg) return res.status(404).json({ error: 'No tip goal configured' });
-      res.json({ success: true, ...cfg });
+      const out = { ...cfg };
+      try {
+        const hosted = !!store;
+        const hasNs = !!ns;
+        const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '';
+        const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$|^localhost$/i.test(clientIp);
+        const hideForRemoteLocalMode = (!hosted && !isLocalIp);
+        if (((hosted && !hasNs) || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
+          delete out.walletAddress;
+        }
+      } catch {}
+      res.json({ success: true, ...out });
     } catch (e) {
       res.status(500).json({ error: 'Error loading tip goal config', details: e.message });
     }

@@ -79,6 +79,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ttsLanguage = msg.data.ttsLanguage;
                 return;
             }
+            if (msg.type === 'chatConfigUpdate') {
+                fetchAndApplyTheme();
+                applyChatColors();
+                return;
+            }
             if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
             else if (msg.type === 'chat') addMessage(msg);
             else if (msg.type === 'init' && msg.data?.chatHistory) {

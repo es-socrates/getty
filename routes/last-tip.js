@@ -20,7 +20,19 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         }
         cfg = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
       }
-      res.json({ success: true, ...cfg });
+
+      const out = { ...cfg };
+      try {
+        const hosted = !!store;
+        const hasNs = !!ns;
+        const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '';
+        const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$|^localhost$/i.test(clientIp);
+        const hideForRemoteLocalMode = (!hosted && !isLocalIp);
+        if (((hosted && !hasNs) || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
+          delete out.walletAddress;
+        }
+      } catch {}
+      res.json({ success: true, ...out });
     } catch (e) {
       res.status(500).json({ error: 'Error loading last tip config', details: e.message });
     }

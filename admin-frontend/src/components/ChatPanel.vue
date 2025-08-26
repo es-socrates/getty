@@ -131,8 +131,9 @@ const colorFields = [
   { key: 'donation', label: 'colorMsgDonation' },
   { key: 'donationBg', label: 'colorMsgDonationBg' },
 ];
-const widgetUrl = computed(() => `${location.origin}/widgets/chat`);
-const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?horizontal=1`);
+const publicToken = ref('');
+const widgetUrl = computed(() => `${location.origin}/widgets/chat${publicToken.value ? `?token=${encodeURIComponent(publicToken.value)}` : ''}`);
+const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?horizontal=1${publicToken.value ? `&token=${encodeURIComponent(publicToken.value)}` : ''}`);
 
 function resetColors() {
   form.colors = {
@@ -242,6 +243,9 @@ async function pollStatus() {
 }
 
 onMounted(() => {
+  fetch('/api/session/public-token').then(r => r.ok ? r.json() : null).then(j => {
+    if (j && typeof j.publicToken === 'string') publicToken.value = j.publicToken;
+  }).catch(() => {});
   pollStatus();
   const id = setInterval(pollStatus, 5000);
   window.addEventListener('visibilitychange', () => {

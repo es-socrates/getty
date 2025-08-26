@@ -59,7 +59,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         out = out.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
         return out.trim();
       }
-      if (typeof themeCSS === 'string') {
+  if (typeof themeCSS === 'string') {
         themeCSS = sanitizeThemeCSS(themeCSS).slice(0, 20000);
       }
 
@@ -91,8 +91,20 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       if (isHosted) {
         try { const stPrev = await store.get(ns, 'chat-config', null); prevUrl = stPrev?.chatUrl || null; } catch {}
       }
-  if (isHosted) {
+      if (isHosted) {
         await store.set(req.ns.admin, 'chat-config', newConfig);
+        try {
+          const wss = req.app?.get('wss');
+          if (wss && typeof wss.broadcast === 'function') {
+            try { wss.broadcast(req.ns.admin, { type: 'chatConfigUpdate', data: newConfig }); } catch {}
+            try {
+              const publicToken = await (store.get(req.ns.admin, 'publicToken', null));
+              if (typeof publicToken === 'string' && publicToken) {
+                wss.broadcast(publicToken, { type: 'chatConfigUpdate', data: newConfig });
+              }
+            } catch {}
+          }
+        } catch {}
       } else {
         fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
       }
