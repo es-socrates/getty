@@ -86,7 +86,7 @@ const form = ref({
 
 const customFont = ref('');
 const errors = ref({ claimid: '' });
-const widgetUrl = computed(() => `${location.origin}/widgets/liveviews.html`);
+const widgetUrl = computed(() => `${location.origin}/widgets/liveviews`);
 const initial = ref('');
 const dirty = ref(false);
 const saving = ref(false);

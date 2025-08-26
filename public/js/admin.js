@@ -1748,14 +1748,14 @@ function setWidgetUrlsFromObsConfig(cfg) {
     const port = cfg && cfg.port ? cfg.port : '3000';
     const baseUrl = `http://${ip}:${port}`;
     const widgetUrls = {
-        'raffle-widget-url': `${baseUrl}/widgets/giveaway.html`,
-        'last-tip-url': `${baseUrl}/widgets/last-tip.html`,
-        'tip-goal-url': `${baseUrl}/widgets/tip-goal.html`,
-        'tip-notification-url': `${baseUrl}/widgets/tip-notification.html`,
-        'obs-chat-url': `${baseUrl}/widgets/chat.html`,
-        'obs-chat-horizontal-url': `${baseUrl}/widgets/chat.html?horizontal=1`,
-        'liveviews-widget-url': `${baseUrl}/widgets/liveviews.html`,
-        'socialmedia-widget-url': `${baseUrl}/widgets/socialmedia.html`
+        'raffle-widget-url': `${baseUrl}/widgets/giveaway`,
+        'last-tip-url': `${baseUrl}/widgets/last-tip`,
+        'tip-goal-url': `${baseUrl}/widgets/tip-goal`,
+        'tip-notification-url': `${baseUrl}/widgets/tip-notification`,
+        'obs-chat-url': `${baseUrl}/widgets/chat`,
+        'obs-chat-horizontal-url': `${baseUrl}/widgets/chat?horizontal=1`,
+        'liveviews-widget-url': `${baseUrl}/widgets/liveviews`,
+        'socialmedia-widget-url': `${baseUrl}/widgets/socialmedia`
     };
     Object.entries(widgetUrls).forEach(([id, url]) => {
         const el = document.getElementById(id);
@@ -1870,37 +1870,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const raffleWidgetUrl = document.getElementById('raffle-widget-url');
     if (raffleWidgetUrl) {
-        raffleWidgetUrl.value = window.location.origin + '/widgets/giveaway.html';
+        raffleWidgetUrl.value = window.location.origin + '/widgets/giveaway';
     }
 
     const lastTipWidgetUrl = document.getElementById('last-tip-url');
     if (lastTipWidgetUrl) {
-        lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip.html';
+        lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip';
     }
 
     const tipGoalWidgetUrl = document.getElementById('tip-goal-url');
     if (tipGoalWidgetUrl) {
-        tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal.html';
+        tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal';
     }
 
     const tipNotificationUrl = document.getElementById('tip-notification-url');
     if (tipNotificationUrl) {
-        tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification.html';
+        tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification';
     }
 
     const obsChatUrl = document.getElementById('obs-chat-url');
     if (obsChatUrl) {
-        obsChatUrl.value = window.location.origin + '/widgets/chat.html';
+        obsChatUrl.value = window.location.origin + '/widgets/chat';
     }
 
     const obsChatHorizontalUrl = document.getElementById('obs-chat-horizontal-url');
     if (obsChatHorizontalUrl) {
-        obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat.html?horizontal=1';
+        obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat?horizontal=1';
     }
 
     const liveviewsWidgetUrl = document.getElementById('liveviews-widget-url');
     if (liveviewsWidgetUrl) {
-        liveviewsWidgetUrl.value = window.location.origin + '/widgets/liveviews.html';
+        liveviewsWidgetUrl.value = window.location.origin + '/widgets/liveviews';
     }
 
     const liveviewsSaveBtn = document.getElementById('liveviews-save');

@@ -620,12 +620,20 @@ app.get('/widgets/announcement', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/widgets/announcement.html'));
 });
 
+app.get('/widgets/giveaway', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public/widgets/giveaway.html'));
+});
+
 app.get('/obs-help', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/obs-integration.html'));
 });
 
 app.get('/widgets/socialmedia', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public/widgets/socialmedia.html'));
+});
+
+app.get('/widgets/liveviews', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public/widgets/liveviews.html'));
 });
 
 const AUDIO_CONFIG_FILE = './audio-settings.json';

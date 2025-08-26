@@ -81,7 +81,7 @@ const rowErrors = ref({});
 const dirty = ref(false);
 const saving = ref(false);
 
-const widgetUrl = computed(() => `${location.origin}/widgets/socialmedia.html`);
+const widgetUrl = computed(() => `${location.origin}/widgets/socialmedia`);
 
 function markDirty() { dirty.value = true; }
 registerDirty(() => dirty.value);
