@@ -218,7 +218,6 @@
         loadColors();
         updateExchangeRate();
         loadInitialData();
-        loadRecent();
     };
     
     ws.onmessage = async (event) => {

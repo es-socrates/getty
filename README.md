@@ -1,11 +1,13 @@
 # Getty
 
-A widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.
+Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.
 
-The vision is for streamers on Odysee to be able to have simple tools to go live on Odysee, interact with viewers and grow. All this easily, for free and without registration. Enjoy the app and look forward to more updates in the future.
+🔥 Online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **Please be kind and patient; resources on the server are limited.**
+
+**The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
 ![getty](https://thumbs.odycdn.com/e80ce98bd84093e80b050db245485887.webp)
-> **The dashboard view in Getty, the widgets are independent in OBS Studio**
+> **The view of the control panel in Getty. The colors have also been changed.**
 
 ## Not familiar with Odysee?
 
@@ -31,20 +33,6 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 10. 💬 Live Chat: Add a chat widget to your OBS with different themes.
 
 ![getty](https://thumbs.odycdn.com/2c824f75e3a53242508da449d7b7a558.webp)
-
-## Hosted mode (MVP)
-
-You can run Getty in a hosted, multi-tenant-like mode using ephemeral tokens:
-
-- Set REDIS_URL to enable Redis-backed session storage (recommended in Render).
-- Create a hosted session by opening /new-session. This issues:
-	- Admin token (stored in HttpOnly cookie `getty_admin_token`)
-	- Public token (HttpOnly cookie `getty_public_token`)
-- Admin API calls and settings will be stored per token namespace in Redis. Widgets can use the public token.
-
-Environment variables:
-- REDIS_URL: Redis connection string.
-- SESSION_TTL_SECONDS: Optional TTL for sessions (default 259200 = 72h).
 
 ## Prerequisites to start Getty
 
@@ -83,6 +71,22 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 5. You're done! The widgets will appear in your stream. Let's stream!
 
 Getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
+
+## Hosted mode (MVP)
+
+Here it goes in "hosted" mode so you don't have to deal with the local stuff.
+
+**Personally, it's easier on localhost, but it's up to you if you want to set up your own server.**
+
+If you are going to host your own server, define the **REDIS_URL** environment variable to enable hosted mode and isolate your session. Without REDIS_URL, **data is stored globally** in that deployment.
+
+Set REDIS_URL (for example, a Redis on Render) and then visit app.getty.sh/new-session to create your **isolated session**. You can check in app.getty.sh/api/session/status that `supported=true` and, after creating it, `active=true`.
+
+**What does all this mean?**
+
+Everything you do in the admin and API calls are stored in Redis by "namespace" based on your token, so each session is separate; widgets use the public token without exposing anything sensitive.
+
+If you want, adjust SESSION_TTL_SECONDS to decide how long each session lasts (default 259200 seconds = 72 hours).
 
 **This is an independent project; it is not an official Odysee product.** Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
 
