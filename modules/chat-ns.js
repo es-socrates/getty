@@ -27,6 +27,21 @@ class ChatNsManager {
     } catch {}
   }
 
+  async _broadcastBoth(ns, payload) {
+    try {
+      this._broadcast(ns, payload);
+      if (!this.store || !ns) return;
+
+      let other = null;
+      try {
+        const adminOfNs = await this.store.get(ns, 'adminToken', null);
+        const publicOfNs = await this.store.get(ns, 'publicToken', null);
+        other = adminOfNs || publicOfNs || null;
+      } catch {}
+      if (other && other !== ns) this._broadcast(other, payload);
+    } catch {}
+  }
+
   async start(ns, chatUrlInput) {
     if (!ns || !chatUrlInput) return;
 
@@ -51,15 +66,15 @@ class ChatNsManager {
 
     ws.on('open', () => {
       session.connected = true;
-      this._broadcast(ns, { type: 'chatStatus', data: { connected: true } });
+      this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: true } });
     });
     ws.on('error', () => {
       session.connected = false;
-      this._broadcast(ns, { type: 'chatStatus', data: { connected: false } });
+      this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
     });
     ws.on('close', () => {
       session.connected = false;
-      this._broadcast(ns, { type: 'chatStatus', data: { connected: false } });
+      this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
 
       if (process.env.NODE_ENV !== 'test') {
         setTimeout(() => {
@@ -80,7 +95,7 @@ class ChatNsManager {
     if (!s) return;
     try { if (s.ws && s.ws.readyState === WebSocket.OPEN) s.ws.close(); } catch {}
     this.sessions.delete(ns);
-    this._broadcast(ns, { type: 'chatStatus', data: { connected: false } });
+  this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
   }
 
   getStatus(ns) {
@@ -110,7 +125,7 @@ class ChatNsManager {
         username: comment.channel_name || 'Anonymous'
       };
 
-      this._broadcast(ns, { type: 'chatMessage', data: chatMessage });
+  this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
 
       if (chatMessage.credits > 0) {
         const tipData = {
