@@ -11,6 +11,7 @@ const Logger = {
 class ExternalNotifications {
     constructor(wss) {
         this.wss = wss;
+    this.hosted = !!process.env.REDIS_URL;
     this.configFile = path.join(process.cwd(), 'config', 'external-notifications-config.json');
     this.legacyConfigFile = path.join(__dirname, 'external-notifications-config.json');
         this.lastTips = [];
@@ -20,15 +21,40 @@ class ExternalNotifications {
         this.template = 'New tip from {from}: {amount} AR (${usd}) - "{message}"';
 
         this.loadConfig();
-        this.setupListeners();
+    this.setupListeners();
 
         console.log('[ExternalNotifications] Initialized with WebSocket support');
+    }
+
+    async sendWithConfig(cfg, tip) {
+        try {
+            if (!cfg || !tip) return false;
+            const usdValue = await this.calculateUsdValue(tip.amount);
+            const formattedTip = {
+                from: tip.from || 'Anonymous',
+                amount: tip.amount,
+                usd: usdValue,
+                message: (tip.message || ''),
+                source: tip.source || 'direct',
+                timestamp: tip.timestamp || new Date().toISOString()
+            };
+            const template = cfg.template || this.template || 'New tip from {from}: {amount} AR (${usd}) - "{message}"';
+
+            let ok = false;
+            if (cfg.discordWebhook) {
+                ok = (await this.sendToDiscord({ ...formattedTip, template }, cfg.discordWebhook)) || ok;
+            }
+            if (cfg.telegramBotToken && cfg.telegramChatId) {
+                ok = (await this.sendToTelegram({ ...formattedTip, template }, cfg.telegramBotToken, cfg.telegramChatId)) || ok;
+            }
+            return ok;
+        } catch { return false; }
     }
 
     getStatus() {
         return {
             active: this.discordWebhook || (this.telegramBotToken && this.telegramChatId),
-            lastTips: this.lastTips.slice(0, 5),
+            lastTips: this.hosted ? [] : this.lastTips.slice(0, 5),
             config: {
                 hasDiscord: !!this.discordWebhook,
                 hasTelegram: !!(this.telegramBotToken && this.telegramChatId),
@@ -113,9 +139,9 @@ class ExternalNotifications {
     }
 
     setupListeners() {
-        if (this.wss) {
+    if (this.wss) {
             this.wss.removeAllListeners('tip');
-            this.wss.on('tip', (tipData) => {
+            this.wss.on('tip', (tipData, _ns) => {
                 console.log('Processing tip from:', tipData.from);
                 this.handleIncomingTip(tipData).catch(err => {
                     console.error('Error processing tip:', err);
@@ -147,23 +173,27 @@ class ExternalNotifications {
                 timestamp: tipData.timestamp || new Date().toISOString()
             };
 
-            this.lastTips.unshift(formattedTip);
-            if (this.lastTips.length > 10) this.lastTips.pop();
-
-            if (this.discordWebhook) {
-                await this.sendToDiscord(formattedTip);
+            if (!this.hosted) {
+                this.lastTips.unshift(formattedTip);
+                if (this.lastTips.length > 10) this.lastTips.pop();
             }
 
-            if (this.telegramBotToken && this.telegramChatId) {
-                await this.sendToTelegram(formattedTip);
-            }
+            if (!this.hosted) {
+                if (this.discordWebhook) {
+                    await this.sendToDiscord(formattedTip);
+                }
 
-            await this.saveConfig({
-                discordWebhook: this.discordWebhook,
-                telegramBotToken: this.telegramBotToken,
-                telegramChatId: this.telegramChatId,
-                template: this.template
-            });
+                if (this.telegramBotToken && this.telegramChatId) {
+                    await this.sendToTelegram(formattedTip);
+                }
+
+                await this.saveConfig({
+                    discordWebhook: this.discordWebhook,
+                    telegramBotToken: this.telegramBotToken,
+                    telegramChatId: this.telegramChatId,
+                    template: this.template
+                });
+            }
 
         } catch (err) {
             console.error('[ExternalNotifications] Error processing tip:', err);
@@ -171,8 +201,9 @@ class ExternalNotifications {
         }
     }
 
-    async sendToDiscord(tipData) {
-        if (!this.discordWebhook) {
+    async sendToDiscord(tipData, overrideWebhook) {
+        const webhook = overrideWebhook || this.discordWebhook;
+        if (!webhook) {
             console.warn('Discord webhook not configured');
             return false;
         }
@@ -185,7 +216,7 @@ class ExternalNotifications {
             const payload = {
                 embeds: [{
                     title: `New tip ${tipData.source === 'chat' ? 'received. Woohoo!' : 'Direct'}`,
-                    description: this.formatMessage(tipData),
+                    description: this.formatMessage(tipData, tipData.template),
                     color: tipData.source === 'chat' ? 0x5865F2 : 0x00FF7F,
                     fields: [
                         { name: "From:", value: tipData.from || 'Anonymous', inline: true },
@@ -198,7 +229,7 @@ class ExternalNotifications {
                 avatar_url: "https://thumbs.odycdn.com/43f53f554e4a85240564f8ff794eb60e.webp?override=" + Date.now()
             };
 
-            const response = await axios.post(this.discordWebhook, payload, {
+            const response = await axios.post(webhook, payload, {
                 timeout: 5000,
                 headers: {
                     'Content-Type': 'application/json'
@@ -224,17 +255,19 @@ class ExternalNotifications {
         }
     }
 
-    async sendToTelegram(tipData) {
-        if (!this.telegramBotToken || !this.telegramChatId) {
+    async sendToTelegram(tipData, overrideBotToken, overrideChatId) {
+        const token = overrideBotToken || this.telegramBotToken;
+        const chatId = overrideChatId || this.telegramChatId;
+        if (!token || !chatId) {
             return false;
         }
 
         try {
-            const message = this.formatMessage(tipData);
-            const url = `https://api.telegram.org/bot${this.telegramBotToken}/sendMessage`;
+            const message = this.formatMessage(tipData, tipData.template);
+            const url = `https://api.telegram.org/bot${token}/sendMessage`;
             
             await axios.post(url, {
-                chat_id: this.telegramChatId,
+                chat_id: chatId,
                 text: message,
                 parse_mode: 'HTML'
             });
@@ -260,8 +293,9 @@ class ExternalNotifications {
         }
     }
 
-    formatMessage(tipData) {
-        return this.template
+    formatMessage(tipData, tplOverride) {
+        const tpl = typeof tplOverride === 'string' && tplOverride ? tplOverride : this.template;
+        return tpl
             .replace('{from}', tipData.from || 'Anonymous')
             .replace('{amount}', tipData.amount)
             .replace('{usd}', tipData.usd || '?')

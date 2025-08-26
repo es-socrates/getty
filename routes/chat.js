@@ -4,6 +4,7 @@ const { z } = require('zod');
 
 function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
   const store = options.store;
+  const chatNs = options.chatNs;
   const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
 
   app.get('/api/chat-config', async (req, res) => {
@@ -84,13 +85,39 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         donationBgColor: donationBgColor || config.donationBgColor || '#ececec',
         themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || '')
       };
-      if (store && req.ns && req.ns.admin) {
+      const isHosted = !!(store && req.ns && req.ns.admin);
+      const ns = isHosted ? req.ns.admin : null;
+      let prevUrl = null;
+      if (isHosted) {
+        try { const stPrev = await store.get(ns, 'chat-config', null); prevUrl = stPrev?.chatUrl || null; } catch {}
+      }
+  if (isHosted) {
         await store.set(req.ns.admin, 'chat-config', newConfig);
       } else {
         fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
       }
-      const result = chat.updateChatUrl(chatUrl);
-      res.json({ success: true, ...result, ...newConfig });
+      let result = {};
+      if (!isHosted) {
+        result = chat.updateChatUrl(chatUrl) || {};
+      }
+      try {
+        if (isHosted && chatNs) {
+          const newUrl = chatUrl;
+          const changed = (newUrl || '') !== (prevUrl || '');
+          if (changed && newUrl) {
+            await chatNs.start(ns, newUrl);
+            result = { ...(result||{}), relay: { started: true } };
+          } else if (changed && !newUrl) {
+            await chatNs.stop(ns);
+            result = { ...(result||{}), relay: { stopped: true } };
+          } else {
+            // No URL change: do nothing
+          }
+        }
+      } catch (e) {
+        result = { ...(result||{}), relayError: e?.message };
+      }
+      res.json({ success: true, ...newConfig, ...result });
     } catch (error) {
       console.error('Error updating chat:', error);
       res.status(500).json({ error: 'Internal server error', details: error.message });

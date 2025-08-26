@@ -1,19 +1,26 @@
 const { z } = require('zod');
 
-function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter) {
-  app.get('/api/socialmedia-config', (_req, res) => {
+function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, options = {}) {
+  const store = options.store || null;
+
+  app.get('/api/socialmedia-config', async (req, res) => {
     try {
-      const config = socialMediaModule.loadConfig();
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let config = null;
+      if (store && ns) {
+        config = await store.get(ns, 'socialmedia-config', null);
+      }
+      if (!config) config = socialMediaModule.loadConfig();
       res.json({ success: true, config });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
     }
   });
 
-  app.post('/api/socialmedia-config', strictLimiter, (req, res) => {
+  app.post('/api/socialmedia-config', strictLimiter, async (req, res) => {
     try {
-  const env = process.env.NODE_ENV || 'development';
-  const enforceHttpsOnly = (process.env.SOCIALMEDIA_HTTPS_ONLY === 'true') || env === 'production';
+      const env = process.env.NODE_ENV || 'development';
+      const enforceHttpsOnly = (process.env.SOCIALMEDIA_HTTPS_ONLY === 'true') || env === 'production';
       const AdminItem = z.object({
         name: z.string(),
         icon: z.string(),
@@ -44,7 +51,7 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter) {
         if (key === 'twitter') return 'x';
         return 'custom';
       };
-    const normalizedPreTrim = config.map(item => {
+      const normalizedPreTrim = config.map(item => {
         if ('name' in item && 'icon' in item && 'link' in item) {
       const iconLc = String(item.icon || '').toLowerCase();
       const normalizedIcon = knownIcons.has(iconLc) || iconLc === 'custom' ? iconLc : 'custom';
@@ -123,7 +130,12 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter) {
         }
       }
 
-      socialMediaModule.saveConfig(normalized);
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        await store.set(ns, 'socialmedia-config', normalized);
+      } else {
+        socialMediaModule.saveConfig(normalized);
+      }
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });

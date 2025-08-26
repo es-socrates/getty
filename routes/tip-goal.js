@@ -2,7 +2,8 @@ const fs = require('fs');
 const WebSocket = require('ws');
 const { z } = require('zod');
 
-function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE) {
+function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE, options = {}) {
+  const store = (options && options.store) || null;
 
   function readConfig() {
     try {
@@ -15,9 +16,14 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
     return null;
   }
 
-  app.get('/api/tip-goal', (_req, res) => {
+  app.get('/api/tip-goal', async (req, res) => {
     try {
-      const cfg = readConfig();
+      let cfg = null;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        cfg = await store.get(ns, 'tip-goal-config', null);
+      }
+      if (!cfg) cfg = readConfig();
       if (!cfg) return res.status(404).json({ error: 'No tip goal configured' });
       res.json({ success: true, ...cfg });
     } catch (e) {
@@ -59,10 +65,13 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         return res.status(400).json({ error: 'Valid goal amount is required' });
       }
 
-      tipGoal.updateWalletAddress(walletAddress);
-      tipGoal.monthlyGoalAR = monthlyGoal;
-      tipGoal.currentTipsAR = currentAmount;
-      tipGoal.theme = theme;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+  if (!(store && ns)) {
+        tipGoal.updateWalletAddress(walletAddress);
+        tipGoal.monthlyGoalAR = monthlyGoal;
+        tipGoal.currentTipsAR = currentAmount;
+        tipGoal.theme = theme;
+      }
 
       let audioFile = null;
       let hasCustomAudio = false;
@@ -76,7 +85,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         audioFileSize = req.file.size;
       }
 
-      const config = {
+  const config = {
         walletAddress,
         monthlyGoal,
         currentAmount,
@@ -92,10 +101,14 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         ...(widgetTitle ? { title: widgetTitle } : {}),
         ...(audioFile ? { customAudioUrl: audioFile } : {})
       };
-      fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
+      if (store && ns) {
+        await store.set(ns, 'tip-goal-config', config);
+      } else {
+        fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
+      }
 
       try {
-        if (typeof tipGoal === 'object' && tipGoal) {
+        if (!(store && ns) && typeof tipGoal === 'object' && tipGoal) {
           if (bgColor) tipGoal.bgColor = bgColor;
           if (fontColor) tipGoal.fontColor = fontColor;
           if (borderColor) tipGoal.borderColor = borderColor;
@@ -105,45 +118,43 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         }
       } catch {}
 
-      fs.writeFileSync(
-        GOAL_AUDIO_CONFIG_FILE,
-        JSON.stringify(
-          {
-            audioSource,
-            hasCustomAudio,
-            audioFileName,
-            audioFileSize,
-            ...(audioFile ? { customAudioUrl: audioFile } : {})
-          },
-          null,
-          2
-        )
-      );
-
-      tipGoal.sendGoalUpdate();
-
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(
-            JSON.stringify({
-              type: 'goalAudioSettingsUpdate',
-              data: {
-                audioSource,
-                hasCustomAudio,
-                audioFileName,
-                audioFileSize,
-                ...(audioFile ? { customAudioUrl: audioFile } : {})
-              }
-            })
-          );
+      try {
+        const audioCfg = {
+          audioSource,
+          hasCustomAudio,
+          audioFileName,
+          audioFileSize,
+          ...(audioFile ? { customAudioUrl: audioFile } : {})
+        };
+        if (store && ns) {
+          await store.set(ns, 'goal-audio-settings', audioCfg);
+        } else {
+          fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(audioCfg, null, 2));
         }
-      });
+      } catch {}
 
-      res.json({
-        success: true,
-        active: true,
-        ...config
-      });
+      if (store && ns) {
+        try { if (typeof wss?.broadcast === 'function') wss.broadcast(ns, { type: 'tipGoalUpdate', data: { ...config } }); } catch {}
+      } else {
+        tipGoal.sendGoalUpdate();
+      }
+
+      try {
+        if (store && ns && typeof wss?.broadcast === 'function') {
+          wss.broadcast(ns, {
+            type: 'goalAudioSettingsUpdate',
+            data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) }
+          });
+        } else {
+          wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } }));
+            }
+          });
+        }
+      } catch {}
+
+  res.json({ success: true, active: true, ...config });
     } catch (error) {
       console.error('Error in /api/tip-goal:', error);
       res.status(500).json({

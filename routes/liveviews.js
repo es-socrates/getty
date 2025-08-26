@@ -14,7 +14,8 @@ function getLiveviewsConfigWithDefaults(partial) {
   };
 }
 
-function registerLiveviewsRoutes(app, strictLimiter) {
+function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
+  const store = options.store || null;
   const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
   const LIVEVIEWS_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'liveviews');
   if (!fs.existsSync(LIVEVIEWS_UPLOADS_DIR)) {
@@ -39,15 +40,16 @@ function registerLiveviewsRoutes(app, strictLimiter) {
     }
   });
 
-  app.post('/config/liveviews-config.json', strictLimiter, liveviewsUpload.single('icon'), (req, res) => {
+  app.post('/config/liveviews-config.json', strictLimiter, liveviewsUpload.single('icon'), async (req, res) => {
     try {
       const body = req.body || {};
       const removeIcon = body.removeIcon === '1';
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
       let prev = {};
-      if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-        try {
-          prev = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-  } catch { prev = {}; }
+      if (store && ns) {
+        try { prev = (await store.get(ns, 'liveviews-config', null)) || {}; } catch { prev = {}; }
+      } else if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+        try { prev = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')); } catch { prev = {}; }
       }
 
       let iconUrl = '';
@@ -69,17 +71,24 @@ function registerLiveviewsRoutes(app, strictLimiter) {
         ...body,
         icon: iconUrl
       });
-      fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(config, null, 2));
+      if (store && ns) {
+        await store.set(ns, 'liveviews-config', config);
+      } else {
+        fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(config, null, 2));
+      }
       res.json({ success: true, config });
     } catch (error) {
       res.status(500).json({ error: 'Error saving configuration', details: error.message });
     }
   });
 
-  app.get('/config/liveviews-config.json', (_req, res) => {
+  app.get('/config/liveviews-config.json', async (req, res) => {
     try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
       let config = {};
-      if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+      if (store && ns) {
+        config = (await store.get(ns, 'liveviews-config', null)) || {};
+      } else if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
       }
       config = getLiveviewsConfigWithDefaults(config);
@@ -89,39 +98,30 @@ function registerLiveviewsRoutes(app, strictLimiter) {
     }
   });
 
-  app.post('/api/save-liveviews-label', strictLimiter, (req, res) => {
+  app.post('/api/save-liveviews-label', strictLimiter, async (req, res) => {
     const { viewersLabel } = req.body || {};
     if (typeof viewersLabel !== 'string' || !viewersLabel.trim()) {
       return res.status(400).json({ error: 'Invalid label' });
+    }
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (store && ns) {
+      try {
+        const current = (await store.get(ns, 'liveviews-config', null)) || {};
+        const merged = getLiveviewsConfigWithDefaults({ ...current, viewersLabel });
+        await store.set(ns, 'liveviews-config', merged);
+        return res.json({ success: true });
+  } catch {
+        return res.status(500).json({ error: 'The label could not be saved.' });
+      }
     }
     const configPath = LIVEVIEWS_CONFIG_FILE;
     fs.readFile(configPath, 'utf8', (err, data) => {
       let config;
       if (err) {
-        config = {
-          bg: '#fff',
-          color: '#222',
-          font: 'Arial',
-          size: 32,
-          icon: '',
-          claimid: '',
-          viewersLabel
-        };
+        config = { bg: '#fff', color: '#222', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel };
       } else {
-        try {
-          config = JSON.parse(data);
-          if (typeof config !== 'object' || config === null) config = {};
-  } catch {
-          config = {
-            bg: '#fff',
-            color: '#222',
-            font: 'Arial',
-            size: 32,
-            icon: '',
-            claimid: '',
-            viewersLabel
-          };
-        }
+        try { config = JSON.parse(data); if (typeof config !== 'object' || config === null) config = {}; }
+        catch { config = { bg: '#fff', color: '#222', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel }; }
         config.viewersLabel = viewersLabel;
       }
       fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8', (err) => {
