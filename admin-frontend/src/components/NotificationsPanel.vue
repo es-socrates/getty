@@ -124,7 +124,7 @@ const errors = reactive({
 const savingGif = ref(false);
 const savingTts = ref(false);
 const savingAudio = ref(false);
-const widgetUrl = computed(()=> `${location.origin}/widgets/tip-notification.html`);
+const widgetUrl = computed(()=> `${location.origin}/widgets/tip-notification`);
 
 const audioState = reactive({
   hasCustomAudio: false,

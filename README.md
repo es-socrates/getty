@@ -58,7 +58,7 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 ## Visit Getty in the browser:
 
 1) Dashboard: http://localhost:3000/
-2) Admin: http://localhost:3000/admin.html/
+2) Admin: http://localhost:3000/admin/status
 
 The app's admin page has all the widget links for OBS. I recommend saving the changes on the admin page and checking that all of them are active, or the ones you need.
 
@@ -66,7 +66,7 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 
 1. Open the OBS Studio software.
 2. Add a new "Browser Source".
-3. Paste the URL of your widget: (e.g. localhost:3000/widgets/chat.html).
+3. Paste the URL of your widget: (e.g. http://localhost:3000/widgets/chat).
 4. Adjust the size, position and color of each widget.
 5. You're done! The widgets will appear in your stream. Let's stream!
 
@@ -80,7 +80,7 @@ Here it goes in "hosted" mode so you don't have to deal with the local stuff.
 
 If you are going to host your own server, define the **REDIS_URL** environment variable to enable hosted mode and isolate your session. Without REDIS_URL, **data is stored globally** in that deployment.
 
-Set REDIS_URL (for example, a Redis on Render) and then visit app.getty.sh/new-session to create your **isolated session**. You can check in app.getty.sh/api/session/status that `supported=true` and, after creating it, `active=true`.
+Set REDIS_URL (for example, a Redis on Render) and then visit `app.getty.sh/new-session` to create your **isolated session**. You can check in `app.getty.sh/api/session/status` that `supported=true` and, after creating it, `active=true`.
 
 **What does all this mean?**
 

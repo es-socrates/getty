@@ -103,7 +103,7 @@ const savingSettings = ref(false);
 const savingAction = ref(false);
 const action = ref('');
 
-const widgetUrl = computed(() => `${location.origin}/widgets/giveaway.html`);
+const widgetUrl = computed(() => `${location.origin}/widgets/giveaway`);
 
 function connectWs() {
   const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;

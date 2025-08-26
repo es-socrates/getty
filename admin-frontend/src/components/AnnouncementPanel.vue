@@ -332,7 +332,7 @@ const savingSettings = ref(false);
 const adding = ref(false);
 const updating = ref(false);
 const modalRef = ref(null);
-const widgetUrl = computed(() => `${location.origin}/widgets/announcement.html`);
+const widgetUrl = computed(() => `${location.origin}/widgets/announcement`);
 
 async function load() {
   try {

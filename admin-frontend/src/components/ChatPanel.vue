@@ -123,7 +123,7 @@ const colorFields = [
   { key: 'donationBg', label: 'colorMsgDonationBg' },
 ];
 const widgetUrl = computed(() => `${location.origin}/widgets/chat`);
-const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat.html?horizontal=1`);
+const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?horizontal=1`);
 
 function resetColors() {
   form.colors = {
