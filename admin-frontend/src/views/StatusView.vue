@@ -74,6 +74,37 @@
             </button>
           </div>
         </div>
+        <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
+          <div class="os-th text-xs">{{ t('importConfig') }}</div>
+          <div class="flex flex-col gap-2">
+            <input ref="fileInputEl" type="file" accept="application/json,.json" @change="onImportFile" />
+            <button
+              class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm disabled:opacity-50"
+              :disabled="importing"
+              @click="triggerFile"
+            >
+              {{ importing ? t('commonLoading') : t('importConfig') }}
+            </button>
+            <div v-if="importApplied.lastTip !== null || importApplied.tipGoal !== null || importApplied.socialmedia !== null || importApplied.external !== null" class="flex flex-wrap gap-2 text-xs mt-1">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+                {{ t('lastTip') }}:
+                <span :class="importApplied.lastTip ? 'text-green-500' : 'text-red-500'">{{ importApplied.lastTip ? '✓' : '✗' }}</span>
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+                {{ t('tipGoal') }}:
+                <span :class="importApplied.tipGoal ? 'text-green-500' : 'text-red-500'">{{ importApplied.tipGoal ? '✓' : '✗' }}</span>
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+                {{ t('socialMediaTitle') }}:
+                <span :class="importApplied.socialmedia ? 'text-green-500' : 'text-red-500'">{{ importApplied.socialmedia ? '✓' : '✗' }}</span>
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+                {{ t('externalNotificationsTitle') }}:
+                <span :class="importApplied.external ? 'text-green-500' : 'text-red-500'">{{ importApplied.external ? '✓' : '✗' }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
         <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2" v-if="sessionStatus.supported && !sessionStatus.active">
           <div class="os-th text-xs">{{ t('newSession') }}</div>
           <div>
@@ -92,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue'
@@ -107,6 +138,14 @@ const system = ref(null);
 const regenLoading = ref(false);
 const lastPublicToken = ref('');
 const sessionStatus = ref({ supported: false, active: false });
+const importing = ref(false);
+const fileInputEl = ref(null);
+const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null });
+let importAppliedTimer = null;
+
+function clearImportApplied() {
+  importApplied.value = { lastTip: null, tipGoal: null, socialmedia: null, external: null };
+}
 
 function formatUptime(seconds) {
   if (seconds < 60) return t('statusSeconds', { n: seconds });
@@ -187,6 +226,19 @@ onMounted(() => {
     now.value = new Date().toLocaleString();
     load();
   }, 60000);
+
+  try {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        clearImportApplied();
+        if (importAppliedTimer) { clearTimeout(importAppliedTimer); importAppliedTimer = null; }
+      }
+    });
+  } catch {}
+});
+
+onUnmounted(() => {
+  try { if (importAppliedTimer) clearTimeout(importAppliedTimer); } catch {}
 });
 
 async function regeneratePublic() {
@@ -217,5 +269,56 @@ function exportCfg() {
   try {
     window.location.href = '/api/session/export';
   } catch {}
+}
+
+function triggerFile() {
+  try {
+    if (!fileInputEl.value) {
+      const inputs = document.querySelectorAll('input[type="file"][accept*="json"]');
+      if (inputs && inputs[0]) inputs[0].click();
+    } else {
+      fileInputEl.value.click();
+    }
+  } catch {}
+}
+
+async function onImportFile(e) {
+  try {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    importing.value = true;
+    const text = await file.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = null; }
+    if (!data || typeof data !== 'object') {
+      pushToast({ message: 'Invalid JSON', type: 'error', timeout: 2500, autoTranslate: false });
+      return;
+    }
+    const r = await axios.post('/api/session/import', data);
+    if (r?.data?.ok) {
+      const restored = r?.data?.restored || {};
+      importApplied.value = {
+        lastTip: typeof restored.lastTip === 'boolean' ? restored.lastTip : null,
+        tipGoal: typeof restored.tipGoal === 'boolean' ? restored.tipGoal : null,
+        socialmedia: typeof restored.socialmedia === 'boolean' ? restored.socialmedia : null,
+        external: typeof restored.external === 'boolean' ? restored.external : null,
+      };
+      pushToast({ message: t('importedOk'), type: 'success', timeout: 2500, autoTranslate: false });
+      load();
+
+      try {
+        if (importAppliedTimer) clearTimeout(importAppliedTimer);
+        importAppliedTimer = setTimeout(() => { clearImportApplied(); importAppliedTimer = null; }, 6000);
+      } catch {}
+    } else {
+      pushToast({ message: 'Import failed', type: 'error', timeout: 2500, autoTranslate: false });
+    }
+  } catch (err) {
+    const msg = err?.response?.data?.error || 'Import failed';
+    pushToast({ message: msg, type: 'error', timeout: 3000, autoTranslate: false });
+  } finally {
+    importing.value = false;
+    try { e.target.value = ''; } catch {}
+  }
 }
 </script>

@@ -431,11 +431,133 @@ app.get('/api/session/export', async (req, res) => {
       try { exportObj.chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8')); } catch { exportObj.chatConfig = null; }
     }
 
+  try { exportObj.lastTipConfig = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8')); } catch { exportObj.lastTipConfig = null; }
+  try { exportObj.tipGoalConfig = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8')); } catch { exportObj.tipGoalConfig = null; }
+    try { exportObj.socialMediaConfig = socialMediaModule.loadConfig(); } catch { exportObj.socialMediaConfig = null; }
+    try {
+      const extPath = path.join(process.cwd(), 'config', 'external-notifications-config.json');
+      exportObj.externalNotificationsConfig = fs.existsSync(extPath) ? JSON.parse(fs.readFileSync(extPath, 'utf8')) : null;
+    } catch { exportObj.externalNotificationsConfig = null; }
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="getty-config-${new Date().toISOString().replace(/[:.]/g,'-')}.json"`);
     res.end(JSON.stringify(exportObj, null, 2));
   } catch (e) {
     res.status(500).json({ error: 'failed_to_export', details: e?.message });
+  }
+});
+
+app.post('/api/session/import', async (req, res) => {
+  try {
+    const adminNs = await resolveAdminNsFromReq(req);
+    const useStore = !!(store && adminNs);
+    const payload = req.body || {};
+    const incomingTts = (payload && typeof payload.ttsSettings === 'object') ? payload.ttsSettings : null;
+    const incomingChat = (payload && typeof payload.chatConfig === 'object') ? payload.chatConfig : null;
+    const incomingLastTip = (payload && typeof payload.lastTipConfig === 'object') ? payload.lastTipConfig : null;
+    const incomingTipGoal = (payload && typeof payload.tipGoalConfig === 'object') ? payload.tipGoalConfig : null;
+    const lastTipWallet = typeof payload.lastTipWallet === 'string' ? payload.lastTipWallet : (typeof payload.lastTipAddress === 'string' ? payload.lastTipAddress : null);
+    const tipGoalWallet = typeof payload.tipGoalWallet === 'string' ? payload.tipGoalWallet : (typeof payload.tipGoalAddress === 'string' ? payload.tipGoalAddress : null);
+  const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
+  const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
+
+  if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal) {
+      return res.status(400).json({ error: 'no_valid_payload' });
+    }
+
+    if (useStore) {
+      if (incomingTts) await store.set(adminNs, 'tts-settings', incomingTts);
+      if (incomingChat) await store.set(adminNs, 'chat-config', incomingChat);
+    } else {
+      try {
+        if (incomingTts) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(incomingTts, null, 2));
+      } catch {}
+      try {
+        if (incomingChat) fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(incomingChat, null, 2));
+      } catch {}
+    }
+
+    function mergeConfigFile(filePath, incomingObj, allowedKeys) {
+      try {
+        const current = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : {};
+        const filtered = {};
+        for (const k of allowedKeys) {
+          if (Object.prototype.hasOwnProperty.call(incomingObj, k)) filtered[k] = incomingObj[k];
+        }
+        const merged = { ...current, ...filtered };
+        fs.writeFileSync(filePath, JSON.stringify(merged, null, 2));
+        return merged;
+      } catch { return null; }
+    }
+
+    let lastTipApplied = false;
+    if (incomingLastTip || lastTipWallet) {
+      const allowedLT = ['walletAddress','bgColor','fontColor','borderColor','amountColor','iconColor','iconBgColor','fromColor','title'];
+      const base = incomingLastTip || {};
+      if (lastTipWallet) base.walletAddress = lastTipWallet;
+      const mergedLT = mergeConfigFile(LAST_TIP_CONFIG_FILE, base, allowedLT);
+      if (mergedLT) {
+        try {
+          if (typeof mergedLT.walletAddress === 'string') {
+            lastTip.updateWalletAddress(mergedLT.walletAddress);
+            if (typeof tipWidget.updateWalletAddress === 'function') tipWidget.updateWalletAddress(mergedLT.walletAddress);
+          }
+          if (typeof lastTip.broadcastConfig === 'function') lastTip.broadcastConfig(mergedLT);
+          lastTipApplied = true;
+        } catch {}
+      }
+    }
+
+    let tipGoalApplied = false;
+    if (incomingTipGoal || tipGoalWallet) {
+      const allowedTG = ['walletAddress','monthlyGoal','currentAmount','theme','bgColor','fontColor','borderColor','progressColor','title'];
+      const base = incomingTipGoal || {};
+      if (tipGoalWallet) base.walletAddress = tipGoalWallet;
+      const mergedTG = mergeConfigFile(TIP_GOAL_CONFIG_FILE, base, allowedTG);
+      if (mergedTG) {
+        try {
+          if (typeof mergedTG.walletAddress === 'string') tipGoal.updateWalletAddress(mergedTG.walletAddress);
+          if (typeof mergedTG.monthlyGoal === 'number') tipGoal.monthlyGoalAR = mergedTG.monthlyGoal;
+          if (typeof mergedTG.currentAmount === 'number') tipGoal.currentTipsAR = mergedTG.currentAmount;
+          if (typeof mergedTG.theme === 'string') tipGoal.theme = mergedTG.theme;
+          if (typeof mergedTG.bgColor === 'string') tipGoal.bgColor = mergedTG.bgColor;
+          if (typeof mergedTG.fontColor === 'string') tipGoal.fontColor = mergedTG.fontColor;
+          if (typeof mergedTG.borderColor === 'string') tipGoal.borderColor = mergedTG.borderColor;
+          if (typeof mergedTG.progressColor === 'string') tipGoal.progressColor = mergedTG.progressColor;
+          if (typeof mergedTG.title === 'string') tipGoal.title = mergedTG.title;
+          tipGoal.sendGoalUpdate();
+          tipGoalApplied = true;
+        } catch {}
+      }
+    }
+
+    let socialApplied = false;
+    if (incomingSocialMedia) {
+      try {
+        const ok = Array.isArray(incomingSocialMedia) && incomingSocialMedia.length <= 50;
+        if (!ok) throw new Error('invalid_socialmedia_config');
+        socialMediaModule.saveConfig(incomingSocialMedia);
+        socialApplied = true;
+      } catch {}
+    }
+
+    let externalApplied = false;
+    if (incomingExternal && typeof incomingExternal === 'object') {
+      try {
+        const payloadExt = {
+          template: typeof incomingExternal.template === 'string' ? incomingExternal.template : undefined,
+          discordWebhook: typeof incomingExternal.discordWebhook === 'string' ? incomingExternal.discordWebhook : undefined,
+          telegramBotToken: typeof incomingExternal.telegramBotToken === 'string' ? incomingExternal.telegramBotToken : undefined,
+          telegramChatId: typeof incomingExternal.telegramChatId === 'string' ? incomingExternal.telegramChatId : undefined
+        };
+        await externalNotifications.saveConfig(payloadExt);
+        externalApplied = true;
+      } catch {}
+    }
+
+    res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied }, namespaced: useStore });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_import', details: e?.message });
   }
 });
 
