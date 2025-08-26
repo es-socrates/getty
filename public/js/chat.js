@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chatColors.bgColor === 'transparent') {
             if (chatContainer) chatContainer.style.removeProperty('background');
         } else {
-            setIfCustom(chatContainer, 'background', chatColors.bgColor, '#080c10');
+            chatContainer && chatContainer.style.setProperty('background', (chatColors.bgColor || '#080c10'), 'important');
         }
     }
 
@@ -242,17 +242,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         iconElement.className = `membership-icon ${iconType}`;
         usernameElement.insertBefore(iconElement, usernameElement.firstChild);
 
-        usernameElement.style.backgroundColor = style.bg;
-        usernameElement.style.color = style.text;
-        usernameElement.style.textShadow = `0 0 8px ${style.border}`;
-        // usernameElement.style.border = `1px solid ${style.border}`;
+        const cpIndex = Math.abs(hash) % CYBERPUNK_PALETTE.length;
+        usernameElement.classList.add(`cp-${cpIndex + 1}`);
+
+        if (!serverHasTheme) {
+            usernameElement.style.setProperty('background-color', style.bg, 'important');
+            usernameElement.style.setProperty('color', style.text, 'important');
+            usernameElement.style.setProperty('text-shadow', `0 0 8px ${style.border}`, 'important');
+        }
+
         usernameElement.style.padding = '0px 4px';
         usernameElement.style.borderRadius = '4px';
-        // usernameElement.style.fontWeight = '800';
-        // usernameElement.style.fontSize = '18px';
         usernameElement.style.transition = 'all 0.3s ease';
         usernameElement.style.display = 'inline-block';
-
         userContainer.appendChild(usernameElement);
 
         const cleanMessage = (msg.message || '').replace(/&lt;stkr&gt;(.*?)&lt;\/stkr&gt;/g, '<stkr>$1</stkr>');
@@ -447,15 +449,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                     applyChatTheme(local, isLightTheme);
                 } else {
                     await loadColors();
-                    const css = `
-                        .message { background: ${chatColors.msgBgColor || '#0a0e12'}; color: ${chatColors.textColor || '#e6edf3'}; border-left: 8px solid ${chatColors.borderColor || '#161b22'}; }
-                        .message.odd { background: ${chatColors.msgBgAltColor || '#0d1114'}; }
-                        .message.has-donation { background: ${chatColors.donationBgColor || '#ececec'}; }
-                        .message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'}; background: ${chatColors.usernameBgColor || '#11ff79'}; }
-                        .message-donation { color: ${chatColors.donationColor || '#1bdf5f'}; background: ${chatColors.donationBgColor || '#ececec'}; }
-                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#080c10')}; }
+
+                    let css = `
+                        .message { background: ${chatColors.msgBgColor || '#0a0e12'} !important; color: ${chatColors.textColor || '#e6edf3'} !important; border-left: 8px solid ${chatColors.borderColor || '#161b22'} !important; }
+                        .message.odd { background: ${chatColors.msgBgAltColor || '#0d1114'} !important; }
+                        .message.has-donation { background: ${chatColors.donationBgColor || '#ececec'} !important; }
+                        .message-donation { color: ${chatColors.donationColor || '#1bdf5f'} !important; background: ${chatColors.donationBgColor || '#ececec'} !important; }
+                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#080c10')} !important; }
                     `;
-  
+
+                    const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
+                    if (!hasExplicitUserColors) {
+                        css += CYBERPUNK_PALETTE.map((p, i) => `
+                            .message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }
+                        `).join('');
+                    } else {
+                        css += `
+                            .message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'} !important; background: ${chatColors.usernameBgColor || '#11ff79'} !important; }
+                        `;
+                    }
+
                     isLightTheme = (chatColors.textColor || '').toLowerCase() === '#1f2328';
                     applyChatTheme(css, isLightTheme);
                 }
