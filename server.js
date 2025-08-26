@@ -58,6 +58,7 @@ try {
 const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
 
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
+try { app.set('trust proxy', 1); } catch {}
 try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
 
 const limiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((_req,_res,next)=>next());
@@ -1559,6 +1560,15 @@ app.use((err, _req, res, _next) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
+  try {
+    process.on('unhandledRejection', (reason, p) => {
+      try { console.error('Unhandled Rejection at:', p, 'reason:', reason); } catch {}
+    });
+    process.on('uncaughtException', (err) => {
+      try { console.error('Uncaught Exception:', err); } catch {}
+    });
+  } catch {}
+
   const PORT = process.env.PORT || 3000;
   const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Liftoff! Server running on port ${PORT}`);
