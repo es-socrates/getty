@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadColors() {
         if (!isOBSWidget) return;
         try {
-            const res = await fetch(`/api/modules?nocache=${Date.now()}`);
+            const res = await fetch(`/api/modules?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const data = await res.json();
             if (data.chat) {
                 chatColors = {
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let serverHasTheme = false;
     async function fetchAndApplyTheme() {
         try {
-            const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+            const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const config = await res.json();
             let isLightTheme = false;
 
