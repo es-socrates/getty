@@ -243,6 +243,18 @@ app.use((req, res, next) => {
     next();
 });
 
+app.get('/favicon.ico', (_req, res) => {
+  const iconPath = path.join(__dirname, 'public', 'favicon.ico');
+  try {
+    if (fs.existsSync(iconPath)) {
+      try { res.set('Cache-Control', 'public, max-age=86400, immutable'); } catch {}
+      return res.sendFile(iconPath);
+    }
+  } catch {}
+  try { res.set('Cache-Control', 'public, max-age=86400, immutable'); } catch {}
+  return res.status(204).end();
+});
+
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') {
     res.header('Access-Control-Allow-Origin', '*');
@@ -261,6 +273,27 @@ app.use((req, _res, next) => {
       const trimmedPath = req.path.replace(/\/+$/, '');
       const query = req.url.slice(req.path.length);
       req.url = trimmedPath + query;
+    }
+  } catch {}
+  next();
+});
+
+app.use((req, res, next) => {
+  try {
+    const p = req.path || '';
+    if (!p) return next();
+    const cleaned = p.replace(/\/+$/, '');
+    const looksEncodedAbsolute = cleaned.startsWith('/https%3A') || cleaned.startsWith('/http%3A') || /%3A%2F%2F/i.test(cleaned) || /^\/https?:\/\//i.test(cleaned);
+    if (looksEncodedAbsolute) {
+      let decoded = '';
+      try { decoded = decodeURIComponent(cleaned.slice(1)); } catch {}
+      console.warn('Malformed absolute URL path received', {
+        originalUrl: req.originalUrl,
+        decoded,
+        referer: req.get('referer') || req.get('referrer') || '',
+        ua: req.get('user-agent') || ''
+      });
+      return res.status(400).json({ error: 'absolute_url_misrouted', decoded: decoded || null, referer: req.get('referer') || req.get('referrer') || null });
     }
   } catch {}
   next();
