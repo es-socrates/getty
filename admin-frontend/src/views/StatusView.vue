@@ -77,7 +77,7 @@
         <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
           <div class="os-th text-xs">{{ t('importConfig') }}</div>
           <div class="flex flex-col gap-2">
-            <input ref="fileInputEl" type="file" accept="application/json,.json" @change="onImportFile" />
+            <input ref="fileInputEl" type="file" accept="application/json,.json" @change="onImportFile" style="display:none" aria-hidden="true" tabindex="-1" />
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm disabled:opacity-50"
               :disabled="importing"
