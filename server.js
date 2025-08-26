@@ -788,7 +788,7 @@ app.get('/api/activity/export', (req, res) => {
   }
 });
 
-app.get('/api/modules', (_req, res) => {
+app.get('/api/modules', async (req, res) => {
   let tipGoalColors = {};
   if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
     tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
@@ -798,9 +798,16 @@ app.get('/api/modules', (_req, res) => {
     lastTipColors = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
   }
   let chatColors = {};
-  if (fs.existsSync(CHAT_CONFIG_FILE)) {
-    chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-  }
+  try {
+    if (store && req.ns && (req.ns.admin || req.ns.pub)) {
+      const ns = req.ns.admin || req.ns.pub;
+      const st = await store.get(ns, 'chat-config', null);
+      if (st && typeof st === 'object') chatColors = st;
+    }
+    if ((!chatColors || Object.keys(chatColors).length === 0) && fs.existsSync(CHAT_CONFIG_FILE)) {
+      chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+    }
+  } catch {}
 
   const uptimeSeconds = Math.floor((Date.now() - __serverStartTime) / 1000);
   const wsClients = (() => {
