@@ -212,6 +212,49 @@ app.get('/api/session/status', async (req, res) => {
   }
 });
 
+app.get(['/new-session', '/api/session/new'], async (req, res) => {
+  try {
+    if (!store) return res.status(501).json({ error: 'namespaced_sessions_disabled' });
+
+    const existingAdmin = await resolveAdminNsFromReq(req);
+    let adminToken = existingAdmin;
+    let publicToken = null;
+
+    if (!adminToken) {
+      adminToken = NamespacedStore.genToken(24);
+      publicToken = NamespacedStore.genToken(18);
+      await store.set(adminToken, 'publicToken', publicToken);
+      await store.set(adminToken, 'meta', { createdAt: Date.now(), role: 'admin' });
+      await store.set(publicToken, 'adminToken', adminToken);
+      await store.set(publicToken, 'meta', { createdAt: Date.now(), role: 'public', parent: adminToken });
+    } else {
+      publicToken = await store.get(adminToken, 'publicToken', null);
+      if (!publicToken) {
+        publicToken = NamespacedStore.genToken(18);
+        await store.set(adminToken, 'publicToken', publicToken);
+        await store.set(publicToken, 'adminToken', adminToken);
+        await store.set(publicToken, 'meta', { createdAt: Date.now(), role: 'public', parent: adminToken });
+      }
+    }
+
+    const cookieOpts = {
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: SECURE_COOKIE(),
+      path: '/',
+      maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
+    };
+    res.cookie(ADMIN_COOKIE, adminToken, cookieOpts);
+    res.cookie(PUBLIC_COOKIE, publicToken, cookieOpts);
+
+    const wantsHtml = req.accepts(['html','json']) === 'html' && req.query.json !== '1';
+    if (wantsHtml) return res.redirect(302, '/admin');
+    res.json({ ok: true, adminToken, publicToken });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_create_session', details: e?.message });
+  }
+});
+
 app.get('/api/session/public-token', async (req, res) => {
   try {
     const adminNs = await resolveAdminNsFromReq(req);
