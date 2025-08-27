@@ -2,8 +2,8 @@
   <section class="admin-tab active" role="form">
     <OsCard class="mb-4" aria-describedby="chat-desc">
       <p id="chat-desc" class="sr-only">Chat configuration including chat source and colors.</p>
-      <div class="form-group" :aria-labelledby="chat-url-label" aria-live="polite">
-        <label class="label" :id="chat-url-label" for="chat-url">{{ t('chatClaimId') || 'Claim ID' }}</label>
+      <div class="form-group" aria-labelledby="chat-url-label" aria-live="polite">
+        <label class="label" id="chat-url-label" for="chat-url">{{ t('chatClaimId') || 'Claim ID' }}</label>
         <input
           class="input"
           :aria-invalid="!!errors.chatUrl"
@@ -22,33 +22,53 @@
           </small>
         </div>
       </div>
-      <div class="mt-3">
-        <div class="flex justify-between items-center mb-2" :aria-labelledby="colorHeadingId">
-          <h3 class="os-card-title mb-0" :id="colorHeadingId">
-            {{ t('colorCustomizationTitle') }}
-          </h3>
-          <button
-            type="button"
-            class="btn"
-            @click="resetColors"
-            :aria-label="t('resetColors')"
-          >
-            {{ t('resetColors') }}
-          </button>
+      <div class="mt-3" :aria-labelledby="colorHeadingId">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="os-card-title mb-0" :id="colorHeadingId">{{ t('colorCustomizationTitle') }}</h3>
+          <button type="button" class="btn" @click="resetColors" :aria-label="t('resetColors')">{{ t('resetColors') }}</button>
         </div>
-        <div class="flex flex-wrap gap-2 items-end">
-          <ColorInput
-            v-for="c in colorFields"
-            :key="c.key"
-            v-model="form.colors[c.key]"
-            :label="t(c.label)"
-          />
-          <div class="flex flex-col mb-2">
-            <label class="text-xs font-medium opacity-70">&nbsp;</label>
-            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input type="checkbox" v-model="transparentBg" class="checkbox" />
-              <span>{{ t('transparentBg') || 'Transparent background' }}</span>
+
+        <div class="os-surface p-3 rounded-os border border-[var(--card-border)] bg-[var(--bg-card)] mb-3" aria-labelledby="general-colors-heading">
+          <h4 id="general-colors-heading" class="text-xs font-semibold uppercase tracking-wide mb-2">{{ t('generalColors') || 'General' }}</h4>
+          <div class="flex flex-wrap gap-2 items-end">
+            <ColorInput v-model="form.colors.bg" :label="t('colorBg')" />
+            <ColorInput v-model="form.colors.msgBg" :label="t('colorMsgBg')" />
+            <ColorInput v-model="form.colors.msgBgAlt" :label="t('colorMsgAltBg')" />
+            <ColorInput v-model="form.colors.border" :label="t('colorMsgBorder')" />
+            <ColorInput v-model="form.colors.text" :label="t('colorMsgText')" />
+            <div class="flex flex-col mb-2">
+              <label class="text-xs font-medium opacity-70">&nbsp;</label>
+              <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input type="checkbox" v-model="transparentBg" class="checkbox" />
+                <span>{{ t('transparentBg') || 'Transparent background' }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="os-surface p-3 rounded-os border border-[var(--card-border)] bg-[var(--bg-card)] mb-3" aria-labelledby="username-colors-heading">
+          <div class="flex items-center justify-between mb-2">
+            <h4 id="username-colors-heading" class="text-xs font-semibold uppercase tracking-wide">{{ t('usernameColors') || 'Username' }}</h4>
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none" :title="t('toggleUsernameOverride') || 'Override username colors (otherwise the palette is used)'" :aria-describedby="'username-hint'">
+              <input type="checkbox" v-model="overrideUsername" class="checkbox" />
+              <span>{{ t('overrideUsername') || 'Override username colors' }}</span>
             </label>
+          </div>
+          <div v-if="overrideUsername" class="flex flex-wrap gap-2 items-end">
+            <ColorInput v-model="form.colors.username" :label="t('colorMsgUsername')" />
+            <ColorInput v-model="form.colors.usernameBg" :label="t('colorMsgUsernameBg')" />
+            <small class="opacity-70 text-xs">{{ t('usernameOverrideOn') || 'These colors will replace the per-user palette.' }}</small>
+          </div>
+          <div v-else>
+            <small id="username-hint" class="opacity-70 text-xs">{{ t('usernameOverrideOff') || 'Using CYBERPUNK_PALETTE — each user gets a different color.' }}</small>
+          </div>
+        </div>
+
+        <div class="os-surface p-3 rounded-os border border-[var(--card-border)] bg-[var(--bg-card)]" aria-labelledby="donation-colors-heading">
+          <h4 id="donation-colors-heading" class="text-xs font-semibold uppercase tracking-wide mb-2">{{ t('donationColors') || 'Donations' }}</h4>
+          <div class="flex flex-wrap gap-2 items-end">
+            <ColorInput v-model="form.colors.donation" :label="t('colorMsgDonation')" />
+            <ColorInput v-model="form.colors.donationBg" :label="t('colorMsgDonationBg')" />
           </div>
         </div>
       </div>
@@ -112,6 +132,7 @@ const form = reactive({
   },
 });
 const transparentBg = ref(false);
+const overrideUsername = ref(false);
 const clearedThemeCSS = ref(false);
 const errors = reactive({ chatUrl: '' });
 const CLAIM_BASE = 'wss://sockety.odysee.tv/ws/commentron?id=';
@@ -120,17 +141,7 @@ const saving = ref(false);
 const connected = ref(false);
 const lastStatusAt = ref(0);
 const original = reactive({ snapshot: null });
-const colorFields = [
-  { key: 'bg', label: 'colorBg' },
-  { key: 'msgBg', label: 'colorMsgBg' },
-  { key: 'msgBgAlt', label: 'colorMsgAltBg' },
-  { key: 'border', label: 'colorMsgBorder' },
-  { key: 'text', label: 'colorMsgText' },
-  { key: 'username', label: 'colorMsgUsername' },
-  { key: 'usernameBg', label: 'colorMsgUsernameBg' },
-  { key: 'donation', label: 'colorMsgDonation' },
-  { key: 'donationBg', label: 'colorMsgDonationBg' },
-];
+
 const publicToken = ref('');
 const widgetUrl = computed(() => `${location.origin}/widgets/chat${publicToken.value ? `?token=${encodeURIComponent(publicToken.value)}` : ''}`);
 const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?horizontal=1${publicToken.value ? `&token=${encodeURIComponent(publicToken.value)}` : ''}`);
@@ -148,6 +159,7 @@ function resetColors() {
     donationBg: '#ececec',
   };
   transparentBg.value = false;
+  overrideUsername.value = false;
 
   try { localStorage.removeItem('chatLiveThemeCSS'); } catch {}
   clearedThemeCSS.value = true;
@@ -173,8 +185,15 @@ async function load() {
       form.colors.msgBgAlt = data.msgBgAltColor || form.colors.msgBgAlt;
       form.colors.border = data.borderColor || form.colors.border;
       form.colors.text = data.textColor || form.colors.text;
-      form.colors.username = data.usernameColor || form.colors.username;
-      form.colors.usernameBg = data.usernameBgColor || form.colors.usernameBg;
+
+      if (typeof data.usernameColor === 'string' && data.usernameColor) {
+        form.colors.username = data.usernameColor;
+        overrideUsername.value = true;
+      }
+      if (typeof data.usernameBgColor === 'string' && data.usernameBgColor) {
+        form.colors.usernameBg = data.usernameBgColor;
+        overrideUsername.value = true;
+      }
       form.colors.donation = data.donationColor || form.colors.donation;
       form.colors.donationBg = data.donationBgColor || form.colors.donationBg;
       original.snapshot = JSON.stringify(form);
@@ -196,8 +215,8 @@ async function save() {
       msgBgAltColor: form.colors.msgBgAlt,
       borderColor: form.colors.border,
       textColor: form.colors.text,
-      usernameColor: form.colors.username,
-      usernameBgColor: form.colors.usernameBg,
+      usernameColor: overrideUsername.value ? form.colors.username : '',
+      usernameBgColor: overrideUsername.value ? form.colors.usernameBg : '',
       donationColor: form.colors.donation,
       donationBgColor: form.colors.donationBg,
       themeCSS: clearedThemeCSS.value ? '' : (localStorage.getItem('chatLiveThemeCSS') || undefined),

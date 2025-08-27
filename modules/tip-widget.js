@@ -181,7 +181,7 @@ class TipWidgetModule {
             from: tx.owner,
             amount: amount,
             txId: tx.id,
-            message: '🎖️ The tip has been verified. Great!'
+            message: '✅ The tip has been verified. Great!'
           });
         }
       }

@@ -23,7 +23,7 @@ describe('Tip Goal persistence', () => {
   it('saves title and current amount then survives simulated restart', async () => {
 
     try { if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH); } catch { /* ignore error */ }
-    const title = '🎖️ Monthly tip goal';
+    const title = 'Monthly tip goal 🎖️';
     const res = await agent
       .post('/api/tip-goal')
       .field('walletAddress','')

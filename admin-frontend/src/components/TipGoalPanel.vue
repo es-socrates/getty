@@ -21,6 +21,7 @@
         <label class="label" for="tip-goal-wallet-address">{{ t('arWalletAddress') }}</label>
         <input class="input" :aria-invalid="!!errors.walletAddress" :class="{'input-error': errors.walletAddress}" id="tip-goal-wallet-address" v-model="form.walletAddress" type="text" />
         <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
+  <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="form-group mt-2">
         <label class="label" for="goal-amount">{{ t('monthlyGoal') }}</label>
@@ -121,6 +122,9 @@ const errors = reactive({
 });
 
 const saving = ref(false);
+const hostedSupported = ref(false);
+const sessionActive = ref(false);
+const walletHiddenMsg = ref('');
 
 const colorFields = [
   { key: 'bg', label: 'colorBg' },
@@ -137,9 +141,26 @@ function resetColors() {
 
 async function load() {
   try {
+    const statusRes = await api.get('/api/session/status').catch(() => ({ data: {} }));
+    hostedSupported.value = !!statusRes?.data?.supported;
+    sessionActive.value = !!statusRes?.data?.active;
+
     const { data } = await api.get('/api/tip-goal');
     if (data && data.success) {
-      form.walletAddress = data.walletAddress || '';
+      const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
+      if (hasWalletField) {
+        form.walletAddress = data.walletAddress || '';
+        walletHiddenMsg.value = '';
+      } else {
+        if (hostedSupported.value && !sessionActive.value) {
+          walletHiddenMsg.value = t('walletHiddenHostedNotice');
+        } else if (!hostedSupported.value) {
+          walletHiddenMsg.value = t('walletHiddenLocalNotice');
+        } else {
+          walletHiddenMsg.value = '';
+        }
+        form.walletAddress = '';
+      }
       form.goalAmount = data.monthlyGoal || data.goalAmount || form.goalAmount;
       form.startingAmount = data.currentAmount ?? form.startingAmount;
       form.title = data.title || '';

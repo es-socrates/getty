@@ -13,6 +13,7 @@
         <label class="label" for="wallet-address">{{ t('arWalletAddress') }}</label>
         <input class="input" :class="{'input-error': errors.walletAddress}" id="wallet-address" v-model="form.walletAddress" type="text" />
         <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
+  <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="mt-3">
         <div class="flex justify-between items-center mb-2">
@@ -52,6 +53,9 @@ const { t } = useI18n();
 const form = reactive({ title: '', walletAddress: '', colors: { bg: '#080c10', font: '#ffffff', border: '#00ff7f', amount: '#00ff7f', icon: '#ffffff', iconBg: '#4f36ff', from: '#817ec8' } });
 const errors = reactive({ title:'', walletAddress:'' });
 const saving = ref(false);
+const hostedSupported = ref(false);
+const sessionActive = ref(false);
+const walletHiddenMsg = ref('');
 const colorFields = [
   { key: 'bg', label: 'colorBg' },
   { key: 'font', label: 'colorFont' },
@@ -68,9 +72,27 @@ function resetColors() {
 }
 async function load() {
   try {
+    const statusRes = await api.get('/api/session/status').catch(() => ({ data: {} }));
+    hostedSupported.value = !!statusRes?.data?.supported;
+    sessionActive.value = !!statusRes?.data?.active;
+
     const { data } = await api.get('/api/last-tip');
     if (data && data.success) {
-      form.walletAddress = data.walletAddress || '';
+      const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
+      if (hasWalletField) {
+        form.walletAddress = data.walletAddress || '';
+        walletHiddenMsg.value = '';
+      } else {
+
+        if (hostedSupported.value && !sessionActive.value) {
+          walletHiddenMsg.value = t('walletHiddenHostedNotice');
+        } else if (!hostedSupported.value) {
+          walletHiddenMsg.value = t('walletHiddenLocalNotice');
+        } else {
+          walletHiddenMsg.value = '';
+        }
+        form.walletAddress = '';
+      }
       form.title = data.title || '';
       form.colors.bg = data.bgColor || form.colors.bg;
       form.colors.font = data.fontColor || form.colors.font;

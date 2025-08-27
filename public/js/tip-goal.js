@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 goalWidget.innerHTML = `
                     <div class="goal-container">
                         <div class="goal-header">
-                            <div class="goal-title">🎖️ Monthly tip goal</div>
+                            <div class="goal-title">Monthly tip goal 🎖️</div>
                             <div class="error-message">Failed to load data</div>
                         </div>
                     </div>
@@ -263,9 +263,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
-        const q = cookieToken ? `/?token=${encodeURIComponent(cookieToken)}` : '';
-        ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
+    const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
+    const q = cookieToken ? `/?token=${encodeURIComponent(cookieToken)}` : '';
+    ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
 
         ws.onopen = async () => {
 
@@ -569,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     goalWidget.innerHTML = `
         <div class="goal-container">
             <div class="goal-header">
-                <div class="goal-title">🎖️ Monthly tip goal</div>
+                <div class="goal-title">Monthly tip goal 🎖️</div>
                 <div class="goal-amounts">
                     <span class="current-ar">0.00</span>
                     <span class="goal-ar">/ 0.00 AR</span>

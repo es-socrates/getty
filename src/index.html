@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="/widgets/tip-goal.css">
     <link rel="stylesheet" href="/widgets/chat.css">
     <link rel="stylesheet" href="/widgets/raffle.css">
-    <script src="/js/min/i18n-runtime.js?v=919bc431"></script>
+    <script src="/js/min/i18n-runtime.js?v=64d7645a"></script>
     <style>
         html:not(.dark) .chat-default .message.has-donation .message-text-inline { color: #111 !important; }
         html:not(.dark) .chat-default .message { color: #fff !important; }
@@ -214,7 +214,6 @@
                 }
             });
 
-            // Tag raffle pieces so we can style them in light mode without touching raffle.js
             if (raffleRoot) {
                 const tagRafflePieces = () => {
                     try {
@@ -236,7 +235,7 @@
                         }
                     } catch (_) {}
                 };
-                // Initial pass and observe for dynamic updates from raffle.js
+
                 tagRafflePieces();
                 const mo = new MutationObserver(tagRafflePieces);
                 mo.observe(raffleRoot, { childList: true, subtree: true });
