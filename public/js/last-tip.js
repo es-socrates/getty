@@ -194,28 +194,22 @@
 
     const loadInitialData = async () => {
         try {
+            const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
+            const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
             const controller = new AbortController();
             const to = setTimeout(() => controller.abort(), 4000);
-            const response = await fetch('/last-donation', { signal: controller.signal });
+            const response = await fetch('/api/modules' + nsQuery, { signal: controller.signal });
             clearTimeout(to);
-            const text = await response.text();
-            try {
-                const data = JSON.parse(text);
-                if (data && typeof data === 'object' && data.error) {
-                    updateUI(null);
-                } else {
-                    await updateExchangeRate();
-                    await loadColors();
-                    updateUI(data);
-                }
-            } catch (jsonError) {
-                updateUI(null);
-            }
+            if (!response.ok) throw new Error('modules fetch failed');
+            const modulesData = await response.json();
+            const payload = modulesData?.lastTip?.lastDonation || null;
+            await updateExchangeRate();
+            await loadColors();
+            updateUI(payload);
         } catch (_error) {
             updateUI(null);
         }
     };
-
     ws.onopen = async () => {
         loadColors();
         updateExchangeRate();

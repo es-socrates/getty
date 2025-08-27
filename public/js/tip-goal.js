@@ -338,6 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusCompleted = (data.progress || 0) >= 100;
         const statusLabel = statusCompleted ? t('tipGoalCardStatusCompleted') : t('tipGoalCardStatusInProgress');
         const targetUsd = data.goalUsd || ((data.goal || 0) * (data.rate || 0)).toFixed(2);
+        const currentUsd = data.usdValue || ((data.current || 0) * (data.rate || 0)).toFixed(2);
 
     goalWidget.innerHTML = `
             <div class="modern-card ${themeClass}">
@@ -358,6 +359,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="modern-row">
                     <span class="modern-amount">$${targetUsd}</span>
                     <span class="modern-muted">${t('tipGoalCardTarget')}</span>
+                </div>
+                <div class="modern-row">
+                    <span class="modern-amount">$${currentUsd}</span>
+                    <span class="modern-muted">${t('metricsSession') || 'Session'}</span>
                 </div>
                 <div class="modern-row modern-row-meta">
                     <span class="modern-meta-icon" aria-hidden="true">

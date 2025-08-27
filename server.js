@@ -616,7 +616,6 @@ app.post('/api/session/import', async (req, res) => {
           defaultDurationSeconds: incomingAnnouncement.defaultDurationSeconds
         };
         try { announcementModule.setSettings(settingsPayload); } catch {}
-        // Replace messages
         try { announcementModule.clearMessages('all'); } catch {}
         const msgs = Array.isArray(incomingAnnouncement.messages) ? incomingAnnouncement.messages.slice(0, 200) : [];
         for (const m of msgs) {
@@ -1118,7 +1117,24 @@ app.get('/api/modules', async (req, res) => {
   res.json({
     lastTip: sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }),
     tipWidget: tipWidget.getStatus(),
-    tipGoal: sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }),
+    tipGoal: (() => {
+      try {
+        const base = tipGoal.getStatus?.() || {};
+        const merged = { ...base, ...tipGoalColors };
+        const current = Number(merged.currentAmount ?? merged.currentTips ?? base.currentTips ?? 0) || 0;
+        const goal = Number(merged.monthlyGoal ?? base.monthlyGoal ?? 0) || 0;
+        let rate = Number(merged.exchangeRate || base.exchangeRate || 0);
+        if (!rate || !isFinite(rate) || rate <= 0) {
+          try { if (__arPriceCache && __arPriceCache.usd > 0) rate = Number(__arPriceCache.usd) || 0; } catch {}
+        }
+        if (rate && isFinite(rate) && rate > 0) {
+          merged.exchangeRate = rate;
+          merged.usdValue = (current * rate).toFixed(2);
+          merged.goalUsd = (goal * rate).toFixed(2);
+        }
+        return sanitizeIfNoNs(merged);
+      } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
+    })(),
     chat: (() => {
       try {
         const base = chat.getStatus?.() || {};
@@ -1198,7 +1214,7 @@ app.get('/api/modules', async (req, res) => {
   });
 });
 
-app.get('/api/metrics', async (_req, res) => {
+app.get('/api/metrics', async (req, res) => {
   try {
     const now = Date.now();
     const mem = process.memoryUsage();
@@ -1217,7 +1233,15 @@ app.get('/api/metrics', async (_req, res) => {
   const bytes5m = __bytesEvents.filter(e => e.ts >= fiveMin).reduce((a,b)=>a+b.bytes,0);
   const bytes1h = __bytesEvents.filter(e => e.ts >= hour).reduce((a,b)=>a+b.bytes,0);
 
-  const history = (typeof chat.getHistory === 'function') ? chat.getHistory() : [];
+  let history = [];
+  try {
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (ns && chatNs && typeof chatNs.getHistory === 'function') {
+      history = chatNs.getHistory(ns);
+    } else if (typeof chat.getHistory === 'function') {
+      history = chat.getHistory();
+    }
+  } catch { history = []; }
   const toTs = m => {
     try {
       let ts = typeof m.timestamp === 'number' ? m.timestamp : new Date(m.timestamp).getTime();
@@ -1340,10 +1364,15 @@ wss.on('connection', async (ws) => {
         const lt = await store.get(ns, 'last-tip-config', null);
         const tg = await store.get(ns, 'tip-goal-config', null);
         if (tg && typeof tg === 'object') {
+          let exRate = 0;
+          try { const p = await getArUsdCached(false); exRate = Number(p.usd) || 0; } catch {}
           initPayload.tipGoal = {
             currentTips: tg.currentAmount || 0,
             monthlyGoal: tg.monthlyGoal || 10,
             progress: tg.monthlyGoal ? Math.min(((tg.currentAmount || 0) / tg.monthlyGoal) * 100, 100) : 0,
+            exchangeRate: exRate,
+            usdValue: ((tg.currentAmount || 0) * exRate).toFixed(2),
+            goalUsd: ((tg.monthlyGoal || 0) * exRate).toFixed(2),
             theme: tg.theme,
             bgColor: tg.bgColor,
             fontColor: tg.fontColor,

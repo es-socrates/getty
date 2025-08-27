@@ -193,6 +193,13 @@ class ChatNsManager {
 
       this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
       try {
+        const s = this.sessions.get(ns);
+        if (s && Array.isArray(s.history)) {
+          s.history.push(chatMessage);
+          if (s.history.length > 200) s.history.shift();
+        }
+      } catch {}
+      try {
         const key = String(ns);
         const prev = this.__msgCounters.get(key) || 0;
         const next = prev + 1;
@@ -216,6 +223,14 @@ class ChatNsManager {
         } catch {}
       }
     }
+  }
+
+  getHistory(ns) {
+    try {
+      const s = this.sessions.get(ns);
+      if (!s || !Array.isArray(s.history)) return [];
+      return s.history.slice();
+    } catch { return []; }
   }
 }
 
