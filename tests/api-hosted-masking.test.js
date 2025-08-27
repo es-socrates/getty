@@ -47,10 +47,8 @@ describe('Hosted anonymous masking', () => {
       .set('X-Forwarded-For', '203.0.113.10');
     expect(res.status).toBe(200);
     expect(res.body).toBeTruthy();
-    // sensitive
     expect(res.body.chatUrl).toBe('');
     expect(res.body.odyseeWsUrl).toBe('');
-    // presentation still present
     expect(res.body.bgColor).toBe('#111111');
     expect(res.body.textColor).toBe('#eeeeee');
     expect(typeof res.body.themeCSS).toBe('string');

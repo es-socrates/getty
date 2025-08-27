@@ -363,4 +363,16 @@
   "invalidClaimId": "Invalid Claim ID",
   "walletHiddenHostedNotice": "Hidden for security in hosted mode. Create an admin session on this browser (visit /new-session) to view it.",
   "walletHiddenLocalNotice": "Hidden for security when accessing localhost from another device. Open the admin on the same machine (http://localhost:3000) to view it."
+  ,
+  "welcomeCaptionTips": "Real-time tip notifications",
+  "welcomeCaptionGoals": "Donation goals with celebratory effects",
+  "welcomeCaptionChatRaffle": "Live chat overlay and raffles",
+  "welcomeCaptionAnnouncements": "Announcements and external notifications",
+  "welcomeCaptionPrivacy": "Privacy-aware hosted mode",
+  "welcomeCaptionObs": "OBS-friendly widgets, zero fuss",
+  "welcomeCaptionAllForOdysee": "Everything for your livestreams on Odysee",
+  "welcomeCaptionSocialWidgets": "Social media widgets",
+  "welcomeCaptionRunLocalOrHosted": "Run locally or online",
+  "welcomeCaptionArweaveTips": "Your decentralized tips via Arweave",
+  "welcomeTipNewSession": "<strong>Tip:</strong> you can generate a session at <a href=\"/new-session\">/new-session</a> if needed."
 }
