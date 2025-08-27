@@ -238,7 +238,6 @@ class LastTipModule {
 
     if (last) this.lastDonation = last;
 
-    // persist
     try {
       const fs = require('fs');
       const path = require('path');
@@ -344,11 +343,12 @@ class LastTipModule {
   }
   
   getStatus() {
+    const cached = this.lastDonation || this.getLastDonation();
     return {
       active: !!this.walletAddress,
       walletAddress: this.walletAddress,
       lastChecked: new Date().toISOString(),
-      lastDonation: this.lastDonation,
+      lastDonation: cached || null,
       processedTxs: this.processedTxs.size
     };
   }

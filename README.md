@@ -7,7 +7,7 @@ Complete and customizable app with tools for live streaming. Tip notifications, 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
 ![getty](https://thumbs.odycdn.com/e80ce98bd84093e80b050db245485887.webp)
-> **The view of the control panel in Getty. The colors have also been changed.**
+> **The view of the control panel in Getty. The colors have also been changed in the latest version of the repository.**
 
 ## Not familiar with Odysee?
 
@@ -98,4 +98,4 @@ Anyone with that link will see the widget data in real time; you can revoke acce
 
 **This is an independent project; it is not an official Odysee product.** Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
 
-## Made with love for Odysee ❤️
+## With love for Odysee ❤️

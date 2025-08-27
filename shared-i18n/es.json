@@ -113,7 +113,7 @@
   "notificationTemplate": "Plantilla de notificación:",
   "templateVarsHint": "Variables disponibles: {from}, {amount}, {usd}, {message}",
   "copyright": "© 2025 <a href='https://getty.sh/' target='_blank'>Getty</a> - <a href='https://opensource.org/licenses/MIT' target='_blank'>Licencia MIT</a>",
-  "independentProject": "Hecho con amor para Odysee ❤️",
+  "independentProject": "Con amor para Odysee ❤️",
   "lastTipTitle": "Última propina",
   "monthlyGoalTitle": "Meta mensual",
   "notificationsTitle": "Notificaciones",

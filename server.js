@@ -60,6 +60,44 @@ try {
 const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
 
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
+
+try {
+  const isProd = process.env.NODE_ENV === 'production';
+  const cspFlag = process.env.GETTY_ENABLE_CSP;
+  const enableCsp = (cspFlag === '1') || (typeof cspFlag === 'undefined' && isProd);
+  if (enableCsp) {
+    const self = "'self'";
+    const unsafeEval = isProd ? [] : ["'unsafe-eval'"];
+    const splitEnv = (k) => (process.env[k] || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const connectExtra = splitEnv('GETTY_CSP_CONNECT_EXTRA');
+    const imgExtra = splitEnv('GETTY_CSP_IMG_EXTRA');
+    const mediaExtra = splitEnv('GETTY_CSP_MEDIA_EXTRA');
+
+    app.use(helmet.contentSecurityPolicy({
+      useDefaults: true,
+      directives: {
+        defaultSrc: [self],
+        scriptSrc: [self, "'unsafe-inline'", ...unsafeEval],
+        styleSrc: [self, "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        imgSrc: [
+          self, 'data:', 'blob:',
+          'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
+          'https://odysee.com', 'https://static.odycdn.com',
+          'https://twemoji.maxcdn.com', 'https://spee.ch',
+          ...imgExtra
+        ],
+        fontSrc: [self, 'data:', 'blob:', 'https://fonts.gstatic.com'],
+        mediaSrc: [self, 'blob:', 'https://arweave.net', 'https://*.arweave.net', ...mediaExtra],
+        connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
+        frameSrc: [self]
+      }
+    }));
+  }
+} catch {}
 try { app.set('trust proxy', 1); } catch {}
 try { app.use(express.json({ limit: '1mb' })); } catch {}
 try { app.use(express.urlencoded({ extended: true, limit: '1mb' })); } catch {}
@@ -547,7 +585,6 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 registerTtsRoutes(app, wss, limiter, { store });
-registerLiveviewsRoutes(app, strictLimiter);
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter);
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, { store });
 
@@ -1497,8 +1534,20 @@ if (process.env.NODE_ENV !== 'test') {
     } catch (e) { console.error('broadcast error', e); }
   };
 
+  const __allowedOrigins = new Set(
+    (process.env.GETTY_ALLOW_ORIGINS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
+
   server.on('upgrade', (req, socket, head) => {
     try {
+      const origin = req.headers.origin || '';
+      if (__allowedOrigins.size > 0 && origin && !__allowedOrigins.has(origin)) {
+        try { socket.destroy(); } catch {}
+        return;
+      }
       const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0] || 'http';
       const url = new URL(req.url || '/', `${proto}://${req.headers.host}`);
       let nsToken = url.searchParams.get('token') || '';

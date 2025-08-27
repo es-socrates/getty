@@ -7,6 +7,16 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
   const chatNs = options.chatNs;
   const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
 
+  function isTrustedIp(req) {
+    try {
+      let ip = req.ip || req.connection?.remoteAddress || '';
+      if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+      const allow = (process.env.GETTY_ALLOW_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+      const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+      return loopback || (allow.length > 0 && allow.includes(ip));
+    } catch { return false; }
+  }
+
   app.get('/api/chat-config', async (req, res) => {
     try {
       let config = {};
@@ -19,6 +29,28 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
       }
       config.themeCSS = config.themeCSS || '';
+
+  const isHosted = !!store;
+  const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
+  const trusted = isTrustedIp(req);
+  if (isHosted && !hasNs && !trusted) {
+        const sanitized = {
+          bgColor: config.bgColor || '#080c10',
+          msgBgColor: config.msgBgColor || '#0a0e12',
+          msgBgAltColor: config.msgBgAltColor || '#0d1114',
+          borderColor: config.borderColor || '#161b22',
+          textColor: config.textColor || '#e6edf3',
+          usernameColor: typeof config.usernameColor === 'string' ? config.usernameColor : '',
+          usernameBgColor: typeof config.usernameBgColor === 'string' ? config.usernameBgColor : '',
+          donationColor: config.donationColor || '#1bdf5f',
+          donationBgColor: config.donationBgColor || '#ececec',
+          themeCSS: config.themeCSS || '',
+          chatUrl: '',
+          odyseeWsUrl: ''
+        };
+        return res.json(sanitized);
+      }
+
       res.json(config);
     } catch (e) {
       res.status(500).json({ error: 'Error loading chat config', details: e.message });

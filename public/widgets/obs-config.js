@@ -64,9 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function updateUI(data) {
     if (!data) {
-      titleElement.textContent = 'No tips yet. Send one! 💸';
+      titleElement.textContent = 'Configure last tip 💸';
       amountElement.innerHTML = '0 <span class="ar-symbol">AR</span>';
-      fromElement.textContent = 'Send your first tip';
+      fromElement.textContent = 'The wallet is not configured';
       return;
     }
 

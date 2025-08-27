@@ -113,7 +113,7 @@
   "notificationTemplate": "Notification Template:",
   "templateVarsHint": "Available variables: {from}, {amount}, {usd}, {message}",
   "copyright": "© 2025 <a href='https://getty.sh/' target='_blank'>Getty</a> - <a href='https://opensource.org/licenses/MIT' target='_blank'>MIT License</a>",
-  "independentProject": "Made with love for Odysee ❤️",
+  "independentProject": "With love for Odysee ❤️",
   "lastTipTitle": "Last tip",
   "monthlyGoalTitle": "Monthly Goal",
   "notificationsTitle": "Notifications",
