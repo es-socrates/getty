@@ -139,7 +139,7 @@ class AnnouncementModule {
   addMessage({ text, imageUrl, linkUrl, durationSeconds }) {
     const dur = Number(durationSeconds);
     const fallback = this.state.defaultDurationSeconds || 10;
-    const wasEmpty = this.state.messages.length === 0; // track if this is the first message
+    const wasEmpty = this.state.messages.length === 0;
     const message = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), text, imageUrl: imageUrl || null, linkUrl: linkUrl || null, createdAt: new Date().toISOString(), enabled: true, durationSeconds: (dur >=1 && dur <= 60) ? dur : fallback };
     this.state.messages.push(message);
     saveConfig(this.state);

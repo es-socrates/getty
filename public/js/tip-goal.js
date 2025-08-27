@@ -290,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
 
         ws.onopen = async () => {
-            // Avoid double-fetch if we just loaded
             if (!initialDataLoadedAt || (Date.now() - initialDataLoadedAt) > 1000) {
                 await loadInitialData();
             }

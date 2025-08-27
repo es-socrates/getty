@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="/widgets/tip-goal.css">
     <link rel="stylesheet" href="/widgets/chat.css">
     <link rel="stylesheet" href="/widgets/raffle.css">
-    <script src="/js/min/i18n-runtime.js?v=9514dcb7"></script>
+    <script src="/js/min/i18n-runtime.js?v=3cc3d0b7"></script>
     <style>
         html:not(.dark) .chat-default .message.has-donation .message-text-inline { color: #111 !important; }
         html:not(.dark) .chat-default .message { color: #fff !important; }
@@ -170,77 +170,6 @@
 <script src="/js/min/chat.js"></script>
 <script src="/js/min/raffle.js"></script>
 <script src="/js/min/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const userMenuButton = document.getElementById('user-menu-button');
-            const userMenu = document.getElementById('user-menu');
-            const themeToggle = document.getElementById('theme-toggle');
-            const chatContainer = document.getElementById('chat-container');
-            const raffleRoot = document.getElementById('raffleContentContainer');
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-
-            try {
-                const themeCSS = localStorage.getItem('chatLiveThemeCSS') || '';
-                if (chatContainer) {
-                    const hasTheme = !!themeCSS && themeCSS.trim().length > 0;
-                    chatContainer.classList.toggle('theme-active', hasTheme);
-                    chatContainer.classList.toggle('chat-default', !hasTheme);
-                    chatContainer.classList.toggle('theme-light', hasTheme && themeCSS.includes('--text: #1f2328'));
-                }
-            } catch(e) {}
-
-            themeToggle.addEventListener('click', function() {
-                const isDark = document.documentElement.classList.contains('dark');
-                document.documentElement.classList.toggle('dark', !isDark);
-                localStorage.setItem('theme', isDark ? 'light' : 'dark');
-            });
-
-            userMenuButton.addEventListener('click', function(e) {
-                e.stopPropagation();
-                userMenu.classList.toggle('opacity-0');
-                userMenu.classList.toggle('invisible');
-            });
-
-            document.addEventListener('click', function(e) {
-                if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
-                    userMenu.classList.add('opacity-0', 'invisible');
-                }
-            });
-
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    userMenu.classList.add('opacity-0', 'invisible');
-                }
-            });
-
-            if (raffleRoot) {
-                const tagRafflePieces = () => {
-                    try {
-                        const winnerTitle = raffleRoot.querySelector('[data-i18n="raffleWinnerTitle"]');
-                        const prizeLabel = raffleRoot.querySelector('[data-i18n="rafflePrizeLabel"]');
-                        const participantsLabel = raffleRoot.querySelector('[data-i18n="raffleParticipants"]');
-                        const participantCountBox = raffleRoot.querySelector('#participantCount');
-                        if (winnerTitle && !winnerTitle.classList.contains('raffle-winner-title')) {
-                            winnerTitle.classList.add('raffle-winner-title');
-                        }
-                        if (prizeLabel && !prizeLabel.classList.contains('raffle-prize-label')) {
-                            prizeLabel.classList.add('raffle-prize-label');
-                        }
-                        if (participantsLabel && !participantsLabel.classList.contains('raffle-participants-label')) {
-                            participantsLabel.classList.add('raffle-participants-label');
-                        }
-                        if (participantCountBox && !participantCountBox.classList.contains('raffle-participant-count')) {
-                            participantCountBox.classList.add('raffle-participant-count');
-                        }
-                    } catch (_) {}
-                };
-
-                tagRafflePieces();
-                const mo = new MutationObserver(tagRafflePieces);
-                mo.observe(raffleRoot, { childList: true, subtree: true });
-            }
-        });
-    </script>
+<script src="/js/index-ui.js" defer></script>
 </body>
 </html>

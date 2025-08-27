@@ -363,4 +363,16 @@
   "invalidClaimId": "Claim ID inválido",
   "walletHiddenHostedNotice": "Oculta por seguridad en la versión alojada. Crea una sesión de administrador en este navegador (visita /new-session) para verla.",
   "walletHiddenLocalNotice": "Oculta por seguridad al acceder a localhost desde otro dispositivo. Abre el admin en la misma máquina (http://localhost:3000) para verla."
+  ,
+  "welcomeCaptionTips": "Notificaciones de propinas en tiempo real",
+  "welcomeCaptionGoals": "Metas de propinas con efectos de celebración",
+  "welcomeCaptionChatRaffle": "Overlay de chat en vivo y sorteos",
+  "welcomeCaptionAnnouncements": "Anuncios y notificaciones externas",
+  "welcomeCaptionPrivacy": "Modo alojado con privacidad",
+  "welcomeCaptionObs": "Widgets compatibles con OBS, sin complicaciones",
+  "welcomeCaptionAllForOdysee": "Todo para tus directos en Odysee",
+  "welcomeCaptionSocialWidgets": "Widgets de redes sociales",
+  "welcomeCaptionRunLocalOrHosted": "Ejecuta en local o en línea",
+  "welcomeCaptionArweaveTips": "Tus propinas descentralizadas desde Arweave",
+  "welcomeTipNewSession": "<strong>Consejo:</strong> puedes generar una sesión en <a href=\"/new-session\">/new-session</a> si lo necesitas."
 }

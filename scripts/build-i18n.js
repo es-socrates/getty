@@ -74,17 +74,18 @@ try {
   const projectRoot = path.join(__dirname, '..');
   const htmlTargets = [];
 
-  // src HTML (will be minified later in build pipeline)
   const srcIndex = path.join(projectRoot, 'src', 'index.html');
   if (fs.existsSync(srcIndex)) htmlTargets.push(srcIndex);
 
-  // Widget HTMLs (public/widgets/*.html)
   const widgetsDir = path.join(projectRoot, 'public', 'widgets');
   if (fs.existsSync(widgetsDir)) {
     for (const f of fs.readdirSync(widgetsDir)) {
       if (f.endsWith('.html')) htmlTargets.push(path.join(widgetsDir, f));
     }
   }
+
+  const welcomeHtml = path.join(projectRoot, 'public', 'welcome.html');
+  if (fs.existsSync(welcomeHtml)) htmlTargets.push(welcomeHtml);
 
   const pattern = /\/js\/min\/i18n-runtime\.js(?:\?v=[a-z0-9]+)?/g;
   let updatedCount = 0;

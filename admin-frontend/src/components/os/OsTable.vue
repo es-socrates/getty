@@ -14,7 +14,7 @@
 const props = defineProps({
   headers: { type: Array, default: () => [] },
   rows: { type: Array, default: () => [] },
-  cols: { type: Array, default: () => [] }, // e.g., ['col-span-3','col-span-9']
+  cols: { type: Array, default: () => [] },
   ariaLabel: { type: String, default: '' }
 });
 function colClass(i){ return props.cols?.[i] || 'col-span-1'; }

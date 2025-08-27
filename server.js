@@ -74,6 +74,7 @@ try {
       .filter(Boolean);
 
     const connectExtra = splitEnv('GETTY_CSP_CONNECT_EXTRA');
+    const scriptExtra = splitEnv('GETTY_CSP_SCRIPT_EXTRA');
     const imgExtra = splitEnv('GETTY_CSP_IMG_EXTRA');
     const mediaExtra = splitEnv('GETTY_CSP_MEDIA_EXTRA');
 
@@ -81,7 +82,7 @@ try {
       useDefaults: true,
       directives: {
         defaultSrc: [self],
-        scriptSrc: [self, "'unsafe-inline'", ...unsafeEval],
+        scriptSrc: [self, "'unsafe-inline'", ...unsafeEval, ...scriptExtra],
         styleSrc: [self, "'unsafe-inline'", 'https://fonts.googleapis.com'],
         imgSrc: [
           self, 'data:', 'blob:',
@@ -844,6 +845,38 @@ function saveAudioSettings(newSettings) {
 }
 
 registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE);
+
+try {
+  app.get(['/', '/index.html'], (req, res, next) => {
+    try {
+  if (process.env.NODE_ENV === 'test') return next();
+      const wantsHtml = req.accepts(['html','json']) === 'html';
+      const hasNsCookie = !!(req.cookies?.[ADMIN_COOKIE] || req.cookies?.[PUBLIC_COOKIE]);
+  const seen = req.cookies?.['getty_seen_welcome'] === '1';
+      const hasAnyConfig = [TIP_GOAL_CONFIG_FILE, LAST_TIP_CONFIG_FILE, CHAT_CONFIG_FILE]
+        .some(fp => { try { return fs.existsSync(fp); } catch { return false; } });
+
+  if (wantsHtml && !hasNsCookie && !hasAnyConfig && !seen) {
+        const cookieOpts = {
+          httpOnly: false,
+          sameSite: 'Lax',
+          secure: SECURE_COOKIE(),
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+        };
+        try { res.cookie('getty_seen_welcome', '1', cookieOpts); } catch {}
+        return res.redirect(302, '/welcome');
+      }
+    } catch {}
+    return next();
+  });
+} catch {}
+
+try {
+  app.get(['/welcome','/welcome/'], (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'welcome.html'));
+  });
+} catch {}
 
 
 app.use(express.static('public', {

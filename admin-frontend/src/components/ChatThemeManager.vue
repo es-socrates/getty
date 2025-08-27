@@ -148,7 +148,7 @@ const currentTheme = computed(() => allThemes.value[selectedIdx.value] || allThe
 const currentCSS = ref('');
 
 let hasUserInteracted = false;
-let cssSource = 'fallback'; // 'local' | 'server' | 'fallback'
+let cssSource = 'fallback';
 
 const previewCSS = computed(() => (editor.open ? (editor.css || '') : (currentCSS.value || '')));
 const PREVIEW_STYLE_ID = 'chat-theme-preview-style';
