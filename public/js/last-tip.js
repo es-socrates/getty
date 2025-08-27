@@ -145,11 +145,11 @@
     const updateUI = async (data) => {
     if (!data) {
             await loadColors();
-            titleElement.textContent = 'No tips yet. Send one! 💸';
+            titleElement.textContent = 'Configure last tip 💸';
             if (amountElement) amountElement.textContent = '0';
             if (symbolElement) symbolElement.textContent = 'AR';
             if (usdValueElement) usdValueElement.textContent = '';
-            if (fromElement) fromElement.textContent = 'Send your first tip';
+            if (fromElement) fromElement.textContent = 'The wallet is not configured';
             applyCustomColors();
 
             return;

@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentData = null;
     let hasReachedGoal = false;
     let hasPlayedGoalSound = false;
+    let initialDataLoadedAt = 0;
+    let updateTimer = null;
+    let pendingUpdate = null;
 
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     let tipGoalColors = {};
@@ -223,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     currentData = processTipData(data.tipGoal);
                     hasReachedGoal = currentData.progress >= 100;
-                    updateGoalDisplay(currentData);
+                    initialDataLoadedAt = Date.now();
+                    scheduleGoalUpdate(currentData, 'initial-load');
                 } else {
                     console.warn('No tipGoal data in initial response');
                 }
@@ -255,12 +259,28 @@ document.addEventListener('DOMContentLoaded', () => {
             usdValue: (current * rate).toFixed(2),
             goalUsd: (goal * rate).toFixed(2),
             lastDonation: data.lastDonationTimestamp ?? data.lastDonation,
+            title: data.title,
             theme,
             bgColor: data.bgColor,
             fontColor: data.fontColor,
             borderColor: data.borderColor,
             progressColor: data.progressColor
         };
+    }
+
+    function scheduleGoalUpdate(data, reason = '') {
+        try {
+            pendingUpdate = data;
+            if (updateTimer) return;
+            updateTimer = setTimeout(() => {
+                const d = pendingUpdate;
+                pendingUpdate = null;
+                updateTimer = null;
+                try { updateGoalDisplay(d); } catch (e) { console.error('updateGoalDisplay failed:', e); }
+            }, 80);
+        } catch (e) {
+            console.error('scheduleGoalUpdate error:', e);
+        }
     }
 
     function connectWebSocket() {
@@ -270,8 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
 
         ws.onopen = async () => {
-
-            await loadInitialData();
+            // Avoid double-fetch if we just loaded
+            if (!initialDataLoadedAt || (Date.now() - initialDataLoadedAt) > 1000) {
+                await loadInitialData();
+            }
         };
 
         ws.onmessage = (event) => {
@@ -301,12 +323,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         hasReachedGoal = newProgress >= 100;
                     }
-                    updateGoalDisplay(currentData);
+                    scheduleGoalUpdate(currentData, 'ws-goal-update');
                 } else if (msg.type === 'init' && msg.data?.tipGoal) {
                     msg.data.tipGoal = { ...msg.data.tipGoal, ...tipGoalColors };
                     currentData = processTipData(msg.data.tipGoal);
                     hasReachedGoal = currentData.progress >= 100;
-                    updateGoalDisplay(currentData);
+                    scheduleGoalUpdate(currentData, 'ws-init');
                 }
             } catch (error) {
                 console.error('Error processing message:', error);
@@ -421,18 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const existingClasses = goalWidget.className;
         
     const t = (window.__i18n && window.__i18n.t) ? window.__i18n.t : (k=>k);
-    let customTitle = t('tipGoalDefaultTitle');
-    const cookieToken2 = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
-    const nsQuery2 = cookieToken2 ? (`?token=${encodeURIComponent(cookieToken2)}`) : '';
-    fetch('/api/modules' + nsQuery2)
-            .then(r => r.ok ? r.json() : null)
-            .then(modulesData => {
-                if (modulesData?.tipGoal?.title && modulesData.tipGoal.title.trim()) {
-                    const titleNode = goalWidget.querySelector('.goal-title');
-                    if (titleNode) titleNode.textContent = modulesData.tipGoal.title.trim();
-                }
-            })
-            .catch(()=>{});
+    let customTitle = (data.title && String(data.title).trim()) ? String(data.title).trim() : t('tipGoalDefaultTitle');
 
     if (data.theme === 'modern-list' && isOBSWidget) {
 
@@ -446,13 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 goalWidget.style.removeProperty('width');
             } catch(_){}
 
-            let customTitle = t('tipGoalDefaultTitle');
-            fetch('/api/modules').then(r=>r.ok?r.json():null).then(md=>{
-                if (md?.tipGoal?.title) data.title = md.tipGoal.title;
-                renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
-            }).catch(()=>{
-                renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
-            });
+            renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
         } else {
             goalWidget.classList.remove('modern-theme');
             goalWidget.innerHTML = `
@@ -566,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const newReachedGoal = currentData.progress >= 100;
             if (newReachedGoal !== hasReachedGoal) {
                 hasReachedGoal = newReachedGoal;
-                updateGoalDisplay(currentData);
+                scheduleGoalUpdate(currentData, 'force-update-celebration');
             }
         }
     }

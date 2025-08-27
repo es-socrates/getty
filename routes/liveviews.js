@@ -22,6 +22,16 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     fs.mkdirSync(LIVEVIEWS_UPLOADS_DIR, { recursive: true });
   }
 
+  function isTrustedIp(req) {
+    try {
+      let ip = req.ip || req.connection?.remoteAddress || '';
+      if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+      const allow = (process.env.GETTY_ALLOW_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+      const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+      return loopback || (allow.length > 0 && allow.includes(ip));
+    } catch { return false; }
+  }
+
   const liveviewsStorage = multer.diskStorage({
     destination: function (_req, _file, cb) {
       cb(null, LIVEVIEWS_UPLOADS_DIR);
@@ -92,6 +102,14 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
         config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
       }
       config = getLiveviewsConfigWithDefaults(config);
+
+      const isHosted = !!store;
+      const hasNs = !!ns;
+      const trusted = isTrustedIp(req);
+      if (isHosted && !hasNs && !trusted) {
+            const sanitized = { ...config, claimid: '' };
+            return res.json(sanitized);
+          }
       res.json(config);
   } catch {
       res.json(getLiveviewsConfigWithDefaults({}));
