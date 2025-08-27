@@ -207,6 +207,8 @@ class TipGoalModule {
             return false;
         } catch {
                 this.AR_TO_USD = this.AR_TO_USD || 5;
+                this.lastExchangeRateUpdate = new Date();
+                this.sendGoalUpdate();
                 return false;
             }
         }
@@ -258,6 +260,7 @@ class TipGoalModule {
         }
 
         try {
+            this.lastTransactionCheck = new Date();
             console.log('🔍 Checking transactions for', this.walletAddress.slice(0, 8) + '...');
             const txs = await this.getAddressTransactions(this.walletAddress);
             
@@ -317,6 +320,8 @@ class TipGoalModule {
                     data: error.response.data
                 });
             }
+
+            if (!this.lastTransactionCheck) this.lastTransactionCheck = new Date();
             if (initialLoad) {
                 this.sendGoalUpdate();
             }

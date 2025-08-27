@@ -191,6 +191,31 @@ class ChatNsManager {
         username: titleFromApi || comment.channel_name || 'Anonymous'
       };
 
+      try {
+        const raffle = global && global.gettyRaffleInstance ? global.gettyRaffleInstance : null;
+        if (
+          raffle &&
+          typeof raffle.addParticipant === 'function' &&
+          raffle.active &&
+          !raffle.paused &&
+          typeof raffle.command === 'string' &&
+          typeof chatMessage.message === 'string'
+        ) {
+          const msg = (chatMessage.message || '').trim().toLowerCase();
+          const cmd = (raffle.command || '').trim().toLowerCase();
+          const msgNorm = msg.replace(/^!+/, '');
+          const cmdNorm = cmd.replace(/^!+/, '');
+          if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
+            try {
+              const added = raffle.addParticipant(chatMessage.username, chatMessage.userId);
+              if (added) {
+                try { console.info('[giveaway] participant added', { user: chatMessage.username }); } catch {}
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+
       this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
       try {
         const s = this.sessions.get(ns);
