@@ -1,6 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const IS_TEST = process.env.NODE_ENV === 'test';
 const Logger = {
     debug: (...args) => console.log('[DEBUG]', ...args),
     info: (...args) => console.log('[INFO]', ...args),
@@ -131,7 +132,7 @@ class ExternalNotifications {
             }
 
             fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
-            console.log('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
+            if (!IS_TEST) console.log('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
         } catch {
             console.error('[ExternalNotifications] Error saving config');
             throw new Error('Save failed');
@@ -288,7 +289,7 @@ class ExternalNotifications {
             const rate = response.data?.arweave?.usd || 5;
             return (amount * rate).toFixed(2);
         } catch {
-            console.warn('[ExternalNotifications] Using fallback AR price (5 USD)');
+            if (!IS_TEST) console.warn('[ExternalNotifications] Using fallback AR price (5 USD)');
             return (amount * 5).toFixed(2);
         }
     }
