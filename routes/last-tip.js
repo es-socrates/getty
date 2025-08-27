@@ -33,7 +33,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         const isLocal = isLocalIp || isLocalHostHeader;
         const hideForRemoteLocalMode = (!hosted && !isLocal);
         const hideInHosted = (hosted && !hasNs && !isLocal);
-  if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
+        if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
           delete out.walletAddress;
         }
       } catch {}
@@ -98,7 +98,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         } catch {}
         return res.json({ success: true, ...newConfig });
       } else {
-  fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+        fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
         const result = lastTip.updateWalletAddress(newConfig.walletAddress);
         if (typeof lastTip.broadcastConfig === 'function') {
           lastTip.broadcastConfig(newConfig);
