@@ -124,7 +124,7 @@ async function getArUsdCached(_force = false) {
     if (process.env.NODE_ENV === 'test') return { usd: 0, ts: Date.now(), source: 'test' };
     const now = Date.now();
     if (!__arPriceCache.usd || (now - __arPriceCache.ts) > 10 * 60 * 1000) {
-      __arPriceCache = { usd: 0, ts: now, source: 'none' };
+      __arPriceCache = { usd: 5, ts: now, source: 'fallback' };
     }
     return __arPriceCache;
   } catch { return { usd: 0, ts: Date.now(), source: 'error' }; }
@@ -149,6 +149,8 @@ const tipWidget = new TipWidgetModule(wssBound);
 const tipGoal = new TipGoalModule(wssBound);
 const externalNotifications = new ExternalNotifications(wssBound);
 const raffle = new RaffleModule(wssBound);
+
+try { global.gettyRaffleInstance = raffle; } catch {}
 const announcementModule = new AnnouncementModule(wssBound);
 const chat = new ChatModule(wssBound);
 const chatNs = new ChatNsManager(wssBound, store);
