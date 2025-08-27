@@ -616,6 +616,7 @@ app.post('/api/session/import', async (req, res) => {
           defaultDurationSeconds: incomingAnnouncement.defaultDurationSeconds
         };
         try { announcementModule.setSettings(settingsPayload); } catch {}
+
         try { announcementModule.clearMessages('all'); } catch {}
         const msgs = Array.isArray(incomingAnnouncement.messages) ? incomingAnnouncement.messages.slice(0, 200) : [];
         for (const m of msgs) {
@@ -1082,7 +1083,6 @@ app.get('/api/modules', async (req, res) => {
   } catch {}
 
   try {
-
     if (store && ns) {
       const tg = await store.get(ns, 'tip-goal-config', null);
       if (tg && typeof tg === 'object') tipGoalColors = tg;
@@ -1092,7 +1092,6 @@ app.get('/api/modules', async (req, res) => {
     }
   } catch {}
   try {
-
     if (store && ns) {
       const lt = await store.get(ns, 'last-tip-config', null);
       if (lt && typeof lt === 'object') lastTipColors = lt;
@@ -1115,7 +1114,15 @@ app.get('/api/modules', async (req, res) => {
   })();
 
   res.json({
-    lastTip: sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }),
+    lastTip: (() => {
+      try {
+        const base = lastTip.getStatus?.() || {};
+        const merged = { ...base, ...lastTipColors };
+        const wallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
+        merged.active = !!wallet || !!merged.lastDonation;
+        return sanitizeIfNoNs(merged);
+      } catch { return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }); }
+    })(),
     tipWidget: tipWidget.getStatus(),
     tipGoal: (() => {
       try {
@@ -1132,6 +1139,9 @@ app.get('/api/modules', async (req, res) => {
           merged.usdValue = (current * rate).toFixed(2);
           merged.goalUsd = (goal * rate).toFixed(2);
         }
+
+    const wallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
+    merged.active = !!wallet || current > 0 || goal > 0;
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
     })(),
@@ -1233,6 +1243,7 @@ app.get('/api/metrics', async (req, res) => {
   const bytes5m = __bytesEvents.filter(e => e.ts >= fiveMin).reduce((a,b)=>a+b.bytes,0);
   const bytes1h = __bytesEvents.filter(e => e.ts >= hour).reduce((a,b)=>a+b.bytes,0);
 
+  // Prefer namespaced chat history in hosted mode
   let history = [];
   try {
     const ns = req?.ns?.admin || req?.ns?.pub || null;
