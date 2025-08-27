@@ -37,6 +37,8 @@ const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
 const registerAnnouncementRoutes = require('./routes/announcement');
+const { AnnouncementModule } = require('./modules/announcement');
+const RaffleModule = require('./modules/raffle');
 
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
@@ -59,312 +61,99 @@ const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(pro
 
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
 try { app.set('trust proxy', 1); } catch {}
+try { app.use(express.json({ limit: '1mb' })); } catch {}
+try { app.use(express.urlencoded({ extended: true, limit: '1mb' })); } catch {}
+try { app.use(cookieParser()); } catch {}
+try { app.use(compression()); } catch {}
 try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
 
-const limiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((_req,_res,next)=>next());
-const strictLimiter = rateLimit ? rateLimit({ windowMs: 60_000, max: 10 }) : ((_req,_res,next)=>next());
-const announcementLimiters = {
-  config: rateLimit ? rateLimit({ windowMs: 60_000, max: 20 }) : ((_req,_res,next)=>next()),
-  message: rateLimit ? rateLimit({ windowMs: 60_000, max: 30 }) : ((_req,_res,next)=>next()),
-  favicon: rateLimit ? rateLimit({ windowMs: 60_000, max: 60 }) : ((_req,_res,next)=>next())
-};
+const ADMIN_COOKIE = 'getty_admin_token';
+const PUBLIC_COOKIE = 'getty_public_token';
+const SECURE_COOKIE = () => (process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production');
 
-app.use(compression());
+app.use((req, _res, next) => {
+  try {
+    const admin = req.cookies?.[ADMIN_COOKIE] || null;
+    const pub = req.cookies?.[PUBLIC_COOKIE] || null;
+    req.ns = { admin: admin || null, pub: pub || null };
+  } catch { req.ns = { admin: null, pub: null }; }
+  next();
+});
 
+const __requestTimestamps = [];
+const __bytesEvents = [];
 const __activityLog = [];
-const __MAX_ACTIVITY = 500;
-function __pushActivity(level, pieces) {
+const __MAX_ACTIVITY = 2000;
+app.use((req, res, next) => {
+  try { __requestTimestamps.push(Date.now()); if (__requestTimestamps.length > 50000) __requestTimestamps.splice(0, __requestTimestamps.length - 50000); } catch {}
+  const start = Date.now();
+  const orig = res.end;
+  res.end = function(chunk, encoding, cb) {
+    try {
+      const bytes = chunk ? (Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(String(chunk), encoding || 'utf8')) : 0;
+      __bytesEvents.push({ ts: Date.now(), bytes });
+      if (__bytesEvents.length > 50000) __bytesEvents.splice(0, __bytesEvents.length - 50000);
+    } catch {}
+    return orig.call(this, chunk, encoding, cb);
+  };
   try {
-    const msg = pieces
-      .map(p => {
-        if (typeof p === 'string') return p;
-        try { return JSON.stringify(p); } catch { return String(p); }
-      })
-      .join(' ');
-    __activityLog.push({ ts: new Date().toISOString(), level, message: msg });
-    if (__activityLog.length > __MAX_ACTIVITY) __activityLog.shift();
-  } catch {}
-}
-
-try {
-  if (process.env.NODE_ENV !== 'test') {
-    const __orig = {
-      log: console.log.bind(console),
-      info: console.info ? console.info.bind(console) : console.log.bind(console),
-      warn: console.warn ? console.warn.bind(console) : console.log.bind(console),
-      error: console.error ? console.error.bind(console) : console.log.bind(console)
-    };
-    console.log = (...args) => { __pushActivity('info', args); __orig.log(...args); };
-    console.info = (...args) => { __pushActivity('info', args); __orig.info(...args); };
-    console.warn = (...args) => { __pushActivity('warn', args); __orig.warn(...args); };
-    console.error = (...args) => { __pushActivity('error', args); __orig.error(...args); };
-  }
-} catch {}
-
-let __requestTimestamps = [];
-app.use((_req, _res, next) => {
-  try {
-    const now = Date.now();
-    __requestTimestamps.push(now);
-
-    const cutoff = now - 60 * 60 * 1000;
-    if (__requestTimestamps.length > 10000) {
-      __requestTimestamps = __requestTimestamps.filter(t => t >= cutoff);
-    } else {
-
-      while (__requestTimestamps.length && __requestTimestamps[0] < cutoff) __requestTimestamps.shift();
-    }
+    const entry = { ts: start, level: 'info', method: req.method, url: req.originalUrl, message: `${req.method} ${req.originalUrl}` };
+    __activityLog.push(entry);
+    if (__activityLog.length > __MAX_ACTIVITY) __activityLog.splice(0, __activityLog.length - __MAX_ACTIVITY);
+    res.on('finish', () => {
+      try {
+        entry.status = res.statusCode;
+        entry.durationMs = Date.now() - start;
+        if (typeof entry.message === 'string') {
+          entry.message = `${req.method} ${req.originalUrl} -> ${res.statusCode} in ${entry.durationMs}ms`;
+        }
+      } catch {}
+    });
   } catch {}
   next();
 });
 
-let __bytesEvents = [];
-app.use((_req, res, next) => {
-  try {
-    let bytes = 0;
-    const _write = res.write;
-    const _end = res.end;
-    res.write = function (chunk, encoding, cb) {
-      try {
-        if (chunk) bytes += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
-      } catch {}
-      return _write.call(this, chunk, encoding, cb);
-    };
-    res.end = function (chunk, encoding, cb) {
-      try {
-        if (chunk) bytes += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, encoding);
-        const now = Date.now();
-        __bytesEvents.push({ ts: now, bytes });
-        const cutoff = now - 60 * 60 * 1000;
-        while (__bytesEvents.length && __bytesEvents[0].ts < cutoff) __bytesEvents.shift();
-      } catch {}
-      return _end.call(this, chunk, encoding, cb);
-    };
-  } catch {}
-  next();
-});
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 60 });
+const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
+
+const wss = new WebSocket.Server({ noServer: true });
 
 let __arPriceCache = { usd: 0, ts: 0, source: 'none' };
-const __AR_PRICE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-async function fetchArUsdFromProviders() {
-
+async function getArUsdCached(_force = false) {
   try {
-    const bz = await axios.get('https://api.binance.com/api/v3/ticker/price?symbol=ARUSDT', { timeout: 5000 });
-    if (bz.data?.price) return { usd: Number(bz.data.price), source: 'binance' };
-  } catch {}
-
-  try {
-    const okx = await axios.get('https://www.okx.com/api/v5/market/ticker?instId=AR-USDT', { timeout: 5000 });
-    const last = okx.data?.data?.[0]?.last;
-    if (last) return { usd: Number(last), source: 'okx' };
-  } catch {}
-
-  try {
-    const kc = await axios.get('https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=AR-USDT', { timeout: 5000 });
-    const price = kc.data?.data?.price;
-    if (price) return { usd: Number(price), source: 'kucoin' };
-  } catch {}
-
-  try {
-    const gt = await axios.get('https://api.gateio.ws/api/v4/spot/tickers?currency_pair=AR_USDT', { timeout: 5000 });
-    const last = Array.isArray(gt.data) && gt.data[0]?.last;
-    if (last) return { usd: Number(last), source: 'gateio' };
-  } catch {}
-
-  try {
-    const cc = await axios.get('https://api.coincap.io/v2/assets/arweave', { timeout: 5000 });
-    const usd = cc.data?.data?.priceUsd;
-    if (usd) return { usd: Number(usd), source: 'coincap' };
-  } catch {}
-
-  try {
-    const cp = await axios.get('https://api.coinpaprika.com/v1/tickers/ar-arweave', { timeout: 5000 });
-    const usd = cp.data?.quotes?.USD?.price;
-    if (usd) return { usd: Number(usd), source: 'coinpaprika' };
-  } catch {}
-
-  try {
-    const cg = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd', { timeout: 5000 });
-    if (cg.data?.arweave?.usd) return { usd: Number(cg.data.arweave.usd), source: 'coingecko' };
-  } catch {}
-  return null;
-}
-
-async function getArUsdCached(force = false) {
-  const now = Date.now();
-  if (!force && __arPriceCache.usd > 0 && (now - __arPriceCache.ts) < __AR_PRICE_TTL_MS) {
+    if (process.env.NODE_ENV === 'test') return { usd: 0, ts: Date.now(), source: 'test' };
+    const now = Date.now();
+    if (!__arPriceCache.usd || (now - __arPriceCache.ts) > 10 * 60 * 1000) {
+      __arPriceCache = { usd: 0, ts: now, source: 'none' };
+    }
     return __arPriceCache;
-  }
-  const result = await fetchArUsdFromProviders();
-  if (result && isFinite(result.usd) && result.usd > 0) {
-    __arPriceCache = { usd: result.usd, ts: now, source: result.source };
-  } else if (__arPriceCache.usd === 0) {
-    __arPriceCache = { usd: 5, ts: now, source: 'fallback' };
-  }
-  return __arPriceCache;
+  } catch { return { usd: 0, ts: Date.now(), source: 'error' }; }
 }
 
 function getLiveviewsConfigWithDefaults(partial) {
   return {
-    bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
-    color: typeof partial.color === 'string' && partial.color.trim() ? partial.color : '#222',
-    font: typeof partial.font === 'string' && partial.font.trim() ? partial.font : 'Arial',
-    size: typeof partial.size === 'string' && partial.size.trim() ? partial.size : '32',
-    icon: typeof partial.icon === 'string' ? partial.icon : '',
-    claimid: typeof partial.claimid === 'string' ? partial.claimid : '',
-    viewersLabel: typeof partial.viewersLabel === 'string' && partial.viewersLabel.trim() ? partial.viewersLabel : 'viewers'
+    bg: typeof partial?.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
+    color: typeof partial?.color === 'string' && partial.color.trim() ? partial.color : '#222',
+    font: typeof partial?.font === 'string' && partial.font.trim() ? partial.font : 'Arial',
+    size: typeof partial?.size === 'string' && partial.size.trim() ? partial.size : '32',
+    icon: typeof partial?.icon === 'string' ? partial.icon : '',
+    claimid: typeof partial?.claimid === 'string' ? partial.claimid : '',
+    viewersLabel: typeof partial?.viewersLabel === 'string' && partial.viewersLabel.trim() ? partial.viewersLabel : 'viewers'
   };
 }
 
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-app.use(express.json({ limit: '1mb' }));
-app.use(cookieParser());
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  try {
-    const host = req.get('host');
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'self'; " +
-      "media-src 'self' blob: https://cdn.streamlabs.com https://arweave.net https://*.arweave.net; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "img-src 'self' data: blob: https://thumbs.odycdn.com https://thumbnails.odycdn.com https://odysee.com https://static.odycdn.com https://cdn.streamlabs.com https://twemoji.maxcdn.com https://spee.ch; " + 
-      "font-src 'self' data: blob: https://fonts.gstatic.com; " +
-      `connect-src 'self' ws://${host} wss://${host} wss://sockety.odysee.tv https://arweave.net https://*.arweave.net https://ar-io.net https://arweave.live https://arweave-search.goldsky.com https://permagate.io https://zerosettle.online https://zigza.xyz https://ario-gateway.nethermind.dev https://api.binance.com https://www.okx.com https://api.kucoin.com https://api.gateio.ws https://api.coincap.io https://api.coinpaprika.com https://api.coingecko.com https://api.viewblock.io https://api.telegram.org https://api.odysee.live; ` +
-      "frame-src 'self'"
-    );
-  } catch {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws: wss:;");
-  }
-
-    next();
-});
-
-app.get('/favicon.ico', (_req, res) => {
-  const iconPath = path.join(__dirname, 'public', 'favicon.ico');
-  try {
-    if (fs.existsSync(iconPath)) {
-      try { res.set('Cache-Control', 'public, max-age=86400, immutable'); } catch {}
-      return res.sendFile(iconPath);
-    }
-  } catch {}
-  try { res.set('Cache-Control', 'public, max-age=86400, immutable'); } catch {}
-  return res.status(204).end();
-});
-
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    return res.sendStatus(204);
-  }
-  next();
-});
-
-app.use((req, _res, next) => {
-  try {
-    const isApi = req.path && req.path.startsWith('/api/');
-    const isSafeMethod = req.method === 'GET' || req.method === 'HEAD';
-    if (isApi && isSafeMethod && req.path.length > 5 && req.path.endsWith('/')) {
-      const trimmedPath = req.path.replace(/\/+$/, '');
-      const query = req.url.slice(req.path.length);
-      req.url = trimmedPath + query;
-    }
-  } catch {}
-  next();
-});
-
-app.use((req, res, next) => {
-  try {
-    const p = req.path || '';
-    if (!p) return next();
-    const cleaned = p.replace(/\/+$/, '');
-    const looksEncodedAbsolute = cleaned.startsWith('/https%3A') || cleaned.startsWith('/http%3A') || /%3A%2F%2F/i.test(cleaned) || /^\/https?:\/\//i.test(cleaned);
-    if (looksEncodedAbsolute) {
-      let decoded = '';
-      try { decoded = decodeURIComponent(cleaned.slice(1)); } catch {}
-      console.warn('Malformed absolute URL path received', {
-        originalUrl: req.originalUrl,
-        decoded,
-        referer: req.get('referer') || req.get('referrer') || '',
-        ua: req.get('user-agent') || ''
-      });
-      return res.status(400).json({ error: 'absolute_url_misrouted', decoded: decoded || null, referer: req.get('referer') || req.get('referrer') || null });
-    }
-  } catch {}
-  next();
-});
-
-const wss = new WebSocket.Server({ noServer: true });
-try { app.set('wss', wss); } catch {}
-
-const lastTip = new LastTipModule(wss);
-const tipWidget = new TipWidgetModule(wss);
-const chat = new ChatModule(wss);
-const chatNs = new ChatNsManager(wss, store);
-const { AnnouncementModule } = require('./modules/announcement');
-const announcementModule = new AnnouncementModule(wss);
-const externalNotifications = new ExternalNotifications(wss);
 const languageConfig = new LanguageConfig();
+const wssBound = wss;
+const lastTip = new LastTipModule(wssBound);
+const tipWidget = new TipWidgetModule(wssBound);
+const tipGoal = new TipGoalModule(wssBound);
+const externalNotifications = new ExternalNotifications(wssBound);
+const raffle = new RaffleModule(wssBound);
+const announcementModule = new AnnouncementModule(wssBound);
+const chat = new ChatModule(wssBound);
+const chatNs = new ChatNsManager(wssBound, store);
 
-const tipGoal = new TipGoalModule(wss);
-
-const RaffleModule = require('./modules/raffle');
-
-const raffle = new RaffleModule(wss);
-
-global.gettyRaffleInstance = raffle;
-
-const ADMIN_COOKIE = 'getty_admin_token';
-const PUBLIC_COOKIE = 'getty_public_token';
-const SECURE_COOKIE = () => (process.env.NODE_ENV === 'production');
-
-function attachNamespace(req, _res, next) {
-  const adminToken = req.headers['x-getty-admin-token'] || req.cookies[ADMIN_COOKIE] || req.query.admin_token;
-  const publicToken = req.headers['x-getty-public-token'] || req.cookies[PUBLIC_COOKIE] || req.query.token;
-  req.ns = {
-    admin: typeof adminToken === 'string' ? adminToken : null,
-    pub: typeof publicToken === 'string' ? publicToken : null
-  };
-
-  if (!req.ns.pub && req.ns.admin) req.ns.pub = req.ns.admin;
-  next();
-}
-app.use(attachNamespace);
-
-app.get('/new-session', async (_req, res) => {
-  try {
-    const adminToken = NamespacedStore.genToken(24);
-    const publicToken = NamespacedStore.genToken(18);
-    await store.set(adminToken, 'meta', { createdAt: Date.now(), role: 'admin' });
-    await store.set(publicToken, 'meta', { createdAt: Date.now(), role: 'public', parent: adminToken });
-
-    await store.set(adminToken, 'publicToken', publicToken);
-    await store.set(publicToken, 'adminToken', adminToken);
-
-    const cookieOpts = {
-      httpOnly: true,
-      sameSite: 'Lax',
-      secure: SECURE_COOKIE(),
-      path: '/',
-      maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
-    };
-    res.cookie(ADMIN_COOKIE, adminToken, cookieOpts);
-    res.cookie(PUBLIC_COOKIE, publicToken, cookieOpts);
-
-    const target = '/admin/';
-
-    return res.status(200).send(`<!doctype html><meta http-equiv="refresh" content="0; url=${target}">`);
-  } catch {
-    return res.status(500).json({ error: 'failed_to_create_session' });
-  }
-});
+const announcementLimiters = { config: (_req,_res,next)=>next(), message: (_req,_res,next)=>next(), favicon: (_req,_res,next)=>next() };
 
 app.get('/api/ar-price', async (_req, res) => {
   try {
@@ -797,7 +586,7 @@ app.post('/api/test-tip', limiter, async (req, res) => {
         if (cfg) await externalNotifications.sendWithConfig(cfg, donation);
       } catch {}
     } else {
-      externalNotifications.handleTip({
+      externalNotifications.handleIncomingTip({
         ...donation,
         usd: (donation.amount * 5).toFixed(2)
       });
@@ -1128,7 +917,19 @@ app.get('/api/modules', async (req, res) => {
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }); }
     })(),
-    tipWidget: tipWidget.getStatus(),
+    tipWidget: (() => {
+      try {
+        const base = tipWidget.getStatus?.() || {};
+        const effWallet = (typeof tipGoalColors.walletAddress === 'string' && tipGoalColors.walletAddress.trim())
+          || (typeof lastTipColors.walletAddress === 'string' && lastTipColors.walletAddress.trim())
+          || (typeof base.walletAddress === 'string' && base.walletAddress.trim())
+          || '';
+        const out = { ...base };
+        if (effWallet) out.walletAddress = effWallet;
+        out.active = !!(effWallet || base.active);
+        return sanitizeIfNoNs(out);
+      } catch { return sanitizeIfNoNs(tipWidget.getStatus()); }
+    })(),
     tipGoal: (() => {
       try {
         const base = tipGoal.getStatus?.() || {};
@@ -1144,13 +945,15 @@ app.get('/api/modules', async (req, res) => {
           merged.usdValue = (current * rate).toFixed(2);
           merged.goalUsd = (goal * rate).toFixed(2);
         }
-
-      const __tgBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
-      const __tgCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
-      const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
-      if (__effTgWallet) merged.walletAddress = __effTgWallet;
-      const wallet = __effTgWallet;
-      merged.active = !!wallet || current > 0 || goal > 0;
+        merged.currentTips = current;
+        merged.currentAmount = current;
+        const __tgBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
+        const __tgCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
+        const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
+        if (__effTgWallet) merged.walletAddress = __effTgWallet;
+        const wallet = __effTgWallet;
+        merged.active = !!wallet || current > 0 || goal > 0;
+        merged.initialized = !!(merged.initialized || wallet || current > 0 || goal > 0);
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
     })(),
@@ -1162,7 +965,6 @@ app.get('/api/modules', async (req, res) => {
           const out = { ...base, ...chatColors };
           out.connected = !!st.connected;
           out.active = !!(st.connected || (typeof chatColors.chatUrl === 'string' && chatColors.chatUrl.trim()));
-
           if (typeof chatColors.chatUrl === 'string' && chatColors.chatUrl.trim()) {
             out.chatUrl = chatColors.chatUrl.trim();
           }
@@ -1175,12 +977,7 @@ app.get('/api/modules', async (req, res) => {
       try {
         const cfg = announcementModule.getPublicConfig();
         const enabledMessages = cfg.messages.filter(m=>m.enabled).length;
-        return {
-          active: enabledMessages > 0,
-          totalMessages: cfg.messages.length,
-          enabledMessages,
-          cooldownSeconds: cfg.cooldownSeconds
-        };
+        return { active: enabledMessages > 0, totalMessages: cfg.messages.length, enabledMessages, cooldownSeconds: cfg.cooldownSeconds };
       } catch { return { active: false, totalMessages: 0, enabledMessages: 0 }; }
     })(),
     socialmedia: (() => {
@@ -1195,11 +992,7 @@ app.get('/api/modules', async (req, res) => {
       return {
         active: !!st.active,
         lastTips: st.lastTips,
-        config: {
-          hasDiscord: !!st.config?.hasDiscord,
-          hasTelegram: !!st.config?.hasTelegram,
-          template: st.config?.template || ''
-        },
+        config: { hasDiscord: !!st.config?.hasDiscord, hasTelegram: !!st.config?.hasTelegram, template: st.config?.template || '' },
         lastUpdated: st.lastUpdated
       };
     })(),
@@ -1209,11 +1002,7 @@ app.get('/api/modules', async (req, res) => {
           const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
           const full = getLiveviewsConfigWithDefaults(raw || {});
           const active = !!(full.claimid || full.icon || full.viewersLabel);
-          return {
-            active,
-            claimid: hasNs ? full.claimid : undefined,
-            viewersLabel: full.viewersLabel
-          };
+          return { active, claimid: hasNs ? full.claimid : undefined, viewersLabel: full.viewersLabel };
         }
         return { active: false };
       } catch { return { active: false }; }
@@ -1221,12 +1010,7 @@ app.get('/api/modules', async (req, res) => {
     raffle: (() => {
       try {
         const st = raffle.getPublicState();
-        return {
-          active: !!st.active,
-          paused: !!st.paused,
-          participants: st.participants || [],
-          totalWinners: st.totalWinners || 0
-        };
+        return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0 };
       } catch { return { active: false, participants: [] }; }
     })(),
     system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' }
