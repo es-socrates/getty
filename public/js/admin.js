@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             ensureCustomTitleField('#last-tip-tab', 'last-tip-title', 'lastTipCustomTitleLabel', 'lastTipCustomTitlePlaceholder', 'lastTipCustomTitleHint', 'Last tip received 👏');
-            ensureCustomTitleField('#tip-goal-tab', 'tip-goal-title', 'tipGoalCustomTitleLabel', 'tipGoalCustomTitlePlaceholder', 'tipGoalCustomTitleHint', '🎖️ Monthly tip goal');
+            ensureCustomTitleField('#tip-goal-tab', 'tip-goal-title', 'tipGoalCustomTitleLabel', 'tipGoalCustomTitlePlaceholder', 'tipGoalCustomTitleHint', 'Monthly tip goal 🎖️');
             document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
             document.getElementById('tip-goal-wallet-address').value = data.tipGoal.walletAddress || '';
             document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;

@@ -44,7 +44,7 @@ class TipGoalModule {
         this.borderColor = '#00ff7f';
         this.progressColor = '#00ff7f';
         this.theme = 'classic';
-        this.title = '🎖️ Monthly tip goal';
+        this.title = 'Monthly tip goal 🎖️';
         this.loadWalletAddress();
 
         this.AR_TO_USD = 0;
@@ -97,7 +97,7 @@ class TipGoalModule {
             borderColor: '#00ff7f',
             progressColor: '#00ff7f',
             audioSource: 'remote',
-            title: '🎖️ Monthly tip goal'
+            title: 'Monthly tip goal 🎖️'
         };
         if (!fs.existsSync(configPath)) {
             fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2));

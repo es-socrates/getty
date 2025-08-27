@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const axios = require('axios');
 
 function resolveWsFromClaimId(claimId) {
   try {
@@ -17,6 +18,8 @@ class ChatNsManager {
     this.wss = wss;
     this.store = store;
     this.sessions = new Map();
+    this.channelCache = new Map();
+    this.CACHE_TTL_MS = 60 * 60 * 1000;
   }
 
   _broadcast(ns, payload) {
@@ -111,22 +114,77 @@ class ChatNsManager {
     this.sessions.clear();
   }
 
-  _handleOdyseeMessage(ns, message) {
+  async _fetchChannelAvatar(claimId) {
+    try {
+      if (!claimId) return { avatar: null, title: null };
+      if (process.env.NODE_ENV === 'test') return { avatar: null, title: null };
+
+      const cached = this.channelCache.get(claimId);
+      const now = Date.now();
+      if (cached && (now - cached.ts) < this.CACHE_TTL_MS) {
+        return { avatar: cached.avatar, title: cached.title };
+      }
+
+      const resp = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', {
+        jsonrpc: '2.0',
+        method: 'claim_search',
+        params: { claim_id: claimId, page: 1, page_size: 1, no_totals: true },
+        id: Date.now()
+      }, { timeout: 5000 });
+
+      const item = resp.data?.result?.items?.[0];
+      if (!item) {
+        const out = { avatar: null, title: null };
+        this.channelCache.set(claimId, { ...out, ts: now });
+        return out;
+      }
+
+      const thumbnailUrl = item.value?.thumbnail?.url || item.signing_channel?.value?.thumbnail?.url;
+      const channelTitle = item.signing_channel?.value?.title || item.value?.title || null;
+
+      let avatar = null;
+      if (thumbnailUrl) {
+        if (thumbnailUrl.startsWith('http')) {
+          avatar = thumbnailUrl.includes('thumbnails.odycdn.com')
+            ? thumbnailUrl.replace('s=85', 's=256')
+            : thumbnailUrl;
+        } else {
+          avatar = thumbnailUrl.startsWith('/')
+            ? `https://thumbnails.odycdn.com${thumbnailUrl}`
+            : `https://thumbnails.odycdn.com/${thumbnailUrl}`;
+          avatar = avatar.replace('s=85', 's=256');
+        }
+      }
+
+      const out = { avatar, title: channelTitle };
+      this.channelCache.set(claimId, { ...out, ts: now });
+      return out;
+  } catch {
+      try { this.channelCache.set(claimId, { avatar: null, title: null, ts: Date.now() }); } catch {}
+      return { avatar: null, title: null };
+    }
+  }
+
+  async _handleOdyseeMessage(ns, message) {
     if (message.type === 'delta' && message.data?.comment) {
       const comment = message.data.comment;
       const channelId = comment.channel_id || comment.channel_claim_id || '';
-      const avatarUrl = channelId
-        ? `https://thumbnails.odycdn.com/optimize/s:64:64/quality:85/plain/https://thumbnails.lbry.com/channel_picture?channel_id=${encodeURIComponent(channelId)}`
-        : null;
+      let avatarUrl = null;
+      let titleFromApi = null;
+      if (channelId) {
+        const info = await this._fetchChannelAvatar(channelId);
+        avatarUrl = info.avatar;
+        titleFromApi = info.title;
+      }
       const chatMessage = {
         type: 'chatMessage',
-        channelTitle: comment.channel_name || 'Anonymous',
+        channelTitle: titleFromApi || comment.channel_name || 'Anonymous',
         message: comment.comment,
         credits: comment.support_amount || 0,
         avatar: avatarUrl,
         timestamp: comment.timestamp || Date.now(),
         userId: comment.channel_id || comment.channel_claim_id || comment.channel_name,
-        username: comment.channel_name || 'Anonymous'
+        username: titleFromApi || comment.channel_name || 'Anonymous'
       };
 
   this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });

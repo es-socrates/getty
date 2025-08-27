@@ -70,6 +70,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
       }
+
       const newConfig = {
         ...config,
         chatUrl,
@@ -79,8 +80,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         msgBgAltColor: msgBgAltColor || config.msgBgAltColor || '#0d1114',
         borderColor: borderColor || config.borderColor || '#161b22',
         textColor: textColor || config.textColor || '#e6edf3',
-        usernameColor: usernameColor || config.usernameColor || '#fff',
-        usernameBgColor: usernameBgColor || config.usernameBgColor || '#11ff79',
+        usernameColor: (usernameColor !== undefined) ? usernameColor : (config.usernameColor ?? ''),
+        usernameBgColor: (usernameBgColor !== undefined) ? usernameBgColor : (config.usernameBgColor ?? ''),
         donationColor: donationColor || config.donationColor || '#1bdf5f',
         donationBgColor: donationBgColor || config.donationBgColor || '#ececec',
         themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || '')

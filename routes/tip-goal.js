@@ -29,10 +29,15 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       try {
         const hosted = !!store;
         const hasNs = !!ns;
-        const clientIp = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '';
-        const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$|^localhost$/i.test(clientIp);
-        const hideForRemoteLocalMode = (!hosted && !isLocalIp);
-        if (((hosted && !hasNs) || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
+        const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
+        const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$/i.test(remote);
+        const hostHeader = req.headers.host || '';
+        const hostNameOnly = hostHeader.replace(/^\[/, '').replace(/\]$/, '').split(':')[0];
+        const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
+        const isLocal = isLocalIp || isLocalHostHeader;
+        const hideForRemoteLocalMode = (!hosted && !isLocal);
+        const hideInHosted = (hosted && !hasNs && !isLocal);
+  if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
           delete out.walletAddress;
         }
       } catch {}

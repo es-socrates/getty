@@ -346,5 +346,21 @@
   "tipGoalCardTarget": "meta",
   "tipGoalCardMonthlyGoal": "Meta mensual",
   "tipGoalCardViewDetails": "Ver detalles",
-  "tipGoalDefaultTitle": "🎖️ Meta mensual de propinas"
+  "tipGoalDefaultTitle": "Meta mensual 🎖️",
+  "chatClaimId": "Claim ID",
+  "charsUsed": "{used}/{max} carac.",
+  "generalColors": "General",
+  "usernameColors": "Usuario",
+  "donationColors": "Propinas",
+  "overrideUsername": "Forzar colores de usuario",
+  "toggleUsernameOverride": "Forzar colores de usuario (de lo contrario se usa la paleta)",
+  "usernameOverrideOn": "Estos colores reemplazarán la paleta por usuario.",
+  "usernameOverrideOff": "Usando CYBERPUNK_PALETTE — cada usuario recibe un color distinto.",
+  "commonSaving": "Guardando...",
+  "savedChat": "Chat guardado",
+  "saveFailedChat": "Error al guardar el chat",
+  "loadFailedChat": "Error al cargar el chat",
+  "invalidClaimId": "Claim ID inválido",
+  "walletHiddenHostedNotice": "Oculta por seguridad en la versión alojada. Crea una sesión de administrador en este navegador (visita /new-session) para verla.",
+  "walletHiddenLocalNotice": "Oculta por seguridad al acceder a localhost desde otro dispositivo. Abre el admin en la misma máquina (http://localhost:3000) para verla."
 }

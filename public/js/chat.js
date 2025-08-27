@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!isOBSWidget) return;
         const messages = chatContainer.querySelectorAll('.message');
         const isLightThemeActive = !!(chatContainer && chatContainer.classList.contains('theme-light'));
+        const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
         messages.forEach((messageEl) => {
             if (isLightThemeActive) {
                 if (messageEl.classList.contains('has-donation')) {
@@ -179,6 +180,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const text = messageEl.querySelector('.message-text-inline');
             setIfCustom(text, 'color', chatColors.textColor, '#e6edf3');
+
+            const uname = messageEl.querySelector('.message-username.cyberpunk');
+            if (uname && (serverHasTheme || hasExplicitUserColors)) {
+                uname.style.removeProperty('background-color');
+                uname.style.removeProperty('color');
+                uname.style.removeProperty('text-shadow');
+            }
         });
 
         if (isHorizontal) {
@@ -242,16 +250,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         iconElement.className = `membership-icon ${iconType}`;
         usernameElement.insertBefore(iconElement, usernameElement.firstChild);
 
-        const cpIndex = Math.abs(hash) % CYBERPUNK_PALETTE.length;
-        usernameElement.classList.add(`cp-${cpIndex + 1}`);
+    const cpIndex = Math.abs(hash) % CYBERPUNK_PALETTE.length;
+    usernameElement.classList.add(`cp-${cpIndex + 1}`);
 
-        if (!serverHasTheme) {
+    const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
+    if (!serverHasTheme && !hasExplicitUserColors) {
             usernameElement.style.setProperty('background-color', style.bg, 'important');
             usernameElement.style.setProperty('color', style.text, 'important');
             usernameElement.style.setProperty('text-shadow', `0 0 8px ${style.border}`, 'important');
         }
 
-        usernameElement.style.padding = '0px 4px';
+        usernameElement.style.padding = '2px 4px';
         usernameElement.style.borderRadius = '4px';
         usernameElement.style.transition = 'all 0.3s ease';
         usernameElement.style.display = 'inline-block';
@@ -429,19 +438,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const config = await res.json();
-            let isLightTheme = false;
-
-            if (config.themeCSS && config.themeCSS.includes('--text: #1f2328')) {
-                isLightTheme = true;
-            }
             const serverCSS = (config.themeCSS || '').trim();
-            if (serverCSS) {
-                serverHasTheme = true;
-                if (serverCSS !== lastThemeCSS) {
-                    lastThemeCSS = serverCSS;
-                    applyChatTheme(serverCSS, isLightTheme);
+            let isLightTheme = !!serverCSS && serverCSS.includes('--text: #1f2328');
+
+                        serverHasTheme = !!serverCSS;
+                        if (serverHasTheme) {
+                                await loadColors();
+                                const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
+
+                                const extraCss = hasExplicitUserColors
+                                    ? `\n.message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'} !important; background: ${chatColors.usernameBgColor || '#11ff79'} !important; }`
+                                    : CYBERPUNK_PALETTE.map((p, i) => `\n.message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`).join('');
+                                const finalCss = serverCSS + extraCss;
+                if (finalCss !== lastThemeCSS) {
+                    lastThemeCSS = finalCss;
+                    applyChatTheme(finalCss, isLightTheme);
                 }
-            } else if (!serverHasTheme) {
+            } else {
+                const styleTag = document.getElementById('chat-theme-style');
+                if (styleTag) styleTag.textContent = '';
+                if (chatContainer) chatContainer.classList.remove('theme-light');
+
                 const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
                 if (local && local !== lastThemeCSS) {
                     lastThemeCSS = local;
@@ -449,7 +466,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     applyChatTheme(local, isLightTheme);
                 } else {
                     await loadColors();
-
                     let css = `
                         .message { background: ${chatColors.msgBgColor || '#0a0e12'} !important; color: ${chatColors.textColor || '#e6edf3'} !important; border-left: 8px solid ${chatColors.borderColor || '#161b22'} !important; }
                         .message.odd { background: ${chatColors.msgBgAltColor || '#0d1114'} !important; }
