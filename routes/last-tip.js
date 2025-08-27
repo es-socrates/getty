@@ -67,6 +67,8 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       } else if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
         config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
       }
+      const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof walletAddress === 'string';
+      const effectiveWallet = walletProvided && walletAddress.trim() ? walletAddress.trim() : (config.walletAddress || '');
       const newConfig = {
         ...config,
         bgColor: bgColor || config.bgColor || '#080c10',
@@ -76,11 +78,18 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         iconColor: iconColor || config.iconColor || '#ffffff',
         iconBgColor: iconBgColor || config.iconBgColor || '#4f36ff',
         fromColor: fromColor || config.fromColor || '#e9e9e9',
-        walletAddress: walletAddress || config.walletAddress || '',
+        ...(effectiveWallet ? { walletAddress: effectiveWallet } : {}),
         title: (typeof title === 'string' && title.trim()) ? title.trim() : (config.title || 'Last tip received 👏')
       };
       if (store && ns) {
         await store.set(ns, 'last-tip-config', newConfig);
+        if (walletProvided && effectiveWallet) {
+          try {
+            const tg = await store.get(ns, 'tip-goal-config', null);
+            const newTg = { ...(tg && typeof tg === 'object' ? tg : {}), walletAddress: effectiveWallet };
+            await store.set(ns, 'tip-goal-config', newTg);
+          } catch {}
+        }
 
         try {
           if (wss && typeof wss.broadcast === 'function') {
@@ -89,7 +98,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         } catch {}
         return res.json({ success: true, ...newConfig });
       } else {
-        fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+  fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
         const result = lastTip.updateWalletAddress(newConfig.walletAddress);
         if (typeof lastTip.broadcastConfig === 'function') {
           lastTip.broadcastConfig(newConfig);

@@ -19,6 +19,7 @@ const TipWidgetModule = require('./modules/tip-widget');
 const { TipGoalModule } = require('./modules/tip-goal');
 const ChatModule = require('./modules/chat');
 const ChatNsManager = require('./modules/chat-ns');
+const registerAudioSettingsRoutes = require('./routes/audio-settings');
 const ExternalNotifications = require('./modules/external-notifications');
 const LanguageConfig = require('./modules/language-config');
 const registerTtsRoutes = require('./routes/tts');
@@ -27,7 +28,6 @@ const SocialMediaModule = require('./modules/socialmedia');
 const socialMediaModule = new SocialMediaModule();
 const registerChatRoutes = require('./routes/chat');
 const registerExternalNotificationsRoutes = require('./routes/external-notifications');
-const registerAudioSettingsRoutes = require('./routes/audio-settings');
 const registerGoalAudioRoutes = require('./routes/goal-audio');
 const registerTipGoalRoutes = require('./routes/tip-goal');
 const registerRaffleRoutes = require('./routes/raffle');
@@ -1118,7 +1118,12 @@ app.get('/api/modules', async (req, res) => {
       try {
         const base = lastTip.getStatus?.() || {};
         const merged = { ...base, ...lastTipColors };
-        const wallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
+        const __ltBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
+        const __ltCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
+        const __tgWallet = typeof tipGoalColors.walletAddress === 'string' ? tipGoalColors.walletAddress.trim() : '';
+        const __effLtWallet = __ltCfgWallet || __ltBaseWallet || __tgWallet;
+        if (__effLtWallet) merged.walletAddress = __effLtWallet;
+        const wallet = __effLtWallet;
         merged.active = !!wallet || !!merged.lastDonation;
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }); }
@@ -1140,8 +1145,12 @@ app.get('/api/modules', async (req, res) => {
           merged.goalUsd = (goal * rate).toFixed(2);
         }
 
-    const wallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
-    merged.active = !!wallet || current > 0 || goal > 0;
+      const __tgBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
+      const __tgCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
+      const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
+      if (__effTgWallet) merged.walletAddress = __effTgWallet;
+      const wallet = __effTgWallet;
+      merged.active = !!wallet || current > 0 || goal > 0;
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
     })(),
@@ -1243,7 +1252,6 @@ app.get('/api/metrics', async (req, res) => {
   const bytes5m = __bytesEvents.filter(e => e.ts >= fiveMin).reduce((a,b)=>a+b.bytes,0);
   const bytes1h = __bytesEvents.filter(e => e.ts >= hour).reduce((a,b)=>a+b.bytes,0);
 
-  // Prefer namespaced chat history in hosted mode
   let history = [];
   try {
     const ns = req?.ns?.admin || req?.ns?.pub || null;

@@ -66,22 +66,41 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
       const data = parsed.data;
-      const walletAddress = data.walletAddress || '';
-      const monthlyGoal = typeof data.monthlyGoal === 'number' ? data.monthlyGoal : data.goalAmount;
-      const currentAmount = data.currentAmount ?? data.startingAmount ?? data.currentTips ?? 0;
-      const theme = data.theme || 'classic';
-      const bgColor = data.bgColor;
-      const fontColor = data.fontColor;
-      const borderColor = data.borderColor;
-      const progressColor = data.progressColor;
-      const audioSource = data.audioSource || 'remote';
-      const widgetTitle = (typeof data.title === 'string' && data.title.trim()) ? data.title.trim() : undefined;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+      let prevCfg = null;
+      if (store && ns) {
+        try { prevCfg = await store.get(ns, 'tip-goal-config', null); } catch {}
+      } else {
+        prevCfg = readConfig();
+      }
+      prevCfg = (prevCfg && typeof prevCfg === 'object') ? prevCfg : {};
+
+      const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof data.walletAddress === 'string';
+      const walletAddress = walletProvided && data.walletAddress.trim() ? data.walletAddress.trim() : (prevCfg.walletAddress || '');
+
+      const monthlyGoalProvided = Object.prototype.hasOwnProperty.call(req.body, 'monthlyGoal') || Object.prototype.hasOwnProperty.call(req.body, 'goalAmount');
+      if (!monthlyGoalProvided) {
+        return res.status(400).json({ error: 'Valid goal amount is required' });
+      }
+      const monthlyGoal = (typeof data.monthlyGoal === 'number' ? data.monthlyGoal : data.goalAmount);
+
+      const currentAmountProvided = ['currentAmount','startingAmount','currentTips'].some(k => Object.prototype.hasOwnProperty.call(req.body, k));
+      const currentAmount = currentAmountProvided ? (data.currentAmount ?? data.startingAmount ?? data.currentTips ?? 0)
+        : (typeof prevCfg.currentAmount === 'number' ? prevCfg.currentAmount : (prevCfg.currentTips || 0));
+
+      const theme = Object.prototype.hasOwnProperty.call(req.body, 'theme') ? (data.theme || 'classic') : (prevCfg.theme || 'classic');
+      const bgColor = Object.prototype.hasOwnProperty.call(req.body, 'bgColor') ? data.bgColor : (prevCfg.bgColor);
+      const fontColor = Object.prototype.hasOwnProperty.call(req.body, 'fontColor') ? data.fontColor : (prevCfg.fontColor);
+      const borderColor = Object.prototype.hasOwnProperty.call(req.body, 'borderColor') ? data.borderColor : (prevCfg.borderColor);
+      const progressColor = Object.prototype.hasOwnProperty.call(req.body, 'progressColor') ? data.progressColor : (prevCfg.progressColor);
+      const audioSource = Object.prototype.hasOwnProperty.call(req.body, 'audioSource') ? (data.audioSource || 'remote') : (prevCfg.audioSource || 'remote');
+      const widgetTitle = (typeof data.title === 'string' && data.title.trim()) ? data.title.trim() : (prevCfg.title || undefined);
 
       if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
         return res.status(400).json({ error: 'Valid goal amount is required' });
       }
 
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
   if (!(store && ns)) {
         tipGoal.updateWalletAddress(walletAddress);
         tipGoal.monthlyGoalAR = monthlyGoal;
@@ -101,24 +120,32 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         audioFileSize = req.file.size;
       }
 
-  const config = {
-        walletAddress,
+      const config = {
+        ...(walletAddress ? { walletAddress } : {}),
         monthlyGoal,
         currentAmount,
         theme,
-        bgColor: bgColor || '#080c10',
-        fontColor: fontColor || '#ffffff',
-        borderColor: borderColor || '#00ff7f',
-        progressColor: progressColor || '#00ff7f',
+        bgColor: bgColor || prevCfg.bgColor || '#080c10',
+        fontColor: fontColor || prevCfg.fontColor || '#ffffff',
+        borderColor: borderColor || prevCfg.borderColor || '#00ff7f',
+        progressColor: progressColor || prevCfg.progressColor || '#00ff7f',
         audioSource,
         hasCustomAudio,
         audioFileName,
         audioFileSize,
-        ...(widgetTitle ? { title: widgetTitle } : {}),
-        ...(audioFile ? { customAudioUrl: audioFile } : {})
+        ...(widgetTitle ? { title: widgetTitle } : (prevCfg.title ? { title: prevCfg.title } : {})),
+        ...(audioFile ? { customAudioUrl: audioFile } : (prevCfg.customAudioUrl ? { customAudioUrl: prevCfg.customAudioUrl } : {}))
       };
       if (store && ns) {
         await store.set(ns, 'tip-goal-config', config);
+
+        if (walletProvided && walletAddress) {
+          try {
+            const prevLast = await store.get(ns, 'last-tip-config', null);
+            const newLast = { ...(prevLast && typeof prevLast === 'object' ? prevLast : {}), walletAddress };
+            await store.set(ns, 'last-tip-config', newLast);
+          } catch {}
+        }
       } else {
         fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
       }
