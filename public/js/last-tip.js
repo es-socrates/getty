@@ -114,7 +114,9 @@
     async function loadColors() {
         if (!isOBSWidget) return;
         try {
-            const res = await fetch('/api/modules');
+            const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
+            const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
+            const res = await fetch('/api/modules' + nsQuery);
             const data = await res.json();
             if (data.lastTip) {
                 lastTipColors = {

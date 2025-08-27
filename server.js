@@ -1083,12 +1083,22 @@ app.get('/api/modules', async (req, res) => {
   } catch {}
 
   try {
-    if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+
+    if (store && ns) {
+      const tg = await store.get(ns, 'tip-goal-config', null);
+      if (tg && typeof tg === 'object') tipGoalColors = tg;
+    }
+    if ((!tipGoalColors || Object.keys(tipGoalColors).length === 0) && fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
       tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
     }
   } catch {}
   try {
-    if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+
+    if (store && ns) {
+      const lt = await store.get(ns, 'last-tip-config', null);
+      if (lt && typeof lt === 'object') lastTipColors = lt;
+    }
+    if ((!lastTipColors || Object.keys(lastTipColors).length === 0) && fs.existsSync(LAST_TIP_CONFIG_FILE)) {
       lastTipColors = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
     }
   } catch {}
@@ -1114,7 +1124,14 @@ app.get('/api/modules', async (req, res) => {
         const base = chat.getStatus?.() || {};
         if (store && ns) {
           const st = chatNs?.getStatus?.(ns) || {};
-          return { ...base, connected: !!st.connected, ...chatColors };
+          const out = { ...base, ...chatColors };
+          out.connected = !!st.connected;
+          out.active = !!(st.connected || (typeof chatColors.chatUrl === 'string' && chatColors.chatUrl.trim()));
+
+          if (typeof chatColors.chatUrl === 'string' && chatColors.chatUrl.trim()) {
+            out.chatUrl = chatColors.chatUrl.trim();
+          }
+          return out;
         }
         return { ...base, ...chatColors };
       } catch { return { active: false, ...chatColors }; }

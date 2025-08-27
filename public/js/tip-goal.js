@@ -206,7 +206,9 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadInitialData() {
         await loadAudioSettings();
         
-        fetch('/api/modules')
+    const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
+    const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
+    fetch('/api/modules' + nsQuery)
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.json();
@@ -415,7 +417,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
     const t = (window.__i18n && window.__i18n.t) ? window.__i18n.t : (k=>k);
     let customTitle = t('tipGoalDefaultTitle');
-        fetch('/api/modules')
+    const cookieToken2 = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
+    const nsQuery2 = cookieToken2 ? (`?token=${encodeURIComponent(cookieToken2)}`) : '';
+    fetch('/api/modules' + nsQuery2)
             .then(r => r.ok ? r.json() : null)
             .then(modulesData => {
                 if (modulesData?.tipGoal?.title && modulesData.tipGoal.title.trim()) {

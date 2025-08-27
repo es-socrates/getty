@@ -20,6 +20,7 @@ class ChatNsManager {
     this.sessions = new Map();
     this.channelCache = new Map();
     this.CACHE_TTL_MS = 60 * 60 * 1000;
+    this.__msgCounters = new Map();
   }
 
   _broadcast(ns, payload) {
@@ -70,14 +71,17 @@ class ChatNsManager {
     ws.on('open', () => {
       session.connected = true;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: true } });
+      try { console.info('[chat-ns] connected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
     });
-    ws.on('error', () => {
+    ws.on('error', (err) => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
+      try { console.warn('[chat-ns] error', { ns: (ns||'').slice(0,6) + '…', error: err && err.message ? err.message : String(err) }); } catch {}
     });
     ws.on('close', () => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
+      try { console.info('[chat-ns] disconnected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
 
       if (process.env.NODE_ENV !== 'test') {
         setTimeout(() => {
@@ -187,7 +191,16 @@ class ChatNsManager {
         username: titleFromApi || comment.channel_name || 'Anonymous'
       };
 
-  this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
+      this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
+      try {
+        const key = String(ns);
+        const prev = this.__msgCounters.get(key) || 0;
+        const next = prev + 1;
+        this.__msgCounters.set(key, next);
+        if (next % 25 === 0) {
+          console.info('[chat-ns] messages', { ns: (ns||'').slice(0,6) + '…', count: next });
+        }
+      } catch {}
 
       if (chatMessage.credits > 0) {
         const tipData = {
@@ -197,7 +210,10 @@ class ChatNsManager {
           source: 'chat',
           timestamp: chatMessage.timestamp || new Date().toISOString()
         };
-        try { if (this.wss && typeof this.wss.emit === 'function') this.wss.emit('tip', tipData, ns); } catch {}
+        try {
+          if (this.wss && typeof this.wss.emit === 'function') this.wss.emit('tip', tipData, ns);
+          console.info('[chat-ns] tip', { ns: (ns||'').slice(0,6) + '…', amount: tipData.amount });
+        } catch {}
       }
     }
   }
