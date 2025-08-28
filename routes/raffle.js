@@ -13,9 +13,9 @@ function registerRaffleRoutes(app, raffle, wss) {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const hasNs = !!ns;
       const settings = raffle.getSettings();
-      if (!hasNs) {
+      if (shouldRequireSession && !hasNs) {
 
-  return res.json({});
+        return res.json({});
       }
       res.json(settings);
     } catch (error) {
@@ -24,8 +24,14 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.get('/api/raffle/state', (_req, res) => {
+  app.get('/api/raffle/state', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) {
+          return res.json({ active: false, paused: false, participants: [], totalWinners: 0 });
+        }
+      }
       const state = raffle.getPublicState();
       res.json(state);
     } catch (error) {

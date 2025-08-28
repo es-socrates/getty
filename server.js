@@ -1352,11 +1352,12 @@ wss.on('connection', async (ws) => {
   try {
     let ns = null;
     try { ns = ws.nsToken || null; } catch {}
+    const shouldRequireSession = (process.env.GETTY_REQUIRE_SESSION === '1') || !!process.env.REDIS_URL;
     let initPayload = {
       lastTip: lastTip.getLastDonation(),
       tipGoal: tipGoal.getGoalProgress(),
       persistentTips: externalNotifications.getStatus().lastTips,
-      raffle: raffle.getPublicState()
+      raffle: null
     };
     if (ns && store) {
       try {
@@ -1383,7 +1384,13 @@ wss.on('connection', async (ws) => {
         if (lt && typeof lt === 'object') {
           initPayload.lastTip = { lastDonation: lastTip.getLastDonation(), ...lt };
         }
+
+        initPayload.raffle = raffle.getPublicState();
       } catch {}
+    } else {
+      initPayload.raffle = shouldRequireSession
+        ? { active: false, paused: false, participants: [], totalWinners: 0 }
+        : raffle.getPublicState();
     }
     ws.send(JSON.stringify({ type: 'init', data: initPayload }));
   } catch {}

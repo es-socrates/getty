@@ -52,6 +52,13 @@
             >
               {{ regenLoading ? t('commonUpdating') : t('regeneratePublicToken') }}
             </button>
+            <button
+              class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm disabled:opacity-50"
+              :disabled="!sessionStatus.supported || !sessionStatus.active || !lastPublicToken"
+              @click="exportPublicToken"
+            >
+              {{ t('exportPublicToken') || 'Export public token' }}
+            </button>
           </div>
           <div v-if="lastPublicToken" class="flex gap-2 items-center">
             <input :value="lastPublicToken" readonly class="flex-1 px-2 py-1 rounded-os-sm bg-[var(--bg-chat)] border border-[var(--card-border)] text-xs font-mono" />
@@ -233,6 +240,11 @@ async function load() {
         active: !!ss?.data?.active,
       };
     } catch {}
+
+    try {
+      const pt = await axios.get('/api/session/public-token');
+      if (pt?.data?.publicToken) lastPublicToken.value = pt.data.publicToken;
+    } catch {}
   } catch {}
 }
 onMounted(() => {
@@ -277,6 +289,26 @@ async function copyToken() {
   try {
     await navigator.clipboard.writeText(lastPublicToken.value || '');
     pushToast({ i18nKey: 'urlCopied', type: 'success', timeout: 2000 });
+  } catch {}
+}
+
+function exportPublicToken() {
+  try {
+    if (!lastPublicToken.value) return;
+    const payload = {
+      publicToken: lastPublicToken.value,
+      origin: window.location.origin,
+      createdAt: new Date().toISOString(),
+      note: 'Public token for Getty session. Do not share the admin token.'
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `getty-public-token-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
   } catch {}
 }
 
