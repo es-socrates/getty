@@ -178,10 +178,17 @@ function registerRaffleRoutes(app, raffle, wss) {
   }
   function broadcastRaffleWinner(wss, winner, ns) {
     try {
+      const pub = (() => { try { return raffle.getPublicState(ns); } catch { return {}; } })();
+      const payloadObj = { type: 'raffle_winner', 
+        ...(typeof winner === 'object' ? winner : { winner }),
+        command: pub.command,
+        prize: pub.prize,
+        imageUrl: pub.imageUrl
+      };
       if (typeof wss.broadcast === 'function' && ns) {
-        wss.broadcast(ns, { type: 'raffle_winner', winner });
+        wss.broadcast(ns, payloadObj);
       } else {
-        const payload = JSON.stringify({ type: 'raffle_winner', winner });
+        const payload = JSON.stringify(payloadObj);
         wss.clients.forEach(client => {
           try {
             if (client.readyState !== WebSocket.OPEN) return;

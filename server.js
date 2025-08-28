@@ -1044,8 +1044,8 @@ app.get('/api/modules', async (req, res) => {
     if (store && ns) {
       const tg = await store.get(ns, 'tip-goal-config', null);
       if (tg && typeof tg === 'object') tipGoalColors = tg;
-    }
-    if ((!tipGoalColors || Object.keys(tipGoalColors).length === 0) && fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+
+    } else if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
       tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
     }
   } catch {}
@@ -1099,7 +1099,7 @@ app.get('/api/modules', async (req, res) => {
         return sanitizeIfNoNs(out);
       } catch { return sanitizeIfNoNs(tipWidget.getStatus()); }
     })(),
-    tipGoal: (() => {
+  tipGoal: (() => {
       try {
         const base = tipGoal.getStatus?.() || {};
         const merged = { ...base, ...tipGoalColors };
@@ -1121,8 +1121,18 @@ app.get('/api/modules', async (req, res) => {
         const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
         if (__effTgWallet) merged.walletAddress = __effTgWallet;
         const wallet = __effTgWallet;
-        merged.active = !!wallet || current > 0 || goal > 0;
-        merged.initialized = !!(merged.initialized || wallet || current > 0 || goal > 0);
+
+        merged.active = !!wallet;
+        merged.initialized = !!wallet;
+        if (!wallet) {
+          merged.title = 'Configure tip goal 💸';
+          merged.monthlyGoal = 0;
+          merged.currentAmount = 0;
+          merged.currentTips = 0;
+          merged.usdValue = '0.00';
+          merged.goalUsd = '0.00';
+          merged.progress = 0;
+        }
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
     })(),
@@ -1176,10 +1186,14 @@ app.get('/api/modules', async (req, res) => {
         return { active: false };
       } catch { return { active: false }; }
     })(),
-    raffle: (() => {
+    raffle: (async () => {
       try {
-  const adminNs = ns && req?.ns?.admin ? req.ns.admin : null;
-  const st = raffle.getPublicState(adminNs);
+
+        let adminNs = ns && req?.ns?.admin ? req.ns.admin : null;
+        if (!adminNs && store && ns && req?.ns?.pub) {
+          try { const mapped = await store.get(ns, 'adminToken', null); if (mapped) adminNs = mapped; } catch {}
+        }
+        const st = raffle.getPublicState(adminNs);
         return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0 };
       } catch { return { active: false, participants: [] }; }
     })(),
@@ -1210,6 +1224,15 @@ app.get('/api/modules', async (req, res) => {
   payload.masked = true;
   payload.maskedReason = 'no_session';
   }
+
+  try {
+    const keys = Object.keys(payload);
+    for (const k of keys) {
+      if (payload[k] && typeof payload[k].then === 'function') {
+        payload[k] = await payload[k];
+      }
+    }
+  } catch {}
 
   res.json(payload);
 });
@@ -1381,6 +1404,9 @@ wss.on('connection', async (ws) => {
             progressColor: tg.progressColor,
             title: tg.title
           };
+        } else {
+
+          initPayload.tipGoal = { currentTips: 0, monthlyGoal: 0, progress: 0, exchangeRate: 0, usdValue: '0.00', goalUsd: '0.00', title: 'Configure tip goal 💸' };
         }
         if (lt && typeof lt === 'object') {
           initPayload.lastTip = { lastDonation: lastTip.getLastDonation(), ...lt };

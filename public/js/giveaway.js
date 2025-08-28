@@ -201,8 +201,11 @@ const reconnectDelay = 3000;
 
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    const wsUrl = protocol + window.location.host + '/ws';
-    ws = new WebSocket(wsUrl);
+    const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1]
+        || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1]
+        || new URLSearchParams(location.search).get('token') || '';
+    const q = cookieToken ? `/?token=${encodeURIComponent(cookieToken)}` : '';
+    ws = new WebSocket(protocol + window.location.host + q);
 
     ws.onopen = () => {
         reconnectAttempts = 0;
