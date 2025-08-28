@@ -1024,6 +1024,8 @@ app.get('/api/activity/export', (req, res) => {
 app.get('/api/modules', async (req, res) => {
   const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
   const ns = req?.ns?.admin || req?.ns?.pub || null;
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hosted = !!(store && store.redis) || !!process.env.REDIS_URL;
 
   let tipGoalColors = {};
   let lastTipColors = {};
@@ -1069,7 +1071,7 @@ app.get('/api/modules', async (req, res) => {
     try { return Array.from(wss.clients).filter(c=>c && c.readyState === 1).length; } catch { return 0; }
   })();
 
-  res.json({
+  const payload = {
     lastTip: (() => {
       try {
         const base = lastTip.getStatus?.() || {};
@@ -1181,7 +1183,23 @@ app.get('/api/modules', async (req, res) => {
       } catch { return { active: false, participants: [] }; }
     })(),
     system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' }
-  });
+  };
+
+  if ((requireSessionFlag || hosted) && !hasNs) {
+    try { if (payload.lastTip) payload.lastTip.active = false; } catch {}
+    try { if (payload.tipWidget) payload.tipWidget.active = false; } catch {}
+    try { if (payload.tipGoal) { payload.tipGoal.active = false; if (typeof payload.tipGoal.initialized !== 'undefined') payload.tipGoal.initialized = false; } } catch {}
+    try { if (payload.chat) { payload.chat.connected = false; payload.chat.active = false; } } catch {}
+    try { if (payload.announcement) payload.announcement.active = false; } catch {}
+    try { if (payload.externalNotifications) payload.externalNotifications.active = false; } catch {}
+    try { if (payload.liveviews) payload.liveviews.active = false; } catch {}
+    try { if (payload.raffle) payload.raffle.active = false; } catch {}
+
+  payload.masked = true;
+  payload.maskedReason = 'no_session';
+  }
+
+  res.json(payload);
 });
 
 app.get('/api/metrics', async (req, res) => {

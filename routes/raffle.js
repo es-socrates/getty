@@ -17,6 +17,11 @@ function registerRaffleRoutes(app, raffle, wss) {
         const rest = { ...settings };
         delete rest.participants;
         delete rest.previousWinners;
+
+        if (rest && typeof rest === 'object') {
+          delete rest.command;
+          delete rest.prize;
+        }
         return res.json(rest);
       }
       res.json(settings);

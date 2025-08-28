@@ -32,9 +32,15 @@ function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
 }
 
 function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json') {
-  app.get('/api/audio-settings', (_req, res) => {
+  app.get('/api/audio-settings', (req, res) => {
     try {
       const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.json({ audioSource: 'remote', hasCustomAudio: false });
+      }
       res.json(settings);
     } catch (error) {
       console.error('Error getting audio settings:', error);
@@ -44,6 +50,12 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
 
   app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
     try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.status(401).json({ error: 'no_session' });
+      }
       const { audioSource } = req.body;
       if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
         return res.status(400).json({ error: 'Invalid audio source' });

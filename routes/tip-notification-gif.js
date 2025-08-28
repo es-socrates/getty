@@ -71,11 +71,29 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
   }
 
-  app.get('/api/tip-notification-gif', (_req, res) => {
-    res.json(loadConfig());
+  app.get('/api/tip-notification-gif', (req, res) => {
+    try {
+      const cfg = loadConfig();
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+
+        return res.json({ gifPath: cfg.gifPath || '', position: undefined, width: cfg.width || 0, height: cfg.height || 0 });
+      }
+      res.json(cfg);
+    } catch {
+      res.status(500).json({ error: 'Error loading config' });
+    }
   });
 
   app.post('/api/tip-notification-gif', strictLimiter, (req, res, next) => {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const hosted = !!process.env.REDIS_URL;
+    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    if ((requireSessionFlag || hosted) && !hasNs) {
+      return res.status(401).json({ error: 'no_session' });
+    }
     upload.single('gifFile')(req, res, function (err) {
       if (err) {
         return res.status(400).json({ error: err.message });
@@ -110,6 +128,12 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
   });
 
   app.delete('/api/tip-notification-gif', strictLimiter, (req, res) => {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const hosted = !!process.env.REDIS_URL;
+    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    if ((requireSessionFlag || hosted) && !hasNs) {
+      return res.status(401).json({ error: 'no_session' });
+    }
     try {
       const config = loadConfig();
       if (config.gifPath) {

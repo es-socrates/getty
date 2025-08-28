@@ -2,7 +2,7 @@
   <section class="admin-tab active">
     <OsCard :title="t('statusModules')" class="mb-4">
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
-        <div v-for="m in modulesList" :key="m.key" class="os-subtle p-3 rounded-os-sm">
+        <div v-for="m in modulesList" :key="m.key" class="os-subtle p-3 rounded-os-sm" :title="m.tooltip || ''">
           <div class="flex items-center gap-2 font-semibold text-sm">
             <span :class="['w-2 h-2 rounded-full', m.active ? 'bg-[#16a34a]' : 'bg-neutral-400']"></span>
             {{ m.label }}
@@ -170,14 +170,17 @@ async function load() {
     const r = await axios.get('/api/modules');
     const d = r.data;
     system.value = d.system || null;
+  const masked = !!d.masked;
+  const tooltip = masked ? t('statusMaskedTooltip') : '';
   modulesList.value = [
-      { key: 'lastTip', label: t('lastTip'), active: d.lastTip?.active !== false },
-      { key: 'tipGoal', label: t('tipGoal'), active: d.tipGoal?.active !== false },
-      { key: 'chat', label: t('chat'), active: d.chat?.active !== false },
+      { key: 'lastTip', label: t('lastTip'), active: d.lastTip?.active !== false, tooltip },
+      { key: 'tipGoal', label: t('tipGoal'), active: d.tipGoal?.active !== false, tooltip },
+      { key: 'chat', label: t('chat'), active: d.chat?.active !== false, tooltip },
       {
         key: 'announcement',
         label: t('announcementTitle'),
         active: d.announcement?.active,
+        tooltip,
         extra: d.announcement
           ? t('statusAnnouncements', {
               enabled: d.announcement.enabledMessages,
@@ -189,23 +192,27 @@ async function load() {
         key: 'socialmedia',
         label: t('socialMediaTitle'),
         active: d.socialmedia?.configured,
+        tooltip,
         extra: d.socialmedia ? t('statusItems', { n: d.socialmedia.entries }) : '',
       },
       {
         key: 'externalNotifications',
         label: t('externalNotificationsTitle'),
         active: d.externalNotifications?.active,
+        tooltip,
       },
       {
         key: 'liveviews',
         label: t('liveviewsTitle'),
         active: !!d.liveviews?.active,
+        tooltip,
         extra: d.liveviews?.claimid ? t('statusItems', { n: 1 }) : '',
       },
       {
         key: 'raffle',
         label: t('raffleTitle'),
         active: !!d.raffle?.active,
+        tooltip,
         extra: (() => {
           const parts = [];
           if (typeof d.raffle?.participants?.length === 'number') {
@@ -309,9 +316,9 @@ async function onImportFile(e) {
         lastTip: typeof restored.lastTip === 'boolean' ? restored.lastTip : null,
         tipGoal: typeof restored.tipGoal === 'boolean' ? restored.tipGoal : null,
         socialmedia: typeof restored.socialmedia === 'boolean' ? restored.socialmedia : null,
-        external: typeof restored.external === 'boolean' ? restored.external : null,
-        liveviews: typeof restored.liveviews === 'boolean' ? restored.liveviews : null,
-        announcement: typeof restored.announcement === 'boolean' ? restored.announcement : null,
+  external: typeof restored.external === 'boolean' ? restored.external : null,
+  liveviews: typeof restored.liveviews === 'boolean' ? restored.liveviews : null,
+  announcement: typeof restored.announcement === 'boolean' ? restored.announcement : null,
       };
       pushToast({ message: t('importedOk'), type: 'success', timeout: 2500, autoTranslate: false });
       load();

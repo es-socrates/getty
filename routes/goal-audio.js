@@ -82,8 +82,14 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
     }
   }
 
-  app.get('/api/goal-audio-settings', (_req, res) => {
+  app.get('/api/goal-audio-settings', (req, res) => {
     try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.json({ audioSource: 'remote', hasCustomAudio: false });
+      }
       const file = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
       if (fs.existsSync(file)) {
         const settings = JSON.parse(fs.readFileSync(file, 'utf8'));
