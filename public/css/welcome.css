@@ -246,3 +246,18 @@ html:not(.dark) .light-logo {
 html:not(.dark) .theme-toggle .sun-icon {
   display: block;
 }
+
+.lang-select {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  font-weight: 600;
+}
+
+.lang-select:hover,
+.lang-select:focus {
+  background-color: var(--bg-card);
+  outline: none;
+}

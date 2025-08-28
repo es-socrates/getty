@@ -381,11 +381,11 @@ class TipGoalModule {
     }
     
     updateWalletAddress(newAddress) {
-        if (!newAddress || newAddress === this.walletAddress) {
 
+        if (newAddress === this.walletAddress) {
             return this.getStatus();
         }
-        this.walletAddress = newAddress;
+        this.walletAddress = newAddress || '';
         const fs = require('fs');
         const path = require('path');
         const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
@@ -397,7 +397,7 @@ class TipGoalModule {
                 console.error('[TipGoal] Error reading config for wallet update:', e);
             }
         }
-        config.walletAddress = newAddress;
+        config.walletAddress = this.walletAddress;
         try {
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
         } catch (e) {
@@ -407,7 +407,8 @@ class TipGoalModule {
         this.currentTipsAR = 0;
         this.lastDonationTimestamp = null;
         this.sendGoalUpdate();
-        if (process.env.NODE_ENV !== 'test') {
+
+        if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
             this.checkTransactions(true);
         }
         return this.getStatus();

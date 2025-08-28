@@ -298,7 +298,7 @@ class LastTipModule {
   }
   
   updateWalletAddress(newAddress) {
-    this.walletAddress = newAddress;
+    this.walletAddress = newAddress || '';
     this.processedTxs = new Set();
     this.lastDonation = null;
 
@@ -314,13 +314,15 @@ class LastTipModule {
         console.error('[LastTip] Error reading config for wallet update:', e);
       }
     }
-    config.walletAddress = newAddress;
+    config.walletAddress = this.walletAddress;
     try {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     } catch (e) {
       console.error('[LastTip] Error writing wallet address to config:', e);
     }
-    this.updateLatestDonation();
+    if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
+      this.updateLatestDonation();
+    }
     return this.getStatus();
   }
   

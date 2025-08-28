@@ -5,6 +5,54 @@
 // - Raffle element tagging
 
 ;(function() {
+  try {
+    function getCookie(name) {
+      try {
+        const cname = name + '=';
+        const parts = document.cookie.split(';');
+        for (let i = 0; i < parts.length; i++) {
+          let c = parts[i].trim();
+          if (c.indexOf(cname) === 0) return decodeURIComponent(c.substring(cname.length));
+        }
+      } catch (_) {}
+      return null;
+    }
+    function setCookie(name, value, days) {
+      try {
+        const d = new Date();
+        d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+        const expires = 'expires=' + d.toUTCString();
+        const secure = location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = name + '=' + encodeURIComponent(value) + '; ' + expires + '; Path=/' + '; SameSite=Lax' + secure;
+      } catch (_) {}
+    }
+    const langSel = document.getElementById('language-selector');
+    let savedLang = null;
+    try { savedLang = localStorage.getItem('lang'); } catch {}
+    const cookieLang = getCookie('getty_lang');
+    const currentLang = (cookieLang || savedLang || (window.__i18n && window.__i18n.getLanguage && window.__i18n.getLanguage()) || 'en');
+    if (langSel && langSel.value !== currentLang) {
+      langSel.value = currentLang;
+    }
+    try {
+      if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+        window.__i18n.setLanguage(currentLang);
+      }
+    } catch (_) {}
+    if (langSel) {
+      langSel.addEventListener('change', function() {
+        const lang = langSel.value;
+        try { localStorage.setItem('lang', lang); } catch {}
+        setCookie('getty_lang', lang, 365);
+        try {
+          if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+            window.__i18n.setLanguage(lang);
+          }
+        } catch (_) {}
+      });
+    }
+  } catch (_) {}
+
   const userMenuButton = document.getElementById('user-menu-button');
   const userMenu = document.getElementById('user-menu');
   const themeToggle = document.getElementById('theme-toggle');

@@ -45,6 +45,9 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
 
   app.post('/api/last-tip', async (req, res) => {
     try {
+    if (store && store.redis && !(req?.ns?.admin || req?.ns?.pub)) {
+        return res.status(401).json({ error: 'no_session' });
+      }
       const schema = z.object({
         walletAddress: z.string().optional(),
         bgColor: z.string().optional(),
@@ -68,7 +71,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
       }
       const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof walletAddress === 'string';
-      const effectiveWallet = walletProvided && walletAddress.trim() ? walletAddress.trim() : (config.walletAddress || '');
+      const effectiveWallet = walletProvided ? (walletAddress || '').trim() : (config.walletAddress || '');
       const newConfig = {
         ...config,
         bgColor: bgColor || config.bgColor || '#080c10',
@@ -78,12 +81,13 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         iconColor: iconColor || config.iconColor || '#ffffff',
         iconBgColor: iconBgColor || config.iconBgColor || '#4f36ff',
         fromColor: fromColor || config.fromColor || '#e9e9e9',
-        ...(effectiveWallet ? { walletAddress: effectiveWallet } : {}),
+
+      ...(walletProvided ? { walletAddress: effectiveWallet } : {}),
         title: (typeof title === 'string' && title.trim()) ? title.trim() : (config.title || 'Last tip received 👏')
       };
       if (store && ns) {
         await store.set(ns, 'last-tip-config', newConfig);
-        if (walletProvided && effectiveWallet) {
+      if (walletProvided) {
           try {
             const tg = await store.get(ns, 'tip-goal-config', null);
             const newTg = { ...(tg && typeof tg === 'object' ? tg : {}), walletAddress: effectiveWallet };

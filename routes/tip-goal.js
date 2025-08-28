@@ -37,7 +37,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         const isLocal = isLocalIp || isLocalHostHeader;
         const hideForRemoteLocalMode = (!hosted && !isLocal);
         const hideInHosted = (hosted && !hasNs && !isLocal);
-  if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
+        if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
           delete out.walletAddress;
         }
       } catch {}
@@ -48,6 +48,10 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
   });
   app.post('/api/tip-goal', strictLimiter, goalAudioUpload.single('audioFile'), async (req, res) => {
     try {
+
+  if (store && store.redis && !(req?.ns?.admin || req?.ns?.pub)) {
+        return res.status(401).json({ error: 'no_session' });
+      }
       const schema = z.object({
         walletAddress: z.string().default(''),
         monthlyGoal: z.coerce.number().positive().optional(),
@@ -77,7 +81,10 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       prevCfg = (prevCfg && typeof prevCfg === 'object') ? prevCfg : {};
 
       const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof data.walletAddress === 'string';
-      const walletAddress = walletProvided && data.walletAddress.trim() ? data.walletAddress.trim() : (prevCfg.walletAddress || '');
+      let walletAddress = (prevCfg && typeof prevCfg.walletAddress === 'string') ? prevCfg.walletAddress : '';
+      if (walletProvided) {
+        walletAddress = (data.walletAddress || '').trim();
+      }
 
       const monthlyGoalProvided = Object.prototype.hasOwnProperty.call(req.body, 'monthlyGoal') || Object.prototype.hasOwnProperty.call(req.body, 'goalAmount');
       if (!monthlyGoalProvided) {
@@ -101,7 +108,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         return res.status(400).json({ error: 'Valid goal amount is required' });
       }
 
-  if (!(store && ns)) {
+      if (!(store && ns)) {
         tipGoal.updateWalletAddress(walletAddress);
         tipGoal.monthlyGoalAR = monthlyGoal;
         tipGoal.currentTipsAR = currentAmount;
@@ -121,7 +128,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       }
 
       const config = {
-        ...(walletAddress ? { walletAddress } : {}),
+        // Always include walletAddress to allow explicit clearing when empty
+        walletAddress,
         monthlyGoal,
         currentAmount,
         theme,
@@ -139,7 +147,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       if (store && ns) {
         await store.set(ns, 'tip-goal-config', config);
 
-        if (walletProvided && walletAddress) {
+        if (walletProvided) {
           try {
             const prevLast = await store.get(ns, 'last-tip-config', null);
             const newLast = { ...(prevLast && typeof prevLast === 'object' ? prevLast : {}), walletAddress };

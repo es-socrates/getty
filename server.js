@@ -106,6 +106,20 @@ try { app.use(cookieParser()); } catch {}
 try { app.use(compression()); } catch {}
 try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
 
+try {
+  app.use((req, res, next) => {
+    try {
+      if (req.path && req.path.startsWith('/api/')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+      }
+    } catch {}
+    next();
+  });
+} catch {}
+
 const ADMIN_COOKIE = 'getty_admin_token';
 const PUBLIC_COOKIE = 'getty_public_token';
 const SECURE_COOKIE = () => (process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production');
@@ -852,11 +866,9 @@ try {
   if (process.env.NODE_ENV === 'test') return next();
       const wantsHtml = req.accepts(['html','json']) === 'html';
       const hasNsCookie = !!(req.cookies?.[ADMIN_COOKIE] || req.cookies?.[PUBLIC_COOKIE]);
-  const seen = req.cookies?.['getty_seen_welcome'] === '1';
-      const hasAnyConfig = [TIP_GOAL_CONFIG_FILE, LAST_TIP_CONFIG_FILE, CHAT_CONFIG_FILE]
-        .some(fp => { try { return fs.existsSync(fp); } catch { return false; } });
+      const seen = req.cookies?.['getty_seen_welcome'] === '1';
 
-  if (wantsHtml && !hasNsCookie && !hasAnyConfig && !seen) {
+    if (wantsHtml && !hasNsCookie && !seen) {
         const cookieOpts = {
           httpOnly: false,
           sameSite: 'Lax',
