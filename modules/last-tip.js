@@ -354,6 +354,27 @@ class LastTipModule {
       processedTxs: this.processedTxs.size
     };
   }
+
+  async fetchLastDonation(address) {
+    try {
+      if (typeof address !== 'string' || !address.trim()) return null;
+      const txs = await this.getEnhancedTransactions(address.trim());
+      if (!Array.isArray(txs) || txs.length === 0) return null;
+      const sorted = txs
+        .filter(tx => tx && tx.id && (typeof tx.amount === 'string' || typeof tx.amount === 'number'))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      const seen = new Set();
+      for (const tx of sorted) {
+        if (seen.has(tx.id)) continue;
+        seen.add(tx.id);
+        const d = this.toDonation(tx);
+        if (d) return d;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 module.exports = LastTipModule;

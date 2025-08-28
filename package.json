@@ -23,7 +23,8 @@
     "build": "npm-run-all --sequential build-css minify-css build:i18n admin:build minify-html minify-js",
     "lint": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --cache --max-warnings=0",
     "lint:fix": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --fix --cache",
-    "report:unused-css": "node scripts/unused-css-report.js"
+    "report:unused-css": "node scripts/unused-css-report.js",
+    "verify:hosted": "node scripts/hosted-verify.js"
   },
   "engines": {
     "node": ">=18"
