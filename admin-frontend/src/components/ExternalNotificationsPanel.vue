@@ -1,5 +1,12 @@
 <template>
-  <section class="admin-tab active" role="form">
+  <section class="admin-tab active relative" role="form">
+    <div v-if="masked" class="absolute inset-0 z-10 flex items-center justify-center" style="backdrop-filter: blur(4px); background: rgba(0,0,0,0.35);">
+      <div class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+        <div class="mb-2 text-lg font-semibold">{{ t('externalSessionRequiredTitle') }}</div>
+        <p class="mb-4 text-sm">{{ t('externalSessionRequiredBody') }}</p>
+        <a href="/new-session" class="btn">{{ t('createSession') }}</a>
+      </div>
+    </div>
     <OsCard>
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
@@ -80,7 +87,7 @@
       <small v-if="obsErrors.ip || obsErrors.port" class="small" style="color:#b91c1c">
         {{ obsErrors.ip || obsErrors.port }}
       </small>
-      <button class="btn mt-2" :disabled="!obsDirty || hasObsErrors || obsSaving" @click="saveObs" :aria-busy="obsSaving ? 'true':'false'">
+  <button class="btn mt-2" :disabled="!obsDirty || hasObsErrors || obsSaving || masked" @click="saveObs" :aria-busy="obsSaving ? 'true':'false'">
         <span v-if="obsSaving">{{ t('commonSaving') }}</span>
         <span v-else>{{ t('saveObsWsSettings') }}</span>
       </button>
@@ -125,7 +132,7 @@
         <small class="small">{{ t('externalTemplateHint') }}</small>
       </div>
   <div class="flex gap-2 items-center" role="group" aria-label="External notifications actions">
-  <button class="btn" :disabled="!dirty || hasErrors || saving" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
+  <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
     <span class="small" :style="{color: statusActive ? '#16a34a':'#888'}" :aria-live="dirty ? 'polite':'off'">{{ statusActive ? t('externalStatusActive'): t('externalStatusInactive') }}</span>
       </div>
   </OsCard>
@@ -163,6 +170,8 @@ import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
 
+const masked = ref(false);
+
 const reveal = reactive({ discord: false, obsIp: false, obsPwd: false, telegram: false });
 
 const form = ref({
@@ -193,11 +202,15 @@ watch(form, () => {
 
 async function load() {
   try {
-    const r = await axios.get('/api/external-notifications');
-    form.value.discordWebhook = r.data.config.discordWebhook || '';
-    form.value.telegramBotToken = r.data.config.telegramBotToken || '';
-    form.value.telegramChatId = r.data.config.telegramChatId || '';
-    form.value.template = r.data.config.template || '';
+    const [modulesRes, r] = await Promise.all([
+      axios.get('/api/modules').catch(() => ({ data: {} })),
+      axios.get('/api/external-notifications')
+    ]);
+    masked.value = !!modulesRes?.data?.masked;
+    form.value.discordWebhook = r.data.config?.discordWebhook || '';
+    form.value.telegramBotToken = r.data.config?.telegramBotToken || '';
+    form.value.telegramChatId = r.data.config?.telegramChatId || '';
+    form.value.template = r.data.config?.template || '';
     statusActive.value = !!r.data.active;
     initial.value = JSON.stringify(form.value);
     dirty.value = false;
@@ -240,6 +253,10 @@ function validateObs() {
 }
 
 async function saveObs() {
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('externalSessionRequiredToast') });
+    return;
+  }
   validateObs();
   if (hasObsErrors.value) return;
   try {
@@ -281,6 +298,10 @@ function validate() {
 }
 
 async function save() {
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('externalSessionRequiredToast') });
+    return;
+  }
   validate();
   if (hasErrors.value) return;
   try {

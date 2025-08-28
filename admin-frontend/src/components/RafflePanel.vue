@@ -1,5 +1,12 @@
 <template>
-  <section class="admin-tab active" role="form">
+  <section class="admin-tab active relative" role="form">
+    <div v-if="masked" class="absolute inset-0 z-10 flex items-center justify-center" style="backdrop-filter: blur(4px); background: rgba(0,0,0,0.35);">
+      <div class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+        <div class="mb-2 text-lg font-semibold">{{ t('raffleSessionRequiredTitle') }}</div>
+        <p class="mb-4 text-sm">{{ t('raffleSessionRequiredBody') }}</p>
+        <a href="/new-session" class="btn">{{ t('createSession') }}</a>
+      </div>
+    </div>
     <div v-if="warning" class="os-subtle mt-3 p-4 rounded-os" role="status" aria-live="polite">
       <div class="flex items-center gap-2">
         <svg width="24" height="24" fill="none" style="flex-shrink:0;">
@@ -74,6 +81,7 @@ import { MAX_RAFFLE_IMAGE } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
 
 const { t } = useI18n();
+const masked = ref(false);
 
 const form = reactive({
   command: '!giveaway',
@@ -132,16 +140,22 @@ function applyState(s) {
 }
 
 async function load() {
-  const [settingsRes, stateRes] = await Promise.all([
-    axios.get('/api/raffle/settings'),
-    axios.get('/api/raffle/state')
+  const [modulesRes, settingsRes, stateRes] = await Promise.all([
+    axios.get('/api/modules').catch(() => ({ data: {} })),
+    axios.get('/api/raffle/settings').catch(() => ({ data: {} })),
+    axios.get('/api/raffle/state').catch(() => ({ data: {} })),
   ]);
+  masked.value = !!modulesRes?.data?.masked;
   Object.assign(form, settingsRes.data);
   applyState(stateRes.data);
 }
 
 async function saveSettings() {
   try {
+    if (masked.value) {
+      pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+      return;
+    }
     savingSettings.value = true;
     await axios.post('/api/raffle/settings', form);
     await load();
@@ -175,6 +189,10 @@ async function reset() { action.value = 'reset'; await doAction('/api/raffle/res
 
 async function doAction(endpoint, successKey, after) {
   try {
+    if (masked.value) {
+      pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+      return;
+    }
     savingAction.value = true;
     await axios.post(endpoint);
     await load();
