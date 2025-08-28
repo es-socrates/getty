@@ -10,13 +10,11 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.get('/api/raffle/settings', (req, res) => {
     try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const hasNs = !!ns;
-      const settings = raffle.getSettings();
-      if (shouldRequireSession && !hasNs) {
-
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) {
         return res.json({});
       }
+      const settings = raffle.getSettings(adminNs);
       res.json(settings);
     } catch (error) {
       console.error('Error in GET /api/raffle/settings:', error);
@@ -26,13 +24,11 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.get('/api/raffle/state', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) {
-          return res.json({ active: false, paused: false, participants: [], totalWinners: 0 });
-        }
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) {
+        return res.json({ active: false, paused: false, participants: [], totalWinners: 0 });
       }
-      const state = raffle.getPublicState();
+      const state = raffle.getPublicState(adminNs);
       res.json(state);
     } catch (error) {
       console.error('Error in GET /api/raffle/state:', error);
@@ -42,10 +38,8 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/settings', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const schema = z.object({
         command: z.string().trim().default('!giveaway'),
         prize: z.string().trim().min(1).max(15),
@@ -73,8 +67,8 @@ function registerRaffleRoutes(app, raffle, wss) {
           : (first?.message || 'Invalid payload');
         return res.status(400).json({ success: false, error: msg });
       }
-      const settings = parsed.data;
-      raffle.saveSettings(settings);
+  const settings = parsed.data;
+  raffle.saveSettings(adminNs, settings);
       res.json({ success: true });
     } catch (error) {
       console.error('Error in POST /api/raffle/settings:', error);
@@ -84,12 +78,10 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/start', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
-      raffle.start();
-      broadcastRaffleState(wss, raffle);
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      raffle.start(adminNs);
+      broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
@@ -98,12 +90,10 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/stop', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
-      raffle.stop();
-      broadcastRaffleState(wss, raffle);
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      raffle.stop(adminNs);
+      broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
@@ -112,12 +102,10 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/pause', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
-      raffle.pause();
-      broadcastRaffleState(wss, raffle);
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      raffle.pause(adminNs);
+      broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
@@ -126,12 +114,10 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/resume', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
-      raffle.resume();
-      broadcastRaffleState(wss, raffle);
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      raffle.resume(adminNs);
+      broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
@@ -140,13 +126,11 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/draw', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
-      const winner = raffle.drawWinner();
-      broadcastRaffleWinner(wss, winner);
-      broadcastRaffleState(wss, raffle);
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const winner = raffle.drawWinner(adminNs);
+      broadcastRaffleWinner(wss, winner, adminNs);
+      broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true, winner });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
@@ -155,12 +139,10 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/reset', (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
-      }
-      raffle.resetWinners();
-      broadcastRaffleState(wss, raffle);
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      raffle.resetWinners(adminNs);
+      broadcastRaffleState(wss, raffle, adminNs, { reset: true });
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
@@ -168,31 +150,48 @@ function registerRaffleRoutes(app, raffle, wss) {
   });
 
   app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), (req, res) => {
-    if (shouldRequireSession) {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (!ns) return res.status(401).json({ error: 'session_required' });
-    }
+    const adminNs = req?.ns?.admin || null;
+    if (shouldRequireSession && !adminNs) return res.status(401).json({ error: 'session_required' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const imageUrl = `/uploads/raffle/${req.file.filename}`;
-
-    raffle.imageUrl = imageUrl;
-    raffle.saveSettingsToFile();
+    raffle.setImage(adminNs, imageUrl);
     res.json({ imageUrl });
   });
 
-  function broadcastRaffleState(wss, raffle) {
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState() }));
+  function broadcastRaffleState(wss, raffle, ns, extra = {}) {
+    try {
+      if (typeof wss.broadcast === 'function' && ns) {
+        wss.broadcast(ns, { type: 'raffle_state', ...raffle.getPublicState(ns), ...extra });
+      } else {
+
+        const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(ns), ...extra });
+        wss.clients.forEach(client => {
+          try {
+            if (client.readyState !== WebSocket.OPEN) return;
+            if (ns && client.nsToken && client.nsToken !== ns) return;
+            if (ns && !client.nsToken) return;
+            client.send(payload);
+          } catch {}
+        });
       }
-    });
+    } catch {}
   }
-  function broadcastRaffleWinner(wss, winner) {
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: 'raffle_winner', winner }));
+  function broadcastRaffleWinner(wss, winner, ns) {
+    try {
+      if (typeof wss.broadcast === 'function' && ns) {
+        wss.broadcast(ns, { type: 'raffle_winner', winner });
+      } else {
+        const payload = JSON.stringify({ type: 'raffle_winner', winner });
+        wss.clients.forEach(client => {
+          try {
+            if (client.readyState !== WebSocket.OPEN) return;
+            if (ns && client.nsToken && client.nsToken !== ns) return;
+            if (ns && !client.nsToken) return;
+            client.send(payload);
+          } catch {}
+        });
       }
-    });
+    } catch {}
   }
 }
 

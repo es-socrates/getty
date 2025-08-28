@@ -206,6 +206,7 @@ function connectWebSocket() {
 
     ws.onopen = () => {
         reconnectAttempts = 0;
+        try { ws.send(JSON.stringify({ type: 'get_raffle_state' })); } catch (e) { /* ignore */ }
     };
 
     ws.onmessage = (event) => {
@@ -224,6 +225,8 @@ function connectWebSocket() {
                     localStorage.removeItem(STORAGE_KEY);
                 }
                 updateRaffleState(data);
+            } else if (data.type === 'init' && data.data && data.data.raffle) {
+                updateRaffleState(data.data.raffle, true);
             } else if (data.type === 'raffle_winner') {
                 handleWinner(data);
             }

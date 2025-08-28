@@ -116,23 +116,27 @@ class ChatModule {
 
       try {
         const raffle = global.gettyRaffleInstance;
-        if (
-          raffle &&
-          typeof raffle.addParticipant === 'function' &&
-          raffle.active &&
-          !raffle.paused &&
-          typeof raffle.command === 'string' &&
-          typeof chatMessage.message === 'string'
-        ) {
-
-          const msg = (chatMessage.message || '').trim().toLowerCase();
-          const cmd = (raffle.command || '').trim().toLowerCase();
-          const msgNorm = msg.replace(/^!+/, '');
-          const cmdNorm = cmd.replace(/^!+/, '');
-          if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
-            const added = raffle.addParticipant(chatMessage.username, chatMessage.userId);
-            if (added) {
-              Logger.info(`[Giveaway] New participant: ${chatMessage.username}`);
+        const ns = null;
+        if (raffle && typeof raffle.getPublicState === 'function' && typeof raffle.addParticipant === 'function') {
+          const st = raffle.getPublicState(ns);
+          if (st && st.active && !st.paused && typeof st.command === 'string' && typeof chatMessage.message === 'string') {
+            const msg = (chatMessage.message || '').trim().toLowerCase();
+            const cmd = (st.command || '').trim().toLowerCase();
+            const msgNorm = msg.replace(/^!+/, '');
+            const cmdNorm = cmd.replace(/^!+/, '');
+            if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
+              const added = raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
+              if (added) {
+                Logger.info(`[Giveaway] New participant: ${chatMessage.username}`);
+                try {
+                  if (this.wss && typeof this.wss.broadcast === 'function') {
+                    this.wss.broadcast(ns, { type: 'raffle_state', ...raffle.getPublicState(ns) });
+                  } else if (this.wss && this.wss.clients) {
+                    const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(ns) });
+                    this.wss.clients.forEach(c => { try { if (c.readyState === 1) c.send(payload); } catch {} });
+                  }
+                } catch {}
+              }
             }
           }
         }

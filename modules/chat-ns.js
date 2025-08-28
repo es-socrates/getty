@@ -193,25 +193,22 @@ class ChatNsManager {
 
       try {
         const raffle = global && global.gettyRaffleInstance ? global.gettyRaffleInstance : null;
-        if (
-          raffle &&
-          typeof raffle.addParticipant === 'function' &&
-          raffle.active &&
-          !raffle.paused &&
-          typeof raffle.command === 'string' &&
-          typeof chatMessage.message === 'string'
-        ) {
-          const msg = (chatMessage.message || '').trim().toLowerCase();
-          const cmd = (raffle.command || '').trim().toLowerCase();
-          const msgNorm = msg.replace(/^!+/, '');
-          const cmdNorm = cmd.replace(/^!+/, '');
-          if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
-            try {
-              const added = raffle.addParticipant(chatMessage.username, chatMessage.userId);
-              if (added) {
-                try { console.info('[giveaway] participant added', { user: chatMessage.username }); } catch {}
-              }
-            } catch {}
+        if (raffle && typeof raffle.getPublicState === 'function' && typeof raffle.addParticipant === 'function') {
+          const st = raffle.getPublicState(ns);
+          if (st && st.active && !st.paused && typeof st.command === 'string' && typeof chatMessage.message === 'string') {
+            const msg = (chatMessage.message || '').trim().toLowerCase();
+            const cmd = (st.command || '').trim().toLowerCase();
+            const msgNorm = msg.replace(/^!+/, '');
+            const cmdNorm = cmd.replace(/^!+/, '');
+            if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
+              try {
+                const added = raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
+                if (added) {
+                  try { console.info('[giveaway] participant added', { user: chatMessage.username }); } catch {}
+                  try { this._broadcastBoth(ns, { type: 'raffle_state', ...raffle.getPublicState(ns) }); } catch {}
+                }
+              } catch {}
+            }
           }
         }
       } catch {}

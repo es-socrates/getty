@@ -1178,7 +1178,8 @@ app.get('/api/modules', async (req, res) => {
     })(),
     raffle: (() => {
       try {
-        const st = raffle.getPublicState();
+  const adminNs = ns && req?.ns?.admin ? req.ns.admin : null;
+  const st = raffle.getPublicState(adminNs);
         return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0 };
       } catch { return { active: false, participants: [] }; }
     })(),
@@ -1359,7 +1360,7 @@ wss.on('connection', async (ws) => {
       persistentTips: externalNotifications.getStatus().lastTips,
       raffle: null
     };
-    if (ns && store) {
+  if (ns && store) {
       try {
         const lt = await store.get(ns, 'last-tip-config', null);
         const tg = await store.get(ns, 'tip-goal-config', null);
@@ -1385,12 +1386,12 @@ wss.on('connection', async (ws) => {
           initPayload.lastTip = { lastDonation: lastTip.getLastDonation(), ...lt };
         }
 
-        initPayload.raffle = raffle.getPublicState();
+        initPayload.raffle = raffle.getPublicState(ns);
       } catch {}
     } else {
       initPayload.raffle = shouldRequireSession
         ? { active: false, paused: false, participants: [], totalWinners: 0 }
-        : raffle.getPublicState();
+        : raffle.getPublicState(null);
     }
     ws.send(JSON.stringify({ type: 'init', data: initPayload }));
   } catch {}
@@ -1399,7 +1400,8 @@ wss.on('connection', async (ws) => {
     try {
       const msg = JSON.parse(message);
       if (msg.type === 'get_raffle_state') {
-        ws.send(JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState() }));
+        const st = raffle.getPublicState(ws.nsToken || null);
+        ws.send(JSON.stringify({ type: 'raffle_state', ...st }));
       }
 
     } catch (error) {
@@ -1700,9 +1702,32 @@ if (process.env.NODE_ENV === 'test') {
     return new Promise(resolve => {
       const server = http.createServer(app);
       server.on('upgrade', (req, socket, head) => {
-        wss.handleUpgrade(req, socket, head, ws => {
-          wss.emit('connection', ws, req);
-        });
+        try {
+          const host = req.headers.host || 'localhost';
+          const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0] || 'http';
+          let nsToken = '';
+          try {
+            const url = new URL(req.url || '/', `${proto}://${host}`);
+            nsToken = url.searchParams.get('token') || '';
+          } catch {}
+          if (!nsToken && req.headers.cookie) {
+            const raw = String(req.headers.cookie);
+            raw.split(';').forEach(p => {
+              const idx = p.indexOf('=');
+              if (idx > -1) {
+                const k = p.slice(0, idx).trim();
+                const v = decodeURIComponent(p.slice(idx + 1).trim());
+                if (k === 'getty_admin_token' || k === 'getty_public_token') nsToken = v;
+              }
+            });
+          }
+          wss.handleUpgrade(req, socket, head, ws => {
+            ws.nsToken = nsToken || null;
+            wss.emit('connection', ws, req);
+          });
+        } catch {
+          try { socket.destroy(); } catch {}
+        }
       });
       server.listen(port, () => resolve(server));
     });

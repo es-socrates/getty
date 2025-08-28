@@ -1,177 +1,128 @@
 const WebSocket = require('ws');
 
-const fs = require('fs');
-const path = require('path');
-
 class RaffleModule {
     constructor(wss) {
         this.wss = wss;
-        this.active = false;
-        this.paused = false;
-        this.command = '!giveaway';
-        this.prize = '';
-        this.imageUrl = '';
-        this.maxWinners = 1;
-        this.mode = 'manual';
-        this.enabled = true;
-        this.participants = new Map();
-        this.previousWinners = new Set();
-        this.settingsFile = path.join(__dirname, '../raffle-settings.json');
-        this.ensureSettingsFile();
-        this.loadSettings();
+        // Map<nsToken, RaffleState>
+        this.sessions = new Map();
     }
 
-    ensureSettingsFile() {
-        if (!fs.existsSync(this.settingsFile)) {
-            const raffleDefault = {
+    getOrCreate(ns) {
+        const key = String(ns || '') || '__global__';
+        if (!this.sessions.has(key)) {
+            this.sessions.set(key, {
+                active: false,
+                paused: false,
                 command: '!giveaway',
                 prize: '',
+                imageUrl: '',
                 maxWinners: 1,
+                mode: 'manual',
                 enabled: true,
-                participants: [],
-                winners: []
-            };
-            fs.writeFileSync(this.settingsFile, JSON.stringify(raffleDefault, null, 2));
-            console.log('[Raffle] raffle-settings.json created with default values');
+                participants: new Map(),
+                previousWinners: new Set()
+            });
         }
+        return this.sessions.get(key);
     }
 
-    loadSettings() {
-        try {
-            if (fs.existsSync(this.settingsFile)) {
-                const data = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8'));
-                this.command = data.command || '!giveaway';
-                this.prize = data.prize || '';
-                this.imageUrl = data.imageUrl || '';
-                this.active = !!data.active;
-                this.paused = !!data.paused;
-                this.maxWinners = typeof data.maxWinners === 'number' ? data.maxWinners : 1;
-                this.mode = data.mode || 'manual';
-                this.enabled = data.enabled !== undefined ? !!data.enabled : true;
-                this.participants = new Map(data.participants || []);
-                this.previousWinners = new Set(data.previousWinners || []);
-            }
-    } catch {}
+    saveSettings(ns, settings) {
+        const s = this.getOrCreate(ns);
+        s.command = settings.command || s.command;
+        s.prize = settings.prize || s.prize;
+        s.maxWinners = typeof settings.maxWinners === 'number' && !isNaN(settings.maxWinners) ? settings.maxWinners : s.maxWinners;
+        s.mode = settings.mode || s.mode;
+        s.imageUrl = settings.imageUrl || s.imageUrl;
+        if (settings.enabled !== undefined) s.enabled = !!settings.enabled;
+        if (settings.active !== undefined) s.active = !!settings.active;
+        if (settings.paused !== undefined) s.paused = !!settings.paused;
+
+        s.participants.clear();
+        s.previousWinners.clear();
     }
 
-    saveSettingsToFile() {
-        try {
-            const data = {
-                command: this.command,
-                prize: this.prize,
-                imageUrl: this.imageUrl,
-                active: this.active,
-                paused: this.paused,
-                maxWinners: this.maxWinners,
-                mode: this.mode,
-                enabled: this.enabled,
-                participants: Array.from(this.participants.entries()),
-                previousWinners: Array.from(this.previousWinners)
-            };
-            fs.writeFileSync(this.settingsFile, JSON.stringify(data, null, 2));
-    } catch {}
+    setImage(ns, imageUrl) {
+        const s = this.getOrCreate(ns);
+        s.imageUrl = imageUrl;
     }
 
-    saveSettings(settings) {
-        this.command = settings.command || this.command;
-        this.prize = settings.prize || this.prize;
-        this.maxWinners = typeof settings.maxWinners === 'number' && !isNaN(settings.maxWinners) ? settings.maxWinners : this.maxWinners;
-        this.mode = settings.mode || this.mode;
-        this.imageUrl = settings.imageUrl || this.imageUrl;
-        if (settings.enabled !== undefined) this.enabled = !!settings.enabled;
-        if (settings.active !== undefined) this.active = !!settings.active;
-        if (settings.paused !== undefined) this.paused = !!settings.paused;
-
-        this.participants.clear();
-        this.previousWinners.clear();
-        this.saveSettingsToFile();
-        this.broadcastState();
-    }
-
-    setImage(imageUrl) {
-        this.imageUrl = imageUrl;
-        this.saveSettingsToFile();
-    }
-
-    getSettings() {
+    getSettings(ns) {
+        const s = this.getOrCreate(ns);
         return {
-            command: this.command,
-            prize: this.prize,
-            imageUrl: this.imageUrl,
-            active: this.active,
-            paused: this.paused,
-            maxWinners: this.maxWinners,
-            mode: this.mode,
-            enabled: this.enabled,
-            participants: Array.from(this.participants.entries()),
-            previousWinners: Array.from(this.previousWinners)
+            command: s.command,
+            prize: s.prize,
+            imageUrl: s.imageUrl,
+            active: s.active,
+            paused: s.paused,
+            maxWinners: s.maxWinners,
+            mode: s.mode,
+            enabled: s.enabled,
+            participants: Array.from(s.participants.entries()),
+            previousWinners: Array.from(s.previousWinners)
         };
     }
 
-    getPublicState() {
+    getPublicState(ns) {
+        const s = this.getOrCreate(ns);
         return {
-            active: this.active,
-            paused: this.paused,
-            command: this.command,
-            prize: this.prize,
-            imageUrl: this.imageUrl,
-            maxWinners: this.maxWinners,
-            mode: this.mode,
-            enabled: this.enabled,
-            participants: Array.from(this.participants.values()).map(p => p.username),
-            totalWinners: this.previousWinners.size
+            active: s.active,
+            paused: s.paused,
+            command: s.command,
+            prize: s.prize,
+            imageUrl: s.imageUrl,
+            maxWinners: s.maxWinners,
+            mode: s.mode,
+            enabled: s.enabled,
+            participants: Array.from(s.participants.values()).map(p => p.username),
+            totalWinners: s.previousWinners.size
         };
     }
 
-    start() {
-        this.active = true;
-        this.paused = false;
-        this.participants.clear();
-        this.saveSettingsToFile();
-        this.broadcastState();
+    start(ns) {
+        const s = this.getOrCreate(ns);
+        s.active = true;
+        s.paused = false;
+        s.participants.clear();
         return { success: true };
     }
 
-    stop() {
-        this.active = false;
-        this.paused = false;
-        this.saveSettingsToFile();
-        this.broadcastState();
+    stop(ns) {
+        const s = this.getOrCreate(ns);
+        s.active = false;
+        s.paused = false;
         return { success: true };
     }
 
-    pause() {
-        if (!this.active) return { success: false, error: 'Raffle is not active' };
-        this.paused = true;
-        this.saveSettingsToFile();
-        this.broadcastState();
+    pause(ns) {
+        const s = this.getOrCreate(ns);
+        if (!s.active) return { success: false, error: 'Raffle is not active' };
+        s.paused = true;
         return { success: true };
     }
 
-    resume() {
-        if (!this.active) return { success: false, error: 'Raffle is not active' };
-        this.paused = false;
-        this.saveSettingsToFile();
-        this.broadcastState();
+    resume(ns) {
+        const s = this.getOrCreate(ns);
+        if (!s.active) return { success: false, error: 'Raffle is not active' };
+        s.paused = false;
         return { success: true };
     }
 
-    addParticipant(username, userId) {
-        if (!this.active || this.paused) return false;
-        if (!this.participants.has(userId)) {
-            this.participants.set(userId, { username, timestamp: Date.now() });
-            this.saveSettingsToFile();
-            this.broadcastState();
+    addParticipant(ns, username, userId) {
+        const s = this.getOrCreate(ns);
+        if (!s.active || s.paused) return false;
+        if (!s.participants.has(userId)) {
+            s.participants.set(userId, { username, timestamp: Date.now() });
             return true;
         }
         return false;
     }
-    drawWinner() {
-        if (this.participants.size === 0) {
+    drawWinner(ns) {
+        const s = this.getOrCreate(ns);
+        if (s.participants.size === 0) {
             return { success: false, error: 'No participants in the raffle' };
         }
-        const eligible = Array.from(this.participants.entries())
-            .filter(([userId]) => !this.previousWinners.has(userId));
+        const eligible = Array.from(s.participants.entries())
+            .filter(([userId]) => !s.previousWinners.has(userId));
         if (eligible.length === 0) {
             return { 
                 success: false, 
@@ -179,87 +130,29 @@ class RaffleModule {
             };
         }
         const [winnerId, winner] = eligible[Math.floor(Math.random() * eligible.length)];
-        this.previousWinners.add(winnerId);
-        this.participants.delete(winnerId);
+        s.previousWinners.add(winnerId);
+        s.participants.delete(winnerId);
         const result = {
             success: true,
             winner: winner.username || winner,
-            prize: this.prize,
-            imageUrl: this.imageUrl,
+            prize: s.prize,
+            imageUrl: s.imageUrl,
             timestamp: Date.now()
         };
-        this.broadcastWinner(result);
-        this.active = false;
-        this.paused = false;
-        this.saveSettingsToFile();
+        s.active = false;
+        s.paused = false;
         return result;
     }
 
-    resetWinners() {
-        this.previousWinners.clear();
-        this.participants.clear();
-        this.active = false;
-        this.paused = false;
-        this.saveSettingsToFile();
-
-        if (this.wss) {
-            const state = {
-                type: 'raffle_state',
-                active: this.active,
-                paused: this.paused,
-                command: this.command,
-                prize: this.prize,
-                imageUrl: this.imageUrl,
-                maxWinners: this.maxWinners,
-                mode: this.mode,
-                enabled: this.enabled,
-                participants: Array.from(this.participants.values()).map(p => p.username),
-                totalWinners: this.previousWinners.size,
-                reset: true
-            };
-            this.wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify(state));
-                }
-            });
-        }
+    resetWinners(ns) {
+        const s = this.getOrCreate(ns);
+        s.previousWinners.clear();
+        s.participants.clear();
+        s.active = false;
+        s.paused = false;
         return { success: true };
     }
 
-    broadcastState() {
-        if (!this.wss) return;
-        const state = {
-            type: 'raffle_state',
-            active: this.active,
-            paused: this.paused,
-            command: this.command,
-            prize: this.prize,
-            imageUrl: this.imageUrl,
-            maxWinners: this.maxWinners,
-            mode: this.mode,
-            enabled: this.enabled,
-            participants: Array.from(this.participants.values()).map(p => p.username),
-            totalWinners: this.previousWinners.size
-        };
-        this.wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify(state));
-            }
-        });
-    }
-
-    broadcastWinner(winnerData) {
-        if (!this.wss) return;
-        const message = {
-            type: 'raffle_winner',
-            ...winnerData
-        };
-        this.wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify(message));
-            }
-        });
-    }
 }
 
 module.exports = RaffleModule;

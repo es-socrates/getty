@@ -307,7 +307,15 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(`/api/raffle/${action}`, { method: 'POST' })
             .then(r => r.json())
             .then(res => {
-                if (res.success) fetchSettings();
+                if (res.success) {
+
+                    if (action === 'reset' && winnerBanner) {
+                        winnerBanner.style.display = 'none';
+                        winnerBanner.innerHTML = '';
+                        if (winnersList) winnersList.innerHTML = '';
+                    }
+                    fetchSettings();
+                }
                 else showError(res.error || 'Error performing giveaway action.');
             })
             .catch(() => showError('Error performing giveaway action.'));
@@ -325,10 +333,22 @@ document.addEventListener('DOMContentLoaded', function () {
     function connectWS() {
         if (ws) ws.close();
         ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+        ws.onopen = function () {
+
+            try { ws.send(JSON.stringify({ type: 'get_raffle_state' })); } catch {}
+        };
         ws.onmessage = function (event) {
             try {
                 const msg = JSON.parse(event.data);
-                if (msg.type === 'raffle_state') {
+                if (msg.type === 'init' && msg.raffle) {
+
+                    updateUI(msg.raffle);
+                } else if (msg.type === 'raffle_state') {
+
+                    if (msg.reset && winnerBanner) {
+                        winnerBanner.style.display = 'none';
+                        winnerBanner.innerHTML = '';
+                    }
                     updateUI(msg);
                 } else if (msg.type === 'raffle_winner') {
                     let winnerName = msg.winner;
