@@ -2,7 +2,8 @@ const multer = require('multer');
 const WebSocket = require('ws');
 const { z } = require('zod');
 
-function registerRaffleRoutes(app, raffle, wss) {
+function registerRaffleRoutes(app, raffle, wss, opts = {}) {
+  const store = opts.store || null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
@@ -158,47 +159,75 @@ function registerRaffleRoutes(app, raffle, wss) {
     res.json({ imageUrl });
   });
 
-  function broadcastRaffleState(wss, raffle, ns, extra = {}) {
+  async function __broadcastToNsAndPublic(sendFn, adminNs) {
     try {
-      if (typeof wss.broadcast === 'function' && ns) {
-        wss.broadcast(ns, { type: 'raffle_state', ...raffle.getPublicState(ns), ...extra });
-      } else {
-
-        const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(ns), ...extra });
-        wss.clients.forEach(client => {
-          try {
-            if (client.readyState !== WebSocket.OPEN) return;
-            if (ns && client.nsToken && client.nsToken !== ns) return;
-            if (ns && !client.nsToken) return;
-            client.send(payload);
-          } catch {}
-        });
+      if (!adminNs) return;
+      await sendFn(adminNs);
+      if (store && typeof store.get === 'function') {
+        try {
+          const pubToken = await store.get(adminNs, 'publicToken', null);
+          if (typeof pubToken === 'string' && pubToken) await sendFn(pubToken);
+        } catch {}
       }
     } catch {}
   }
+
+  function broadcastRaffleState(wss, raffle, ns, extra = {}) {
+    const doSend = async (token) => {
+      try {
+        if (typeof wss.broadcast === 'function' && token) {
+          wss.broadcast(token, { type: 'raffle_state', ...raffle.getPublicState(token), ...extra });
+        } else {
+          const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(token), ...extra });
+          wss.clients.forEach(client => {
+            try {
+              if (client.readyState !== WebSocket.OPEN) return;
+              if (token && client.nsToken && client.nsToken !== token) return;
+              if (token && !client.nsToken) return;
+              client.send(payload);
+            } catch {}
+          });
+        }
+      } catch {}
+    };
+    if (ns) {
+      __broadcastToNsAndPublic(doSend, ns);
+    } else {
+      doSend(null);
+    }
+  }
+
   function broadcastRaffleWinner(wss, winner, ns) {
-    try {
-      const pub = (() => { try { return raffle.getPublicState(ns); } catch { return {}; } })();
-      const payloadObj = { type: 'raffle_winner', 
-        ...(typeof winner === 'object' ? winner : { winner }),
-        command: pub.command,
-        prize: pub.prize,
-        imageUrl: pub.imageUrl
-      };
-      if (typeof wss.broadcast === 'function' && ns) {
-        wss.broadcast(ns, payloadObj);
-      } else {
-        const payload = JSON.stringify(payloadObj);
-        wss.clients.forEach(client => {
-          try {
-            if (client.readyState !== WebSocket.OPEN) return;
-            if (ns && client.nsToken && client.nsToken !== ns) return;
-            if (ns && !client.nsToken) return;
-            client.send(payload);
-          } catch {}
-        });
-      }
-    } catch {}
+    const doSend = async (token) => {
+      try {
+        const pub = (() => { try { return raffle.getPublicState(token); } catch { return {}; } })();
+        const payloadObj = {
+          type: 'raffle_winner',
+          ...(typeof winner === 'object' ? winner : { winner }),
+          command: pub.command,
+          prize: pub.prize,
+          imageUrl: pub.imageUrl
+        };
+        if (typeof wss.broadcast === 'function' && token) {
+          wss.broadcast(token, payloadObj);
+        } else {
+          const payload = JSON.stringify(payloadObj);
+          wss.clients.forEach(client => {
+            try {
+              if (client.readyState !== WebSocket.OPEN) return;
+              if (token && client.nsToken && client.nsToken !== token) return;
+              if (token && !client.nsToken) return;
+              client.send(payload);
+            } catch {}
+          });
+        }
+      } catch {}
+    };
+    if (ns) {
+      __broadcastToNsAndPublic(doSend, ns);
+    } else {
+      doSend(null);
+    }
   }
 }
 

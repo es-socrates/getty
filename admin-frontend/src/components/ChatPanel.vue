@@ -136,7 +136,7 @@ const overrideUsername = ref(false);
 const clearedThemeCSS = ref(false);
 const errors = reactive({ chatUrl: '' });
 const CLAIM_BASE = 'wss://sockety.odysee.tv/ws/commentron?id=';
-const claimPlaceholder = 'ej: 2ab34cdef...(Claim ID)';
+const claimPlaceholder = 'ej: 9e28103c613048b4a40...';
 const saving = ref(false);
 const connected = ref(false);
 const lastStatusAt = ref(0);
@@ -170,13 +170,17 @@ async function load() {
     const { data } = await api.get('/api/chat-config');
     if (data) {
       const raw = data.chatUrl || '';
+      let extracted = '';
       if (raw.startsWith(CLAIM_BASE)) {
-        form.chatUrl = raw.substring(CLAIM_BASE.length);
+        extracted = raw.substring(CLAIM_BASE.length);
       } else if (raw.includes('id=')) {
-        form.chatUrl = raw.split('id=')[1].split('&')[0];
+        extracted = raw.split('id=')[1].split('&')[0];
       } else {
-        form.chatUrl = raw;
+        extracted = raw;
       }
+
+      const isUnset = !extracted || extracted === '...' || extracted === '/' || extracted === '#';
+      form.chatUrl = isUnset ? '' : extracted;
       form.colors.bg = data.bgColor || form.colors.bg;
       if (form.colors.bg === 'transparent') {
         transparentBg.value = true;

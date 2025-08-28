@@ -77,8 +77,8 @@ async function load() {
     hostedSupported.value = !!statusRes?.data?.supported;
     sessionActive.value = !!statusRes?.data?.active;
 
-    const { data } = await api.get('/api/last-tip');
-    if (data && data.success) {
+  const { data } = await api.get('/api/last-tip');
+  if (data && data.success) {
       const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
@@ -94,7 +94,16 @@ async function load() {
         }
         form.walletAddress = '';
       }
-      form.title = data.title || '';
+
+      const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
+      const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
+      const demoTitles = new Set([
+        'Last tip received 👏',
+        'Última propina 🔥',
+        'Configure tip goal 💸'
+      ]);
+      const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));
+      form.title = isSeed ? '' : (incomingTitle || '');
       form.colors.bg = data.bgColor || form.colors.bg;
       form.colors.font = data.fontColor || form.colors.font;
       form.colors.border = data.borderColor || form.colors.border;
