@@ -1,7 +1,6 @@
-.winner-icon {
-  @import url('/css/output.css');
+@import url('/css/output.css');
 
-  .winner-icon {
+.winner-icon {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -68,8 +67,6 @@
     min-height: 80px;
   }
 }
-}
-
 body {
   background: #000;
   color: #ffe9a7;

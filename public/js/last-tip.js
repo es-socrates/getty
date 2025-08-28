@@ -26,7 +26,11 @@
 
     let AR_TO_USD = 0;
     const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${wsProto}://${window.location.host}`);
+
+    const __cookie = (name) => (document.cookie.split('; ').find(r=>r.startsWith(name+'='))||'').split('=')[1] || '';
+    const token = __cookie('getty_public_token') || __cookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
+    const q = token ? `/?token=${encodeURIComponent(token)}` : '';
+    const ws = new WebSocket(`${wsProto}://${window.location.host}${q}`);
 
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return 'Recent';
@@ -219,11 +223,14 @@
     ws.onmessage = async (event) => {
         try {
             const msg = JSON.parse(event.data);
-            if (msg.type === 'init' && msg.data) {
-                if (msg.data.lastTip) {
+                        if (msg.type === 'init' && msg.data) {
+                                if (msg.data.lastTip) {
                     await updateExchangeRate();
                     await loadColors();
-                    updateUI(msg.data.lastTip);
+                                        const payload = (msg.data.lastTip && msg.data.lastTip.lastDonation)
+                                            ? msg.data.lastTip.lastDonation
+                                            : msg.data.lastTip;
+                                        updateUI(payload);
                 }
                 return;
             }
