@@ -13,6 +13,8 @@ const COLORS = {
 
 class Logger {
   static log(level, message, data = null) {
+
+  if (process.env.NODE_ENV === 'test') return;
     const timestamp = new Date().toISOString();
     const levelColor = COLORS[level] || COLORS.info;
     const levelText = level.toUpperCase().padEnd(7);
@@ -274,7 +276,9 @@ class TipWidgetModule {
     this.walletAddress = newAddress;
     this.processedTxs = new Set();
     process.env.WALLET_ADDRESS = newAddress;
-    this.checkTransactions();
+    if (process.env.NODE_ENV !== 'test') {
+      this.checkTransactions();
+    }
     
     return this.getStatus();
   }
