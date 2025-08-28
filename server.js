@@ -1024,6 +1024,14 @@ app.get('/api/activity/export', (req, res) => {
 app.get('/api/modules', async (req, res) => {
   const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
   const ns = req?.ns?.admin || req?.ns?.pub || null;
+  const adminNs = await (async () => {
+    try {
+      if (!store || !ns) return null;
+      if (req?.ns?.admin) return req.ns.admin;
+      const mapped = await store.get(ns, 'adminToken', null);
+      return mapped || null;
+    } catch { return null; }
+  })();
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hosted = !!(store && store.redis) || !!process.env.REDIS_URL;
 
@@ -1031,8 +1039,8 @@ app.get('/api/modules', async (req, res) => {
   let lastTipColors = {};
   let chatColors = {};
   try {
-    if (store && ns) {
-      const st = await store.get(ns, 'chat-config', null);
+    if (store && adminNs) {
+      const st = await store.get(adminNs, 'chat-config', null);
       if (st && typeof st === 'object') chatColors = st;
     }
     if ((!chatColors || Object.keys(chatColors).length === 0) && fs.existsSync(CHAT_CONFIG_FILE)) {
@@ -1041,8 +1049,8 @@ app.get('/api/modules', async (req, res) => {
   } catch {}
 
   try {
-    if (store && ns) {
-      const tg = await store.get(ns, 'tip-goal-config', null);
+    if (store && adminNs) {
+      const tg = await store.get(adminNs, 'tip-goal-config', null);
       if (tg && typeof tg === 'object') tipGoalColors = tg;
 
     } else if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
@@ -1050,8 +1058,8 @@ app.get('/api/modules', async (req, res) => {
     }
   } catch {}
   try {
-    if (store && ns) {
-      const lt = await store.get(ns, 'last-tip-config', null);
+    if (store && adminNs) {
+      const lt = await store.get(adminNs, 'last-tip-config', null);
       if (lt && typeof lt === 'object') lastTipColors = lt;
     }
     if ((!lastTipColors || Object.keys(lastTipColors).length === 0) && fs.existsSync(LAST_TIP_CONFIG_FILE)) {
@@ -1072,7 +1080,7 @@ app.get('/api/modules', async (req, res) => {
   })();
 
   const payload = {
-    lastTip: (() => {
+    lastTip: (async () => {
       try {
         const base = lastTip.getStatus?.() || {};
         const merged = { ...base, ...lastTipColors };
@@ -1082,6 +1090,9 @@ app.get('/api/modules', async (req, res) => {
         const __effLtWallet = __ltCfgWallet || __ltBaseWallet || __tgWallet;
         if (__effLtWallet) merged.walletAddress = __effLtWallet;
         const wallet = __effLtWallet;
+        if (wallet) {
+          try { merged.lastDonation = await lastTip.fetchLastDonation(wallet); } catch {}
+        }
         merged.active = !!wallet || !!merged.lastDonation;
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }); }
@@ -1186,14 +1197,10 @@ app.get('/api/modules', async (req, res) => {
         return { active: false };
       } catch { return { active: false }; }
     })(),
-    raffle: (async () => {
+  raffle: (async () => {
       try {
-
-        let adminNs = ns && req?.ns?.admin ? req.ns.admin : null;
-        if (!adminNs && store && ns && req?.ns?.pub) {
-          try { const mapped = await store.get(ns, 'adminToken', null); if (mapped) adminNs = mapped; } catch {}
-        }
-        const st = raffle.getPublicState(adminNs);
+    let __adm = adminNs;
+    const st = raffle.getPublicState(__adm);
         return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0 };
       } catch { return { active: false, participants: [] }; }
     })(),
@@ -1710,10 +1717,21 @@ if (process.env.NODE_ENV !== 'test') {
         const cookies = parseCookieHeader(req.headers.cookie);
         nsToken = cookies['getty_public_token'] || cookies['getty_admin_token'] || '';
       }
-      wss.handleUpgrade(req, socket, head, ws => {
-        ws.nsToken = nsToken || null;
-        wss.emit('connection', ws, req);
-      });
+      const bindAndAccept = async () => {
+        let effective = nsToken || '';
+        try {
+          if (store && effective) {
+
+            const mapped = await store.get(effective, 'adminToken', null);
+            if (mapped) effective = mapped;
+          }
+        } catch {}
+        wss.handleUpgrade(req, socket, head, ws => {
+          ws.nsToken = effective || null;
+          wss.emit('connection', ws, req);
+        });
+      };
+      bindAndAccept();
   } catch {
       try { socket.destroy(); } catch {}
     }
