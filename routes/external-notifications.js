@@ -2,9 +2,16 @@ const { z } = require('zod');
 
 function registerExternalNotificationsRoutes(app, externalNotifications, limiter, options = {}) {
   const store = options.store || null;
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedWithRedis = !!process.env.REDIS_URL;
+  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
 
   app.post('/api/external-notifications', limiter, async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const schema = z.object({
         discordWebhook: z.string().url().optional(),
         telegramBotToken: z.string().optional(),
@@ -49,6 +56,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
   app.get('/api/external-notifications', async (req, res) => {
     const ns = req?.ns?.admin || req?.ns?.pub || null;
+    const hasNs = !!ns;
     if (store && ns) {
       try {
         const cfg = (await store.get(ns, 'external-notifications-config', null)) || {};
@@ -69,19 +77,20 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     }
 
     const status = externalNotifications.getStatus();
-    res.json({
+    const sanitized = {
       active: !!status.active,
-      lastTips: status.lastTips,
+      lastTips: (hostedWithRedis || requireSessionFlag) && !hasNs ? [] : status.lastTips,
       config: {
         hasDiscord: !!status.config?.hasDiscord,
         hasTelegram: !!status.config?.hasTelegram,
         template: status.config?.template || '',
-        discordWebhook: externalNotifications.discordWebhook || '',
-        telegramBotToken: externalNotifications.telegramBotToken || '',
-        telegramChatId: externalNotifications.telegramChatId || ''
+        discordWebhook: '',
+        telegramBotToken: '',
+        telegramChatId: ''
       },
       lastUpdated: status.lastUpdated
-    });
+    };
+    res.json(sanitized);
   });
 }
 

@@ -6,6 +6,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
   const store = options.store;
   const chatNs = options.chatNs;
   const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedWithRedis = !!process.env.REDIS_URL;
 
   function isTrustedIp(req) {
     try {
@@ -33,7 +35,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
   const isHosted = !!store;
   const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
   const trusted = isTrustedIp(req);
-  if (isHosted && !hasNs && !trusted) {
+  if ((isHosted || requireSessionFlag) && !hasNs && !trusted) {
         const sanitized = {
           bgColor: config.bgColor || '#080c10',
           msgBgColor: config.msgBgColor || '#0a0e12',
@@ -59,6 +61,10 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
 
   app.post('/api/chat', limiter, async (req, res) => {
     try {
+      if (hostedWithRedis || requireSessionFlag) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ error: 'session_required' });
+      }
       const schema = z.object({
         chatUrl: z.string().min(1),
         odyseeWsUrl: z.string().url().optional(),

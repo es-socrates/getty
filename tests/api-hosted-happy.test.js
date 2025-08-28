@@ -63,26 +63,26 @@ describe('Hosted mode happy path with session namespace', () => {
   test('POST /api/tip-goal succeeds (200) and persists to store', async () => {
     const res = await agent
       .post('/api/tip-goal')
-      .send({ monthlyGoal: 10, currentAmount: 2, walletAddress: 'WALLET-1' });
+      .send({ monthlyGoal: 10, currentAmount: 2, walletAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
 
     const cfg = await store.get('ns:public:abc123', 'tip-goal-config', null);
     expect(cfg).toBeTruthy();
-    expect(cfg).toMatchObject({ monthlyGoal: 10, currentAmount: 2, walletAddress: 'WALLET-1' });
+    expect(cfg).toMatchObject({ monthlyGoal: 10, currentAmount: 2, walletAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' });
   });
 
   test('POST /api/last-tip succeeds (200) and cross-propagates wallet to tip-goal in store', async () => {
     const res = await agent
       .post('/api/last-tip')
-      .send({ walletAddress: 'WALLET-2', title: 'Hello' });
+      .send({ walletAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', title: 'Hello' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
     const lastTipCfg = await store.get('ns:public:abc123', 'last-tip-config', null);
     expect(lastTipCfg).toBeTruthy();
-    expect(lastTipCfg.walletAddress).toBe('WALLET-2');
+    expect(lastTipCfg.walletAddress).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
     const tipGoalCfg = await store.get('ns:public:abc123', 'tip-goal-config', null);
     expect(tipGoalCfg).toBeTruthy();
-    expect(tipGoalCfg.walletAddress).toBe('WALLET-2');
+    expect(tipGoalCfg.walletAddress).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
   });
 });

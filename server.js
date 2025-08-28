@@ -40,6 +40,21 @@ const registerAnnouncementRoutes = require('./routes/announcement');
 const { AnnouncementModule } = require('./modules/announcement');
 const RaffleModule = require('./modules/raffle');
 
+const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
+function isValidArweaveAddress(addr) {
+  try {
+    if (typeof addr !== 'string') return false;
+    const s = addr.trim();
+    if (!ARWEAVE_RX.test(s)) return false;
+    const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 === 2 ? '==' : (b64.length % 4 === 3 ? '=' : '');
+    const decoded = Buffer.from(b64 + pad, 'base64');
+    if (decoded.length !== 32) return false;
+    const roundtrip = decoded.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+    return roundtrip === s;
+  } catch { return false; }
+}
+
 const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
 const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
 const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
@@ -58,6 +73,7 @@ try {
   }
 } catch {}
 const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
+try { app.set('store', store); } catch {}
 
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
 
@@ -322,6 +338,12 @@ app.get('/api/session/public-token', async (req, res) => {
 
 app.get('/api/session/export', async (req, res) => {
   try {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+    if (shouldRequireSession) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+    }
     const adminNs = await resolveAdminNsFromReq(req);
     const useStore = !!(store && adminNs);
     const exportObj = {};
@@ -334,8 +356,8 @@ app.get('/api/session/export', async (req, res) => {
       try { exportObj.chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8')); } catch { exportObj.chatConfig = null; }
     }
 
-  try { exportObj.lastTipConfig = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8')); } catch { exportObj.lastTipConfig = null; }
-  try { exportObj.tipGoalConfig = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8')); } catch { exportObj.tipGoalConfig = null; }
+    try { exportObj.lastTipConfig = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8')); } catch { exportObj.lastTipConfig = null; }
+    try { exportObj.tipGoalConfig = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8')); } catch { exportObj.tipGoalConfig = null; }
     try { exportObj.socialMediaConfig = socialMediaModule.loadConfig(); } catch { exportObj.socialMediaConfig = null; }
     try {
       const extPath = path.join(process.cwd(), 'config', 'external-notifications-config.json');
@@ -365,6 +387,12 @@ app.get('/api/session/export', async (req, res) => {
 
 app.post('/api/session/import', async (req, res) => {
   try {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+    if (shouldRequireSession) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+    }
     const adminNs = await resolveAdminNsFromReq(req);
     const useStore = !!(store && adminNs);
     const payload = req.body || {};
@@ -374,6 +402,12 @@ app.post('/api/session/import', async (req, res) => {
     const incomingTipGoal = (payload && typeof payload.tipGoalConfig === 'object') ? payload.tipGoalConfig : null;
     const lastTipWallet = typeof payload.lastTipWallet === 'string' ? payload.lastTipWallet : (typeof payload.lastTipAddress === 'string' ? payload.lastTipAddress : null);
     const tipGoalWallet = typeof payload.tipGoalWallet === 'string' ? payload.tipGoalWallet : (typeof payload.tipGoalAddress === 'string' ? payload.tipGoalAddress : null);
+    if (lastTipWallet && !isValidArweaveAddress(String(lastTipWallet).trim())) {
+      return res.status(400).json({ error: 'invalid_wallet_address', field: 'lastTipWallet' });
+    }
+    if (tipGoalWallet && !isValidArweaveAddress(String(tipGoalWallet).trim())) {
+      return res.status(400).json({ error: 'invalid_wallet_address', field: 'tipGoalWallet' });
+    }
     const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
     const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
     const incomingLiveviews = (payload && typeof payload.liveviewsConfig === 'object') ? payload.liveviewsConfig : null;
@@ -654,6 +688,12 @@ registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 
 app.post('/api/test-tip', limiter, async (req, res) => {
   try {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+    if (shouldRequireSession) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+    }
     const { amount, from, message } = req.body;
     if (typeof amount === 'undefined' || typeof from === 'undefined') {
       return res.status(400).json({ error: "Both amount and from are required" });
@@ -1340,6 +1380,12 @@ wss.on('connection', async (ws) => {
 
 app.post('/api/test-discord', express.json(), async (req, res) => {
   try {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+    if (shouldRequireSession) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+    }
     const { from, amount } = req.body;
     const tip = {
       from: from || "test-user",

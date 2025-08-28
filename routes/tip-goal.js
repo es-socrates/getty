@@ -2,6 +2,21 @@ const fs = require('fs');
 const WebSocket = require('ws');
 const { z } = require('zod');
 
+const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
+function isValidArweaveAddress(addr) {
+  try {
+    if (typeof addr !== 'string') return false;
+    const s = addr.trim();
+    if (!ARWEAVE_RX.test(s)) return false;
+    const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 === 2 ? '==' : (b64.length % 4 === 3 ? '=' : '');
+    const decoded = Buffer.from(b64 + pad, 'base64');
+    if (decoded.length !== 32) return false;
+    const roundtrip = decoded.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+    return roundtrip === s;
+  } catch { return false; }
+}
+
 function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE, options = {}) {
   const store = (options && options.store) || null;
 
@@ -85,6 +100,10 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       let walletAddress = (prevCfg && typeof prevCfg.walletAddress === 'string') ? prevCfg.walletAddress : '';
       if (walletProvided) {
         walletAddress = (data.walletAddress || '').trim();
+
+      if (walletAddress && !isValidArweaveAddress(walletAddress)) {
+          return res.status(400).json({ error: 'invalid_wallet_address' });
+        }
       }
 
       const monthlyGoalProvided = Object.prototype.hasOwnProperty.call(req.body, 'monthlyGoal') || Object.prototype.hasOwnProperty.call(req.body, 'goalAmount');

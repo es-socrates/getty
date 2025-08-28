@@ -16,6 +16,7 @@ function getLiveviewsConfigWithDefaults(partial) {
 
 function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
   const store = options.store || null;
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
   const LIVEVIEWS_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'liveviews');
   if (!fs.existsSync(LIVEVIEWS_UPLOADS_DIR)) {
@@ -120,6 +121,10 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     const { viewersLabel } = req.body || {};
     if (typeof viewersLabel !== 'string' || !viewersLabel.trim()) {
       return res.status(400).json({ error: 'Invalid label' });
+    }
+    if ((!!store || requireSessionFlag)) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
     }
     const ns = req?.ns?.admin || req?.ns?.pub || null;
     if (store && ns) {

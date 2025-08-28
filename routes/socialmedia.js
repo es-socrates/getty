@@ -2,10 +2,28 @@ const { z } = require('zod');
 
 function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, options = {}) {
   const store = options.store || null;
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedWithRedis = !!process.env.REDIS_URL;
+  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+
+  function isTrustedIp(req) {
+    try {
+      let ip = req.ip || req.connection?.remoteAddress || '';
+      if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+      const allow = (process.env.GETTY_ALLOW_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+      const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+      return loopback || (allow.length > 0 && allow.includes(ip));
+    } catch { return false; }
+  }
 
   app.get('/api/socialmedia-config', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const hasNs = !!ns;
+      const trusted = isTrustedIp(req);
+      if ((hostedWithRedis || requireSessionFlag) && !hasNs && !trusted) {
+        return res.json({ success: true, config: [] });
+      }
       let config = null;
       if (store && ns) {
         config = await store.get(ns, 'socialmedia-config', null);
@@ -19,6 +37,10 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
 
   app.post('/api/socialmedia-config', strictLimiter, async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+        if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const env = process.env.NODE_ENV || 'development';
       const enforceHttpsOnly = (process.env.SOCIALMEDIA_HTTPS_ONLY === 'true') || env === 'production';
       const AdminItem = z.object({
