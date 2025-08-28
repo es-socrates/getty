@@ -35,7 +35,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
   const isHosted = !!store;
   const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
   const trusted = isTrustedIp(req);
-  if ((isHosted || requireSessionFlag) && !hasNs && !trusted) {
+
+  if (((isHosted && !trusted) || requireSessionFlag) && !hasNs) {
         const sanitized = {
           bgColor: config.bgColor || '#080c10',
           msgBgColor: config.msgBgColor || '#0a0e12',

@@ -54,8 +54,17 @@ describe('Masking secrets and sensitive fields when GETTY_REQUIRE_SESSION=1', ()
   test('GET /api/chat-config hides URLs when unauthenticated', async () => {
     const res = await request(app).get('/api/chat-config');
     expect(res.status).toBe(200);
-    expect(typeof res.body.chatUrl === 'string').toBe(true);
-    expect(res.body.chatUrl === '' || res.body.chatUrl.startsWith('')).toBe(true);
+    const chatUrl = res.body?.chatUrl;
+    const odyseeWsUrl = res.body?.odyseeWsUrl;
+
+    if (typeof chatUrl !== 'undefined') {
+      expect(typeof chatUrl === 'string').toBe(true);
+      expect(!/^wss?:/i.test(chatUrl)).toBe(true);
+    }
+    if (typeof odyseeWsUrl !== 'undefined') {
+      expect(typeof odyseeWsUrl === 'string').toBe(true);
+      expect(!/^wss?:/i.test(odyseeWsUrl)).toBe(true);
+    }
   });
 
   test('GET /config/liveviews-config.json masks claimid when unauthenticated', async () => {
