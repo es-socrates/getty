@@ -26,12 +26,12 @@
       </div>
       <div class="form-group mt-2">
         <label class="label" for="goal-amount">{{ t('monthlyGoal') }}</label>
-        <input class="input" :aria-invalid="!!errors.goalAmount" :class="{'input-error': errors.goalAmount}" id="goal-amount" v-model.number="form.goalAmount" type="number" min="1" />
+  <input class="input" :aria-invalid="!!errors.goalAmount" :class="{'input-error': errors.goalAmount}" id="goal-amount" v-model.number="form.goalAmount" type="number" min="1" />
   <small v-if="errors.goalAmount" class="small" style="color:#b91c1c">{{ errors.goalAmount }}</small>
       </div>
       <div class="form-group mt-2">
         <label class="label" for="starting-amount">{{ t('initialAmount') }}</label>
-        <input class="input" :aria-invalid="!!errors.startingAmount" :class="{'input-error': errors.startingAmount}" id="starting-amount" v-model.number="form.startingAmount" type="number" min="0" />
+  <input class="input" :aria-invalid="!!errors.startingAmount" :class="{'input-error': errors.startingAmount}" id="starting-amount" v-model.number="form.startingAmount" type="number" min="0" />
         <small v-if="errors.startingAmount" class="small" style="color:#b91c1c">{{ errors.startingAmount }}</small>
       </div>
       <div class="mt-3">
@@ -146,8 +146,8 @@ async function load() {
     hostedSupported.value = !!statusRes?.data?.supported;
     sessionActive.value = !!statusRes?.data?.active;
 
-    const { data } = await api.get('/api/tip-goal');
-    if (data && data.success) {
+  const { data } = await api.get('/api/tip-goal');
+  if (data && data.success) {
       const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
@@ -162,9 +162,22 @@ async function load() {
         }
         form.walletAddress = '';
       }
-      form.goalAmount = data.monthlyGoal || data.goalAmount || form.goalAmount;
-      form.startingAmount = data.currentAmount ?? form.startingAmount;
-      form.title = data.title || '';
+
+      const demoTitles = new Set([
+        'Monthly tip goal 🎖️',
+        'Meta mensual de propinas 🎖️',
+        'Configure tip goal 💸'
+      ]);
+      const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
+      const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
+      const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));
+
+      const incomingGoal = data.monthlyGoal || data.goalAmount;
+      const incomingCurrent = (data.currentAmount !== undefined ? data.currentAmount : undefined);
+
+      form.goalAmount = isSeed ? null : (incomingGoal || form.goalAmount);
+      form.startingAmount = isSeed ? null : (incomingCurrent ?? form.startingAmount);
+      form.title = isSeed ? '' : (incomingTitle || '');
       form.theme = data.theme || 'classic';
       form.colors.bg = data.bgColor || form.colors.bg;
       form.colors.font = data.fontColor || form.colors.font;

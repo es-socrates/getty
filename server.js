@@ -946,7 +946,7 @@ app.use(express.static('public', {
   }
 }));
 
-registerRaffleRoutes(app, raffle, wss);
+registerRaffleRoutes(app, raffle, wss, { store });
 
 const __serverStartTime = Date.now();
 

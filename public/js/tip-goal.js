@@ -290,9 +290,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
 
         ws.onopen = async () => {
-            if (!initialDataLoadedAt || (Date.now() - initialDataLoadedAt) > 1000) {
-                await loadInitialData();
-            }
+            setTimeout(async () => {
+                if (!initialDataLoadedAt || (Date.now() - initialDataLoadedAt) > 1000) {
+                    await loadInitialData();
+                }
+            }, 150);
         };
 
         ws.onmessage = (event) => {
@@ -582,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
     goalWidget.innerHTML = `
         <div class="goal-container">
             <div class="goal-header">
-                <div class="goal-title">Monthly tip goal 🎖️</div>
+                    <div class="goal-title" data-i18n="tipGoalDefaultTitle">Configure tip goal 💸</div>
                 <div class="goal-amounts">
                     <span class="current-ar">0.00</span>
                     <span class="goal-ar">/ 0.00 AR</span>
