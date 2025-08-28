@@ -12,7 +12,8 @@
       <div class="form-group mt-2">
         <label class="label" for="wallet-address">{{ t('arWalletAddress') }}</label>
         <input class="input" :class="{'input-error': errors.walletAddress}" id="wallet-address" v-model="form.walletAddress" type="text" />
-        <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
+  <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
+  <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
   <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="mt-3">
@@ -44,7 +45,7 @@ import api from '../services/api';
 import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
-import { MAX_TITLE_LEN, isLikelyWallet } from '../utils/validation';
+import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import OsCard from './os/OsCard.vue'
 
 const original = reactive({ snapshot: null });
@@ -133,7 +134,11 @@ async function save() {
 }
 function validate(){
   errors.title = form.title.length>MAX_TITLE_LEN ? t('valMax120') : '';
-  errors.walletAddress = form.walletAddress && !isLikelyWallet(form.walletAddress) ? t('valTooShort') : '';
+  if (form.walletAddress && !isArweaveAddress(form.walletAddress)) {
+    errors.walletAddress = t('valArweaveOnly');
+  } else {
+    errors.walletAddress = '';
+  }
   return !errors.title && !errors.walletAddress;
 }
 

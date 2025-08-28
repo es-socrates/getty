@@ -2,6 +2,21 @@ const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
 
+const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
+function isValidArweaveAddress(addr) {
+  try {
+    if (typeof addr !== 'string') return false;
+    const s = addr.trim();
+    if (!ARWEAVE_RX.test(s)) return false;
+    const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 === 2 ? '==' : (b64.length % 4 === 3 ? '=' : '');
+    const decoded = Buffer.from(b64 + pad, 'base64');
+    if (decoded.length !== 32) return false;
+    const roundtrip = decoded.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+    return roundtrip === s;
+  } catch { return false; }
+}
+
 function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   const store = options.store || null;
   const wss = options.wss || null;
@@ -74,6 +89,9 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       }
       const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof walletAddress === 'string';
       const effectiveWallet = walletProvided ? (walletAddress || '').trim() : (config.walletAddress || '');
+  if (walletProvided && effectiveWallet && !isValidArweaveAddress(effectiveWallet)) {
+        return res.status(400).json({ error: 'invalid_wallet_address' });
+      }
       const newConfig = {
         ...config,
         bgColor: bgColor || config.bgColor || '#080c10',

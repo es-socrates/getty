@@ -3,11 +3,22 @@ const WebSocket = require('ws');
 const { z } = require('zod');
 
 function registerRaffleRoutes(app, raffle, wss) {
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedWithRedis = !!process.env.REDIS_URL;
+  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
   const raffleImageUpload = multer({ dest: './public/uploads/raffle/' });
 
-  app.get('/api/raffle/settings', (_req, res) => {
+  app.get('/api/raffle/settings', (req, res) => {
     try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const hasNs = !!ns;
       const settings = raffle.getSettings();
+      if (!hasNs) {
+        const rest = { ...settings };
+        delete rest.participants;
+        delete rest.previousWinners;
+        return res.json(rest);
+      }
       res.json(settings);
     } catch (error) {
       console.error('Error in GET /api/raffle/settings:', error);
@@ -27,6 +38,10 @@ function registerRaffleRoutes(app, raffle, wss) {
 
   app.post('/api/raffle/settings', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const schema = z.object({
         command: z.string().trim().default('!giveaway'),
         prize: z.string().trim().min(1).max(15),

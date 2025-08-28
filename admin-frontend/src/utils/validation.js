@@ -28,3 +28,26 @@ export function isLikelyWallet(addr) {
   if (!addr) return false;
   return addr.trim().length >= 5;
 }
+
+const AR_RX = /^[A-Za-z0-9_-]{43}$/;
+export function isArweaveAddress(addr) {
+  try {
+    if (typeof addr !== 'string') return false;
+    const s = addr.trim();
+    if (!s) return false;
+    if (!AR_RX.test(s)) return false;
+    const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64.length % 4 === 2 ? '==' : (b64.length % 4 === 3 ? '=' : '');
+    const decoded = atob(b64 + pad);
+    if (decoded.length !== 32) return false;
+    const u8 = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) u8[i] = decoded.charCodeAt(i);
+    let re = '';
+    let bin = '';
+    for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+    re = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return re === s;
+  } catch {
+    return false;
+  }
+}

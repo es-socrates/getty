@@ -8,6 +8,21 @@ const __faviconCache = Object.create(null);
 const FAVICON_TTL_MS = 60 * 60 * 1000;
 
 function registerAnnouncementRoutes(app, announcementModule, limiters) {
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedWithRedis = !!process.env.REDIS_URL;
+  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+  async function resolveNsFromReq(req) {
+    try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (ns) return ns;
+      const token = typeof req.query?.token === 'string' ? req.query.token : null;
+      if (token && req.app && req.app.get && req.app.get('store')) {
+        const st = req.app.get('store');
+        try { const meta = await st.get(token, 'meta', null); if (meta) return token; } catch {}
+      }
+    } catch {}
+    return null;
+  }
   const getLimiter = (key) => {
     if (typeof limiters === 'function') return limiters;
     if (limiters && typeof limiters[key] === 'function') return limiters[key];
@@ -31,16 +46,27 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     }
   });
 
-  app.get('/api/announcement', getLimiter('config'), (req, res) => {
+  app.get('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
-      res.json({ success: true, config: announcementModule.getPublicConfig() });
+      const ns = await resolveNsFromReq(req);
+      const hasNs = !!ns;
+      const cfg = announcementModule.getPublicConfig();
+      if ((hostedWithRedis || requireSessionFlag) && !hasNs) {
+        const masked = { ...cfg, messages: [] };
+        return res.json({ success: true, config: masked });
+      }
+      res.json({ success: true, config: cfg });
     } catch {
       res.status(500).json({ success: false, error: 'Internal error' });
     }
   });
 
-  app.post('/api/announcement', getLimiter('config'), (req, res) => {
+  app.post('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = await resolveNsFromReq(req);
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const colorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
       const schema = z.object({
         cooldownSeconds: z.coerce.number().int().positive().max(86400).optional(),
@@ -60,6 +86,10 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.post('/api/announcement/message', getLimiter('message'), upload.single('image'), async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = await resolveNsFromReq(req);
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const schema = z.object({ text: z.string().trim().min(1).max(120), linkUrl: z.string().url().optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
@@ -74,8 +104,12 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     }
   });
 
-  app.put('/api/announcement/message/:id', getLimiter('message'), (req, res) => {
+  app.put('/api/announcement/message/:id', getLimiter('message'), async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = await resolveNsFromReq(req);
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const schema = z.object({
         text: z.string().trim().min(1).max(120).optional(),
         enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
@@ -101,8 +135,12 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
-  app.put('/api/announcement/message/:id/image', getLimiter('message'), upload.single('image'), (req, res) => {
+  app.put('/api/announcement/message/:id/image', getLimiter('message'), upload.single('image'), async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = await resolveNsFromReq(req);
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const existing = announcementModule.getMessage(req.params.id);
       if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
       const schema = z.object({ text: z.string().trim().min(1).max(120).optional(), linkUrl: z.string().url().optional(), enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
@@ -120,12 +158,22 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
-  app.delete('/api/announcement/message/:id', getLimiter('message'), (req, res) => {
-    try { const ok = announcementModule.removeMessage(req.params.id); res.json({ success: ok }); } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+  app.delete('/api/announcement/message/:id', getLimiter('message'), async (req, res) => {
+    try {
+      if (shouldRequireSession) {
+        const ns = await resolveNsFromReq(req);
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const ok = announcementModule.removeMessage(req.params.id); res.json({ success: ok });
+    } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
-  app.delete('/api/announcement/messages', getLimiter('message'), (req, res) => {
+  app.delete('/api/announcement/messages', getLimiter('message'), async (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = await resolveNsFromReq(req);
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const mode = req.query.mode === 'test' ? 'test' : 'all';
       const result = announcementModule.clearMessages(mode);
       res.json({ success: true, cleared: result, mode, config: announcementModule.getPublicConfig() });

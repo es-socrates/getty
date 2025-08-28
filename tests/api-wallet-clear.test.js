@@ -30,13 +30,13 @@ describe('Wallet clear behavior', () => {
   try { if (fs.existsSync(TG_PATH)) fs.unlinkSync(TG_PATH); } catch { /* ignore error */ }
       const r1 = await agent
         .post('/api/tip-goal')
-        .field('walletAddress', 'ALPHA123')
+        .field('walletAddress', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
         .field('monthlyGoal', '5')
         .field('currentAmount', '0');
       expect(r1.status).toBe(200);
       expect(fs.existsSync(TG_PATH)).toBe(true);
       const afterSet = readJson(TG_PATH);
-      expect(afterSet.walletAddress).toBe('ALPHA123');
+      expect(afterSet.walletAddress).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 
       const r2 = await agent
         .post('/api/tip-goal')
@@ -55,12 +55,12 @@ describe('Wallet clear behavior', () => {
   try { if (fs.existsSync(LT_PATH)) fs.unlinkSync(LT_PATH); } catch { /* ignore error */ }
       const r1 = await agent
         .post('/api/last-tip')
-        .send({ walletAddress: 'BRAVO456' })
+        .send({ walletAddress: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' })
         .set('Content-Type', 'application/json');
       expect(r1.status).toBe(200);
       expect(fs.existsSync(LT_PATH)).toBe(true);
       const afterSet = readJson(LT_PATH);
-      expect(afterSet.walletAddress).toBe('BRAVO456');
+      expect(afterSet.walletAddress).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 
       const r2 = await agent
         .post('/api/last-tip')

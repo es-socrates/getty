@@ -20,7 +20,8 @@
       <div class="form-group mt-2">
         <label class="label" for="tip-goal-wallet-address">{{ t('arWalletAddress') }}</label>
         <input class="input" :aria-invalid="!!errors.walletAddress" :class="{'input-error': errors.walletAddress}" id="tip-goal-wallet-address" v-model="form.walletAddress" type="text" />
-        <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
+  <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
+  <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
   <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="form-group mt-2">
@@ -84,7 +85,7 @@ import api from '../services/api';
 import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
-import { MAX_TITLE_LEN, isLikelyWallet } from '../utils/validation';
+import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
@@ -261,7 +262,11 @@ function formatSize(bytes) {
 
 function validate() {
   errors.title = form.title.length > MAX_TITLE_LEN ? t('valMax120') : '';
-  errors.walletAddress = form.walletAddress && !isLikelyWallet(form.walletAddress) ? t('valTooShort') : '';
+  if (form.walletAddress && !isArweaveAddress(form.walletAddress)) {
+    errors.walletAddress = t('valArweaveOnly');
+  } else {
+    errors.walletAddress = '';
+  }
   errors.goalAmount = (form.goalAmount || 0) < 1 ? t('valMin1') : '';
   errors.startingAmount = (form.startingAmount || 0) < 0 ? t('valInvalid') : '';
   return !errors.title && !errors.walletAddress && !errors.goalAmount && !errors.startingAmount;
