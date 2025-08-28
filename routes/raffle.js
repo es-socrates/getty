@@ -14,15 +14,8 @@ function registerRaffleRoutes(app, raffle, wss) {
       const hasNs = !!ns;
       const settings = raffle.getSettings();
       if (!hasNs) {
-        const rest = { ...settings };
-        delete rest.participants;
-        delete rest.previousWinners;
 
-        if (rest && typeof rest === 'object') {
-          delete rest.command;
-          delete rest.prize;
-        }
-        return res.json(rest);
+  return res.json({});
       }
       res.json(settings);
     } catch (error) {
@@ -83,8 +76,12 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.post('/api/raffle/start', (_req, res) => {
+  app.post('/api/raffle/start', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       raffle.start();
       broadcastRaffleState(wss, raffle);
       res.json({ success: true });
@@ -93,8 +90,12 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.post('/api/raffle/stop', (_req, res) => {
+  app.post('/api/raffle/stop', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       raffle.stop();
       broadcastRaffleState(wss, raffle);
       res.json({ success: true });
@@ -103,8 +104,12 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.post('/api/raffle/pause', (_req, res) => {
+  app.post('/api/raffle/pause', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       raffle.pause();
       broadcastRaffleState(wss, raffle);
       res.json({ success: true });
@@ -113,8 +118,12 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.post('/api/raffle/resume', (_req, res) => {
+  app.post('/api/raffle/resume', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       raffle.resume();
       broadcastRaffleState(wss, raffle);
       res.json({ success: true });
@@ -123,8 +132,12 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.post('/api/raffle/draw', (_req, res) => {
+  app.post('/api/raffle/draw', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       const winner = raffle.drawWinner();
       broadcastRaffleWinner(wss, winner);
       broadcastRaffleState(wss, raffle);
@@ -134,8 +147,12 @@ function registerRaffleRoutes(app, raffle, wss) {
     }
   });
 
-  app.post('/api/raffle/reset', (_req, res) => {
+  app.post('/api/raffle/reset', (req, res) => {
     try {
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
       raffle.resetWinners();
       broadcastRaffleState(wss, raffle);
       res.json({ success: true });
@@ -145,6 +162,10 @@ function registerRaffleRoutes(app, raffle, wss) {
   });
 
   app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), (req, res) => {
+    if (shouldRequireSession) {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (!ns) return res.status(401).json({ error: 'session_required' });
+    }
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const imageUrl = `/uploads/raffle/${req.file.filename}`;
 

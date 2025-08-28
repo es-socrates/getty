@@ -72,4 +72,31 @@ describe('Masking secrets and sensitive fields when GETTY_REQUIRE_SESSION=1', ()
     expect(res.status).toBe(200);
     expect(typeof res.body.claimid === 'string').toBe(true);
   });
+
+  test('GET /api/modules masks socialmedia status when unauthenticated', async () => {
+    const res = await request(app).get('/api/modules');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('socialmedia');
+    expect(res.body.socialmedia.configured).toBe(false);
+    expect(res.body.socialmedia.entries).toBe(0);
+    expect(res.body.masked).toBe(true);
+  });
+
+  test('GET /api/modules masks external notifications for unauthenticated', async () => {
+    const res = await request(app).get('/api/modules');
+    expect(res.status).toBe(200);
+    const ext = res.body.externalNotifications;
+    expect(ext.active).toBe(false);
+    expect(Array.isArray(ext.lastTips)).toBe(true);
+    expect(ext.lastTips.length).toBe(0);
+    expect(ext.config.hasDiscord).toBe(false);
+    expect(ext.config.hasTelegram).toBe(false);
+    expect(ext.config.template).toBe('');
+  });
+
+  test('GET /api/modules omits raffle section when unauthenticated', async () => {
+    const res = await request(app).get('/api/modules');
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty('raffle');
+  });
 });

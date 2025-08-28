@@ -1191,9 +1191,20 @@ app.get('/api/modules', async (req, res) => {
     try { if (payload.tipGoal) { payload.tipGoal.active = false; if (typeof payload.tipGoal.initialized !== 'undefined') payload.tipGoal.initialized = false; } } catch {}
     try { if (payload.chat) { payload.chat.connected = false; payload.chat.active = false; } } catch {}
     try { if (payload.announcement) payload.announcement.active = false; } catch {}
-    try { if (payload.externalNotifications) payload.externalNotifications.active = false; } catch {}
+    try { if (payload.socialmedia) { payload.socialmedia.configured = false; payload.socialmedia.entries = 0; } } catch {}
+    try {
+      if (payload.externalNotifications) {
+        payload.externalNotifications.active = false;
+        payload.externalNotifications.lastTips = [];
+        if (payload.externalNotifications.config) {
+          payload.externalNotifications.config.hasDiscord = false;
+          payload.externalNotifications.config.hasTelegram = false;
+          payload.externalNotifications.config.template = '';
+        }
+      }
+    } catch {}
     try { if (payload.liveviews) payload.liveviews.active = false; } catch {}
-    try { if (payload.raffle) payload.raffle.active = false; } catch {}
+    try { if (payload.raffle) delete payload.raffle; } catch {}
 
   payload.masked = true;
   payload.maskedReason = 'no_session';
