@@ -29,6 +29,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       try {
         const hosted = !!store;
         const hasNs = !!ns;
+        const hideInHosted = hosted && !hasNs;
         const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
         const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$/i.test(remote);
         const hostHeader = req.headers.host || '';
@@ -36,7 +37,6 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
         const isLocal = isLocalIp || isLocalHostHeader;
         const hideForRemoteLocalMode = (!hosted && !isLocal);
-        const hideInHosted = (hosted && !hasNs && !isLocal);
         if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
           delete out.walletAddress;
         }
@@ -49,7 +49,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
   app.post('/api/tip-goal', strictLimiter, goalAudioUpload.single('audioFile'), async (req, res) => {
     try {
 
-  if (store && store.redis && !(req?.ns?.admin || req?.ns?.pub)) {
+  const requireSession = (store && store.redis) || process.env.GETTY_REQUIRE_SESSION === '1';
+  if (requireSession && !(req?.ns?.admin || req?.ns?.pub)) {
         return res.status(401).json({ error: 'no_session' });
       }
       const schema = z.object({
