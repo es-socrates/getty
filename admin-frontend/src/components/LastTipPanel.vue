@@ -101,7 +101,6 @@ async function load() {
       const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
       const demoTitles = new Set([
         'Last tip received 👏',
-        'Última propina 🔥',
         'Configure tip goal 💸'
       ]);
       const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));

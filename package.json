@@ -1,7 +1,7 @@
 {
   "name": "getty",
-  "version": "1.0.6",
-  "description": "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
+  "version": "1.0.7",
+  "description": "Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

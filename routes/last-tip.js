@@ -38,18 +38,22 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
 
       const out = { ...cfg };
       try {
-        const hosted = !!store;
+        const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
         const hasNs = !!ns;
         const hideInHosted = hosted && !hasNs;
-        const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
-        const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$/i.test(remote);
-        const hostHeader = req.headers.host || '';
-        const hostNameOnly = hostHeader.replace(/^\[/, '').replace(/\]$/, '').split(':')[0];
-        const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
-        const isLocal = isLocalIp || isLocalHostHeader;
-        const hideForRemoteLocalMode = (!hosted && !isLocal);
-        if ((hideInHosted || hideForRemoteLocalMode) && out && typeof out === 'object' && out.walletAddress) {
+        if (hideInHosted && out && typeof out === 'object' && out.walletAddress) {
           delete out.walletAddress;
+        } else if (!hosted) {
+
+          const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
+          const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$/i.test(remote);
+          const hostHeader = req.headers.host || '';
+          const hostNameOnly = hostHeader.replace(/^\[/, '').replace(/\]$/, '').split(':')[0];
+          const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
+          const isLocal = isLocalIp || isLocalHostHeader;
+          if (!isLocal && out && typeof out === 'object' && out.walletAddress) {
+            delete out.walletAddress;
+          }
         }
       } catch {}
       res.json({ success: true, ...out });

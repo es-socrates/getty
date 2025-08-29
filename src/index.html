@@ -40,10 +40,10 @@
         html:not(.dark) .raffle-embed .raffle-participants-label,
         html:not(.dark) .raffle-embed .raffle-participant-count,
         html:not(.dark) .raffle-embed .raffle-winner-title { color: #fff !important; }
-        html:not(.dark) .raffle-embed .participant { color: #fff !important; }
+        html:not(.dark) .raffle-embed .participant { color: #fff !important; }        
     </style>
 </head>
-<body class="bg-background text-gray-100 font-sans">
+<body class="landing bg-background text-gray-100 font-sans">
 <div class="max-w-7xl mx-auto p-6">
     <header class="os-header flex justify-between items-center pb-5 mb-8 border-b border-border">
         <div class="flex items-center gap-4">
@@ -90,8 +90,16 @@
     </header>
         
     <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-    <section class="os-card overflow-hidden flex flex-col md:order-1 lg:order-1">
-            <h2 class="px-6 text-2xl font-semibold mb-1.0" data-i18n="lastTipTitle"></h2>
+        <section class="os-card overflow-hidden flex flex-col md:order-1 lg:order-1">
+                        <h2 class="os-panel-title">
+                            <span class="icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M12 1v22" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+                                </svg>
+                            </span>
+                            <span data-i18n="lastTipTitle"></span>
+                        </h2>
             <div class="flex-1 flex flex-col justify-center">
                 <div id="last-donation" class="last-donation">
                     <div class="last-donation-content">
@@ -114,8 +122,16 @@
             </div>
         </section>
         
-    <section class="os-card overflow-hidden flex flex-col md:order-2 lg:order-2">
-            <h2 class="px-6 text-2xl font-semibold mb-1.0" data-i18n="monthlyGoalTitle"></h2>
+        <section class="os-card overflow-hidden flex flex-col md:order-2 lg:order-2">
+                        <h2 class="os-panel-title">
+                            <span class="icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 6v6l4 2" />
+                                </svg>
+                            </span>
+                            <span data-i18n="monthlyGoalTitle"></span>
+                        </h2>
             <div class="flex-1 flex flex-col justify-center">
                 <div id="goal-widget" class="p-4">
                     <div class="goal-container"></div>
@@ -123,24 +139,48 @@
             </div>
         </section>
 
-    <section class="os-card overflow-hidden flex flex-col md:order-3 lg:order-3">
-            <h2 class="px-6 text-2xl font-semibold mb-1.0" data-i18n="notificationsTitle"></h2>
+        <section class="os-card overflow-hidden flex flex-col md:order-3 lg:order-3">
+                        <h2 class="os-panel-title">
+                            <span class="icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                </svg>
+                            </span>
+                            <span data-i18n="notificationsTitle"></span>
+                        </h2>
             <div class="flex-1 flex flex-col justify-center">
                 <div id="notification" class="mb-2"></div>
             </div>
         </section>
 
-    <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-4 lg:order-4">
-            <h2 class="px-6 text-2xl font-semibold mb-1.4" data-i18n="liveChatTitle"></h2>
+        <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-4 lg:order-4">
+                        <h2 class="os-panel-title">
+                            <span class="icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8.5 8.5Z" />
+                                </svg>
+                            </span>
+                            <span data-i18n="liveChatTitle"></span>
+                        </h2>
             <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
                 <div id="chat-container"></div>
             </div>
         </section>
     
-    <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-5 lg:order-5">
-            <h2 class="px-6 text-2xl font-semibold mb-1.0 flex items-center gap-2">
-                <span data-i18n="raffleTitle"></span>
-            </h2>
+        <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-5 lg:order-5">
+                        <h2 class="os-panel-title">
+                            <span class="icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                                    <path d="M2 10h20" />
+                                    <path d="M8 15h.01" />
+                                    <path d="M12 15h.01" />
+                                    <path d="M16 15h.01" />
+                                </svg>
+                            </span>
+                            <span data-i18n="raffleTitle"></span>
+                        </h2>
             <div class="flex-1 flex flex-col justify-center p-4">
                 <div class="raffle-embed bg-[#080c10] rounded-[6px] p-3 h-full">
                     <div id="raffleContentContainer" class="-mt-0"></div>

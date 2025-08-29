@@ -13,6 +13,9 @@
   --card-text: var(--text-primary);
   --sidebar-link-color: #52525b;
   --sidebar-link-active-bg: #f4f4f5;
+  --chart-bg: #f9fafb;
+  --chart-grid: #e5e7eb;
+  --accent: #4f36ff;
 }
 .dark {
   --bg-background: #09080d;
@@ -25,9 +28,13 @@
   --shadow-color: rgb(0 0 0 / 30%);
   --sidebar-link-color: #a1a1aa;
   --sidebar-link-active-bg: #0f1214;
+  --chart-bg: #0f1214;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --accent: #4f36ff;
 }
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    color 0.3s ease;
 }
 
 html:not(.dark) {
@@ -79,7 +86,8 @@ html:not(.dark) footer a:hover {
 html:not(.dark) #user-menu {
   background-color: var(--bg-card) !important;
   border-color: var(--border-color) !important;
-  box-shadow: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color) !important;
+  box-shadow: 0 10px 15px -3px var(--shadow-color),
+    0 4px 6px -4px var(--shadow-color) !important;
 }
 
 html:not(.dark) #user-menu a {
