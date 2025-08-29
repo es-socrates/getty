@@ -1,14 +1,14 @@
-# getty
+# getty (λ)
 
 Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.
 
-🔥 Online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **Please be kind and patient; resources on the server are limited.**
+🔥 Demo online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **Please be kind and patient; resources on the server are limited.**
 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
-![getty](https://thumbs.odycdn.com/e80ce98bd84093e80b050db245485887.webp)
+![getty](https://thumbs.odycdn.com/a3a2b6dfa1498257a7c37ea4050e217b.webp)
 
-> **The view of the control panel in getty. The colors have also been changed in the latest version.**
+> **The view of the dashboard in getty. The colors have also been changed in the latest version.**
 
 ## Not familiar with Odysee?
 
@@ -32,8 +32,9 @@ Want to take your stream to the next level? With getty, managing your widgets in
 8. ❇️ Announcement: Create random messages for your viewers.
 9. #️⃣ Social media: Show your social media accounts.
 10. 💬 Live Chat: Add a chat widget to your OBS with different themes.
+11. 📈 Real-time and historical statistics of your lives in Odysee
 
-![getty](https://thumbs.odycdn.com/2c824f75e3a53242508da449d7b7a558.webp)
+![image](https://thumbs.odycdn.com/a091ead3b388f98729ddf09ef1605eb4.webp)
 
 ## Prerequisites to start getty
 

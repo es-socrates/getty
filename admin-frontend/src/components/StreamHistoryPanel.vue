@@ -23,25 +23,50 @@
           </label>
         </div>
       </div>
-      <div class="form-group">
-        <label class="label">{{ t('streamHistoryPeriod') }}</label>
-        <select class="input" v-model="period" @change="refresh">
-          <option value="day">{{ t('periodDay') }}</option>
-          <option value="week">{{ t('periodWeek') }}</option>
-          <option value="month">{{ t('periodMonth') }}</option>
-          <option value="year">{{ t('periodYear') }}</option>
-        </select>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-between -m-2 mt-2">
+      <div class="w-auto p-2">
+        <h3 class="font-heading text-lg font-semibold">{{ t('activity') }}</h3>
       </div>
-      <div class="form-group">
-        <label class="label">{{ t('streamHistorySpan') }}</label>
-        <select class="input" v-model.number="span" @change="refresh">
-          <option :value="7">7</option>
-          <option :value="14">14</option>
-          <option :value="30">30</option>
-          <option :value="90">90</option>
-          <option :value="180">180</option>
-          <option :value="365">365</option>
-        </select>
+      <div class="w-auto p-2">
+        <div class="flex items-center gap-2">
+          <div class="relative h-full overflow-hidden rounded-full">
+            <select
+              class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+              v-model="filterQuick"
+              @change="onQuickFilterChange"
+              aria-label="Quick period"
+            >
+              <option value="day">{{ t('quickToday') }}</option>
+              <option value="week">{{ t('quickThisWeek') }}</option>
+              <option value="month">{{ t('quickThisMonth') }}</option>
+              <option value="year">{{ t('quickThisYear') }}</option>
+            </select>
+            <svg class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2" width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.1673 6L8.50065 10.6667L3.83398 6" stroke="#0C1523" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+
+          <div class="relative h-full overflow-hidden rounded-full">
+            <select
+              class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+              v-model.number="filterQuickSpan"
+              @change="onQuickRangeChange"
+              aria-label="Quick range span"
+            >
+              <option :value="7">7d</option>
+              <option :value="14">14d</option>
+              <option :value="30">30d</option>
+              <option :value="90">90d</option>
+              <option :value="180">180d</option>
+              <option :value="365">365d</option>
+            </select>
+            <svg class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2" width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13.1673 6L8.50065 10.6667L3.83398 6" stroke="#0C1523" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -135,6 +160,8 @@ const chartEl = ref(null);
 const period = ref('day');
 const span = ref(30);
 const mode = ref('line');
+const filterQuick = ref('day');
+const filterQuickSpan = ref(30);
 const claimid = ref('');
 const initialClaimid = ref('');
 const saving = ref(false);
@@ -220,6 +247,25 @@ async function refresh() {
   } catch { renderChart([]); }
 }
 
+function onQuickFilterChange() {
+  try {
+    if (filterQuick.value === 'day' || filterQuick.value === 'week' || filterQuick.value === 'month' || filterQuick.value === 'year') {
+      period.value = filterQuick.value;
+      refresh();
+    }
+  } catch {}
+}
+
+function onQuickRangeChange() {
+  try {
+    const v = Number(filterQuickSpan.value || 30);
+    if ([7,14,30,90,180,365].includes(v)) {
+      span.value = v;
+      refresh();
+    }
+  } catch {}
+}
+
 async function clearHistory() {
   try {
     showClearModal.value = true;
@@ -291,6 +337,7 @@ function renderChart(data) {
   if (!el) return;
   el.innerHTML = '';
   el.style.position = 'relative';
+  el.style.background = 'var(--chart-bg, #fefefe)';
   const tip = document.createElement('div');
   tip.className = 'chart-tip';
   tip.style.position = 'absolute';
@@ -320,19 +367,67 @@ function renderChart(data) {
   const h = el.clientHeight - 16;
   const max = Math.max(1, ...trimmed.map(d => d.hours || 0));
 
+  const drawGrid = (svg, withLabels = false, maxVal = 0, axisLeft = 0) => {
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bg.setAttribute('x', '0');
+    bg.setAttribute('y', '0');
+    bg.setAttribute('width', String(w));
+    bg.setAttribute('height', String(h));
+    bg.setAttribute('fill', 'var(--chart-bg, #fefefe)');
+    svg.appendChild(bg);
+
+    const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid').trim() || '#f3f7fa';
+    const lines = 4;
+    const padY = 10;
+    for (let i = 1; i <= lines; i++) {
+  const y = Math.round(padY + ((h - padY * 2) * i / (lines + 1)));
+      const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  ln.setAttribute('x1', String(Math.max(0, axisLeft)));
+      ln.setAttribute('y1', String(y));
+      ln.setAttribute('x2', String(w));
+      ln.setAttribute('y2', String(y));
+      ln.setAttribute('stroke', gridColor);
+      ln.setAttribute('stroke-width', '1');
+      ln.setAttribute('stroke-dasharray', '0');
+      svg.appendChild(ln);
+    }
+
+    if (withLabels && maxVal > 0) {
+      const labelColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#94a3b8';
+      const ticks = lines + 2;
+      for (let i = 0; i <= ticks - 1; i++) {
+        const y = Math.round(padY + ((h - padY * 2) * i / (ticks - 1)));
+        const val = maxVal * (1 - (i / (ticks - 1)));
+        const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  txt.setAttribute('x', '6');
+
+        txt.setAttribute('y', String(Math.max(10, Math.min(h - 2, y + 3))));
+        txt.setAttribute('fill', labelColor);
+        txt.setAttribute('font-size', '10');
+        txt.setAttribute('text-anchor', 'start');
+
+        try { txt.textContent = fmtHours(val); } catch { txt.textContent = String(Math.round(val)); }
+        svg.appendChild(txt);
+      }
+    }
+  };
+
   if (mode.value === 'line') {
+    const axisLeft = 44; // reserve space for Y labels
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', String(w));
     svg.setAttribute('height', String(h));
-    svg.style.display = 'block';
+  svg.style.display = 'block';
+    drawGrid(svg, true, max, axisLeft);
 
     const padX = 6; const padY = 10;
-    const stepX = Math.max(1, (w - padX * 2) / Math.max(1, display.length - 1));
+    const innerW = Math.max(1, (w - axisLeft - padX * 2));
+    const stepX = Math.max(1, innerW / Math.max(1, display.length - 1));
     const toY = (v) => Math.round((h - padY) - (Math.max(0, v) / max) * (h - padY * 2));
 
     let dPath = '';
     display.forEach((p, idx) => {
-      const x = Math.round(padX + idx * stepX);
+      const x = Math.round(axisLeft + padX + idx * stepX);
       const y = toY(p.hours || 0);
       dPath += (idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
@@ -344,7 +439,7 @@ function renderChart(data) {
     svg.appendChild(path);
 
     display.forEach((p, idx) => {
-      const x = Math.round(padX + idx * stepX);
+  const x = Math.round(axisLeft + padX + idx * stepX);
       const y = toY(p.hours || 0);
       const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       c.setAttribute('cx', String(x));
@@ -371,11 +466,26 @@ function renderChart(data) {
     return;
   }
 
-  const barW = Math.max(4, Math.floor(w / Math.max(1, display.length)) - 4);
+  const axisLeft = 44;
+  const barW = Math.max(4, Math.floor((w - axisLeft) / Math.max(1, display.length)) - 4);
+
+  const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  gridSvg.setAttribute('width', String(w));
+  gridSvg.setAttribute('height', String(h));
+  gridSvg.style.position = 'absolute';
+  gridSvg.style.left = '0';
+  gridSvg.style.top = '0';
+  gridSvg.style.pointerEvents = 'none';
+  drawGrid(gridSvg, true, max, axisLeft);
+  el.appendChild(gridSvg);
+
   const container = document.createElement('div');
   container.style.display = 'flex';
   container.style.alignItems = 'flex-end';
   container.style.gap = '4px';
+  container.style.position = 'relative';
+  container.style.zIndex = '1';
+  container.style.marginLeft = axisLeft + 'px';
 
   display.forEach(d => {
     const v = d.hours || 0;
@@ -429,6 +539,16 @@ onMounted(async () => {
 });
 
 watch([mode, period, span], () => { refresh(); });
+watch(period, (p) => {
+  if (p === 'day' || p === 'week' || p === 'month' || p === 'year') {
+    filterQuick.value = p;
+  }
+});
+watch(span, (s) => {
+  if ([7,14,30,90,180,365].includes(Number(s))) {
+    filterQuickSpan.value = Number(s);
+  }
+});
 
 function fmtHours(h) {
   const v = Number(h || 0);
@@ -478,4 +598,6 @@ async function backfill(hours) {
 .modal-title { font-weight: 700; margin-bottom: 8px; }
 .modal-body { font-size: 14px; }
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top: 12px; }
+select.quick-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none; }
+select.quick-select::-ms-expand { display: none; }
 </style>
