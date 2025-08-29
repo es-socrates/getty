@@ -1,0 +1,509 @@
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+
+function ensureDir(p) {
+  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+}
+
+function loadHistoryFromFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return { segments: [] };
+    const j = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  if (!j || typeof j !== 'object' || !Array.isArray(j.segments)) return { segments: [] };
+  if (!Array.isArray(j.samples)) j.samples = [];
+  return j;
+  } catch { return { segments: [] }; }
+}
+
+function saveHistoryToFile(filePath, data) {
+  try { fs.writeFileSync(filePath, JSON.stringify(data, null, 2)); } catch {}
+}
+
+function startSegment(hist, ts) {
+  const last = hist.segments[hist.segments.length - 1];
+  if (last && !last.end) return;
+  hist.segments.push({ start: ts, end: null });
+}
+
+function endSegment(hist, ts) {
+  const last = hist.segments[hist.segments.length - 1];
+  if (last && !last.end) last.end = ts;
+}
+
+function truncateSegments(hist, maxDays = 400) {
+  try {
+    const cutoff = Date.now() - maxDays * 86400000;
+    hist.segments = hist.segments.filter(s => (s.end || s.start) >= cutoff);
+    if (Array.isArray(hist.samples)) {
+      hist.samples = hist.samples.filter(s => s.ts >= cutoff);
+
+      if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
+    }
+  } catch {}
+}
+
+function splitSpanByDay(start, end) {
+  const out = [];
+  let cur = new Date(start);
+  let curDayStart = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()).getTime();
+  let curDayEnd = curDayStart + 86400000;
+  let s = start;
+  while (s < end) {
+    const e = Math.min(end, curDayEnd);
+    out.push({ day: curDayStart, ms: Math.max(0, e - s) });
+    s = e;
+    curDayStart = curDayEnd;
+    curDayEnd += 86400000;
+  }
+  return out;
+}
+
+function aggregate(hist, period = 'day', span = 30) {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const buckets = [];
+  if (period === 'day') {
+    for (let i = span - 1; i >= 0; i--) {
+      const dayStart = todayStart - i * 86400000;
+      buckets.push({ key: dayStart, label: new Date(dayStart).toISOString().slice(0, 10), ms: 0 });
+    }
+    for (const seg of hist.segments) {
+      const s = seg.start;
+      const e = seg.end || Date.now();
+      if (e < buckets[0].key || s > buckets[buckets.length - 1].key + 86400000) continue;
+      for (const part of splitSpanByDay(s, e)) {
+        const idx = buckets.findIndex(b => b.key === part.day);
+        if (idx !== -1) buckets[idx].ms += part.ms;
+      }
+    }
+    return buckets.map(b => ({ date: b.label, hours: +(b.ms / 3600000).toFixed(2) }));
+  }
+
+  const daily = aggregate(hist, 'day', span * (period === 'week' ? 7 : period === 'month' ? 30 : 365));
+  function weekKey(d) {
+    const dt = new Date(d + 'T00:00:00Z');
+    const day = (dt.getUTCDay() + 6) % 7;
+    const wkStart = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate() - day));
+    return wkStart.toISOString().slice(0, 10);
+  }
+  function monthKey(d) {
+    const dt = new Date(d + 'T00:00:00Z');
+    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+  function yearKey(d) {
+    const dt = new Date(d + 'T00:00:00Z');
+    return `${dt.getUTCFullYear()}`;
+  }
+  const map = new Map();
+  for (const item of daily) {
+    let key;
+    if (period === 'week') key = weekKey(item.date);
+    else if (period === 'month') key = monthKey(item.date);
+    else key = yearKey(item.date);
+    map.set(key, (map.get(key) || 0) + item.hours);
+  }
+  const arr = Array.from(map.entries()).map(([k, v]) => ({ date: k, hours: +v.toFixed(2) }));
+  arr.sort((a, b) => a.date.localeCompare(b.date));
+
+  return arr.slice(-span);
+}
+
+function rangeWindow(period = 'day', span = 30) {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const days = period === 'day' ? span : (period === 'week' ? span * 7 : (period === 'month' ? span * 30 : span * 365));
+  const start = todayStart - (days - 1) * 86400000;
+  const end = todayStart + 86400000;
+  return { start, end };
+}
+
+function computePerformance(hist, period = 'day', span = 30) {
+  const { start, end } = rangeWindow(period, span);
+
+  let hoursStreamed = 0;
+  for (const seg of hist.segments || []) {
+    const s = Math.max(start, seg.start);
+    const e = Math.min(end, seg.end || Date.now());
+    if (e > s) hoursStreamed += (e - s) / 3600000;
+  }
+  hoursStreamed = +hoursStreamed.toFixed(2);
+
+  const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000));
+  const activeDays = daily.filter(d => (d.hours || 0) > 0).length;
+
+  const samples = Array.isArray(hist.samples) ? hist.samples.filter(s => s.ts >= start && s.ts <= end) : [];
+  let watchedHours = 0;
+  let liveWeightedSeconds = 0;
+  let peakViewers = 0;
+  for (let i = 0; i < samples.length; i++) {
+    const cur = samples[i];
+    const next = samples[i + 1] || null;
+    peakViewers = Math.max(peakViewers, Number(cur.viewers || 0));
+    const t0 = Math.max(start, Number(cur.ts || 0));
+    const t1 = Math.min(end, next ? Number(next.ts || end) : end);
+    if (t1 <= t0) continue;
+    const dtSec = (t1 - t0) / 1000;
+    if (cur.live) {
+
+      const v = Math.max(0, Number(cur.viewers || 0));
+      watchedHours += v * (dtSec / 3600);
+      liveWeightedSeconds += dtSec * 1;
+    }
+  }
+  const avgViewers = liveWeightedSeconds > 0 ? +(watchedHours / (liveWeightedSeconds / 3600)).toFixed(2) : 0;
+  watchedHours = +watchedHours.toFixed(2);
+
+  let totalHoursStreamed = 0;
+  for (const seg of hist.segments || []) {
+    const s = seg.start;
+    const e = seg.end || Date.now();
+    if (e > s) totalHoursStreamed += (e - s) / 3600000;
+  }
+  totalHoursStreamed = +totalHoursStreamed.toFixed(2);
+  const highestViewers = Array.isArray(hist.samples) && hist.samples.length ? Math.max(...hist.samples.map(s => Number(s.viewers || 0))) : 0;
+
+  return {
+    range: {
+      hoursStreamed,
+      avgViewers,
+      peakViewers,
+      hoursWatched: watchedHours,
+      activeDays
+    },
+    allTime: {
+      totalHoursStreamed,
+      highestViewers
+    }
+  };
+}
+
+function registerStreamHistoryRoutes(app, limiter, options = {}) {
+  const store = options.store || null; // reserved for future namespacing
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
+  const DATA_DIR = path.join(process.cwd(), 'data');
+  const DATA_FILE = path.join(DATA_DIR, 'stream-history.json');
+  ensureDir(path.join(process.cwd(), 'config'));
+  ensureDir(DATA_DIR);
+
+  async function resolveAdminNs(req) {
+    try {
+      if (!store) return null;
+      if (req?.ns?.admin) return req.ns.admin;
+      if (req?.ns?.pub) {
+        const admin = await store.get(req.ns.pub, 'adminToken', null);
+        return typeof admin === 'string' && admin ? admin : null;
+      }
+      const token = (req.query?.token || '').toString();
+      if (token) {
+        const mapped = await store.get(token, 'adminToken', null);
+        return mapped ? mapped : token;
+      }
+    } catch {}
+    return null;
+  }
+
+  async function loadConfigNS(req) {
+    try {
+      const adminNs = await resolveAdminNs(req);
+      if (store && adminNs) {
+        const cfg = await store.get(adminNs, 'stream-history-config', null);
+        if (cfg && typeof cfg.claimid === 'string') return { claimid: cfg.claimid };
+        return { claimid: '' };
+      }
+    } catch {}
+
+    try {
+      if (fs.existsSync(CONFIG_FILE)) {
+        const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        return { claimid: typeof c.claimid === 'string' ? c.claimid : '' };
+      }
+    } catch {}
+    return { claimid: '' };
+  }
+
+  async function saveConfigNS(req, cfg) {
+    const adminNs = await resolveAdminNs(req);
+    if (store && adminNs) {
+      try { await store.set(adminNs, 'stream-history-config', { claimid: cfg.claimid || '' }); return true; } catch { return false; }
+    }
+    try { fs.writeFileSync(CONFIG_FILE, JSON.stringify({ claimid: cfg.claimid || '' }, null, 2)); return true; } catch { return false; }
+  }
+
+  async function loadHistoryNS(req) {
+    const adminNs = await resolveAdminNs(req);
+    if (store && adminNs) {
+      try {
+        const j = await store.get(adminNs, 'stream-history-data', null);
+        const hist = j && typeof j === 'object' ? j : { segments: [], samples: [] };
+        if (!Array.isArray(hist.segments)) hist.segments = [];
+        if (!Array.isArray(hist.samples)) hist.samples = [];
+        return hist;
+      } catch { return { segments: [], samples: [] }; }
+    }
+    return loadHistoryFromFile(DATA_FILE);
+  }
+
+  async function saveHistoryNS(req, data) {
+    const adminNs = await resolveAdminNs(req);
+    if (store && adminNs) {
+      try { await store.set(adminNs, 'stream-history-data', data); return true; } catch { return false; }
+    }
+    try { saveHistoryToFile(DATA_FILE, data); return true; } catch { return false; }
+  }
+
+  app.get('/config/stream-history-config.json', async (req, res) => {
+    try {
+  let cfg = await loadConfigNS(req);
+
+      if (!cfg.claimid) {
+        try {
+          const lvPath = path.join(process.cwd(), 'config', 'liveviews-config.json');
+          if (fs.existsSync(lvPath)) {
+            const lv = JSON.parse(fs.readFileSync(lvPath, 'utf8'));
+            if (typeof lv.claimid === 'string') cfg.claimid = lv.claimid;
+          }
+        } catch {}
+      }
+      return res.json(cfg);
+    } catch { return res.json({ claimid: '' }); }
+  });
+
+  app.post('/config/stream-history-config.json', limiter, async (req, res) => {
+    try {
+      if (((store && store.redis) || requireSessionFlag)) {
+        const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+  const body = req.body || {};
+  const claimid = (typeof body.claimid === 'string') ? body.claimid : '';
+  const cfg = { claimid };
+  const ok = await saveConfigNS(req, cfg);
+  if (!ok) return res.status(500).json({ error: 'failed_to_save' });
+  return res.json({ success: true, config: cfg });
+    } catch (e) { return res.status(500).json({ error: 'failed_to_save', details: e?.message }); }
+  });
+
+  app.post('/api/stream-history/event', limiter, async (req, res) => {
+    try {
+      let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
+
+        try {
+          const token = (req.query?.token || '').toString();
+          if (token && store) {
+            const mapped = await store.get(token, 'adminToken', null);
+            nsCheck = mapped ? mapped : token;
+          }
+        } catch {}
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+  const live = !!req.body?.live;
+      const at = typeof req.body?.at === 'number' ? req.body.at : Date.now();
+  const viewers = (() => { const v = Number(req.body?.viewers); return isNaN(v) || v < 0 ? 0 : Math.floor(v); })();
+  const hist = await loadHistoryNS(req);
+  if (!Array.isArray(hist.samples)) hist.samples = [];
+      const last = hist.segments[hist.segments.length - 1];
+      const isOpen = last && !last.end;
+      if (live) {
+        if (!isOpen) startSegment(hist, at);
+      } else {
+        if (isOpen) endSegment(hist, at);
+      }
+
+  try { hist.samples.push({ ts: at, live: !!live, viewers }); } catch {}
+      truncateSegments(hist);
+  await saveHistoryNS(req, hist);
+      return res.json({ ok: true });
+    } catch (e) { return res.status(500).json({ error: 'failed_to_record', details: e?.message }); }
+  });
+
+  app.get('/api/stream-history/summary', async (req, res) => {
+    try {
+      const period = (req.query?.period || 'day').toString();
+      const span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
+  const hist = await loadHistoryNS(req);
+      const data = aggregate(hist, period, span);
+      return res.json({ period, span, data });
+    } catch (e) { return res.status(500).json({ error: 'failed_to_summarize', details: e?.message }); }
+  });
+
+  app.get('/api/stream-history/performance', async (req, res) => {
+    try {
+      const period = (req.query?.period || 'day').toString();
+      const span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
+  const hist = await loadHistoryNS(req);
+      const perf = computePerformance(hist, period, span);
+      return res.json({ period, span, ...perf });
+    } catch (e) { return res.status(500).json({ error: 'failed_to_compute_performance', details: e?.message }); }
+  });
+
+  app.post('/api/stream-history/backfill-current', limiter, async (req, res) => {
+    try {
+      let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
+
+        try {
+          const token = (req.query?.token || '').toString();
+          if (token && store) {
+            const mapped = await store.get(token, 'adminToken', null);
+            nsCheck = mapped ? mapped : token;
+          }
+        } catch {}
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+      const hours = Math.max(1, Math.min(24 * 30, parseInt(req.body?.hours || '0', 10)));
+
+  const hist = await loadHistoryNS(req);
+      let last = hist.segments && hist.segments[hist.segments.length - 1];
+      if (!last || last.end) {
+
+        try {
+          const samples = Array.isArray(hist.samples) ? hist.samples : [];
+          const ls = samples.length ? samples[samples.length - 1] : null;
+          const lastTs = ls ? Number(ls.ts || 0) : 0;
+          const FRESH_MS = 150000;
+          const isFreshLive = !!(ls && ls.live && lastTs > 0 && (Date.now() - lastTs) <= FRESH_MS);
+          if (isFreshLive) {
+            startSegment(hist, Date.now());
+            last = hist.segments[hist.segments.length - 1];
+          }
+        } catch {}
+      }
+      if (!last || last.end) return res.status(400).json({ error: 'no_open_segment' });
+      const targetStart = Date.now() - hours * 3600000;
+      if (typeof last.start !== 'number' || isNaN(last.start)) last.start = Date.now();
+      last.start = Math.min(last.start, targetStart);
+      truncateSegments(hist);
+  await saveHistoryNS(req, hist);
+      return res.json({ ok: true, start: last.start });
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_backfill', details: e?.message });
+    }
+  });
+
+  app.post('/api/stream-history/clear', limiter, async (req, res) => {
+    try {
+      let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
+        try {
+          const token = (req.query?.token || '').toString();
+          if (token && store) {
+            const mapped = await store.get(token, 'adminToken', null);
+            nsCheck = mapped ? mapped : token;
+          }
+        } catch {}
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+  const empty = { segments: [], samples: [] };
+  await saveHistoryNS(req, empty);
+      return res.json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_clear', details: e?.message });
+    }
+  });
+
+  app.get('/api/stream-history/export', async (req, res) => {
+    try {
+  const hist = await loadHistoryNS(req);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).send(JSON.stringify(hist, null, 2));
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_export', details: e?.message });
+    }
+  });
+
+  app.post('/api/stream-history/import', limiter, async (req, res) => {
+    try {
+      let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
+        try {
+          const token = (req.query?.token || '').toString();
+          if (token && store) {
+            const mapped = await store.get(token, 'adminToken', null);
+            nsCheck = mapped ? mapped : token;
+          }
+        } catch {}
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+      const incoming = req.body || {};
+      if (!incoming || typeof incoming !== 'object') return res.status(400).json({ error: 'invalid_payload' });
+      const segments = Array.isArray(incoming.segments) ? incoming.segments : [];
+      const samples = Array.isArray(incoming.samples) ? incoming.samples : [];
+
+      const safeSegments = segments
+        .map(s => ({ start: Number(s.start), end: (s.end == null ? null : Number(s.end)) }))
+        .filter(s => !isNaN(s.start) && (s.end == null || (!isNaN(s.end) && s.end >= s.start)));
+      const safeSamples = samples
+        .map(s => ({ ts: Number(s.ts), live: !!s.live, viewers: Math.max(0, Number(s.viewers || 0)) }))
+        .filter(s => !isNaN(s.ts));
+      const data = { segments: safeSegments, samples: safeSamples };
+      truncateSegments(data);
+      await saveHistoryNS(req, data);
+      return res.json({ ok: true, segments: data.segments.length, samples: data.samples.length });
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_import', details: e?.message });
+    }
+  });
+
+  app.get('/api/stream-history/status', async (req, res) => {
+    try {
+      let cfg = await loadConfigNS(req);
+      if (!cfg.claimid) {
+        try {
+          const lvPath = path.join(process.cwd(), 'config', 'liveviews-config.json');
+          if (fs.existsSync(lvPath)) {
+            const lv = JSON.parse(fs.readFileSync(lvPath, 'utf8'));
+            if (typeof lv.claimid === 'string') cfg.claimid = lv.claimid;
+          }
+        } catch {}
+      }
+
+      try {
+        const adminNs = await resolveAdminNs(req);
+        const throttleKey = adminNs ? `ns:${adminNs}` : 'single';
+        const nowTs = Date.now();
+        const lastTs = (app.__shLastFetch && app.__shLastFetch[throttleKey]) || 0;
+        if (!app.__shLastFetch) app.__shLastFetch = {};
+        const POLL_EVERY_MS = 15000;
+        if (cfg.claimid && (nowTs - lastTs) >= POLL_EVERY_MS) {
+          app.__shLastFetch[throttleKey] = nowTs;
+          const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(cfg.claimid)}`;
+          const resp = await axios.get(url, { timeout: 5000 });
+          const nowLive = !!resp?.data?.data?.Live;
+          const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
+          const hist = await loadHistoryNS(req);
+          const last = hist.segments[hist.segments.length - 1];
+          if (nowLive) { if (!(last && !last.end)) startSegment(hist, nowTs); }
+          else { if (last && !last.end) endSegment(hist, nowTs); }
+          if (!Array.isArray(hist.samples)) hist.samples = [];
+          try { hist.samples.push({ ts: nowTs, live: nowLive, viewers: viewerCount }); } catch {}
+          truncateSegments(hist);
+          await saveHistoryNS(req, hist);
+        }
+      } catch {}
+
+  const hist = await loadHistoryNS(req);
+      const samples = Array.isArray(hist.samples) ? hist.samples : [];
+      const lastSample = samples.length ? samples[samples.length - 1] : null;
+      const lastTs = lastSample ? Number(lastSample.ts || 0) : 0;
+      const now = Date.now();
+      const FRESH_MS = 150000;
+      const hasClaim = !!(cfg.claimid && String(cfg.claimid).trim());
+      const connected = hasClaim && lastTs > 0 && (now - lastTs) <= FRESH_MS;
+
+      let live = false;
+      try {
+        const seg = hist.segments && hist.segments[hist.segments.length - 1];
+        live = (!!seg && !seg.end) || (!!lastSample && !!lastSample.live);
+      } catch {}
+      const reason = hasClaim ? (connected ? 'ok' : 'stale') : 'no_claimid';
+      return res.json({ connected, live, lastSampleTs: lastTs || null, reason });
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_compute_status', details: e?.message });
+    }
+  });
+}
+
+module.exports = registerStreamHistoryRoutes;

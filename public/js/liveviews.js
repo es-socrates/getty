@@ -130,13 +130,22 @@ async function fetchViewerCountAndDisplay(url) {
     viewerCountEl.style.fontSize = size + 'px';
     if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
       viewerCountEl.textContent = `${data.data.ViewerCount} ${customLabel}`;
-      liveButtonEl.textContent = data.data.Live ? t('liveNow') : t('notLive');
+      const was = liveButtonEl.textContent === t('liveNow');
+      const nowLive = !!data.data.Live;
+      liveButtonEl.textContent = nowLive ? t('liveNow') : t('notLive');
+  if (was !== nowLive) reportStreamState(nowLive, data.data.ViewerCount);
     } else if (data && data.data && typeof data.data.Live !== 'undefined') {
       viewerCountEl.textContent = `0 ${customLabel}`;
-      liveButtonEl.textContent = data.data.Live ? t('liveNow') : t('notLive');
+      const was = liveButtonEl.textContent === t('liveNow');
+      const nowLive = !!data.data.Live;
+      liveButtonEl.textContent = nowLive ? t('liveNow') : t('notLive');
+  if (was !== nowLive) reportStreamState(nowLive, 0);
     } else {
       viewerCountEl.textContent = `0 ${customLabel}`;
+      const was = liveButtonEl.textContent === t('liveNow');
+      const nowLive = false;
       liveButtonEl.textContent = t('notLive');
+  if (was !== nowLive) reportStreamState(nowLive, 0);
     }
   } catch (error) {
     console.error('Error details:', error);
@@ -154,7 +163,10 @@ async function fetchViewerCountAndDisplay(url) {
     viewerCountEl.style.fontFamily = font;
     viewerCountEl.style.fontSize = size + 'px';
     viewerCountEl.textContent = `0 ${customLabel}`;
-    liveButtonEl.textContent = t('notLive');
+  const was = liveButtonEl.textContent === t('liveNow');
+  const nowLive = false;
+  liveButtonEl.textContent = t('notLive');
+  if (was !== nowLive) reportStreamState(nowLive);
   }
 }
 
@@ -308,6 +320,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     viewerCount.style.marginLeft = '10px';
   }
 });
+
+function reportStreamState(isLive, viewers) {
+  try {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('token') || '';
+    const endpoint = '/api/stream-history/event' + (token ? `?token=${encodeURIComponent(token)}` : '');
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ live: !!isLive, at: Date.now(), viewers: typeof viewers === 'number' ? viewers : undefined })
+    }).catch(() => {});
+  } catch {}
+}
 
 async function loadLiveviewsViewersLabel() {
     var input = document.getElementById('liveviews-viewers-label');

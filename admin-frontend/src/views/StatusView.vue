@@ -46,6 +46,10 @@
       <MetricsPanel />
     </div>
 
+    <div class="mb-4">
+      <StreamHistoryPanel />
+    </div>
+
     <OsCard :title="t('statusSystem')" class="mb-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="p-3 os-subtle rounded-os-sm">
@@ -174,6 +178,7 @@ import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue'
 import ActivityPanel from '../components/ActivityPanel.vue'
 import MetricsPanel from '../components/MetricsPanel.vue'
+import StreamHistoryPanel from '../components/StreamHistoryPanel.vue'
 import { pushToast } from '../services/toast'
 
 const { t, locale } = useI18n();
