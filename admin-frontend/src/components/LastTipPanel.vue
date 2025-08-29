@@ -46,6 +46,7 @@ import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
+import { usePublicToken } from '../composables/usePublicToken';
 import OsCard from './os/OsCard.vue'
 
 const original = reactive({ snapshot: null });
@@ -66,7 +67,8 @@ const colorFields = [
   { key: 'iconBg', label: 'colorIconBg' },
   { key: 'from', label: 'colorFrom' }
 ];
-const widgetUrl = computed(()=> `${location.origin}/widgets/last-tip`);
+const pt = usePublicToken();
+const widgetUrl = computed(()=> pt.withToken(`${location.origin}/widgets/last-tip`));
 
 function resetColors() {
   form.colors = { bg: '#080c10', font: '#ffffff', border: '#00ff7f', amount: '#00ff7f', icon: '#ffffff', iconBg: '#4f36ff', from: '#817ec8' };
@@ -120,6 +122,10 @@ async function load() {
   }
 }
 async function save() {
+  if (hostedSupported.value && !sessionActive.value) {
+    pushToast({ type: 'info', message: t('sessionRequiredToast') });
+    return;
+  }
   if(!validate()) return;
   try {
     saving.value = true;
@@ -155,5 +161,5 @@ function isLastTipDirty() { return original.snapshot && original.snapshot !== JS
 registerDirty(isLastTipDirty);
 watch(form, () => {}, { deep: true });
 
-onMounted(load);
+onMounted(async () => { await pt.refresh(); await load(); });
 </script>

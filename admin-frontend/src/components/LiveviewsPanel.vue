@@ -71,6 +71,7 @@ import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue'
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 
@@ -86,7 +87,8 @@ const form = ref({
 
 const customFont = ref('');
 const errors = ref({ claimid: '' });
-const widgetUrl = computed(() => `${location.origin}/widgets/liveviews`);
+const pt = usePublicToken();
+const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/liveviews`));
 const initial = ref('');
 const dirty = ref(false);
 const saving = ref(false);
@@ -169,5 +171,5 @@ function removeIcon() {
   save();
 }
 
-onMounted(load);
+onMounted(async () => { await pt.refresh(); await load(); });
 </script>
