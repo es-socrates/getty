@@ -87,6 +87,7 @@ import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE, MAX_AUDIO_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
+import { usePublicToken } from '../composables/usePublicToken';
 import OsCard from './os/OsCard.vue'
 
 const { t } = useI18n();
@@ -124,7 +125,8 @@ const errors = reactive({
 const savingGif = ref(false);
 const savingTts = ref(false);
 const savingAudio = ref(false);
-const widgetUrl = computed(()=> `${location.origin}/widgets/tip-notification`);
+const pt = usePublicToken();
+const widgetUrl = computed(()=> pt.withToken(`${location.origin}/widgets/tip-notification`));
 
 const audioState = reactive({
   hasCustomAudio: false,
@@ -298,7 +300,8 @@ async function deleteCustomAudio() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await pt.refresh();
   loadGif();
   loadTts();
   loadAudio();

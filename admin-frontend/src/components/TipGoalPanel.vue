@@ -87,6 +87,7 @@ import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import OsCard from './os/OsCard.vue'
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 
@@ -134,7 +135,8 @@ const colorFields = [
   { key: 'progress', label: 'colorProgress' }
 ];
 
-const widgetUrl = computed(() => `${location.origin}/widgets/tip-goal`);
+const pt = usePublicToken();
+const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/tip-goal`));
 
 function resetColors() {
   form.colors = { bg: '#080c10', font: '#ffffff', border: '#00ff7f', progress: '#00ff7f' };
@@ -201,6 +203,10 @@ async function load() {
 }
 
 async function save() {
+  if (hostedSupported.value && !sessionActive.value) {
+    pushToast({ type: 'info', message: t('sessionRequiredToast') });
+    return;
+  }
   if (!validate()) return;
   try {
     saving.value = true;
@@ -291,6 +297,6 @@ function isTipGoalDirty() {
 registerDirty(isTipGoalDirty);
 watch(form, () => {}, { deep: true });
 
-onMounted(load);
+onMounted(async () => { await pt.refresh(); await load(); });
 
 </script>

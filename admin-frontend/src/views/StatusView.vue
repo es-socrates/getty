@@ -1,5 +1,36 @@
 <template>
   <section class="admin-tab active">
+    <!-- Token info modal overlay -->
+    <div v-if="showInfo" style="position: fixed; inset: 0; z-index: 50;" aria-modal="true" role="dialog">
+      <div style="position:absolute; inset:0; background:rgba(0,0,0,.45); backdrop-filter: blur(3px);" @click="showInfo=false"></div>
+      <div style="position:relative; max-width: 560px; margin: 12vh auto; background: var(--bg); color: var(--fg); border:1px solid var(--card-border); border-radius: 10px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35);">
+        <div class="text-lg font-semibold mb-1">{{ t('tokenModalTitle') }}</div>
+        <div class="opacity-90 text-sm leading-6 mb-3">{{ t('tokenModalBody') }}</div>
+        <div class="flex gap-2 justify-end">
+          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="showInfo=false">{{ t('commonClose') || 'Close' }}</button>
+          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="onCreateTokenClick">{{ t('createTokenNow') }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showTokenNudge" class="mb-4">
+      <div class="p-3 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex flex-col gap-2">
+        <div class="font-semibold">{{ t('tokenNudgeTitle') }}</div>
+        <div class="text-sm opacity-90">{{ t('tokenNudgeBody') }}</div>
+        <div class="flex gap-2 flex-wrap mt-1">
+          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="onCreateTokenClick">
+            {{ t('createTokenNow') }}
+          </button>
+          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="showInfo = true">
+            {{ t('whyNeedToken') }}
+          </button>
+          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="dismissNudge">
+            {{ t('maybeLater') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <OsCard :title="t('statusModules')" class="mb-4">
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
         <div v-for="m in modulesList" :key="m.key" class="os-subtle p-3 rounded-os-sm" :title="m.tooltip || ''">
@@ -157,6 +188,25 @@ const importing = ref(false);
 const fileInputEl = ref(null);
 const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null });
 let importAppliedTimer = null;
+
+const showInfo = ref(false);
+const showTokenNudge = computed(() => {
+  try {
+    const dismissed = localStorage.getItem('getty_token_nudge_v1') === '1';
+    return sessionStatus.value.supported && sessionStatus.value.active && !dismissed;
+  } catch {
+    return sessionStatus.value.supported && sessionStatus.value.active;
+  }
+});
+
+function dismissNudge() {
+  try { localStorage.setItem('getty_token_nudge_v1', '1'); } catch {}
+}
+
+async function onCreateTokenClick() {
+  await regeneratePublic();
+  dismissNudge();
+}
 
 function clearImportApplied() {
   importApplied.value = { lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null };
@@ -371,3 +421,4 @@ async function onImportFile(e) {
   }
 }
 </script>
+

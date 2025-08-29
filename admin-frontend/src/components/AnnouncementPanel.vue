@@ -296,6 +296,7 @@ import { pushToast } from '../services/toast';
 import { isHttpUrl, withinRange, MAX_TITLE_LEN, MAX_ANNOUNCEMENT_IMAGE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 
@@ -332,7 +333,8 @@ const savingSettings = ref(false);
 const adding = ref(false);
 const updating = ref(false);
 const modalRef = ref(null);
-const widgetUrl = computed(() => `${location.origin}/widgets/announcement`);
+const pt = usePublicToken();
+const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/announcement`));
 
 async function load() {
   try {
@@ -540,7 +542,8 @@ function trapFocus(e) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await pt.refresh();
   load();
   document.addEventListener('keydown', trapFocus);
 });

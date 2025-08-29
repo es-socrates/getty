@@ -52,36 +52,83 @@ window.addEventListener('DOMContentLoaded', function () {
 
   const el = document.getElementById('caption');
   let caps = buildCaps();
-  let i = 0;
+  let idx = 0;
+  let typingTimer = null;
+  let pausedForMotion = false;
+
+  function prefersReducedMotion() {
+    try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
+  }
+
+  function clearTimers() {
+    if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+  }
+
+  function setText(text) {
+    if (!el) return;
+    el.textContent = text;
+  }
+
+  function typewrite(texts) {
+    if (!el || !texts || texts.length === 0) return;
+    if (prefersReducedMotion()) {
+
+      pausedForMotion = true;
+      el.classList.remove('typewriter');
+      setText(texts[idx] || '');
+      idx = (idx + 1) % texts.length;
+      typingTimer = setTimeout(() => typewrite(texts), 2500);
+      return;
+    }
+
+    pausedForMotion = false;
+    el.classList.add('typewriter');
+    const full = texts[idx] || '';
+    let pos = 0;
+    const typeSpeed = 34;
+    const holdTime = 1400;
+    const eraseSpeed = 28;
+
+    function typeNext() {
+      setText(full.slice(0, pos));
+      if (pos < full.length) {
+        pos++;
+        typingTimer = setTimeout(typeNext, typeSpeed);
+      } else {
+        typingTimer = setTimeout(() => eraseNext(), holdTime);
+      }
+    }
+
+    function eraseNext() {
+      setText(full.slice(0, pos));
+      if (pos > 0) {
+        pos--;
+        typingTimer = setTimeout(eraseNext, eraseSpeed);
+      } else {
+        idx = (idx + 1) % texts.length;
+        typingTimer = setTimeout(() => typewrite(texts), 350);
+      }
+    }
+
+    clearTimers();
+    typeNext();
+  }
 
   function refreshCaptions(reset) {
     caps = buildCaps();
-    if (reset) i = 0;
-    if (el) el.textContent = caps[i] || '';
+    if (reset) idx = 0;
+    clearTimers();
+    typewrite(caps);
   }
 
-  function showNext() {
-    if (!el || caps.length === 0) return;
-    el.style.transition = 'opacity .5s ease';
-    el.style.opacity = '0';
-    setTimeout(() => {
-      el.textContent = caps[i] || '';
-      i = (i + 1) % caps.length;
-      el.style.opacity = '1';
-    }, 420);
-  }
-
-  try {
-    refreshCaptions(true);
-  } catch (e) {}
-  setInterval(showNext, 3300);
+  try { refreshCaptions(true); } catch (e) {}
 
   try {
     if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
       const _origSet = window.__i18n.setLanguage;
       window.__i18n.setLanguage = function (lang) {
         _origSet.call(window.__i18n, lang);
-        refreshCaptions(true);
+  refreshCaptions(true);
       };
     }
   } catch (e) {}

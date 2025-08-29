@@ -79,6 +79,7 @@ import { pushToast } from '../services/toast';
 import CopyField from './shared/CopyField.vue';
 import { MAX_RAFFLE_IMAGE } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 const masked = ref(false);
@@ -111,7 +112,8 @@ const savingSettings = ref(false);
 const savingAction = ref(false);
 const action = ref('');
 
-const widgetUrl = computed(() => `${location.origin}/widgets/giveaway`);
+const pt = usePublicToken();
+const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/giveaway`));
 
 function connectWs() {
   const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
@@ -228,7 +230,8 @@ async function onImageSelected(e) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await pt.refresh();
   load();
   connectWs();
 });
