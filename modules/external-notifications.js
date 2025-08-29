@@ -224,9 +224,9 @@ class ExternalNotifications {
                         { name: "Amount", value: `${tipData.amount} AR ($${tipData.usd})`, inline: true }
                     ],
                     timestamp: new Date().toISOString(),
-                    footer: { text: "Getty" }
+                    footer: { text: "getty" }
                 }],
-                username: "Getty",
+                username: "getty",
                 avatar_url: "https://thumbs.odycdn.com/43f53f554e4a85240564f8ff794eb60e.webp?override=" + Date.now()
             };
 

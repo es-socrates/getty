@@ -387,7 +387,7 @@ function exportPublicToken() {
       publicToken: lastPublicToken.value,
       origin: window.location.origin,
       createdAt: new Date().toISOString(),
-      note: 'Public token for Getty session. Do not share the admin token.'
+      note: 'Public token for getty session. Do not share the admin token.'
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

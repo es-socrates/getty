@@ -3,8 +3,8 @@ const path = require('path');
 
 const serverLanguages = {
     en: {
-        title: "Getty",
-        description: "Widget app for tip notifications, tip goals, chat rewards and display real-time alerts for your livestreams in Odysee.",
+        title: "getty",
+        description: "Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.",
         chatClaimId: 'Chat Claim ID',
         invalidClaimId: 'Invalid Claim ID',
         announcementAnimationFade: 'Fade',
@@ -14,8 +14,8 @@ const serverLanguages = {
         announcementAnimationRandom: 'Random',
     },
     es: {
-        title: "Getty",
-        description: "Aplicación de widget para notificaciones de propinas, objetivos de propinas, recompensas de chat y visualización de alertas en tiempo real para tus directos en Odysee.",
+        title: "getty",
+        description: "Aplicación completa y personalizable con herramientas para la transmisión en vivo. Notificaciones de propinas, objetivos de propinas, widget de chat y alertas en tiempo real para tus transmisiones en vivo en Odysee.",
         chatClaimId: 'Claim ID del Chat',
         invalidClaimId: 'Claim ID inválido',
         announcementAnimationFade: 'Desvanecer',
