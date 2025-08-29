@@ -183,6 +183,7 @@ const system = ref(null);
 const regenLoading = ref(false);
 const lastPublicToken = ref('');
 const sessionStatus = ref({ supported: false, active: false });
+const nudgeReady = ref(false);
 const importing = ref(false);
 const fileInputEl = ref(null);
 const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null });
@@ -193,9 +194,26 @@ const showTokenNudge = computed(() => {
   try {
     const dismissed = localStorage.getItem('getty_token_nudge_v1') === '1';
 
-    return sessionStatus.value.supported && sessionStatus.value.active && !lastPublicToken.value && !dismissed;
+    return (
+      nudgeReady.value &&
+      !regenLoading.value &&
+      sessionStatus.value.supported &&
+      (
+        !sessionStatus.value.active ||
+        !lastPublicToken.value
+      ) &&
+      !dismissed
+    );
   } catch {
-    return sessionStatus.value.supported && sessionStatus.value.active && !lastPublicToken.value;
+    return (
+      nudgeReady.value &&
+      !regenLoading.value &&
+      sessionStatus.value.supported &&
+      (
+        !sessionStatus.value.active ||
+        !lastPublicToken.value
+      )
+    );
   }
 });
 
@@ -209,8 +227,14 @@ function onMaybeLater() {
 }
 
 async function onCreateTokenClick() {
-  await regeneratePublic();
-  dismissNudge();
+  try {
+    if (!sessionStatus.value.active) {
+      window.location.href = '/new-session';
+      return;
+    }
+    await regeneratePublic();
+    dismissNudge();
+  } catch {}
 }
 
 function clearImportApplied() {
@@ -297,9 +321,13 @@ async function load() {
     } catch {}
 
     try {
-      const pt = await axios.get('/api/session/public-token');
-      if (pt?.data?.publicToken) lastPublicToken.value = pt.data.publicToken;
+      if (sessionStatus.value.supported && sessionStatus.value.active) {
+        const pt = await axios.get('/api/session/public-token');
+        if (pt?.data?.publicToken) lastPublicToken.value = pt.data.publicToken;
+      }
     } catch {}
+
+    if (!nudgeReady.value) nudgeReady.value = true;
   } catch {}
 }
 onMounted(() => {
@@ -403,9 +431,9 @@ async function onImportFile(e) {
         lastTip: typeof restored.lastTip === 'boolean' ? restored.lastTip : null,
         tipGoal: typeof restored.tipGoal === 'boolean' ? restored.tipGoal : null,
         socialmedia: typeof restored.socialmedia === 'boolean' ? restored.socialmedia : null,
-  external: typeof restored.external === 'boolean' ? restored.external : null,
-  liveviews: typeof restored.liveviews === 'boolean' ? restored.liveviews : null,
-  announcement: typeof restored.announcement === 'boolean' ? restored.announcement : null,
+        external: typeof restored.external === 'boolean' ? restored.external : null,
+        liveviews: typeof restored.liveviews === 'boolean' ? restored.liveviews : null,
+        announcement: typeof restored.announcement === 'boolean' ? restored.announcement : null,
       };
       pushToast({ message: t('importedOk'), type: 'success', timeout: 2500, autoTranslate: false });
       load();
