@@ -1,4 +1,4 @@
-# Getty
+# getty
 
 Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.
 
@@ -7,7 +7,8 @@ Complete and customizable app with tools for live streaming. Tip notifications, 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
 ![getty](https://thumbs.odycdn.com/e80ce98bd84093e80b050db245485887.webp)
-> **The view of the control panel in Getty. The colors have also been changed in the latest version of the repository.**
+
+> **The view of the control panel in getty. The colors have also been changed in the latest version.**
 
 ## Not familiar with Odysee?
 
@@ -17,11 +18,11 @@ Odysee is a blockchain-based media platform. We host all kinds of media such as 
 
 ## The Ultimate Tool
 
-Want to take your stream to the next level? With Getty, managing your widgets in OBS has never been so easy and customizable. Here are some of its amazing features: independent widgets.
+Want to take your stream to the next level? With getty, managing your widgets in OBS has never been so easy and customizable. Here are some of its amazing features: independent widgets.
 
 ## More Features
 
-1. ⚡ Easy Setup: Run Getty with a single command, either on your PC or server.
+1. ⚡ Easy Setup: Run getty with a single command, either on your PC or server.
 2. 🔔 Real-Time Notifications: Get alerts for your AR token tips, chat messages, donation goals and the latest tip instantly.
 3. 🎨 Unlimited Customization: Change colors, fonts, styles, titles and more to fit your style.
 4. 🔄 Standalone Widgets: Activate only the ones you need, either 1, 2 or all.
@@ -34,7 +35,7 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 
 ![getty](https://thumbs.odycdn.com/2c824f75e3a53242508da449d7b7a558.webp)
 
-## Prerequisites to start Getty
+## Prerequisites to start getty
 
 ### Node.js
 
@@ -51,14 +52,14 @@ Want to take your stream to the next level? With Getty, managing your widgets in
 4. Run the **npm run build** command to build the app.
 5. Then run **npm start** or **npm run start:prod**.
 6. The server will run the app with the address http://localhost:3000.
-7. Open Getty in your web browser and configure your widgets in admin.
+7. Open getty in your web browser and configure your widgets in admin.
 
-**Important:** If you download an update from Getty, you must repeat the installation process. In some cases, there may be new dependencies to install, so the process may need to be repeated.
+**Important:** If you download an update from getty, you must repeat the installation process. In some cases, there may be new dependencies to install, so the process may need to be repeated.
 
-## Visit Getty in the browser:
+## Visit getty in the browser:
 
-1) Dashboard: http://localhost:3000/
-2) Admin: http://localhost:3000/admin/status
+1. Dashboard: http://localhost:3000/
+2. Admin: http://localhost:3000/admin/status
 
 The app's admin page has all the widget links for OBS. I recommend saving the changes on the admin page and checking that all of them are active, or the ones you need.
 
@@ -70,7 +71,7 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 4. Adjust the size, position and color of each widget.
 5. You're done! The widgets will appear in your stream. Let's stream!
 
-Getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
+getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
 
 ## Hosted mode (MVP)
 
@@ -96,6 +97,6 @@ If you want to share your widget publicly, use the widget link and add the param
 
 Anyone with that link will see the widget data in real time; you can revoke access by regenerating the public token from the dashboard.
 
-**This is an independent project; it is not an official Odysee product.** Visit **Getty's official** website for more information: [Getty.sh](https://getty.sh/).
+**This is an independent project; it is not an official Odysee product.** Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
 
 ## With love for Odysee ❤️

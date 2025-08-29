@@ -106,6 +106,7 @@ try {
           'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
           'https://odysee.com', 'https://static.odycdn.com',
           'https://twemoji.maxcdn.com', 'https://spee.ch',
+          'https://arweave.net', 'https://*.arweave.net',
           ...imgExtra
         ],
         fontSrc: [self, 'data:', 'blob:', 'https://fonts.gstatic.com'],

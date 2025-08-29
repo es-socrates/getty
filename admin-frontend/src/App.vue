@@ -7,8 +7,8 @@
   <header class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border" role="banner">
       <div class="flex items-center gap-4">
   <RouterLink to="/admin/status" class="flex items-center gap-2" aria-label="Go to Status">
-          <img :src="logoLight" alt="Getty Logo" class="h-9 logo-light" />
-          <img :src="logoDark" alt="Getty Logo" class="h-9 logo-dark" />
+          <img :src="logoLight" alt="getty Logo" class="h-9 logo-light" />
+          <img :src="logoDark" alt="getty Logo" class="h-9 logo-dark" />
         </RouterLink>
       </div>
       <div class="flex items-center gap-3 relative">
@@ -308,8 +308,8 @@ import { watch, ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import OsKpi from './components/os/OsKpi.vue'
 import { anyDirty } from './composables/useDirtyRegistry';
 import ToastHost from './components/shared/ToastHost.vue';
-import logoLight from '../../public/assets/getty.png';
-import logoDark from '../../public/assets/gettydark.png';
+const logoLight = 'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ';
+const logoDark = 'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak';
 
 const { locale, t } = useI18n();
 const route = useRoute();
