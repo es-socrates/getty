@@ -35,6 +35,7 @@ const registerSocialMediaRoutes = require('./routes/socialmedia');
 const registerLastTipRoutes = require('./routes/last-tip');
 const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
+const registerStreamHistoryRoutes = require('./routes/stream-history');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
 const registerAnnouncementRoutes = require('./routes/announcement');
 const { AnnouncementModule } = require('./modules/announcement');
@@ -235,6 +236,106 @@ app.get('/api/ar-price', async (_req, res) => {
   }
 });
 
+const __hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+if (!__hostedMode) try {
+  const DATA_DIR = path.join(process.cwd(), 'data');
+  const DATA_FILE = path.join(DATA_DIR, 'stream-history.json');
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  let lastLive = null;
+  let lastClaimId = '';
+  async function recordHistoryEvent(isLive) {
+    try {
+      const hist = (function load() {
+  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return { segments: [], samples: [] }; }
+      })();
+      const now = Date.now();
+      const last = hist.segments[hist.segments.length - 1];
+      if (isLive) {
+        if (!(last && !last.end)) {
+          hist.segments.push({ start: now, end: null });
+        }
+      } else {
+        if (last && !last.end) {
+          last.end = now;
+        }
+      }
+
+      try {
+        const cutoff = Date.now() - 400 * 86400000;
+        hist.segments = hist.segments.filter(s => (s.end || s.start) >= cutoff);
+  if (!Array.isArray(hist.samples)) hist.samples = [];
+  hist.samples = hist.samples.filter(s => s.ts >= cutoff);
+  if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
+      } catch {}
+      fs.writeFileSync(DATA_FILE, JSON.stringify(hist, null, 2));
+    } catch {}
+  }
+
+  async function checkLiveOnce() {
+    try {
+      const shCfgPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
+      let claim = '';
+      try {
+        if (fs.existsSync(shCfgPath)) {
+          const c = JSON.parse(fs.readFileSync(shCfgPath, 'utf8'));
+          if (typeof c.claimid === 'string' && c.claimid.trim()) claim = c.claimid.trim();
+        }
+      } catch {}
+      if (!claim) {
+        try {
+          const lv = fs.existsSync(LIVEVIEWS_CONFIG_FILE) ? JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')) : {};
+          if (typeof lv.claimid === 'string' && lv.claimid.trim()) claim = lv.claimid.trim();
+        } catch {}
+      }
+      if (!claim) return;
+
+      if (claim !== lastClaimId) {
+        lastClaimId = claim;
+        lastLive = null;
+      }
+      const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
+      const resp = await axios.get(url, { timeout: 7000 });
+      const nowLive = !!resp?.data?.data?.Live;
+      const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
+
+      try {
+        const hist = (function load() {
+          try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return { segments: [], samples: [] }; }
+        })();
+        const seg = hist.segments && hist.segments[hist.segments.length - 1];
+        const isOpen = !!(seg && !seg.end);
+        if (nowLive && !isOpen) await recordHistoryEvent(true);
+        if (!nowLive && isOpen) await recordHistoryEvent(false);
+      } catch {}
+
+      if (lastLive === null) {
+        if (nowLive) await recordHistoryEvent(true);
+        lastLive = nowLive;
+      } else if (nowLive !== lastLive) {
+        await recordHistoryEvent(nowLive);
+        lastLive = nowLive;
+      }
+
+      try {
+        const hist = (function load() {
+          try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return { segments: [], samples: [] }; }
+        })();
+        if (!Array.isArray(hist.samples)) hist.samples = [];
+        hist.samples.push({ ts: Date.now(), live: nowLive, viewers: viewerCount });
+        const cutoff = Date.now() - 400 * 86400000;
+        hist.samples = hist.samples.filter(s => s.ts >= cutoff);
+        if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
+        fs.writeFileSync(DATA_FILE, JSON.stringify(hist, null, 2));
+      } catch {}
+    } catch {}
+  }
+
+  if (process.env.NODE_ENV !== 'test') {
+    [2000, 8000, 20000].forEach(d => setTimeout(() => { checkLiveOnce(); }, d));
+    setInterval(() => { checkLiveOnce(); }, 30000);
+  }
+} catch {}
+
 async function resolveAdminNsFromReq(req) {
   try {
     if (!store) return null;
@@ -377,6 +478,11 @@ app.get('/api/session/export', async (req, res) => {
       exportObj.announcementConfig = announcementModule.getPublicConfig();
     } catch { exportObj.announcementConfig = null; }
 
+    try {
+      const shPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
+      exportObj.streamHistoryConfig = fs.existsSync(shPath) ? JSON.parse(fs.readFileSync(shPath, 'utf8')) : null;
+    } catch { exportObj.streamHistoryConfig = null; }
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="getty-config-${new Date().toISOString().replace(/[:.]/g,'-')}.json"`);
     res.end(JSON.stringify(exportObj, null, 2));
@@ -411,9 +517,10 @@ app.post('/api/session/import', async (req, res) => {
     const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
     const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
     const incomingLiveviews = (payload && typeof payload.liveviewsConfig === 'object') ? payload.liveviewsConfig : null;
-    const incomingAnnouncement = (payload && typeof payload.announcementConfig === 'object') ? payload.announcementConfig : null;
+  const incomingAnnouncement = (payload && typeof payload.announcementConfig === 'object') ? payload.announcementConfig : null;
+  const incomingStreamHistory = (payload && typeof payload.streamHistoryConfig === 'object') ? payload.streamHistoryConfig : null;
 
-    if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal && !incomingLiveviews && !incomingAnnouncement) {
+  if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal && !incomingLiveviews && !incomingAnnouncement && !incomingStreamHistory) {
       return res.status(400).json({ error: 'no_valid_payload' });
     }
 
@@ -559,13 +666,24 @@ app.post('/api/session/import', async (req, res) => {
       } catch {}
     }
 
-    res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied, liveviews: !!liveviewsApplied, announcement: !!announcementApplied }, namespaced: useStore });
+      let streamHistoryApplied = false;
+      if (incomingStreamHistory && typeof incomingStreamHistory === 'object') {
+        try {
+          const cfg = { claimid: (typeof incomingStreamHistory.claimid === 'string') ? incomingStreamHistory.claimid : '' };
+          const shPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
+          fs.writeFileSync(shPath, JSON.stringify(cfg, null, 2));
+          streamHistoryApplied = true;
+        } catch {}
+      }
+
+  res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied, liveviews: !!liveviewsApplied, announcement: !!announcementApplied, streamHistory: !!streamHistoryApplied }, namespaced: useStore });
   } catch (e) {
     res.status(500).json({ error: 'failed_to_import', details: e?.message });
   }
 });
 
 registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs });
+registerStreamHistoryRoutes(app, limiter, { store, wss });
 
 app.post('/api/chat/start', async (req, res) => {
   try {
