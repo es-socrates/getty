@@ -29,7 +29,7 @@
   --sidebar-link-color: #a1a1aa;
   --sidebar-link-active-bg: #0f1214;
   --chart-bg: #0f1214;
-  --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-grid: rgb(255 255 255 / 8%);
   --accent: #4f36ff;
 }
 * {
