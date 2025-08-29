@@ -1,9 +1,8 @@
 <template>
   <section class="admin-tab active">
-    <!-- Token info modal overlay -->
     <div v-if="showInfo" style="position: fixed; inset: 0; z-index: 50;" aria-modal="true" role="dialog">
       <div style="position:absolute; inset:0; background:rgba(0,0,0,.45); backdrop-filter: blur(3px);" @click="showInfo=false"></div>
-      <div style="position:relative; max-width: 560px; margin: 12vh auto; background: var(--bg); color: var(--fg); border:1px solid var(--card-border); border-radius: 10px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35);">
+      <div style="position:relative; max-width: 560px; margin: 12vh auto; background: var(--bg-chat); color: var(--card-text); border:1px solid var(--card-border); border-radius: 8px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35);">
         <div class="text-lg font-semibold mb-1">{{ t('tokenModalTitle') }}</div>
         <div class="opacity-90 text-sm leading-6 mb-3">{{ t('tokenModalBody') }}</div>
         <div class="flex gap-2 justify-end">
@@ -24,7 +23,7 @@
           <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="showInfo = true">
             {{ t('whyNeedToken') }}
           </button>
-          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="dismissNudge">
+          <button class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm" @click="onMaybeLater">
             {{ t('maybeLater') }}
           </button>
         </div>
@@ -193,14 +192,20 @@ const showInfo = ref(false);
 const showTokenNudge = computed(() => {
   try {
     const dismissed = localStorage.getItem('getty_token_nudge_v1') === '1';
-    return sessionStatus.value.supported && sessionStatus.value.active && !dismissed;
+
+    return sessionStatus.value.supported && sessionStatus.value.active && !lastPublicToken.value && !dismissed;
   } catch {
-    return sessionStatus.value.supported && sessionStatus.value.active;
+    return sessionStatus.value.supported && sessionStatus.value.active && !lastPublicToken.value;
   }
 });
 
 function dismissNudge() {
   try { localStorage.setItem('getty_token_nudge_v1', '1'); } catch {}
+}
+
+function onMaybeLater() {
+  dismissNudge();
+  try { pushToast({ i18nKey: 'tokenNudgeDismissed', type: 'info', timeout: 2500 }); } catch {}
 }
 
 async function onCreateTokenClick() {
