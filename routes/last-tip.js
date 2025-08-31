@@ -62,6 +62,68 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
     }
   });
 
+  app.get('/api/last-tip/earnings', async (req, res) => {
+    try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
+      const requireSession = hosted;
+      if (requireSession && !(req?.ns?.admin || req?.ns?.pub)) {
+        return res.status(401).json({ error: 'no_session' });
+      }
+      if (!hosted) {
+
+        try {
+          const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
+          const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$/i.test(remote);
+          const hostHeader = req.headers.host || '';
+          const hostNameOnly = hostHeader.replace(/^\[/, '').replace(/\]$/, '').split(':')[0];
+          const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
+          const isLocal = isLocalIp || isLocalHostHeader;
+          if (!isLocal) return res.status(401).json({ error: 'no_session' });
+        } catch {}
+      }
+
+      let wallet = '';
+      if (store && ns) {
+        try {
+          const cfg = await store.get(ns, 'last-tip-config', null);
+          if (cfg && typeof cfg.walletAddress === 'string') wallet = cfg.walletAddress.trim();
+        } catch {}
+      }
+      if (!wallet) {
+        try {
+          const cfgPath = path.join(process.cwd(), 'config', 'last-tip-config.json');
+          if (fs.existsSync(cfgPath)) {
+            const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+            if (cfg && typeof cfg.walletAddress === 'string') wallet = String(cfg.walletAddress).trim();
+          }
+        } catch {}
+      }
+      if (!wallet && lastTip && lastTip.walletAddress) wallet = String(lastTip.walletAddress).trim();
+      if (!wallet) return res.status(400).json({ error: 'no_wallet_configured' });
+
+      if (!lastTip || typeof lastTip.getEnhancedTransactions !== 'function') {
+        return res.status(500).json({ error: 'module_unavailable' });
+      }
+
+      let txs = [];
+      try { txs = await lastTip.getEnhancedTransactions(wallet); } catch {}
+      if (!Array.isArray(txs)) txs = [];
+      let totalAR = 0;
+      let count = 0;
+      for (const tx of txs) {
+        const n = parseFloat(tx?.amount);
+        if (!isNaN(n) && n > 0) { totalAR += n; count++; }
+      }
+
+  totalAR = Number(totalAR.toFixed(6));
+
+  return res.json({ totalAR, txCount: count, ns: !!ns });
+    } catch (e) {
+      return res.status(500).json({ error: 'internal_error', details: e?.message || String(e) });
+    }
+  });
+
   app.post('/api/last-tip', async (req, res) => {
     try {
 

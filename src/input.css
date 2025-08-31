@@ -230,10 +230,12 @@
     fill: none;
   }
 
-  html:not(.dark) body.landing .os-panel-title {
+  html:not(.dark) body.landing .os-panel-title,
+  html:not(.dark) body.landing .os-panel-title .icon {
     color: #111 !important;
   }
-  html.dark body.landing .os-panel-title {
+  html.dark body.landing .os-panel-title,
+  html.dark body.landing .os-panel-title .icon {
     color: #fff !important;
   }
 }

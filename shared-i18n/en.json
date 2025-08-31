@@ -362,8 +362,10 @@
   "loadFailedChat": "Failed to load chat settings",
   "invalidClaimId": "Invalid Claim ID",
   "walletHiddenHostedNotice": "Hidden for security in hosted mode. Create an admin session on this browser (visit /new-session) to view it.",
-  "walletHiddenLocalNotice": "Hidden for security when accessing localhost from another device. Open the admin on the same machine (http://localhost:3000) to view it."
-  ,
+  "walletHiddenLocalNotice": "Hidden for security when accessing localhost from another device. Open the admin on the same machine (http://localhost:3000) to view it.",
+  "kpiTotalEarnings": "Total earnings",
+  "show": "Show",
+  "hide": "Hide",
   "welcomeCaptionTips": "Real-time tip notifications",
   "welcomeCaptionGoals": "Donation goals with celebratory effects",
   "welcomeCaptionChatRaffle": "Live chat overlay and raffles",

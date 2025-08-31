@@ -71,7 +71,34 @@
     </div>
 
     <div class="mt-4">
-      <div ref="chartEl" style="width:100%;height:280px;overflow:auto;border:1px solid var(--card-border);border-radius:8px;padding:8px;background:var(--bg-chat);"></div>
+      <div class="chart-wrap">
+        <div class="chart-overlay" :class="overlayCollapsed ? 'collapsed' : ''" aria-label="viewer-stats">
+          <div class="overlay-header">
+            <div class="overlay-title">{{ t('activity') }}</div>
+            <button type="button" class="overlay-toggle" :aria-expanded="String(!overlayCollapsed)" @click="overlayCollapsed = !overlayCollapsed" aria-label="Toggle">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="overlay-row">
+            <span class="dot dot-teal" aria-hidden="true"></span>
+            <span class="ov-label">{{ t('kpiAvgViewers') }}</span>
+            <span class="ov-value">{{ Number(perf.range.avgViewers||0).toFixed(1) }}</span>
+          </div>
+          <div class="overlay-row">
+            <span class="dot dot-red" aria-hidden="true"></span>
+            <span class="ov-label">{{ t('kpiPeakViewers') }}</span>
+            <span class="ov-value">{{ perf.range.peakViewers }}</span>
+          </div>
+          <div class="overlay-row">
+            <span class="dot dot-slate" aria-hidden="true"></span>
+            <span class="ov-label">{{ t('kpiHighestViewers') }}</span>
+            <span class="ov-value">{{ perf.allTime.highestViewers }}</span>
+          </div>
+        </div>
+        <div ref="chartEl" class="chart-canvas"></div>
+      </div>
       <div class="text-xs opacity-80 mt-1 flex items-center gap-2">
         <span>{{ t('streamHistoryHint') }}</span>
         <button
@@ -103,6 +130,22 @@
       <div class="kpi"><div class="kpi-label">{{ t('kpiActiveDays') }}</div><div class="kpi-value">{{ perf.range.activeDays }}</div></div>
       <div class="kpi"><div class="kpi-label">{{ t('kpiTotalHoursStreamed') }}</div><div class="kpi-value">{{ fmtTotal(perf.allTime.totalHoursStreamed) }}</div></div>
       <div class="kpi"><div class="kpi-label">{{ t('kpiHighestViewers') }}</div><div class="kpi-value">{{ perf.allTime.highestViewers }}</div></div>
+      <div class="kpi earnings-kpi">
+        <div class="kpi-label flex items-center gap-2">
+          <span>{{ t('kpiTotalEarnings') || 'Total earnings (Last Tip)' }}</span>
+          <button type="button" class="earnings-toggle" :aria-pressed="String(!earningsHidden)" @click="toggleEarningsHidden" :title="earningsHidden ? (t('show')||'Show') : (t('hide')||'Hide')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+            </svg>
+          </button>
+        </div>
+        <div class="kpi-value earnings-values" :class="earningsHidden ? 'blurred' : ''">
+          <span>{{ totalAR.toFixed(4) }}</span>
+          <span class="unit">AR</span>
+          <span class="usd">≈ ${{ usdFromAr(totalAR, arUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+        </div>
+      </div>
     </div>
     <div v-if="showBackfill" class="text-xs opacity-80 mt-2 flex gap-2 items-center">
       <span>{{ t('streamHistoryBackfillHint') }}</span>
@@ -173,6 +216,12 @@ const status = ref({ connected: false, live: false });
 const backfillDismissed = ref(false);
 const showBackfill = computed(() => status.value.live && !backfillDismissed.value && period.value === 'day' && Number(perf.value?.range?.hoursStreamed || 0) < 2);
 const anyModalOpen = computed(() => showClearModal.value || showClaimChangeModal.value);
+const overlayCollapsed = ref(false);
+const OVERLAY_KEY = 'streamHistory.overlayCollapsed';
+const EARNINGS_HIDE_KEY = 'streamHistory.earningsHidden';
+const totalAR = ref(0);
+const arUsd = ref(null);
+const earningsHidden = ref(false);
 
 function setScrollLock(lock) {
   try {
@@ -244,6 +293,16 @@ async function refresh() {
     renderChart(r?.data?.data || []);
     const p = await axios.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}`);
     perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
+
+    try {
+      const pr = await axios.get('/api/ar-price');
+      arUsd.value = pr?.data?.arweave?.usd || arUsd.value;
+    } catch {}
+
+    try {
+      const er = await axios.get('/api/last-tip/earnings');
+      totalAR.value = Number(er?.data?.totalAR || 0);
+    } catch {}
   } catch { renderChart([]); }
 }
 
@@ -350,6 +409,25 @@ function renderChart(data) {
   tip.style.display = 'none';
   el.appendChild(tip);
 
+  const placeTipFromMouse = (evt, preferAbove = false) => {
+    try {
+      const elRect = el.getBoundingClientRect();
+      const margin = 10;
+      const tipRect = tip.getBoundingClientRect();
+      let left = (evt.clientX - elRect.left) + margin;
+      left = Math.max(4, Math.min(left, el.clientWidth - tipRect.width - 4));
+      const below = (evt.clientY - elRect.top) + margin;
+      let top;
+      if (preferAbove || (below + tipRect.height > el.clientHeight - 4)) {
+        top = Math.max(4, (evt.clientY - elRect.top) - tipRect.height - 12);
+      } else {
+        top = Math.min(el.clientHeight - tipRect.height - 4, below);
+      }
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    } catch {}
+  };
+
   let source = Array.isArray(data) ? [...data] : [];
   let i = 0;
   while (i < source.length && (!source[i] || !source[i].hours || source[i].hours === 0)) i++;
@@ -368,6 +446,7 @@ function renderChart(data) {
   const max = Math.max(1, ...trimmed.map(d => d.hours || 0));
 
   const drawGrid = (svg, withLabels = false, maxVal = 0, axisLeft = 0) => {
+    const bottomAxis = 24;
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     bg.setAttribute('x', '0');
     bg.setAttribute('y', '0');
@@ -380,9 +459,9 @@ function renderChart(data) {
     const lines = 4;
     const padY = 10;
     for (let i = 1; i <= lines; i++) {
-  const y = Math.round(padY + ((h - padY * 2) * i / (lines + 1)));
+      const y = Math.round(padY + ((h - bottomAxis - padY * 2) * i / (lines + 1)));
       const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  ln.setAttribute('x1', String(Math.max(0, axisLeft)));
+      ln.setAttribute('x1', String(Math.max(0, axisLeft)));
       ln.setAttribute('y1', String(y));
       ln.setAttribute('x2', String(w));
       ln.setAttribute('y2', String(y));
@@ -396,12 +475,12 @@ function renderChart(data) {
       const labelColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#94a3b8';
       const ticks = lines + 2;
       for (let i = 0; i <= ticks - 1; i++) {
-        const y = Math.round(padY + ((h - padY * 2) * i / (ticks - 1)));
+        const y = Math.round(padY + ((h - bottomAxis - padY * 2) * i / (ticks - 1)));
         const val = maxVal * (1 - (i / (ticks - 1)));
         const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  txt.setAttribute('x', '6');
+        txt.setAttribute('x', '6');
 
-        txt.setAttribute('y', String(Math.max(10, Math.min(h - 2, y + 3))));
+        txt.setAttribute('y', String(Math.max(10, Math.min(h - bottomAxis - 2, y + 3))));
         txt.setAttribute('fill', labelColor);
         txt.setAttribute('font-size', '10');
         txt.setAttribute('text-anchor', 'start');
@@ -412,18 +491,49 @@ function renderChart(data) {
     }
   };
 
+  const drawXAxis = (svg, axisLeft, positions, labels) => {
+    const bottomAxis = 24;
+    const labelColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#94a3b8';
+    positions.forEach((x, i) => {
+      const lbl = labels[i] ?? '';
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', String(x));
+      txt.setAttribute('y', String(h - Math.max(6, Math.round(bottomAxis / 3))));
+      txt.setAttribute('fill', labelColor);
+      txt.setAttribute('font-size', '10');
+      txt.setAttribute('text-anchor', 'middle');
+      txt.textContent = lbl;
+      svg.appendChild(txt);
+    });
+  };
+
+  const fmtDateTitle = (s) => {
+    try { const d = new Date(s); if (!isNaN(d)) return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'2-digit' }); } catch {}
+    return s || '';
+  };
+  const fmtXLabel = (s) => {
+    try {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        if (period.value === 'day' || period.value === 'week') return String(d.getDate()).padStart(2,'0');
+        return d.toLocaleDateString(undefined, { month: 'short' });
+      }
+    } catch {}
+    return (s || '').slice(0, 6);
+  };
+
   if (mode.value === 'line') {
-    const axisLeft = 44; // reserve space for Y labels
+    const axisLeft = 44;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', String(w));
     svg.setAttribute('height', String(h));
   svg.style.display = 'block';
     drawGrid(svg, true, max, axisLeft);
 
-    const padX = 6; const padY = 10;
+    const padX = 6; const padY = 10; const bottomAxis = 24;
     const innerW = Math.max(1, (w - axisLeft - padX * 2));
     const stepX = Math.max(1, innerW / Math.max(1, display.length - 1));
-    const toY = (v) => Math.round((h - padY) - (Math.max(0, v) / max) * (h - padY * 2));
+    const toY = (v) => Math.round((h - bottomAxis - padY) - (Math.max(0, v) / max) * (h - bottomAxis - padY * 2));
 
     let dPath = '';
     display.forEach((p, idx) => {
@@ -434,40 +544,55 @@ function renderChart(data) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', dPath);
     path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'var(--accent, #4f36ff)');
-    path.setAttribute('stroke-width', '3.0');
+    path.setAttribute('stroke', 'var(--line-color, #10b981)');
+    path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('stroke-linecap', 'round');
     svg.appendChild(path);
 
     display.forEach((p, idx) => {
-  const x = Math.round(axisLeft + padX + idx * stepX);
+      const x = Math.round(axisLeft + padX + idx * stepX);
       const y = toY(p.hours || 0);
       const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       c.setAttribute('cx', String(x));
       c.setAttribute('cy', String(y));
       c.setAttribute('r', String(3.0));
-      c.setAttribute('fill', (p.hours || 0) > 0 ? 'var(--accent, #4f36ff)' : 'rgba(128,128,128,.65)');
+      c.setAttribute('fill', (p.hours || 0) > 0 ? 'var(--line-color, #10b981)' : 'rgba(128,128,128,.65)');
       c.style.cursor = 'default';
       c.addEventListener('mouseenter', (e) => {
-        tip.textContent = `${p.date ? p.date + ': ' : ''}${(p.hours || 0)} h`;
+        const title = fmtDateTitle(p.date);
+        tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${(p.hours||0)} h</div>`;
         tip.style.display = 'block';
-        const rect = el.getBoundingClientRect();
-        tip.style.left = (e.clientX - rect.left + 10) + 'px';
-        tip.style.top = (e.clientY - rect.top + 10) + 'px';
+        placeTipFromMouse(e, (p.hours || 0) === 0);
       });
       c.addEventListener('mousemove', (e) => {
-        const rect = el.getBoundingClientRect();
-        tip.style.left = (e.clientX - rect.left + 10) + 'px';
-        tip.style.top = (e.clientY - rect.top + 10) + 'px';
+        placeTipFromMouse(e, (p.hours || 0) === 0);
       });
       c.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
       svg.appendChild(c);
     });
+
+    const maxLabels = 8;
+    const stride = Math.max(1, Math.ceil(display.length / maxLabels));
+    const positions = [];
+    const labels = [];
+    for (let i = 0; i < display.length; i += stride) {
+      const x = Math.round(axisLeft + padX + i * stepX);
+      positions.push(x);
+      labels.push(fmtXLabel(display[i]?.date));
+    }
+    if (display.length > 1 && (display.length - 1) % stride !== 0) {
+      // ensure last label
+      const xLast = Math.round(axisLeft + padX + (display.length - 1) * stepX);
+      positions.push(xLast);
+      labels.push(fmtXLabel(display[display.length - 1]?.date));
+    }
+    drawXAxis(svg, axisLeft, positions, labels);
     el.appendChild(svg);
     return;
   }
 
   const axisLeft = 44;
-  const barW = Math.max(4, Math.floor((w - axisLeft) / Math.max(1, display.length)) - 4);
+  const barW = Math.max(8, Math.floor((w - axisLeft) / Math.max(1, display.length)) - 6);
 
   const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   gridSvg.setAttribute('width', String(w));
@@ -477,6 +602,26 @@ function renderChart(data) {
   gridSvg.style.top = '0';
   gridSvg.style.pointerEvents = 'none';
   drawGrid(gridSvg, true, max, axisLeft);
+  {
+    const padX = 6;
+    const innerW = Math.max(1, (w - axisLeft - padX * 2));
+    const stepX = Math.max(1, innerW / Math.max(1, display.length - 1));
+    const maxLabels = 8;
+    const stride = Math.max(1, Math.ceil(display.length / maxLabels));
+    const positions = [];
+    const labels = [];
+    for (let i = 0; i < display.length; i += stride) {
+      const x = Math.round(axisLeft + padX + i * stepX);
+      positions.push(x);
+      labels.push(fmtXLabel(display[i]?.date));
+    }
+    if (display.length > 1 && (display.length - 1) % stride !== 0) {
+      const xLast = Math.round(axisLeft + padX + (display.length - 1) * stepX);
+      positions.push(xLast);
+      labels.push(fmtXLabel(display[display.length - 1]?.date));
+    }
+    drawXAxis(gridSvg, axisLeft, positions, labels);
+  }
   el.appendChild(gridSvg);
 
   const container = document.createElement('div');
@@ -487,33 +632,35 @@ function renderChart(data) {
   container.style.zIndex = '1';
   container.style.marginLeft = axisLeft + 'px';
 
+  const bottomAxis = 24;
+  const available = Math.max(1, h - bottomAxis - 12);
   display.forEach(d => {
     const v = d.hours || 0;
-    const bh = Math.round((v / max) * (h - 20));
+    const bh = Math.round((v / max) * available);
     const bar = document.createElement('div');
     bar.style.width = barW + 'px';
     bar.style.height = Math.max(2, bh) + 'px';
     bar.title = `${d.date ? d.date + ': ' : ''}${v} h`;
-    bar.style.background = v > 0 ? 'var(--accent, #4f36ff)' : 'rgba(128,128,128,.45)';
+    bar.style.background = v > 0 ? 'var(--bar-positive, #10b981)' : 'rgba(128,128,128,.35)';
+    bar.style.borderRadius = '6px';
+    bar.style.boxShadow = v > 0 ? '0 1px 0 rgba(0,0,0,.06)' : 'none';
     if (mode.value === 'candle') {
       bar.style.border = '1px solid var(--card-border)';
       bar.style.background = 'transparent';
       const fill = document.createElement('div');
       fill.style.height = Math.max(2, bh) + 'px';
-      fill.style.background = v > 0 ? 'var(--accent, #4f36ff)' : 'rgba(128,128,128,.65)';
+      fill.style.background = v > 0 ? 'var(--bar-positive, #10b981)' : 'rgba(128,128,128,.55)';
       fill.style.width = '100%';
+      fill.style.borderRadius = '6px';
       bar.appendChild(fill);
     }
 
-    const show = (e) => {
+  const show = (e) => {
       try {
-        tip.textContent = `${d.date ? d.date + ': ' : ''}${v} h`;
+        const title = fmtDateTitle(d.date);
+        tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${v} h</div>`;
         tip.style.display = 'block';
-        const rect = el.getBoundingClientRect();
-        const x = (e.clientX - rect.left) + 10;
-        const y = (e.clientY - rect.top) + 10;
-        tip.style.left = x + 'px';
-        tip.style.top = y + 'px';
+        placeTipFromMouse(e, v === 0);
       } catch {}
     };
     const hide = () => { tip.style.display = 'none'; };
@@ -526,6 +673,14 @@ function renderChart(data) {
 }
 
 onMounted(async () => {
+  try {
+    const v = localStorage.getItem(OVERLAY_KEY);
+    if (v === '1' || v === '0') overlayCollapsed.value = (v === '1');
+  } catch {}
+  try {
+    const h = localStorage.getItem(EARNINGS_HIDE_KEY);
+    if (h === '1' || h === '0') earningsHidden.value = (h === '1');
+  } catch {}
   await loadConfig();
   await refresh();
   async function pollStatus() {
@@ -537,6 +692,16 @@ onMounted(async () => {
   }
   pollStatus();
 });
+function toggleEarningsHidden() {
+  earningsHidden.value = !earningsHidden.value;
+}
+
+function usdFromAr(arAmount, usdRate) {
+  const a = Number(arAmount || 0);
+  const r = Number(usdRate || 0);
+  if (!isFinite(a) || !isFinite(r) || r <= 0) return 0;
+  return a * r;
+}
 
 watch([mode, period, span], () => { refresh(); });
 watch(period, (p) => {
@@ -548,6 +713,14 @@ watch(span, (s) => {
   if ([7,14,30,90,180,365].includes(Number(s))) {
     filterQuickSpan.value = Number(s);
   }
+});
+
+watch(overlayCollapsed, (v) => {
+  try { localStorage.setItem(OVERLAY_KEY, v ? '1' : '0'); } catch {}
+});
+
+watch(earningsHidden, (v) => {
+  try { localStorage.setItem(EARNINGS_HIDE_KEY, v ? '1' : '0'); } catch {}
 });
 
 function fmtHours(h) {
@@ -582,6 +755,20 @@ async function backfill(hours) {
 </script>
 
 <style scoped>
+.chart-wrap { position: relative; }
+.chart-canvas { width:100%; height:280px; overflow:auto; border:1px solid var(--card-border); border-radius:10px; padding:8px; background:var(--bg-chat); }
+.chart-overlay { position:absolute; top:10px; right:12px; background: var(--card-bg, #ffffff); color: var(--text-primary, #0f172a); border:1px solid var(--card-border); border-radius:10px; padding:8px 10px; box-shadow: 0 10px 25px rgba(0,0,0,.06); z-index:2; min-width: 160px; }
+.chart-overlay .overlay-title { font-size:12px; font-weight:600; opacity:.85; margin-bottom:6px; }
+.chart-overlay .overlay-row { display:flex; align-items:center; gap:8px; font-size:12px; line-height:1; padding:3px 0; }
+.chart-overlay .ov-label { opacity:.8; }
+.chart-overlay .ov-value { margin-left:auto; font-weight:600; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.dot-teal { background:#10b981; }
+.dot-red { background:#ef4444; }
+.dot-slate { background:#64748b; }
+@media (prefers-color-scheme: dark) {
+  .chart-overlay { background: var(--card-bg, #111827); color: var(--text-primary, #e5e7eb); box-shadow: 0 10px 25px rgba(0,0,0,.25); }
+}
 .kpis { display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:12px; }
 .kpi { border:1px solid var(--card-border); border-radius:8px; padding:10px; background: var(--card-bg, #111827); }
 .kpi-label { font-size:12px; opacity:.75; margin-bottom:6px; }
@@ -600,4 +787,19 @@ async function backfill(hours) {
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top: 12px; }
 select.quick-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none; }
 select.quick-select::-ms-expand { display: none; }
+.overlay-header { display:flex; align-items:center; gap:8px; }
+.overlay-toggle { margin-left:auto; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border:0; background:transparent; color:inherit; cursor:pointer; border-radius:6px; }
+.overlay-toggle:hover { background: rgba(0,0,0,.06); }
+@media (prefers-color-scheme: dark) { .overlay-toggle:hover { background: rgba(255,255,255,.06); } }
+.chart-overlay.collapsed { padding:6px 8px; min-width:auto; }
+.chart-overlay.collapsed .overlay-title { margin-bottom:0; }
+.chart-overlay.collapsed .overlay-row { display:none; }
+.chart-overlay.collapsed .overlay-toggle svg { transform: rotate(180deg); }
+.earnings-kpi .earnings-values { display:flex; gap:6px; align-items:baseline; }
+.earnings-kpi .earnings-values.blurred { filter: blur(6px); }
+.earnings-kpi .unit { font-size:14px; opacity:.8; }
+.earnings-kpi .usd { font-size:14px; opacity:.85; margin-left:6px; }
+.earnings-toggle { margin-left:auto; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border:0; background:transparent; color:inherit; cursor:pointer; border-radius:6px; }
+.earnings-toggle:hover { background: rgba(0,0,0,.06); }
+@media (prefers-color-scheme: dark) { .earnings-toggle:hover { background: rgba(255,255,255,.06); } }
 </style>
