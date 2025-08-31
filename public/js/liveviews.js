@@ -100,13 +100,13 @@ function applyLiveviewsConfig(config) {
 
 async function fetchViewerCountAndDisplay(url) {
   try {
-    const response = await fetch(url, { cache: 'no-cache' });
+  const response = await fetch(url, { cache: 'no-cache' });
     if (!response.ok) {
       throw new Error(`Network response was not ok: status ${response.status}, ${response.statusText}`);
     }
-    const data = await response.json();
-    console.log('[Liveviews] CLAIM_ID:', url);
-    console.log('[Liveviews] API response:', data);
+  const data = await response.json();
+  console.log('[Liveviews] endpoint:', url);
+  console.log('[Liveviews] API response:', data);
 
     const viewerCountEl = document.getElementById('viewer-count');
     const liveButtonEl = document.getElementById('live-button');
@@ -128,13 +128,13 @@ async function fetchViewerCountAndDisplay(url) {
     viewerCountEl.style.color = color;
     viewerCountEl.style.fontFamily = font;
     viewerCountEl.style.fontSize = size + 'px';
-    if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
+  if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
       viewerCountEl.textContent = `${data.data.ViewerCount} ${customLabel}`;
       const was = liveButtonEl.textContent === t('liveNow');
       const nowLive = !!data.data.Live;
       liveButtonEl.textContent = nowLive ? t('liveNow') : t('notLive');
   if (was !== nowLive) reportStreamState(nowLive, data.data.ViewerCount);
-    } else if (data && data.data && typeof data.data.Live !== 'undefined') {
+  } else if (data && data.data && typeof data.data.Live !== 'undefined') {
       viewerCountEl.textContent = `0 ${customLabel}`;
       const was = liveButtonEl.textContent === t('liveNow');
       const nowLive = !!data.data.Live;
@@ -235,7 +235,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch(url, { cache: 'no-cache' });
       if (!response.ok) throw new Error('Network error');
       const data = await response.json();
-      console.log('[Liveviews Admin] CLAIM_ID:', url);
+      console.log('[Liveviews Admin] endpoint:', url);
       console.log('[Liveviews Admin] API response:', data);
       if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
         updateLiveviewsStatusAdmin({ active: data.data.Live, count: data.data.ViewerCount });
@@ -271,14 +271,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     viewerCountInit.style.fontFamily = config.font || 'Arial';
     viewerCountInit.style.fontSize = (config.size || '32') + 'px';
   }
-  const CLAIM_ID = config.claimid || '';
-  const API_BASE = 'https://api.odysee.live/livestream/is_live?channel_claim_id=';
-  const API_URL = CLAIM_ID ? `${API_BASE}${CLAIM_ID}` : '';
 
-  if (API_URL) {
-    startViewerCountUpdates(API_URL);
-    startAdminViewerCountUpdates(API_URL);
-  }
+  const searchToken = (() => { try { return new URL(window.location.href).searchParams.get('token') || ''; } catch { return ''; } })();
+  const API_URL = `/api/liveviews/status` + (searchToken ? `?token=${encodeURIComponent(searchToken)}` : '');
+
+  startViewerCountUpdates(API_URL);
+  startAdminViewerCountUpdates(API_URL);
   const iconInput = document.getElementById('liveviews-icon-input');
   if (iconInput) {
 

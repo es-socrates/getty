@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const axios = require('axios');
 
 function getLiveviewsConfigWithDefaults(partial) {
   return {
@@ -23,6 +24,11 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     fs.mkdirSync(LIVEVIEWS_UPLOADS_DIR, { recursive: true });
   }
 
+  const LV_TTL_MS = Math.max(1000, parseInt(process.env.GETTY_LIVEVIEWS_TTL_MS || '10000', 10));
+  const LV_RL_ENABLED = process.env.GETTY_LIVEVIEWS_RL_ENABLED === '1';
+  const LV_RL_WINDOW_MS = Math.max(1000, parseInt(process.env.GETTY_LIVEVIEWS_RL_WINDOW_MS || '60000', 10));
+  const LV_RL_MAX = Math.max(1, parseInt(process.env.GETTY_LIVEVIEWS_RL_MAX || '120', 10));
+
   function isTrustedIp(req) {
     try {
       let ip = req.ip || req.connection?.remoteAddress || '';
@@ -31,6 +37,14 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
       const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
       return loopback || (allow.length > 0 && allow.includes(ip));
     } catch { return false; }
+  }
+
+  function getClientIp(req) {
+    try {
+      let ip = req.ip || req.connection?.remoteAddress || '';
+      if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+      return typeof ip === 'string' ? ip : 'unknown';
+    } catch { return 'unknown'; }
   }
 
   const liveviewsStorage = multer.diskStorage({
@@ -152,6 +166,70 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
         res.json({ success: true });
       });
     });
+  });
+
+  app.get('/api/liveviews/status', async (req, res) => {
+    try {
+      if (LV_RL_ENABLED && !isTrustedIp(req)) {
+        if (!app.__lvRate) app.__lvRate = {};
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        const ip = getClientIp(req);
+        const bucketKey = `${ns || 'single'}|${ip}`;
+        const now = Date.now();
+        const b = app.__lvRate[bucketKey];
+        if (!b || (now - b.ts) >= LV_RL_WINDOW_MS) {
+          app.__lvRate[bucketKey] = { ts: now, count: 1 };
+        } else {
+          b.count += 1;
+          if (b.count > LV_RL_MAX) {
+
+            const cacheKey = (ns && typeof ns === 'string') ? `ns:${ns}` : 'single';
+            const cached = app.__lvCache && app.__lvCache[cacheKey];
+            if (cached) {
+              res.setHeader('X-RateLimit-Used', 'true');
+              return res.json({ data: cached.data });
+            }
+            const retry = Math.ceil((LV_RL_WINDOW_MS - (now - b.ts)) / 1000);
+            res.setHeader('Retry-After', String(Math.max(1, retry)));
+            return res.status(429).json({ error: 'rate_limited' });
+          }
+        }
+      }
+
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let config = {};
+      if (store && ns) {
+        try { config = (await store.get(ns, 'liveviews-config', null)) || {}; } catch { config = {}; }
+      } else if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+        try { config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')); } catch { config = {}; }
+      }
+      config = getLiveviewsConfigWithDefaults(config);
+      const claimid = (config.claimid || '').trim();
+      if (!claimid) return res.json({ data: { Live: false, ViewerCount: 0 } });
+
+      const key = (ns && typeof ns === 'string') ? `ns:${ns}` : 'single';
+      const now = Date.now();
+      const TTL = LV_TTL_MS;
+      if (!app.__lvCache) app.__lvCache = {};
+      const cached = app.__lvCache[key];
+      if (cached && (now - cached.ts) < TTL) {
+        return res.json({ data: cached.data });
+      }
+
+      try {
+        const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claimid)}`;
+        const resp = await axios.get(url, { timeout: 5000 });
+        const data = resp?.data?.data;
+        const out = { Live: !!(data && data.Live), ViewerCount: (data && typeof data.ViewerCount === 'number') ? data.ViewerCount : 0 };
+        app.__lvCache[key] = { ts: now, data: out };
+        return res.json({ data: out });
+  } catch {
+        if (cached) return res.json({ data: cached.data });
+        return res.json({ data: { Live: false, ViewerCount: 0 } });
+      }
+    } catch {
+      return res.json({ data: { Live: false, ViewerCount: 0 } });
+    }
   });
 }
 
