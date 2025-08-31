@@ -132,7 +132,7 @@
       <div class="kpi"><div class="kpi-label">{{ t('kpiHighestViewers') }}</div><div class="kpi-value">{{ perf.allTime.highestViewers }}</div></div>
       <div class="kpi earnings-kpi">
         <div class="kpi-label flex items-center gap-2">
-          <span>{{ t('kpiTotalEarnings') || 'Total earnings (Last Tip)' }}</span>
+          <span>{{ t('kpiTotalEarnings') || 'Total earnings' }}</span>
           <button type="button" class="earnings-toggle" :aria-pressed="String(!earningsHidden)" @click="toggleEarningsHidden" :title="earningsHidden ? (t('show')||'Show') : (t('hide')||'Hide')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
