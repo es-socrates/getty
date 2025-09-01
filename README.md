@@ -14,7 +14,7 @@ Complete and customizable app with tools for live streaming. Tip notifications, 
 
 Odysee is a blockchain-based media platform. We host all kinds of media such as images, articles, PDFs, audio files, etc., but we're best known for hosting videos. Odysee seeks to recapture the spirit of the early 2000s era internet. Rather than favouring corporate content such as late night talk shows, network television, and TV news, Odysee is a place for everyone, including independent creators.
 
-### If you'd like to learn more about creating and setting up a wallet on Odysee, [visit the documentation](https://help.odysee.tv/category-monetization/).
+### Learn more about creating and setting up a wallet on Odysee, [visit the documentation](https://help.odysee.tv/category-monetization/).
 
 ## The Ultimate Tool
 
@@ -100,4 +100,6 @@ Anyone with that link will see the widget data in real time; you can revoke acce
 
 **This is an independent project; it is not an official Odysee product.** Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
 
-## With love for Odysee ❤️
+### With love for Odysee ❤️
+
+## λ
