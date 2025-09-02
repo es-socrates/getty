@@ -14,6 +14,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     function getCookie(name){
         try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
     }
+
+    const DEFAULT_AVATAR_URL = 'https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png';
+    const DEFAULT_AVATAR_BG_COLORS = [
+        '#00bcd4', '#ff9800', '#8bc34a', '#e91e63', '#9c27b0',
+        '#3f51b5', '#ff5722', '#4caf50', '#2196f3', '#ffc107'
+    ];
+    function colorForUsername(name = 'Anonymous') {
+        let h = 0;
+        for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+        const idx = Math.abs(h) % DEFAULT_AVATAR_BG_COLORS.length;
+        return DEFAULT_AVATAR_BG_COLORS[idx];
+    }
+
+    let randomAvatarBgPerMessage = false;
+    try {
+        const ls = localStorage.getItem('chat_avatar_random_bg');
+        if (ls === '1' || ls === '0') randomAvatarBgPerMessage = (ls === '1');
+    } catch {}
+    {
+        const urlParams = new URLSearchParams(window.location.search);
+        const randomParam = urlParams.get('avatarRandom') || urlParams.get('randomAvatarBg');
+        if (randomParam === '1') randomAvatarBgPerMessage = true;
+        if (randomParam === '0') randomAvatarBgPerMessage = false;
+        if (window.location.hash.includes('avatarRandom')) randomAvatarBgPerMessage = true;
+    }
+
+    try {
+        if (typeof randomAvatarBgPerMessage !== 'boolean' || randomAvatarBgPerMessage === false) {
+            const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+            const cfg = await res.json();
+            if (cfg && typeof cfg.avatarRandomBg === 'boolean' && localStorage.getItem('chat_avatar_random_bg') === null) {
+                randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
+            }
+        }
+    } catch {}
+    function colorForAvatar(name = 'Anonymous') {
+        if (randomAvatarBgPerMessage) {
+            const idx = Math.floor(Math.random() * DEFAULT_AVATAR_BG_COLORS.length);
+            return DEFAULT_AVATAR_BG_COLORS[idx];
+        }
+        return colorForUsername(name);
+    }
     const token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
     const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}${token ? `/?token=${encodeURIComponent(token)}` : ''}`;
     const ws = new WebSocket(wsUrl);
@@ -214,21 +256,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         const header = document.createElement('div');
         header.className = 'message-header';
 
-        if (msg.avatar) {
+        const username = (msg.channelTitle || 'Anonymous');
+
+        {
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
             const img = document.createElement('img');
-            img.src = msg.avatar;
-            img.alt = msg.channelTitle || 'Anonymous';
-            img.onerror = () => avatar.style.display = 'none';
+            const hasCustom = typeof msg.avatar === 'string' && msg.avatar.trim().length > 0;
+            const initialSrc = hasCustom ? msg.avatar : DEFAULT_AVATAR_URL;
+            img.src = initialSrc;
+            img.alt = username;
+            if (!hasCustom) {
+                avatar.style.backgroundColor = colorForAvatar(username);
+            }
+            img.onerror = () => {
+                if (img.src !== DEFAULT_AVATAR_URL) {
+                    img.onerror = null; // avoid loops
+                    img.src = DEFAULT_AVATAR_URL;
+                    avatar.style.backgroundColor = colorForAvatar(username);
+                    avatar.style.display = '';
+                } else {
+                    img.style.display = 'none';
+                    avatar.style.backgroundColor = colorForAvatar(username);
+                }
+            };
             avatar.appendChild(img);
             header.appendChild(avatar);
         }
 
         const userContainer = document.createElement('div');
         userContainer.className = 'message-user-container';
-
-        const username = (msg.channelTitle || 'Anonymous');
         const displayUsername = username.length > 17 ? username.slice(0, 17) + '' : username;
         const style = getCyberpunkStyle(username);
 

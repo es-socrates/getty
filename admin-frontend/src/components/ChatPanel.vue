@@ -47,20 +47,29 @@
         </div>
 
         <div class="os-surface p-3 rounded-os border border-[var(--card-border)] bg-[var(--bg-card)] mb-3" aria-labelledby="username-colors-heading">
-          <div class="flex items-center justify-between mb-2">
-            <h4 id="username-colors-heading" class="text-xs font-semibold uppercase tracking-wide">{{ t('usernameColors') || 'Username' }}</h4>
-            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none" :title="t('toggleUsernameOverride') || 'Override username colors (otherwise the palette is used)'" :aria-describedby="'username-hint'">
+          <h4 id="username-colors-heading" class="text-xs font-semibold uppercase tracking-wide mb-2">{{ t('usernameColors') || 'Username' }}</h4>
+          <div class="mb-2">
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
               <input type="checkbox" v-model="overrideUsername" class="checkbox" />
               <span>{{ t('overrideUsername') || 'Override username colors' }}</span>
             </label>
+            <small class="block opacity-70 mt-1" :id="'username-hint'">{{ t('toggleUsernameOverride') || 'Override username colors (otherwise the palette is used)' }}</small>
           </div>
-          <div v-if="overrideUsername" class="flex flex-wrap gap-2 items-end">
+          <div v-if="overrideUsername" class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-end">
             <ColorInput v-model="form.colors.username" :label="t('colorMsgUsername')" />
             <ColorInput v-model="form.colors.usernameBg" :label="t('colorMsgUsernameBg')" />
-            <small class="opacity-70 text-xs">{{ t('usernameOverrideOn') || 'These colors will replace the per-user palette.' }}</small>
+            <div class="sm:col-span-2"><small class="opacity-70 text-xs">{{ t('usernameOverrideOn') || 'These colors will replace the per-user palette.' }}</small></div>
           </div>
           <div v-else>
-            <small id="username-hint" class="opacity-70 text-xs">{{ t('usernameOverrideOff') || 'Using CYBERPUNK_PALETTE — each user gets a different color.' }}</small>
+            <small class="opacity-70 text-xs">{{ t('usernameOverrideOff') || 'Using CYBERPUNK_PALETTE — each user gets a different color.' }}</small>
+          </div>
+          <div class="my-3 h-px bg-[var(--card-border)] opacity-60"></div>
+          <div>
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input type="checkbox" v-model="avatarRandomBg" class="checkbox" />
+              <span>{{ t('avatarRandomBg') || 'Random default avatar background per message' }}</span>
+            </label>
+            <small class="block opacity-70 mt-1">{{ t('avatarRandomBgHint') || 'If enabled, users without avatar will get a random background color on each message.' }}</small>
           </div>
         </div>
 
@@ -72,7 +81,7 @@
           </div>
         </div>
       </div>
-      <div class="mt-3">
+  <div class="mt-3">
         <div class="flex items-center gap-2 mb-2" aria-live="polite">
           <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs">
             <span :style="`width:8px;height:8px;border-radius:9999px;display:inline-block;background:${connected ? '#22c55e' : '#ef4444'}`"></span>
@@ -132,6 +141,7 @@ const form = reactive({
   },
 });
 const transparentBg = ref(false);
+const avatarRandomBg = ref(false);
 const overrideUsername = ref(false);
 const clearedThemeCSS = ref(false);
 const errors = reactive({ chatUrl: '' });
@@ -143,8 +153,8 @@ const lastStatusAt = ref(0);
 const original = reactive({ snapshot: null });
 
 const publicToken = ref('');
-const widgetUrl = computed(() => `${location.origin}/widgets/chat${publicToken.value ? `?token=${encodeURIComponent(publicToken.value)}` : ''}`);
-const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?horizontal=1${publicToken.value ? `&token=${encodeURIComponent(publicToken.value)}` : ''}`);
+const widgetUrl = computed(() => `${location.origin}/widgets/chat${publicToken.value ? `?token=${encodeURIComponent(publicToken.value)}` : ''}${avatarRandomBg.value ? `${publicToken.value ? '&' : '?'}avatarRandom=1` : ''}`);
+const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?horizontal=1${publicToken.value ? `&token=${encodeURIComponent(publicToken.value)}` : ''}${avatarRandomBg.value ? `&avatarRandom=1` : ''}`);
 
 function resetColors() {
   form.colors = {
@@ -200,6 +210,7 @@ async function load() {
       }
       form.colors.donation = data.donationColor || form.colors.donation;
       form.colors.donationBg = data.donationBgColor || form.colors.donationBg;
+  if (typeof data.avatarRandomBg === 'boolean') avatarRandomBg.value = !!data.avatarRandomBg;
       original.snapshot = JSON.stringify(form);
     }
   } catch {
@@ -224,6 +235,7 @@ async function save() {
       donationColor: form.colors.donation,
       donationBgColor: form.colors.donationBg,
       themeCSS: clearedThemeCSS.value ? '' : (localStorage.getItem('chatLiveThemeCSS') || undefined),
+      avatarRandomBg: avatarRandomBg.value,
     };
     await api.post('/api/chat', payload);
     original.snapshot = JSON.stringify(form);
