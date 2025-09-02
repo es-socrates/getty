@@ -4,26 +4,54 @@
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs">{{ t('metricsRequestsPerMin') || 'Requests/min' }}</div>
         <div class="flex items-end justify-between gap-2">
-          <div class="text-xl font-semibold">{{ metrics.system?.requests?.perMin ?? '—' }}</div>
-          <OsSparkline :data="hist.rpm" :width="90" :height="24" color="#34d399" />
+          <div class="text-xl font-semibold flex items-baseline gap-2">
+            <span>{{ metrics.system?.requests?.perMin ?? '—' }}</span>
+            <span v-if="enableDeltas && deltas.rpm" :class="deltas.rpm.dir === 'up' ? 'text-green-500' : deltas.rpm.dir === 'down' ? 'text-red-500' : 'text-neutral-400'" class="text-xs">
+              <span v-if="deltas.rpm.dir==='up'">▲</span>
+              <span v-else-if="deltas.rpm.dir==='down'">▼</span>
+              {{ deltas.rpm.text }}
+            </span>
+          </div>
+          <OsSparkline :data="hist.rpm" :width="sparkSmallW" :height="24" color="#34d399" />
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs">{{ t('metricsWsClients') || 'WS Clients' }}</div>
-        <div class="text-xl font-semibold">{{ metrics.system?.wsClients ?? '—' }}</div>
+        <div class="text-xl font-semibold flex items-baseline gap-2">
+          <span>{{ metrics.system?.wsClients ?? '—' }}</span>
+          <span v-if="enableDeltas && deltas.ws" :class="deltas.ws.dir === 'up' ? 'text-green-500' : deltas.ws.dir === 'down' ? 'text-red-500' : 'text-neutral-400'" class="text-xs">
+            <span v-if="deltas.ws.dir==='up'">▲</span>
+            <span v-else-if="deltas.ws.dir==='down'">▼</span>
+            {{ deltas.ws.text }}
+          </span>
+        </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs">{{ t('metricsHeapUsed') || 'Heap Used' }}</div>
         <div class="flex items-end justify-between gap-2">
-          <div class="text-xl font-semibold">{{ metrics.system?.memory?.heapUsedMB ?? '—' }} MB</div>
-          <OsSparkline :data="hist.heap" :width="90" :height="24" color="#60a5fa" />
+          <div class="text-xl font-semibold flex items-baseline gap-2">
+            <span>{{ metrics.system?.memory?.heapUsedMB ?? '—' }} MB</span>
+            <span v-if="enableDeltas && deltas.heap" :class="deltas.heap.dir === 'up' ? 'text-red-500' : deltas.heap.dir === 'down' ? 'text-green-500' : 'text-neutral-400'" class="text-xs">
+              <span v-if="deltas.heap.dir==='up'">▲</span>
+              <span v-else-if="deltas.heap.dir==='down'">▼</span>
+              {{ deltas.heap.text }}
+            </span>
+          </div>
+          <OsSparkline :data="hist.heap" :width="sparkSmallW" :height="24" color="#60a5fa" />
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs">{{ t('metricsBandwidthPerMin') || 'Bandwidth/min' }}</div>
         <div class="flex items-end justify-between gap-2">
-          <div class="text-xl font-semibold">{{ metrics.bandwidth?.human?.perMin ?? '—' }}</div>
-          <OsSparkline :data="hist.bandwidth" :width="90" :height="24" color="#f59e0b" />
+          <div class="text-xl font-semibold flex items-baseline gap-2">
+            <span>{{ metrics.bandwidth?.human?.perMin ?? '—' }}</span>
+            <span v-if="enableDeltas && deltas.bandwidth" :class="deltas.bandwidth.dir === 'up' ? 'text-green-500' : deltas.bandwidth.dir === 'down' ? 'text-red-500' : 'text-neutral-400'" class="text-xs">
+              <span v-if="deltas.bandwidth.dir==='up'">▲</span>
+              <span v-else-if="deltas.bandwidth.dir==='down'">▼</span>
+              {{ deltas.bandwidth.text }}
+            </span>
+          </div>
+          <OsSparkline :data="hist.bandwidth" :width="sparkSmallW" :height="24" color="#f59e0b" />
         </div>
       </div>
     </div>
@@ -31,10 +59,17 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs mb-1">{{ t('metricsChatActivity') || 'Chat activity' }}</div>
-        <div class="text-sm">{{ t('metrics1m') || '1m' }}: <strong>{{ metrics.chat?.perMin ?? 0 }}</strong></div>
+        <div class="text-sm flex items-baseline gap-2">
+          {{ t('metrics1m') || '1m' }}: <strong>{{ metrics.chat?.perMin ?? 0 }}</strong>
+          <span v-if="enableDeltas && deltas.chat" :class="deltas.chat.dir === 'up' ? 'text-green-500' : deltas.chat.dir === 'down' ? 'text-red-500' : 'text-neutral-400'" class="text-xs font-normal">
+            <span v-if="deltas.chat.dir==='up'">▲</span>
+            <span v-else-if="deltas.chat.dir==='down'">▼</span>
+            {{ deltas.chat.text }}
+          </span>
+        </div>
         <div class="text-sm">{{ t('metrics5m') || '5m' }}: <strong>{{ metrics.chat?.last5m ?? 0 }}</strong></div>
         <div class="text-sm">{{ t('metrics1h') || '1h' }}: <strong>{{ metrics.chat?.lastHour ?? 0 }}</strong></div>
-        <div class="mt-1"><OsSparkline :data="hist.chat" :width="160" :height="28" color="#a78bfa" /></div>
+  <div class="mt-1"><OsSparkline :data="hist.chat" :width="sparkMedW" :height="28" color="#a78bfa" /></div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs mb-1">{{ t('metricsTips') || 'Tips' }}</div>
@@ -48,7 +83,7 @@
         </div>
         <div class="text-xs mt-1 text-neutral-400">{{ t('metricsRate1m') || 'Rate 1m' }}: {{ metrics.tips?.rate?.perMin?.ar ?? 0 }} AR (${{ metrics.tips?.rate?.perMin?.usd ?? 0 }})</div>
         <div class="text-xs text-neutral-400">24h: {{ metrics.tips?.window?.last24h?.ar ?? 0 }} AR (${{ metrics.tips?.window?.last24h?.usd ?? 0 }})</div>
-        <div class="mt-1"><OsSparkline :data="hist.tips" :width="160" :height="28" color="#ef4444" /></div>
+  <div class="mt-1"><OsSparkline :data="hist.tips" :width="sparkMedW" :height="28" color="#ef4444" /></div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs mb-1">{{ t('metricsLiveviews') || 'Liveviews' }}</div>
@@ -56,19 +91,114 @@
         <div class="text-2xl font-semibold">{{ metrics.liveviews?.viewerCount ?? 0 }}</div>
       </div>
     </div>
+
+  <div class="mt-3 p-2 rounded-os-sm os-subtle overflow-hidden" ref="trendsWrap">
+      <div class="flex items-center justify-between mb-2">
+        <div class="os-th text-xs">{{ t('metricsTrends') || 'Trends' }}</div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+            :class="visible.rpm ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+            @click="visible.rpm = !visible.rpm"
+          >
+            <span class="inline-block w-2 h-2 rounded-sm" style="background:#34d399"></span>
+            {{ t('metricsLegendRpm') || 'RPM' }}
+          </button>
+          <button
+            type="button"
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+            :class="visible.chat ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+            @click="visible.chat = !visible.chat"
+          >
+            <span class="inline-block w-2 h-2 rounded-sm" style="background:#a78bfa"></span>
+            {{ t('metricsLegendChat') || 'Chat' }}
+          </button>
+          <button
+            type="button"
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+            :class="visible.bandwidth ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+            @click="visible.bandwidth = !visible.bandwidth"
+          >
+            <span class="inline-block w-2 h-2 rounded-sm" style="background:#f59e0b"></span>
+            {{ t('metricsLegendBandwidth') || 'BW' }}
+          </button>
+          <button
+            type="button"
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+            :class="visible.heap ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+            @click="visible.heap = !visible.heap"
+          >
+            <span class="inline-block w-2 h-2 rounded-sm" style="background:#60a5fa"></span>
+            {{ t('metricsLegendHeap') || 'Heap' }}
+          </button>
+          <button
+            type="button"
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+            :class="visible.tips ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+            @click="visible.tips = !visible.tips"
+          >
+            <span class="inline-block w-2 h-2 rounded-sm" style="background:#ef4444"></span>
+            {{ t('metricsLegendTips') || 'Tips' }}
+          </button>
+          <button
+            v-if="hasLatency"
+            type="button"
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+            :class="visible.latency ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+            @click="visible.latency = !visible.latency"
+          >
+            <span class="inline-block w-2 h-2 rounded-sm" style="background:#f472b6"></span>
+            {{ t('metricsLegendLatency') || 'Latency' }}
+          </button>
+
+          <div class="hidden md:inline-block w-px h-4 bg-[var(--card-border)] mx-1"></div>
+          <div class="inline-flex gap-1" :title="t('overviewRange') || 'Range'">
+            <button
+              v-for="opt in rangeOpts"
+              :key="opt.value"
+              type="button"
+              class="text-xs px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="currentRange===opt.value ? 'bg-[var(--bg-chat)]' : 'hover:bg-[var(--bg-chat)]'"
+              @click="setRange(opt.value)"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <OsMultiLine
+        :series="seriesList"
+        :width="chartWidth"
+        :height="chartHeight"
+        :normalize-each="true"
+        :padding="8"
+      />
+    </div>
   </OsCard>
 </template>
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import OsCard from './os/OsCard.vue';
 import OsSparkline from './os/OsSparkline.vue';
+import OsMultiLine from './os/OsMultiLine.vue';
+import { metrics, hist, deltas, currentRange, setRange, start as startMetrics } from '../stores/metricsStore.js';
 
 const { t } = useI18n();
-const metrics = ref({});
-const hist = ref({ rpm: [], heap: [], bandwidth: [], chat: [], tips: [] });
-const MAX_POINTS = 30;
+const props = defineProps({
+  range: { type: String, default: '5m' },
+  enableDeltas: { type: Boolean, default: true },
+});
+
+const rangeOpts = [
+  { value: '5m', label: '5m' },
+  { value: '15m', label: '15m' },
+  { value: '60m', label: '60m' },
+];
+watch(() => props.range, (v)=>{ if (rangeOpts.some(o=>o.value===v)) setRange(v); }, { immediate: true });
+
 const arPriceUsd = ref(null);
 
 function fmt1(v, digits = 1){
@@ -86,23 +216,78 @@ const monthlyUsd = computed(()=>{
   return ar * p;
 });
 
-async function refresh(){
-  try {
-    const r = await axios.get('/api/metrics');
-    const m = r.data || {};
-    metrics.value = m;
-    const push = (arr, v) => { arr.push(v); if (arr.length > MAX_POINTS) arr.shift(); };
-    push(hist.value.rpm, +(m.system?.requests?.perMin ?? 0));
-    push(hist.value.heap, +(m.system?.memory?.heapUsedMB ?? 0));
+const isSmall = ref(false);
+const sparkSmallW = computed(() => isSmall.value ? 130 : 90);
+const sparkMedW = computed(() => isSmall.value ? 210 : 160);
+function updateIsSmall(){
+  try { isSmall.value = window.innerWidth < 768; } catch {}
+}
 
-    const kb = (()=>{ const s=m.bandwidth?.human?.perMin||'0 KB'; const n=parseFloat(s); return isNaN(n)?0:n; })();
-    push(hist.value.bandwidth, kb);
-    push(hist.value.chat, +(m.chat?.perMin ?? 0));
-    push(hist.value.tips, +(m.tips?.rate?.perMin?.ar ?? 0));
+const visible = ref({ rpm: true, chat: true, bandwidth: true, heap: false, tips: true, latency: true });
+const hasLatency = computed(() => {
+  try {
+    if (hist.value.latency && hist.value.latency.some(v => v > 0)) return true;
+    const m = metrics.value || {};
+    return !!(m.latency?.ms || m.system?.latencyMs);
+  } catch { return false; }
+});
+const seriesList = computed(() => {
+  const list = [];
+  if (visible.value.rpm) list.push({ name: 'rpm', color: '#34d399', data: hist.value.rpm });
+  if (visible.value.chat) list.push({ name: 'chat', color: '#a78bfa', data: hist.value.chat });
+  if (visible.value.bandwidth) list.push({ name: 'bandwidth', color: '#f59e0b', data: hist.value.bandwidth });
+  if (visible.value.heap) list.push({ name: 'heap', color: '#60a5fa', data: hist.value.heap });
+  if (visible.value.tips) list.push({ name: 'tips', color: '#ef4444', data: hist.value.tips });
+  if (visible.value.latency && hasLatency.value) list.push({ name: 'latency', color: '#f472b6', data: hist.value.latency });
+  return list;
+});
+
+const chartWidth = ref(720);
+const chartHeight = computed(() => {
+  const h = Math.round(chartWidth.value * 0.4);
+  return Math.max(160, Math.min(260, h));
+});
+const trendsWrap = ref(null);
+let ro = null;
+function updateChartWidth(el){
+  try {
+    if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  const padL = parseFloat(style.paddingLeft || '0');
+  const padR = parseFloat(style.paddingRight || '0');
+  const contentWidth = rect.width - padL - padR;
+  const w = Math.floor(contentWidth);
+    chartWidth.value = Math.max(360, w);
   } catch {}
 }
 
-onMounted(()=>{ refresh(); setInterval(refresh, 10000); });
+onMounted(()=>{
+  startMetrics();
+});
+
+onMounted(()=>{
+  try {
+  updateIsSmall();
+  try { window.addEventListener('resize', updateIsSmall); } catch {}
+    updateChartWidth(trendsWrap.value);
+    if (typeof ResizeObserver !== 'undefined'){
+      ro = new ResizeObserver((entries)=>{
+        for (const e of entries){
+          const el = e.target;
+          updateChartWidth(el);
+        }
+      });
+      if (trendsWrap.value) ro.observe(trendsWrap.value);
+    } else {
+
+      const onResize = ()=> updateChartWidth(trendsWrap.value);
+      window.addEventListener('resize', onResize);
+      ro = { disconnect(){ window.removeEventListener('resize', onResize); } };
+    }
+  } catch {}
+});
+onUnmounted(()=>{ try { if (ro && ro.disconnect) ro.disconnect(); } catch {} try { window.removeEventListener('resize', updateIsSmall); } catch {} });
 onMounted(async ()=>{
   try {
     const r = await axios.get('/api/ar-price');
@@ -114,5 +299,10 @@ onMounted(async ()=>{
       arPriceUsd.value = r.data?.arweave?.usd ?? arPriceUsd.value;
     } catch {}
   }, 60000);
-});
-</script>
+  });
+  
+  </script>
+  <script>
+  export default { name: 'MetricsPanel' };
+  </script>
+

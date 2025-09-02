@@ -378,5 +378,13 @@
   "welcomeCaptionSocialWidgets": "Social media widgets",
   "welcomeCaptionRunLocalOrHosted": "Run locally or online",
   "welcomeCaptionArweaveTips": "Your decentralized tips via Arweave",
-  "welcomeTipNewSession": "<strong>Tip:</strong> you can generate a session at <a href=\"/new-session\">/new-session</a> if needed."
+  "welcomeTipNewSession": "<strong>Tip:</strong> you can generate a session at <a href=\"/new-session\">/new-session</a> if needed.",
+  "metricsTrends": "Trends",
+  "overviewRange": "Range",
+  "metricsLegendRpm": "RPM",
+  "metricsLegendChat": "Chat",
+  "metricsLegendBandwidth": "BW",
+  "metricsLegendHeap": "Heap",
+  "metricsLegendTips": "Tips",
+  "metricsLegendLatency": "Latency"
 }

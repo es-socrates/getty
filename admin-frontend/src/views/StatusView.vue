@@ -31,11 +31,18 @@
     </div>
 
     <OsCard :title="t('statusModules')" class="mb-4">
-      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
         <div v-for="m in modulesList" :key="m.key" class="os-subtle p-3 rounded-os-sm" :title="m.tooltip || ''">
           <div class="flex items-center gap-2 font-semibold text-sm">
             <span :class="['w-2 h-2 rounded-full', m.active ? 'bg-[#16a34a]' : 'bg-neutral-400']"></span>
             {{ m.label }}
+            <span v-if="m.hasUptime" class="ml-auto inline-flex items-center gap-1 text-[11px] text-neutral-400" :title="m.activeSince || ''">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+                <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>{{ liveUptime(m) }}</span>
+            </span>
           </div>
           <div class="os-card-meta" v-if="m.extra">{{ m.extra }}</div>
         </div>
@@ -193,6 +200,9 @@ const importing = ref(false);
 const fileInputEl = ref(null);
 const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null });
 let importAppliedTimer = null;
+let uptimeTimer = null;
+
+const uptimeTick = ref(0);
 
 const showInfo = ref(false);
 const showTokenNudge = computed(() => {
@@ -256,17 +266,40 @@ const formattedUptime = computed(() =>
   system.value ? formatUptime(system.value.uptimeSeconds || 0) : ''
 );
 
+function liveUptime(m){
+  try {
+    void uptimeTick.value;
+    const base = Number(m.uptimeSeconds || 0);
+    const since = Number(m.baseAt || 0);
+    const extra = since ? Math.floor((Date.now() - since) / 1000) : 0;
+    const total = Math.max(0, base + extra);
+    return formatUptime(total);
+  } catch { return m.uptimeLabel || ''; }
+}
+
 async function load() {
   try {
     const r = await axios.get('/api/modules');
     const d = r.data;
     system.value = d.system || null;
-  const masked = !!d.masked;
-  const tooltip = masked ? t('statusMaskedTooltip') : '';
+    const masked = !!d.masked;
+    const tooltip = masked ? t('statusMaskedTooltip') : '';
+    const toUptime = (obj) => {
+    const secs = Math.max(Number(obj?.uptimeSeconds||0), 0);
+    const pct = Math.min(Math.max((secs/3600)*100, 0), 100); // kept in case of future UI use
+    return {
+      hasUptime: secs>0,
+      uptimeLabel: formatUptime(secs),
+      uptimeSeconds: secs,
+      baseAt: Date.now(),
+      uptimePct: Math.round(pct),
+      activeSince: obj?.activeSince || ''
+    };
+  };
   modulesList.value = [
-      { key: 'lastTip', label: t('lastTip'), active: d.lastTip?.active !== false, tooltip },
-      { key: 'tipGoal', label: t('tipGoal'), active: d.tipGoal?.active !== false, tooltip },
-      { key: 'chat', label: t('chat'), active: d.chat?.active !== false, tooltip },
+      { key: 'lastTip', label: t('lastTip'), active: d.lastTip?.active !== false, tooltip, ...toUptime(d.lastTip) },
+      { key: 'tipGoal', label: t('tipGoal'), active: d.tipGoal?.active !== false, tooltip, ...toUptime(d.tipGoal) },
+      { key: 'chat', label: t('chat'), active: d.chat?.active !== false, tooltip, ...toUptime(d.chat) },
       {
         key: 'announcement',
         label: t('announcementTitle'),
@@ -278,6 +311,7 @@ async function load() {
               total: d.announcement.totalMessages,
             })
           : '',
+        ...toUptime(d.announcement)
       },
       {
         key: 'socialmedia',
@@ -285,12 +319,14 @@ async function load() {
         active: d.socialmedia?.configured,
         tooltip,
         extra: d.socialmedia ? t('statusItems', { n: d.socialmedia.entries }) : '',
+        ...toUptime(d.socialmedia)
       },
       {
         key: 'externalNotifications',
         label: t('externalNotificationsTitle'),
         active: d.externalNotifications?.active,
         tooltip,
+        ...toUptime(d.externalNotifications)
       },
       {
         key: 'liveviews',
@@ -298,6 +334,7 @@ async function load() {
         active: !!d.liveviews?.active,
         tooltip,
         extra: d.liveviews?.claimid ? t('statusItems', { n: 1 }) : '',
+        ...toUptime(d.liveviews)
       },
       {
         key: 'raffle',
@@ -315,6 +352,7 @@ async function load() {
           if (d.raffle?.paused) parts.push(t('rafflePaused'));
           return parts.join(' • ');
         })(),
+        ...toUptime(d.raffle)
       },
     ];
     try {
@@ -343,6 +381,10 @@ onMounted(() => {
   }, 60000);
 
   try {
+    uptimeTimer = setInterval(() => { uptimeTick.value++; }, 1000);
+  } catch {}
+
+  try {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         clearImportApplied();
@@ -354,6 +396,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   try { if (importAppliedTimer) clearTimeout(importAppliedTimer); } catch {}
+  try { if (uptimeTimer) clearInterval(uptimeTimer); } catch {}
 });
 
 async function regeneratePublic() {
@@ -459,4 +502,3 @@ async function onImportFile(e) {
   }
 }
 </script>
-

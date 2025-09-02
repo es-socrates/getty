@@ -286,6 +286,39 @@
     background: color-mix(in srgb, var(--card-bg) 40%, transparent);
     box-sizing: border-box;
   }
+
+  @media (max-width: 767.98px) {
+    .admin-layout {
+      padding-left: 0;
+    }
+    .admin-sidebar {
+      position: fixed;
+      top: var(--admin-top, var(--admin-header-h, 64px));
+      left: 0;
+      height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)));
+      width: 16rem;
+      transform: translateX(-100%);
+      z-index: 60;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+    html.mobile-sidebar-open .admin-sidebar {
+      transform: translateX(0);
+    }
+    .admin-overlay {
+      position: fixed;
+      inset: 0;
+      top: var(--admin-top, var(--admin-header-h, 64px));
+      background: rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 50;
+    }
+    html.mobile-sidebar-open .admin-overlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
   @media (min-width: 768px) {
     .admin-layout {
       padding-left: var(--sidebar-w, 14rem);
@@ -297,7 +330,7 @@
       width: var(--sidebar-w, 14rem);
       height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)));
       overflow-x: visible;
-      z-index: 100;
+      z-index: 40;
     }
   }
   .sidebar-collapsed .admin-sidebar {

@@ -12,13 +12,73 @@
       <div class="form-group" style="grid-column:1/-1;">
         <label class="label">{{ t('streamHistoryClaimId') }}</label>
         <input class="input" v-model="claimid" />
-        <div class="mt-2 flex gap-2">
-          <button class="btn" :disabled="saving" @click="saveConfig">{{ saving ? t('commonSaving') : t('commonSave') }}</button>
-          <button class="btn" @click="refresh">{{ t('commonRefresh') }}</button>
-          <button class="btn btn-danger" @click="clearHistory">{{ t('streamHistoryClear') }}</button>
-          <button class="btn" @click="downloadExport">{{ t('streamHistoryExport') }}</button>
-          <label class="btn" style="cursor:pointer;">
-            {{ t('streamHistoryImport') }}
+        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 disabled:opacity-60"
+            :disabled="saving"
+            :title="saving ? (t('commonSaving')||'Saving…') : (t('commonSave')||'Save')"
+            @click="saveConfig"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M7 3v6h8V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M7 21v-7h10v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>{{ saving ? t('commonSaving') : t('commonSave') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100"
+            :title="t('commonRefresh') || 'Refresh'"
+            @click="refresh"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M21 3v6h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>{{ t('commonRefresh') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs text-red-500 hover:opacity-100"
+            :title="t('streamHistoryClear') || 'Clear'"
+            @click="clearHistory"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M3 6h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>{{ t('streamHistoryClear') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100"
+            :title="t('streamHistoryExport') || 'Export'"
+            @click="downloadExport"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 3v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M8 11l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+            <span>{{ t('streamHistoryExport') }}</span>
+          </button>
+
+          <label
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 cursor-pointer"
+            :title="t('streamHistoryImport') || 'Import'"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 21V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M16 13l-4-4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+            <span>{{ t('streamHistoryImport') }}</span>
             <input type="file" accept="application/json" @change="onImport" style="display:none;" />
           </label>
         </div>
@@ -222,6 +282,9 @@ const EARNINGS_HIDE_KEY = 'streamHistory.earningsHidden';
 const totalAR = ref(0);
 const arUsd = ref(null);
 const earningsHidden = ref(false);
+const lastSummaryData = ref([]);
+let ro = null;
+let resizeTimer = null;
 
 function setScrollLock(lock) {
   try {
@@ -257,6 +320,7 @@ watch(anyModalOpen, (open) => {
 onUnmounted(() => {
   setScrollLock(false);
   try { window.removeEventListener('keydown', onKeydown); } catch {}
+  try { if (ro && ro.disconnect) ro.disconnect(); } catch {}
 });
 
 async function loadConfig() {
@@ -290,7 +354,8 @@ async function saveConfig() {
 async function refresh() {
   try {
     const r = await axios.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}`);
-    renderChart(r?.data?.data || []);
+    lastSummaryData.value = r?.data?.data || [];
+    renderChart(lastSummaryData.value);
     const p = await axios.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}`);
     perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
 
@@ -541,12 +606,13 @@ function renderChart(data) {
       const y = toY(p.hours || 0);
       dPath += (idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', dPath);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', 'var(--line-color, #10b981)');
     path.setAttribute('stroke-width', '2.5');
     path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('class', 'line-path');
     svg.appendChild(path);
 
     display.forEach((p, idx) => {
@@ -557,6 +623,7 @@ function renderChart(data) {
       c.setAttribute('cy', String(y));
       c.setAttribute('r', String(3.0));
       c.setAttribute('fill', (p.hours || 0) > 0 ? 'var(--line-color, #10b981)' : 'rgba(128,128,128,.65)');
+      c.setAttribute('class', 'line-point');
       c.style.cursor = 'default';
       c.addEventListener('mouseenter', (e) => {
         const title = fmtDateTitle(p.date);
@@ -637,13 +704,14 @@ function renderChart(data) {
   display.forEach(d => {
     const v = d.hours || 0;
     const bh = Math.round((v / max) * available);
-    const bar = document.createElement('div');
+  const bar = document.createElement('div');
     bar.style.width = barW + 'px';
     bar.style.height = Math.max(2, bh) + 'px';
     bar.title = `${d.date ? d.date + ': ' : ''}${v} h`;
     bar.style.background = v > 0 ? 'var(--bar-positive, #10b981)' : 'rgba(128,128,128,.35)';
     bar.style.borderRadius = '6px';
     bar.style.boxShadow = v > 0 ? '0 1px 0 rgba(0,0,0,.06)' : 'none';
+    bar.className = 'bar';
     if (mode.value === 'candle') {
       bar.style.border = '1px solid var(--card-border)';
       bar.style.background = 'transparent';
@@ -683,6 +751,25 @@ onMounted(async () => {
   } catch {}
   await loadConfig();
   await refresh();
+
+  try {
+    const el = chartEl.value;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        try { chartEl.value?.classList.add('reflowing'); } catch {}
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          try { renderChart(lastSummaryData.value || []); } catch {}
+          try { setTimeout(() => chartEl.value?.classList.remove('reflowing'), 120); } catch {}
+        }, 80);
+      });
+      ro.observe(el);
+    } else {
+      const onR = () => { if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(() => renderChart(lastSummaryData.value || []), 120); };
+      window.addEventListener('resize', onR);
+      ro = { disconnect(){ try { window.removeEventListener('resize', onR); } catch {} } };
+    }
+  } catch {}
   async function pollStatus() {
     try {
       const r = await axios.get('/api/stream-history/status', { timeout: 4000 });
@@ -757,6 +844,9 @@ async function backfill(hours) {
 <style scoped>
 .chart-wrap { position: relative; }
 .chart-canvas { width:100%; height:280px; overflow:auto; border:1px solid var(--card-border); border-radius:10px; padding:8px; background:var(--bg-chat); }
+.chart-canvas.reflowing .line-path { transition: d 160ms ease-out; }
+.chart-canvas.reflowing .line-point { transition: cx 160ms ease-out, cy 160ms ease-out; }
+.chart-canvas.reflowing .bar { transition: height 160ms ease-out; }
 .chart-overlay { position:absolute; top:10px; right:12px; background: var(--card-bg, #ffffff); color: var(--text-primary, #0f172a); border:1px solid var(--card-border); border-radius:10px; padding:8px 10px; box-shadow: 0 10px 25px rgba(0,0,0,.06); z-index:2; min-width: 160px; }
 .chart-overlay .overlay-title { font-size:12px; font-weight:600; opacity:.85; margin-bottom:6px; }
 .chart-overlay .overlay-row { display:flex; align-items:center; gap:8px; font-size:12px; line-height:1; padding:3px 0; }

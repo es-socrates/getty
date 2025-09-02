@@ -6,6 +6,19 @@
   >
   <header class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border" role="banner">
       <div class="flex items-center gap-4">
+        <button
+          class="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-card transition-colors"
+          @click="toggleMobileSidebar"
+          :aria-expanded="mobileSidebarOpen.toString()"
+          aria-controls="admin-sidebar"
+          aria-label="Toggle navigation"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18" />
+            <path d="M3 12h18" />
+            <path d="M3 18h18" />
+          </svg>
+        </button>
   <RouterLink to="/admin/status" class="flex items-center gap-2" aria-label="Go to Status">
           <img :src="logoLight" alt="getty Logo" class="h-9 logo-light" />
           <img :src="logoDark" alt="getty Logo" class="h-9 logo-dark" />
@@ -82,7 +95,8 @@ Español
       :class="{ 'sidebar-collapsed': sidebarCollapsed }"
     >
       <aside
-        class="admin-sidebar os-sidebar w-56 flex-shrink-0 transition-all duration-300"
+  id="admin-sidebar"
+  class="admin-sidebar os-sidebar w-56 flex-shrink-0 transition-all duration-300"
         :class="{ 'w-16': sidebarCollapsed }"
         role="navigation"
         aria-label="Primary"
@@ -285,6 +299,8 @@ Español
           </nav>
         </div>
       </aside>
+
+  <div class="admin-overlay md:hidden" @click="setMobileSidebar(false)"></div>
       <main class="admin-main flex-1 min-w-0" id="main" tabindex="-1" role="main">
         <RouterView />
       </main>
@@ -310,6 +326,7 @@ const router = useRouter();
 const isDark = ref(false);
 const menuOpen = ref(false);
 const sidebarCollapsed = ref(false);
+const mobileSidebarOpen = ref(false);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
 
@@ -336,6 +353,13 @@ function toggleSidebar() {
   setSidebarWidthVar();
 }
 
+function setMobileSidebar(open) {
+  mobileSidebarOpen.value = open;
+  try { document.documentElement.classList.toggle('mobile-sidebar-open', open); } catch {}
+  try { document.body.style.overflow = open ? 'hidden' : ''; } catch {}
+}
+function toggleMobileSidebar() { setMobileSidebar(!mobileSidebarOpen.value); }
+
 function setHeaderHeightVar() {
   try {
     const header = document.querySelector('.os-header');
@@ -351,7 +375,11 @@ function setHeaderHeightVar() {
 let resizeTimer = null;
 function onResize() {
   if (resizeTimer) clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { setHeaderHeightVar(); setContainerLeftVar(); }, 100);
+  resizeTimer = setTimeout(() => {
+    setHeaderHeightVar();
+    setContainerLeftVar();
+    if (window.innerWidth >= 768) setMobileSidebar(false);
+  }, 100);
 }
 function onScroll() {
   setHeaderHeightVar();
@@ -383,6 +411,7 @@ onMounted(() => {
   setSidebarWidthVar();
   window.addEventListener('resize', onResize);
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMobileSidebar(false); });
 
   try { localStorage.removeItem('admin-compact'); } catch {}
   try { document.documentElement.classList.remove('compact'); } catch {}
@@ -412,6 +441,7 @@ router.beforeEach((to, from, next) => {
 
 router.afterEach(() => {
   setTimeout(() => { setHeaderHeightVar(); setContainerLeftVar(); }, 0);
+  setMobileSidebar(false);
 });
 </script>
 <style>

@@ -378,5 +378,13 @@
   "welcomeCaptionSocialWidgets": "Widgets de redes sociales",
   "welcomeCaptionRunLocalOrHosted": "Ejecuta en local o en línea",
   "welcomeCaptionArweaveTips": "Tus propinas descentralizadas desde Arweave",
-  "welcomeTipNewSession": "<strong>Consejo:</strong> puedes generar una sesión en <a href=\"/new-session\">/new-session</a> si lo necesitas."
+  "welcomeTipNewSession": "<strong>Consejo:</strong> puedes generar una sesión en <a href=\"/new-session\">/new-session</a> si lo necesitas.",
+  "metricsTrends": "Tendencias",
+  "overviewRange": "Rango",
+  "metricsLegendRpm": "RPM",
+  "metricsLegendChat": "Chat",
+  "metricsLegendBandwidth": "BW",
+  "metricsLegendHeap": "Heap",
+  "metricsLegendTips": "Propinas",
+  "metricsLegendLatency": "Latencia"
 }
