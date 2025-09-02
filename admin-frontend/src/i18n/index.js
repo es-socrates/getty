@@ -140,15 +140,15 @@ const adminExtra = {
   }
 };
 
-adminExtra.en.quickToday = 'Today';
-adminExtra.en.quickThisWeek = 'This week';
-adminExtra.en.quickThisMonth = 'This month';
-adminExtra.en.quickThisYear = 'This year';
+adminExtra.en.quickToday = 'Per day';
+adminExtra.en.quickThisWeek = 'Per week';
+adminExtra.en.quickThisMonth = 'Per month';
+adminExtra.en.quickThisYear = 'Per year';
 
-adminExtra.es.quickToday = 'Hoy';
-adminExtra.es.quickThisWeek = 'Esta semana';
-adminExtra.es.quickThisMonth = 'Este mes';
-adminExtra.es.quickThisYear = 'Este año';
+adminExtra.es.quickToday = 'Por día';
+adminExtra.es.quickThisWeek = 'Por semana';
+adminExtra.es.quickThisMonth = 'Por mes';
+adminExtra.es.quickThisYear = 'Por año';
 
 const merge = (base, extra) => ({ ...base, ...extra });
 const messages = {

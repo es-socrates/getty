@@ -154,6 +154,7 @@ app.use((req, _res, next) => {
 const __requestTimestamps = [];
 const __bytesEvents = [];
 const __activityLog = [];
+const __moduleUptime = {};
 const __MAX_ACTIVITY = 2000;
 app.use((req, res, next) => {
   try { __requestTimestamps.push(Date.now()); if (__requestTimestamps.length > 50000) __requestTimestamps.splice(0, __requestTimestamps.length - 50000); } catch {}
@@ -1096,13 +1097,22 @@ app.get('/api/activity', (req, res) => {
   try {
     const level = typeof req.query.level === 'string' ? req.query.level : '';
     const order = req.query.order === 'asc' ? 'asc' : 'desc';
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const all = String(req.query.limit || '').toLowerCase() === 'all';
-    const totalItems = level ? __activityLog.filter(i => i.level === level).length : __activityLog.length;
+    const baseArr = level ? __activityLog.filter(i => i.level === level) : __activityLog.slice();
+    const filtered = q
+      ? baseArr.filter(i => {
+          try {
+            const msg = (i && (i.message || i.msg || '')) + '';
+            return msg.toLowerCase().includes(q.toLowerCase());
+          } catch { return false; }
+        })
+      : baseArr;
+    const totalItems = filtered.length;
     const max = __MAX_ACTIVITY;
     const rawLimit = all ? totalItems : Math.min(parseInt(req.query.limit, 10) || 100, max);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
-
-    let items = level ? __activityLog.filter(i => i.level === level) : __activityLog.slice();
+    let items = filtered.slice();
     const total = items.length;
     let out = [];
     if (order === 'asc') {
@@ -1130,7 +1140,16 @@ app.post('/api/activity/clear', strictLimiter, (_req, res) => {
 app.get('/api/activity/export', (req, res) => {
   try {
     const level = typeof req.query.level === 'string' ? req.query.level : '';
-    const items = level ? __activityLog.filter(i => i.level === level) : __activityLog;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const base = level ? __activityLog.filter(i => i.level === level) : __activityLog;
+    const items = q
+      ? base.filter(i => {
+          try {
+            const msg = (i && (i.message || i.msg || '')) + '';
+            return msg.toLowerCase().includes(q.toLowerCase());
+          } catch { return false; }
+        })
+      : base;
     const filename = `activity-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -1356,6 +1375,29 @@ app.get('/api/modules', async (req, res) => {
     for (const k of keys) {
       if (payload[k] && typeof payload[k].then === 'function') {
         payload[k] = await payload[k];
+      }
+    }
+  } catch {}
+
+  try {
+    const now = Date.now();
+    const moduleKeys = ['lastTip','tipWidget','tipGoal','chat','announcement','socialmedia','externalNotifications','liveviews','raffle'];
+    for (const k of moduleKeys) {
+      const obj = payload[k];
+      if (!obj || typeof obj !== 'object') continue;
+      const isActive = !!obj.active;
+      const rec = __moduleUptime[k] || { active: isActive, since: now };
+      if (rec.active !== isActive) {
+        rec.active = isActive;
+        rec.since = now;
+      }
+      __moduleUptime[k] = rec;
+      if (isActive) {
+        const seconds = Math.floor((now - rec.since) / 1000);
+        try { obj.uptimeSeconds = seconds; } catch {}
+        try { obj.activeSince = new Date(rec.since).toISOString(); } catch {}
+      } else {
+        try { obj.uptimeSeconds = 0; } catch {}
       }
     }
   } catch {}
