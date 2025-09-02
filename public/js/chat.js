@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             img.onerror = () => {
                 if (img.src !== DEFAULT_AVATAR_URL) {
-                    img.onerror = null; // avoid loops
+                    img.onerror = null;
                     img.src = DEFAULT_AVATAR_URL;
                     avatar.style.backgroundColor = colorForAvatar(username);
                     avatar.style.display = '';
@@ -295,7 +295,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const membershipIcons = [
             'crown', 'star', 'hamburger', 'heart', 'tongue',
-            'beer', 'laugh', 'cry', 'serious', 'cool'
+            'astro', 'laugh', 'lemon', 'serious', 'cool', 'fire',
+            'rocket', 'creamy', 'unicorn', 'pizza', 'whale'
         ];
         let hash = 0;
         for (let i = 0; i < username.length; i++) {

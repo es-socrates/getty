@@ -379,8 +379,8 @@ body {
   background-size: contain;
 }
 
-.membership-icon.beer {
-  background: url("../assets/icons/beer.png") no-repeat center;
+.membership-icon.astro {
+  background: url("../assets/icons/astro.png") no-repeat center;
   background-size: contain;
 }
 
@@ -389,8 +389,8 @@ body {
   background-size: contain;
 }
 
-.membership-icon.cry {
-  background: url("../assets/icons/cry.png") no-repeat center;
+.membership-icon.lemon {
+  background: url("../assets/icons/lemon.png") no-repeat center;
   background-size: contain;
 }
 
@@ -401,6 +401,36 @@ body {
 
 .membership-icon.cool {
   background: url("../assets/icons/cool.png") no-repeat center;
+  background-size: contain;
+}
+
+.membership-icon.fire {
+  background: url("../assets/icons/fire.png") no-repeat center;
+  background-size: contain;
+}
+
+.membership-icon.rocket {
+  background: url("../assets/icons/rocket.png") no-repeat center;
+  background-size: contain;
+}
+
+.membership-icon.creamy {
+  background: url("../assets/icons/creamy.png") no-repeat center;
+  background-size: contain;
+}
+
+.membership-icon.unicorn {
+  background: url("../assets/icons/unicorn.png") no-repeat center;
+  background-size: contain;
+}
+
+.membership-icon.pizza {
+  background: url("../assets/icons/pizza.png") no-repeat center;
+  background-size: contain;
+}
+
+.membership-icon.whale {
+  background: url("../assets/icons/whale.png") no-repeat center;
   background-size: contain;
 }
 
