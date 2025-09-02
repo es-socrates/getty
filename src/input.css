@@ -184,7 +184,7 @@
 
   .comment-emoji,
   .comment-sticker {
-    @apply max-w-6 max-h-6 align-middle;
+    @apply max-w-5 max-h-5 align-middle;
   }
 
   .message-donation {

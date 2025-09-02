@@ -1,25 +1,58 @@
 <template>
   <OsCard :title="t('activityLogTitle') || 'Activity Log'">
-    <div class="flex flex-wrap items-center gap-2 mb-2">
-      <label class="text-sm">{{ t('activityLevelLabel') }}</label>
-      <select v-model="level" class="os-input">
-        <option value="">{{ t('activityAll') }}</option>
-        <option value="info">{{ t('activityInfo') }}</option>
-        <option value="warn">{{ t('activityWarn') }}</option>
-        <option value="error">{{ t('activityError') }}</option>
-      </select>
-      <label class="text-sm ml-3">{{ t('activityRowsLabel') }}</label>
-      <select v-model.number="limit" class="os-input">
-        <option :value="50">50</option>
-        <option :value="100">100</option>
-        <option :value="200">200</option>
-      </select>
-      <label class="text-sm ml-3">{{ t('activityOrderLabel') }}</label>
-      <select v-model="order" class="os-input">
-        <option value="desc">{{ t('activityOrderNewest') }}</option>
-        <option value="asc">{{ t('activityOrderOldest') }}</option>
-      </select>
-      <label class="text-sm ml-3 flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-3 mb-2">
+      <div class="flex items-center gap-2">
+        <label class="text-sm">{{ t('activityLevelLabel') }}</label>
+        <div class="relative h-full overflow-hidden rounded-full">
+          <select
+            v-model="level"
+            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+          >
+            <option value="">{{ t('activityAll') }}</option>
+            <option value="info">{{ t('activityInfo') }}</option>
+            <option value="warn">{{ t('activityWarn') }}</option>
+            <option value="error">{{ t('activityError') }}</option>
+          </select>
+          <svg class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2" width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.1673 6L8.50065 10.6667L3.83398 6" stroke="#0C1523" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label class="text-sm">{{ t('activityRowsLabel') }}</label>
+        <div class="relative h-full overflow-hidden rounded-full">
+          <select
+            v-model.number="limit"
+            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+          >
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+            <option :value="200">200</option>
+          </select>
+          <svg class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2" width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.1673 6L8.50065 10.6667L3.83398 6" stroke="#0C1523" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label class="text-sm">{{ t('activityOrderLabel') }}</label>
+        <div class="relative h-full overflow-hidden rounded-full">
+          <select
+            v-model="order"
+            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+          >
+            <option value="desc">{{ t('activityOrderNewest') }}</option>
+            <option value="asc">{{ t('activityOrderOldest') }}</option>
+          </select>
+          <svg class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2" width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.1673 6L8.50065 10.6667L3.83398 6" stroke="#0C1523" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </div>
+      </div>
+
+      <label class="text-sm flex items-center gap-2">
         <span>{{ t('activityAutoScroll') }}</span>
         <span class="checkbox-wrapper-2"><input type="checkbox" class="checkbox" v-model="autoScroll"></span>
       </label>
@@ -100,6 +133,9 @@ watch([level, limit, order], ()=>{ offset.value = 0; refresh(); });
 </script>
 <style scoped>
  .os-input { background:#0a0e12; border:1px solid #161b22; padding:4px 8px; border-radius:6px; color:#e6edf3; }
+
+ select.quick-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none; }
+ select.quick-select::-ms-expand { display: none; }
 
  :deep(.text-emerald-300) { color: rgb(45,45,45) !important; }
  :deep(.bg-emerald-500\/20) { background-color: rgba(60, 230, 150, 0.20) !important; }

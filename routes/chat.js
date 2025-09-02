@@ -32,9 +32,9 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       }
       config.themeCSS = config.themeCSS || '';
 
-  const isHosted = !!store;
-  const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
-  const trusted = isTrustedIp(req);
+    const isHosted = !!store;
+    const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
+    const trusted = isTrustedIp(req);
 
   if (((isHosted && !trusted) || requireSessionFlag) && !hasNs) {
         const sanitized = {
@@ -48,6 +48,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           donationColor: config.donationColor || '#1bdf5f',
           donationBgColor: config.donationBgColor || '#ececec',
           themeCSS: config.themeCSS || '',
+          avatarRandomBg: !!config.avatarRandomBg,
           chatUrl: '',
           odyseeWsUrl: ''
         };
@@ -78,11 +79,12 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         usernameBgColor: z.string().optional(),
         donationColor: z.string().optional(),
         donationBgColor: z.string().optional(),
-        themeCSS: z.string().max(20000).optional()
+        themeCSS: z.string().max(20000).optional(),
+        avatarRandomBg: z.boolean().optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid chat config' });
-      const { odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor } = parsed.data;
+      const { odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor, avatarRandomBg } = parsed.data;
       const chatUrl = (parsed.data.chatUrl || '').trim();
       let { themeCSS } = parsed.data;
       if (!chatUrl) {
@@ -123,7 +125,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         usernameBgColor: (usernameBgColor !== undefined) ? usernameBgColor : (config.usernameBgColor ?? ''),
         donationColor: donationColor || config.donationColor || '#1bdf5f',
         donationBgColor: donationBgColor || config.donationBgColor || '#ececec',
-        themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || '')
+        themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || ''),
+        avatarRandomBg: (avatarRandomBg !== undefined) ? !!avatarRandomBg : !!config.avatarRandomBg
       };
       const isHosted = !!(store && req.ns && req.ns.admin);
       const ns = isHosted ? req.ns.admin : null;
