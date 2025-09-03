@@ -1,5 +1,16 @@
 <template>
-  <OsCard :title="t('streamHistoryTitle')">
+  <OsCard>
+    <template #header>
+      <h3 class="os-card-title flex items-center gap-1.5">
+        <span class="icon os-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18" />
+            <polyline points="7 14 11 10 14 13 18 9" />
+          </svg>
+        </span>
+        {{ t('streamHistoryTitle') }}
+      </h3>
+    </template>
     <div class="status-row">
       <span class="badge" :class="status.connected ? 'ok' : 'err'">
         {{ status.connected ? t('connected') : t('disconnected') }}
@@ -20,7 +31,7 @@
             :title="saving ? (t('commonSaving')||'Saving…') : (t('commonSave')||'Save')"
             @click="saveConfig"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M7 3v6h8V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M7 21v-7h10v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -34,7 +45,7 @@
             :title="t('commonRefresh') || 'Refresh'"
             @click="refresh"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M21 3v6h-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
@@ -47,7 +58,7 @@
             :title="t('streamHistoryClear') || 'Clear'"
             @click="clearHistory"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M3 6h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
               <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -61,7 +72,7 @@
             :title="t('streamHistoryExport') || 'Export'"
             @click="downloadExport"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M12 3v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M8 11l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -73,7 +84,7 @@
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-85 hover:opacity-100 cursor-pointer"
             :title="t('streamHistoryImport') || 'Import'"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M12 21V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M16 13l-4-4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
@@ -134,7 +145,29 @@
       <div class="chart-wrap">
         <div class="chart-overlay" :class="overlayCollapsed ? 'collapsed' : ''" aria-label="viewer-stats">
           <div class="overlay-header">
-            <div class="overlay-title">{{ t('activity') }}</div>
+            <div class="overlay-title flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 12h4l3-7 4 14 3-7h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>{{ t('activity') }}</span>
+            </div>
+            <div v-if="showBackfill" class="overlay-actions" ref="overlayMenuEl">
+              <button type="button" class="overlay-action-btn" :aria-expanded="String(menuOpen)" :title="t('actions') || 'Actions'" @click.stop="toggleMenu">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="5" cy="12" r="2" fill="currentColor" />
+                  <circle cx="12" cy="12" r="2" fill="currentColor" />
+                  <circle cx="19" cy="12" r="2" fill="currentColor" />
+                </svg>
+              </button>
+              <div v-if="menuOpen" class="overlay-menu" role="menu">
+                <div class="overlay-menu-title">{{ t('streamHistoryBackfillTitle') || 'Backfill current segment' }}</div>
+                <button type="button" class="overlay-item" role="menuitem" @click="onBackfillClick(24)">+24h</button>
+                <button type="button" class="overlay-item" role="menuitem" @click="onBackfillClick(48)">+48h</button>
+                <button type="button" class="overlay-item" role="menuitem" @click="onBackfillClick(72)">+72h</button>
+                <div class="overlay-sep"></div>
+                <button type="button" class="overlay-item overlay-danger" role="menuitem" @click="onBackfillDismiss">{{ t('commonClose') }}</button>
+              </div>
+            </div>
             <button type="button" class="overlay-toggle" :aria-expanded="String(!overlayCollapsed)" @click="overlayCollapsed = !overlayCollapsed" aria-label="Toggle">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -207,13 +240,7 @@
         </div>
       </div>
     </div>
-    <div v-if="showBackfill" class="text-xs opacity-80 mt-2 flex gap-2 items-center">
-      <span>{{ t('streamHistoryBackfillHint') }}</span>
-      <button class="btn btn-xs" @click="backfill(24)">+24h</button>
-      <button class="btn btn-xs" @click="backfill(48)">+48h</button>
-      <button class="btn btn-xs" @click="backfill(72)">+72h</button>
-      <button class="btn btn-xs" @click="backfillDismissed = true">{{ t('commonClose') }}</button>
-    </div>
+    
 
     <teleport to="body">
     <div v-if="showClearModal" class="modal-overlay" @click.self="!clearBusy && (showClearModal=false)" role="dialog" aria-modal="true">
@@ -283,6 +310,9 @@ const totalAR = ref(0);
 const arUsd = ref(null);
 const earningsHidden = ref(false);
 const lastSummaryData = ref([]);
+const menuOpen = ref(false);
+const overlayMenuEl = ref(null);
+let clickAwayHandler = null;
 let ro = null;
 let resizeTimer = null;
 
@@ -321,6 +351,7 @@ onUnmounted(() => {
   setScrollLock(false);
   try { window.removeEventListener('keydown', onKeydown); } catch {}
   try { if (ro && ro.disconnect) ro.disconnect(); } catch {}
+  try { if (clickAwayHandler) document.removeEventListener('click', clickAwayHandler, true); } catch {}
 });
 
 async function loadConfig() {
@@ -622,12 +653,34 @@ function renderChart(data) {
     const stepX = Math.max(1, innerW / Math.max(1, display.length - 1));
     const toY = (v) => Math.round((h - bottomAxis - padY) - (Math.max(0, v) / max) * (h - bottomAxis - padY * 2));
 
+    const gradId = 'sh-grad-' + Math.random().toString(36).slice(2);
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const lg = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    lg.setAttribute('id', gradId);
+    lg.setAttribute('x1', '0'); lg.setAttribute('y1', '0'); lg.setAttribute('x2', '0'); lg.setAttribute('y2', '1');
+    const st0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    st0.setAttribute('offset', '0%'); st0.setAttribute('stop-color', '#10b981'); st0.setAttribute('stop-opacity', '0.24');
+    const st1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    st1.setAttribute('offset', '100%'); st1.setAttribute('stop-color', '#10b981'); st1.setAttribute('stop-opacity', '0');
+    lg.appendChild(st0); lg.appendChild(st1); defs.appendChild(lg); svg.appendChild(defs);
+
     let dPath = '';
     display.forEach((p, idx) => {
       const x = Math.round(axisLeft + padX + idx * stepX);
       const y = toY(p.hours || 0);
       dPath += (idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
+
+    try {
+      const x0 = Math.round(axisLeft + padX + 0 * stepX);
+      const xN = Math.round(axisLeft + padX + (Math.max(0, display.length - 1)) * stepX);
+      const yBase = toY(0);
+      const areaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      areaPath.setAttribute('d', `${dPath} L ${xN} ${yBase} L ${x0} ${yBase} Z`);
+      areaPath.setAttribute('fill', `url(#${gradId})`);
+      areaPath.setAttribute('stroke', 'none');
+      svg.appendChild(areaPath);
+    } catch {}
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', dPath);
     path.setAttribute('fill', 'none');
@@ -731,7 +784,7 @@ function renderChart(data) {
   display.forEach(d => {
     const v = d.hours || 0;
     const bh = Math.round((v / max) * available);
-  const bar = document.createElement('div');
+    const bar = document.createElement('div');
     bar.style.width = barW + 'px';
     bar.style.height = Math.max(2, bh) + 'px';
     bar.title = `${d.date ? d.date + ': ' : ''}${v} h`;
@@ -805,7 +858,22 @@ onMounted(async () => {
   setTimeout(pollStatus, 10000);
   }
   pollStatus();
+  try {
+    clickAwayHandler = (evt) => {
+      try {
+        if (!menuOpen.value) return;
+        const root = overlayMenuEl.value;
+        if (root && !root.contains(evt.target)) menuOpen.value = false;
+      } catch {}
+    };
+    document.addEventListener('click', clickAwayHandler, true);
+  } catch {}
 });
+
+function toggleMenu() { menuOpen.value = !menuOpen.value; }
+function onBackfillClick(h) { menuOpen.value = false; backfill(h); }
+function onBackfillDismiss() { menuOpen.value = false; backfillDismissed.value = true; }
+
 function toggleEarningsHidden() {
   earningsHidden.value = !earningsHidden.value;
 }
@@ -919,4 +987,15 @@ select.quick-select::-ms-expand { display: none; }
 .earnings-toggle { margin-left:auto; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; border:0; background:transparent; color:inherit; cursor:pointer; border-radius:6px; }
 .earnings-toggle:hover { background: rgba(0,0,0,.06); }
 @media (prefers-color-scheme: dark) { .earnings-toggle:hover { background: rgba(255,255,255,.06); } }
+.overlay-actions { position: relative; margin-left: auto; margin-right: 4px; }
+.overlay-action-btn { width: 26px; height: 26px; display:inline-flex; align-items:center; justify-content:center; border:0; background:transparent; color:inherit; cursor:pointer; border-radius:6px; }
+.overlay-action-btn:hover { background: rgba(0,0,0,.06); }
+@media (prefers-color-scheme: dark) { .overlay-action-btn:hover { background: rgba(255,255,255,.06); } }
+.overlay-menu { position:absolute; right:0; top:28px; min-width: 200px; background: var(--card-bg, #111827); border:1px solid var(--card-border); border-radius:8px; padding:8px; box-shadow: 0 10px 25px rgba(0,0,0,.25); z-index: 5; }
+.overlay-menu-title { font-size:12px; font-weight:600; opacity:.85; margin-bottom:6px; }
+.overlay-item { width:100%; text-align:left; padding:6px 8px; border:0; background:transparent; color:inherit; font-size:13px; border-radius:6px; cursor:pointer; }
+.overlay-item:hover { background: rgba(0,0,0,.06); }
+@media (prefers-color-scheme: dark) { .overlay-item:hover { background: rgba(255,255,255,.06); } }
+.overlay-danger { color:#ef4444; }
+.overlay-sep { height:1px; background: var(--card-border); margin:6px 0; }
 </style>

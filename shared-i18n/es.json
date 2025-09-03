@@ -386,5 +386,7 @@
   "metricsLegendBandwidth": "BW",
   "metricsLegendHeap": "Heap",
   "metricsLegendTips": "Propinas",
-  "metricsLegendLatency": "Latencia"
+  "metricsLegendLatency": "Latencia",
+  "streamHistoryBackfillTitle": "Completar segmento actual",
+  "actions": "Acciones"
 }

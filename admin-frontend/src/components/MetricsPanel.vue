@@ -1,8 +1,23 @@
 <template>
-  <OsCard :title="t('metricsTitle') || 'Live Metrics'">
+  <OsCard>
+    <template #header>
+      <h3 class="os-card-title flex items-center gap-1.5">
+        <span class="icon os-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 14 8 10 12 14 16 8 20 12" />
+          </svg>
+        </span>
+        {{ t('metricsTitle') || 'Live Metrics' }}
+      </h3>
+    </template>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs">{{ t('metricsRequestsPerMin') || 'Requests/min' }}</div>
+        <div class="os-th text-xs flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          <span>{{ t('metricsRequestsPerMin') || 'Requests/min' }}</span>
+        </div>
         <div class="flex items-end justify-between gap-2">
           <div class="text-xl font-semibold flex items-baseline gap-2">
             <span>{{ metrics.system?.requests?.perMin ?? '—' }}</span>
@@ -16,7 +31,15 @@
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs">{{ t('metricsWsClients') || 'WS Clients' }}</div>
+        <div class="os-th text-xs flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="3" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          <span>{{ t('metricsWsClients') || 'WS Clients' }}</span>
+        </div>
         <div class="text-xl font-semibold flex items-baseline gap-2">
           <span>{{ metrics.system?.wsClients ?? '—' }}</span>
           <span v-if="enableDeltas && deltas.ws" :class="deltas.ws.dir === 'up' ? 'text-green-500' : deltas.ws.dir === 'down' ? 'text-red-500' : 'text-neutral-400'" class="text-xs">
@@ -27,7 +50,14 @@
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs">{{ t('metricsHeapUsed') || 'Heap Used' }}</div>
+        <div class="os-th text-xs flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M7 5v14" />
+            <path d="M17 5v14" />
+          </svg>
+          <span>{{ t('metricsHeapUsed') || 'Heap Used' }}</span>
+        </div>
         <div class="flex items-end justify-between gap-2">
           <div class="text-xl font-semibold flex items-baseline gap-2">
             <span>{{ metrics.system?.memory?.heapUsedMB ?? '—' }} MB</span>
@@ -41,7 +71,12 @@
         </div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs">{{ t('metricsBandwidthPerMin') || 'Bandwidth/min' }}</div>
+        <div class="os-th text-xs flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="3 7 12 16 21 7" />
+          </svg>
+          <span>{{ t('metricsBandwidthPerMin') || 'Bandwidth/min' }}</span>
+        </div>
         <div class="flex items-end justify-between gap-2">
           <div class="text-xl font-semibold flex items-baseline gap-2">
             <span>{{ metrics.bandwidth?.human?.perMin ?? '—' }}</span>
@@ -58,7 +93,12 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs mb-1">{{ t('metricsChatActivity') || 'Chat activity' }}</div>
+        <div class="os-th text-xs mb-1 flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+          </svg>
+          <span>{{ t('metricsChatActivity') || 'Chat activity' }}</span>
+        </div>
         <div class="text-sm flex items-baseline gap-2">
           {{ t('metrics1m') || '1m' }}: <strong>{{ metrics.chat?.perMin ?? 0 }}</strong>
           <span v-if="enableDeltas && deltas.chat" :class="deltas.chat.dir === 'up' ? 'text-green-500' : deltas.chat.dir === 'down' ? 'text-red-500' : 'text-neutral-400'" class="text-xs font-normal">
@@ -72,7 +112,13 @@
   <div class="mt-1"><OsSparkline :data="hist.chat" :width="sparkMedW" :height="28" color="#a78bfa" /></div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs mb-1">{{ t('metricsTips') || 'Tips' }}</div>
+        <div class="os-th text-xs mb-1 flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 1v22" />
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" />
+          </svg>
+          <span>{{ t('metricsTips') || 'Tips' }}</span>
+        </div>
         <div class="text-sm">{{ t('metricsSession') || 'Session' }}: <strong>{{ metrics.tips?.session?.count ?? 0 }}</strong> ({{ metrics.tips?.session?.ar ?? 0 }} AR | ${{ metrics.tips?.session?.usd ?? 0 }})</div>
         <div class="text-sm">
           {{ t('metricsMonthly') || 'Monthly' }}: 
@@ -86,7 +132,13 @@
   <div class="mt-1"><OsSparkline :data="hist.tips" :width="sparkMedW" :height="28" color="#ef4444" /></div>
       </div>
       <div class="p-2 rounded-os-sm os-subtle">
-        <div class="os-th text-xs mb-1">{{ t('metricsLiveviews') || 'Liveviews' }}</div>
+        <div class="os-th text-xs mb-1 flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span>{{ t('metricsLiveviews') || 'Liveviews' }}</span>
+        </div>
         <div class="text-sm">{{ metrics.liveviews?.live ? t('liveNow') : t('notLive') }}</div>
         <div class="text-2xl font-semibold">{{ metrics.liveviews?.viewerCount ?? 0 }}</div>
       </div>
@@ -94,7 +146,13 @@
 
   <div class="mt-3 p-2 rounded-os-sm os-subtle overflow-hidden" ref="trendsWrap">
       <div class="flex items-center justify-between mb-2">
-        <div class="os-th text-xs">{{ t('metricsTrends') || 'Trends' }}</div>
+        <div class="os-th text-xs flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 16 11 12 7 1 18" />
+            <polyline points="17 4 23 4 23 10" />
+          </svg>
+          <span>{{ t('metricsTrends') || 'Trends' }}</span>
+        </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button
             type="button"

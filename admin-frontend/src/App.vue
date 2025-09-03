@@ -181,8 +181,9 @@ Español
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 6v6l4 2" />
+                  <circle cx="12" cy="12" r="9" />
+                  <circle cx="12" cy="12" r="5" />
+                  <circle cx="12" cy="12" r="1" />
                 </svg>
               </span>
               <span>{{ t('tipGoal') }}</span>
@@ -285,13 +286,8 @@ Español
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
-                  <path d="M15 3h6v6" />
-                  <path d="M10 14 21 3" />
-                  <path d="M5 12a9 9 0 0 0 9 9" />
-                  <path d="M5 12a9 9 0 0 1 9-9" />
-                  <path d="M5 12H3" />
-                  <path d="M12 5V3" />
-                  <path d="M12 21v-2" />
+                  <rect x="6" y="3" width="12" height="18" rx="1" />
+                  <path d="M10 12h.01" />
                 </svg>
               </span>
               <span>{{ t('externalNotificationsTitle') }}</span>
