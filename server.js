@@ -322,6 +322,20 @@ if (!__hostedMode) try {
         const hist = (function load() {
           try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return { segments: [], samples: [] }; }
         })();
+
+        try {
+          const lastSeg = hist.segments && hist.segments[hist.segments.length - 1];
+          const lastSample = Array.isArray(hist.samples) && hist.samples.length ? hist.samples[hist.samples.length - 1] : null;
+          const lastTs = lastSample ? Number(lastSample.ts || 0) : 0;
+          const FRESH_MS = 150000;
+          const isStale = !lastTs || (Date.now() - lastTs) > FRESH_MS;
+          if (lastSeg && !lastSeg.end && isStale) {
+            const closeAt = lastTs > 0 ? lastTs : (Date.now() - FRESH_MS);
+            if (typeof lastSeg.start === 'number' && closeAt >= lastSeg.start) {
+              lastSeg.end = closeAt;
+            }
+          }
+        } catch {}
         if (!Array.isArray(hist.samples)) hist.samples = [];
         hist.samples.push({ ts: Date.now(), live: nowLive, viewers: viewerCount });
         const cutoff = Date.now() - 400 * 86400000;
