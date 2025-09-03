@@ -1,5 +1,13 @@
 <template>
   <svg :width="width" :height="height" :viewBox="`0 0 ${width} ${height}`" class="block">
+    <defs>
+      <template v-for="g in gradients" :key="g.id">
+        <linearGradient :id="g.id" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" :stop-color="g.color" :stop-opacity="0.24" />
+          <stop offset="100%" :stop-color="g.color" :stop-opacity="0" />
+        </linearGradient>
+      </template>
+    </defs>
     <template v-if="grid">
       <line
         v-for="y in 3"
@@ -12,7 +20,10 @@
         opacity="0.08"
       />
     </template>
-    <polyline v-for="s in normalizedSeries" :key="s.name" :points="s.points" fill="none" :stroke="s.color" :stroke-width="strokeWidth" stroke-linejoin="round" stroke-linecap="round" />
+    <template v-for="s in normalizedSeries" :key="s.name">
+      <polygon v-if="area" :points="s.polygon" :fill="`url(#${s.gradId})`" />
+      <polyline :points="s.points" fill="none" :stroke="s.color" :stroke-width="strokeWidth" stroke-linejoin="round" stroke-linecap="round" />
+    </template>
   </svg>
 </template>
 <script setup>
@@ -26,6 +37,7 @@ const props = defineProps({
   strokeWidth: { type: Number, default: 1.6 },
   grid: { type: Boolean, default: true },
   padding: { type: Number, default: 8 },
+  area: { type: Boolean, default: true },
 });
 
 function padTo(arr, len) {
@@ -37,6 +49,7 @@ function padTo(arr, len) {
 
 const pad = computed(() => Math.max(0, Math.min((props.width || 0)/4, props.padding || 0)));
 
+const uid = Math.random().toString(36).slice(2);
 const normalizedSeries = computed(() => {
   const s = Array.isArray(props.series) ? props.series.filter(x=>x && Array.isArray(x.data)) : [];
   if (!s.length) return [];
@@ -55,7 +68,7 @@ const normalizedSeries = computed(() => {
     if (globalMax === globalMin) globalMax = globalMin + 1;
   }
 
-  return s.map((ss) => {
+  return s.map((ss, idx) => {
     const arr = padTo(ss.data, maxLen);
     const localMin = props.normalizeEach ? Math.min(...arr) : globalMin;
     const localMax = props.normalizeEach ? Math.max(...arr) : globalMax;
@@ -65,9 +78,12 @@ const normalizedSeries = computed(() => {
       const y = (pad.value + (1 - ((v - localMin) / range)) * innerH);
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     }).join(' ');
-    return { name: ss.name, color: ss.color || '#999', points: pts };
+    const polygon = `${pad.value.toFixed(2)},${(pad.value + innerH).toFixed(2)} ${pts} ${(pad.value + innerW).toFixed(2)},${(pad.value + innerH).toFixed(2)}`;
+    const gradId = `ml-grad-${uid}-${idx}`;
+    return { name: ss.name, color: ss.color || '#999', points: pts, polygon, gradId };
   });
 });
+const gradients = computed(()=> normalizedSeries.value.map(s => ({ id: s.gradId, color: s.color })));
 </script>
 <style scoped>
 svg { opacity: 0.95 }

@@ -1,5 +1,18 @@
 <template>
-  <OsCard :title="t('activityLogTitle') || 'Activity Log'">
+  <OsCard>
+    <template #header>
+      <h3 class="os-card-title flex items-center gap-1.5">
+        <span class="icon os-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6h16" />
+            <path d="M4 10h10" />
+            <path d="M4 14h16" />
+            <path d="M4 18h10" />
+          </svg>
+        </span>
+        {{ t('activityLogTitle') || 'Activity Log' }}
+      </h3>
+    </template>
     <div class="flex flex-wrap items-center gap-2 mb-2">
       <div class="flex items-center gap-2">
         <label class="text-sm">{{ t('activityLevelLabel') }}</label>

@@ -30,7 +30,20 @@
       </div>
     </div>
 
-    <OsCard :title="t('statusModules')" class="mb-4">
+    <OsCard class="mb-4">
+      <template #header>
+        <h3 class="os-card-title flex items-center gap-1.5">
+          <span class="icon os-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </span>
+          {{ t('statusModules') }}
+        </h3>
+      </template>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
         <div v-for="m in modulesList" :key="m.key" class="os-subtle p-3 rounded-os-sm" :title="m.tooltip || ''">
           <div class="flex items-center gap-2 font-semibold text-sm">
@@ -57,31 +70,96 @@
       <StreamHistoryPanel />
     </div>
 
-    <OsCard :title="t('statusSystem')" class="mb-4">
+    <OsCard class="mb-4">
+      <template #header>
+        <h3 class="os-card-title flex items-center gap-1.5">
+          <span class="icon os-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M9 1v3" />
+              <path d="M15 1v3" />
+              <path d="M9 20v3" />
+              <path d="M15 20v3" />
+              <path d="M1 9h3" />
+              <path d="M1 15h3" />
+              <path d="M20 9h3" />
+              <path d="M20 15h3" />
+            </svg>
+          </span>
+          {{ t('statusSystem') }}
+        </h3>
+      </template>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div class="p-3 os-subtle rounded-os-sm">
-          <div class="os-th text-xs">{{ t('statusLocale') }}</div>
+          <div class="os-th text-xs flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M2 12h20" />
+              <path d="M12 2a15 15 0 0 0 0 20" />
+              <path d="M12 2a15 15 0 0 1 0 20" />
+            </svg>
+            <span>{{ t('statusLocale') }}</span>
+          </div>
           <div class="text-sm font-semibold">{{ locale }}</div>
         </div>
         <div class="p-3 os-subtle rounded-os-sm">
-          <div class="os-th text-xs">{{ t('statusTime') }}</div>
+          <div class="os-th text-xs flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 3" />
+            </svg>
+            <span>{{ t('statusTime') }}</span>
+          </div>
           <div class="text-sm font-semibold">{{ now }}</div>
         </div>
         <div class="p-3 os-subtle rounded-os-sm">
-          <div class="os-th text-xs">{{ t('statusUptime') }}</div>
+          <div class="os-th text-xs flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 6V4" />
+              <rect x="5" y="6" width="14" height="14" rx="3" />
+              <path d="M12 10v4l2 2" />
+            </svg>
+            <span>{{ t('statusUptime') }}</span>
+          </div>
           <div class="text-xl font-semibold">{{ formattedUptime }}</div>
         </div>
         <div class="p-3 os-subtle rounded-os-sm">
-          <div class="os-th text-xs">{{ t('statusWsClients') }}</div>
+          <div class="os-th text-xs flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="M8.59 13.51 15.42 17.49" />
+              <path d="m15.41 6.51-6.82 3.98" />
+            </svg>
+            <span>{{ t('statusWsClients') }}</span>
+          </div>
           <div class="text-xl font-semibold">{{ system?.wsClients ?? 0 }}</div>
         </div>
         <div class="p-3 os-subtle rounded-os-sm">
-          <div class="os-th text-xs">ENV</div>
+          <div class="os-th text-xs flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.5 19H7a5 5 0 1 1 1.2-9.85A7 7 0 0 1 21 12.5a4.5 4.5 0 0 1-3.5 6.5Z" />
+            </svg>
+            <span>ENV</span>
+          </div>
           <div class="inline-flex items-center px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs font-mono uppercase tracking-wide">{{ system?.env || '—' }}</div>
         </div>
       </div>
     </OsCard>
-  <OsCard :title="t('sessionTools')" class="mb-4">
+  <OsCard class="mb-4">
+      <template #header>
+        <h3 class="os-card-title flex items-center gap-1.5">
+          <span class="icon os-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="8" width="18" height="10" rx="2" />
+              <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M12 12v2" />
+            </svg>
+          </span>
+          {{ t('sessionTools') }}
+        </h3>
+      </template>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
         <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
           <div class="os-th text-xs">{{ t('regeneratePublicToken') }}</div>
