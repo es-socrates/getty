@@ -320,12 +320,12 @@ body {
 .message-text-inline {
   color: #e6edf3;
   line-height: 1.4;
-  font-size: 14px !important;
+  font-size: 12px !important;
   word-break: break-word;
 }
 
 .message-username {
-  font-size: 14px !important;
+  font-size: 12px !important;
   font-weight: 600;
   margin-right: 6px;
   color: #00ff7f;

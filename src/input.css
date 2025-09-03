@@ -168,15 +168,15 @@
   }
 
   .message {
-    @apply py-2 break-words max-w-full;
+    @apply py-1 break-words max-w-full;
   }
 
   .message-header {
-    @apply flex items-start mb-3;
+    @apply flex items-start mb-0;
   }
 
   .message-text-inline {
-    @apply text-gray-100 leading-snug text-sm break-words;
+    @apply text-gray-100 leading-snug break-words;
   }
   .message-username {
     @apply text-sm font-semibold mr-1.5 text-green-400;

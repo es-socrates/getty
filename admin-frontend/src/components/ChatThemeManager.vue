@@ -72,7 +72,7 @@ const defaultThemes = [
   {
     name: 'Por defecto',
     css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
-    .message { background: var(--bg-message); border-radius: 4px; padding: 12px; margin-bottom: 8px; box-sizing: border-box; }
+    .message { background: var(--bg-message); border-radius: 4px; padding: 12px; margin-bottom: 4px; box-sizing: border-box; }
     .message.odd { background: var(--bg-message-alt); }
     .message-username.cyberpunk { color: var(--username); font-weight: 600; }
     .message-text-inline { color: #fff; font-weight: 600; }
@@ -83,7 +83,7 @@ const defaultThemes = [
   {
     name: 'Twitch',
     css: `:root { --bg-main: #18181b; --bg-message: #23232a; --bg-message-alt: #1e1e24; --border: #9147ff; --text: #f7f7fa; --username: #a970ff; --donation: #f7c948; --donation-bg: #9147ff; }
-    .message { background: #111; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .message { background: #111; border-radius: 8px; padding: 10px 16px; margin-bottom: 4px; border-left: 6px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
     .message.odd { background: #111; border-left: 6px solid var(--border); }
     .message-username.cyberpunk { color: var(--username); text-shadow: 0 0 4px #9147ff; }
     .message-text-inline { color: #f7f7fa; }
@@ -94,7 +94,7 @@ const defaultThemes = [
   {
     name: 'Claro',
     css: `:root { --bg-main: #ffffff; --bg-message: #f8fafc; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #1f2328; --username: #0969da; --donation: #ff8800; --donation-bg: #fff4e5; }
-    .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid var(--border); border-left: 6px solid transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+    .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 4px; border: 1px solid var(--border); border-left: 6px solid transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
     .message.odd { background: var(--bg-message-alt); font-size: 14px; }
     .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 14px; }
     .message-text-inline { color: var(--text); font-size: 14px; }
@@ -105,7 +105,7 @@ const defaultThemes = [
   {
     name: 'Oscuro',
     css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
-    .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid transparent; }
+    .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 4px; border-left: 6px solid transparent; }
     .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; font-size: 14px; }
     .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 14px; }
     .message-text-inline { color: var(--text); font-size: 14px; }
@@ -117,7 +117,7 @@ const defaultThemes = [
     name: 'Minimalista',
     css: `/* THEME_ID:MINIMALISTA_AUTO10S */
     :root { --bg-main: transparent; --bg-message: rgba(14,16,20,0.72); --bg-message-alt: rgba(14,16,20,0.56); --border: rgba(255,255,255,0.08); --text: #e8eef2; --username: #ffffff; --donation: #10d39e; --donation-bg: rgba(16,211,158,0.12); }
-    .message { background: var(--bg-message); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; overflow: hidden; backdrop-filter: saturate(120%) blur(4px); -webkit-backdrop-filter: saturate(120%) blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.18); will-change: opacity, transform; animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards; }
+    .message { background: var(--bg-message); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 4px; overflow: hidden; backdrop-filter: saturate(120%) blur(4px); -webkit-backdrop-filter: saturate(120%) blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.18); will-change: opacity, transform; animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards; }
     .message.odd { background: var(--bg-message-alt); }
     .message-username.cyberpunk { color: var(--username); font-weight: 600; }
     .message-text-inline { color: var(--text); }
