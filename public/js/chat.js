@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             usernameElement.style.setProperty('text-shadow', `0 0 8px ${style.border}`, 'important');
         }
 
-        usernameElement.style.padding = '2px 4px';
+        usernameElement.style.padding = '0px 4px';
         usernameElement.style.borderRadius = '4px';
         usernameElement.style.transition = 'all 0.3s ease';
         usernameElement.style.display = 'inline-block';
