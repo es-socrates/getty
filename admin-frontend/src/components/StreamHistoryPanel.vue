@@ -572,13 +572,35 @@ function renderChart(data) {
     });
   };
 
+  const parseLocalFromLabel = (s) => {
+    if (!s || typeof s !== 'string') return null;
+
+    try {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        const [y, m, d] = s.split('-').map(n => parseInt(n, 10));
+        return new Date(y, m - 1, d);
+      }
+      if (/^\d{4}-\d{2}$/.test(s)) {
+        const [y, m] = s.split('-').map(n => parseInt(n, 10));
+        return new Date(y, m - 1, 1);
+      }
+      if (/^\d{4}$/.test(s)) {
+        const y = parseInt(s, 10);
+        return new Date(y, 0, 1);
+      }
+    } catch {}
+    return null;
+  };
   const fmtDateTitle = (s) => {
-    try { const d = new Date(s); if (!isNaN(d)) return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'2-digit' }); } catch {}
+    try {
+      const d = parseLocalFromLabel(s) || new Date(s);
+      if (!isNaN(d)) return d.toLocaleDateString(undefined, { year:'numeric', month:'short', day:'2-digit' });
+    } catch {}
     return s || '';
   };
   const fmtXLabel = (s) => {
     try {
-      const d = new Date(s);
+      const d = parseLocalFromLabel(s) || new Date(s);
       if (!isNaN(d)) {
         if (period.value === 'day' || period.value === 'week') return String(d.getDate()).padStart(2,'0');
         return d.toLocaleDateString(undefined, { month: 'short' });
@@ -700,7 +722,12 @@ function renderChart(data) {
   container.style.marginLeft = axisLeft + 'px';
 
   const bottomAxis = 24;
-  const available = Math.max(1, h - bottomAxis - 12);
+  const padY = 10;
+  const innerHeight = Math.max(1, h - bottomAxis - padY * 2);
+  container.style.height = innerHeight + 'px';
+  container.style.marginTop = padY + 'px';
+
+  const available = innerHeight;
   display.forEach(d => {
     const v = d.hours || 0;
     const bh = Math.round((v / max) * available);

@@ -64,9 +64,19 @@ function aggregate(hist, period = 'day', span = 30) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const buckets = [];
   if (period === 'day') {
+    const fmtLocalYMD = (ts) => {
+      try {
+        const d = new Date(ts);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dd}`;
+      } catch { return new Date(ts).toISOString().slice(0, 10); }
+    };
     for (let i = span - 1; i >= 0; i--) {
       const dayStart = todayStart - i * 86400000;
-      buckets.push({ key: dayStart, label: new Date(dayStart).toISOString().slice(0, 10), ms: 0 });
+
+      buckets.push({ key: dayStart, label: fmtLocalYMD(dayStart), ms: 0 });
     }
     for (const seg of hist.segments) {
       const s = seg.start;
@@ -492,6 +502,17 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const FRESH_MS = 150000;
       const hasClaim = !!(cfg.claimid && String(cfg.claimid).trim());
       const connected = hasClaim && lastTs > 0 && (now - lastTs) <= FRESH_MS;
+
+      try {
+        const seg = hist.segments && hist.segments[hist.segments.length - 1];
+        if (seg && !seg.end && !connected) {
+          const closeAt = lastTs > 0 ? lastTs : (now - FRESH_MS);
+          if (typeof seg.start === 'number' && closeAt >= seg.start) {
+            seg.end = closeAt;
+            await saveHistoryNS(req, hist);
+          }
+        }
+      } catch {}
 
       let live = false;
       try {
