@@ -847,7 +847,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
     const donationOnly = !!body.donationOnly;
     const rawCredits = Number(body.credits);
     let credits = Number.isFinite(rawCredits) ? rawCredits : 0;
-    if (donationOnly && credits <= 0) credits = 5; // ensure >0 for donation-only
+    if (donationOnly && credits <= 0) credits = 5;
     if (!donationOnly && credits < 0) credits = 0;
     const avatar = (typeof body.avatar === 'string' && body.avatar.trim()) ? body.avatar.trim() : undefined;
 
