@@ -820,6 +820,48 @@ registerLiveviewsRoutes(app, strictLimiter, { store });
 registerTipNotificationGifRoutes(app, strictLimiter);
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 
+app.post('/api/chat/test-message', limiter, async (req, res) => {
+  try {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+    const ns = req?.ns?.admin || req?.ns?.pub || null;
+    if (shouldRequireSession && !ns) return res.status(401).json({ error: 'session_required' });
+
+    const body = req.body || {};
+    const username = (typeof body.username === 'string' && body.username.trim()) ? body.username.trim() : 'TestUser';
+    const text = (typeof body.message === 'string') ? body.message.slice(0, 500) : 'Test message';
+    const donationOnly = !!body.donationOnly;
+    const rawCredits = Number(body.credits);
+    let credits = Number.isFinite(rawCredits) ? rawCredits : 0;
+    if (donationOnly && credits <= 0) credits = 5;
+    if (!donationOnly && credits < 0) credits = 0;
+    const avatar = (typeof body.avatar === 'string' && body.avatar.trim()) ? body.avatar.trim() : undefined;
+
+    const chatMsg = {
+      channelTitle: username,
+      message: text,
+      credits,
+      ...(avatar ? { avatar } : {}),
+      timestamp: new Date().toISOString()
+    };
+
+    if (typeof wss.broadcast === 'function' && ns) {
+      const adminNs = await resolveAdminNsFromReq(req) || ns;
+      wss.broadcast(adminNs, { type: 'chatMessage', data: chatMsg });
+    } else {
+      wss.clients.forEach(client => {
+        if (client.readyState === 1) {
+          client.send(JSON.stringify({ type: 'chatMessage', data: chatMsg }));
+        }
+      });
+    }
+
+    res.json({ ok: true, sent: chatMsg });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_send_test_message', details: e?.message });
+  }
+});
+
 app.post('/api/test-tip', limiter, async (req, res) => {
   try {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';

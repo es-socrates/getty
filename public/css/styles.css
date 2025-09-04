@@ -341,7 +341,7 @@ body {
 
 .message-donation {
   margin-left: auto;
-  font-size: 14px !important;
+  font-size: 12px !important;
 }
 
 @media (max-width: 768px) {

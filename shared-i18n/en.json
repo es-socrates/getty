@@ -389,4 +389,16 @@
   "metricsLegendLatency": "Latency",
   "streamHistoryBackfillTitle": "Backfill current segment",
   "actions": "Actions"
+  ,
+  "testMessages": "Test messages",
+  "username": "Username",
+  "message": "Message",
+  "credits": "Credits",
+  "testMessagesHint": "Send a fake chat message or a donation to preview styles without using real chat.",
+  "sendTestMessage": "Send test message",
+  "sendTestDonation": "Send test donation",
+  "sending": "Sending...",
+  "sentTestMessage": "Test message sent",
+  "sentTestDonation": "Test donation sent",
+  "sendFailed": "Failed to send"
 }

@@ -45,8 +45,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           textColor: config.textColor || '#e6edf3',
           usernameColor: typeof config.usernameColor === 'string' ? config.usernameColor : '',
           usernameBgColor: typeof config.usernameBgColor === 'string' ? config.usernameBgColor : '',
-          donationColor: config.donationColor || '#1bdf5f',
-          donationBgColor: config.donationBgColor || '#ececec',
+          donationColor: config.donationColor || '#ddb826',
+          donationBgColor: config.donationBgColor || '#131313',
           themeCSS: config.themeCSS || '',
           avatarRandomBg: !!config.avatarRandomBg,
           chatUrl: '',
@@ -123,8 +123,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         textColor: textColor || config.textColor || '#e6edf3',
         usernameColor: (usernameColor !== undefined) ? usernameColor : (config.usernameColor ?? ''),
         usernameBgColor: (usernameBgColor !== undefined) ? usernameBgColor : (config.usernameBgColor ?? ''),
-        donationColor: donationColor || config.donationColor || '#1bdf5f',
-        donationBgColor: donationBgColor || config.donationBgColor || '#ececec',
+        donationColor: donationColor || config.donationColor || '#ddb826',
+        donationBgColor: donationBgColor || config.donationBgColor || '#131313',
         themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || ''),
         avatarRandomBg: (avatarRandomBg !== undefined) ? !!avatarRandomBg : !!config.avatarRandomBg
       };

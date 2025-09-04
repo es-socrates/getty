@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { bg: 'rgba(17, 255, 121, 0.8)', text: '#000', border: 'rgba(17, 255, 121, 0.9)' },
         { bg: 'rgba(255, 17, 121, 0.8)', text: '#fff', border: 'rgba(255, 17, 121, 0.9)' },
         { bg: 'rgba(121, 17, 255, 0.8)', text: '#fff', border: 'rgba(121, 17, 255, 0.9)' },
-        { bg: 'rgba(17, 121, 255, 0.8)', text: '#fff', border: 'rgba(17, 121, 255, 0.9)' },
+        { bg: 'rgba(17, 121, 255, 0.8)', text: '#fff', border: 'rgba(36, 98, 165, 0.9)' },
         { bg: 'rgba(255, 231, 17, 0.8)', text: '#000', border: 'rgba(255, 231, 17, 0.9)' },
         { bg: 'rgba(21, 25, 40, 0.93)', text: '#fff', border: 'rgba(19, 19, 19, 0.9)' }
     ];
@@ -158,6 +158,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     let chatColors = {};
+    function setCssVar(name, value) {
+        try {
+            if (value) {
+                document.documentElement.style.setProperty(name, value);
+            } else {
+                document.documentElement.style.removeProperty(name);
+            }
+        } catch {}
+    }
+
+    function updateDonationVars() {
+        try {
+            const themeStyleTag = document.getElementById('chat-theme-style');
+            const anyThemeActive = (typeof serverHasTheme !== 'undefined' && serverHasTheme) ||
+                !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
+            if (anyThemeActive) return;
+        } catch {}
+
+        const DEFAULT_BG = '#131313';
+        const DEFAULT_TEXT = '#ddb826';
+        const customBg = (chatColors.donationBgColor || '').toLowerCase();
+        const customText = (chatColors.donationColor || '').toLowerCase();
+        setCssVar('--donation-bg', customBg && customBg !== DEFAULT_BG ? customBg : '');
+        setCssVar('--donation-text', customText && customText !== DEFAULT_TEXT ? customText : '');
+    }
 
     async function loadColors() {
         if (!isOBSWidget) return;
@@ -196,19 +221,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         const messages = chatContainer.querySelectorAll('.message');
         const isLightThemeActive = !!(chatContainer && chatContainer.classList.contains('theme-light'));
         const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
-        messages.forEach((messageEl) => {
+    messages.forEach((messageEl) => {
+
+            const themeStyleTag = document.getElementById('chat-theme-style');
+            const anyThemeActive = (typeof serverHasTheme !== 'undefined' && serverHasTheme) ||
+                !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
+            if (anyThemeActive) {
+                messageEl.style.removeProperty('background');
+                messageEl.style.removeProperty('border-left');
+                messageEl.style.removeProperty('color');
+
+                const donation = messageEl.querySelector('.message-donation');
+                if (donation) {
+                    donation.style.removeProperty('background');
+                    donation.style.removeProperty('color');
+                }
+
+                const text = messageEl.querySelector('.message-text-inline');
+                if (text) text.style.removeProperty('color');
+
+                return;
+            }
+
             if (isLightThemeActive) {
-                if (messageEl.classList.contains('has-donation')) {
-                    setIfCustom(messageEl, 'background', chatColors.donationBgColor, '#ececec');
-                } else {
+                if (!messageEl.classList.contains('has-donation')) {
                     messageEl.style.removeProperty('background');
                 }
             } else {
-                if (messageEl.classList.contains('has-donation')) {
-                    setIfCustom(messageEl, 'background', chatColors.donationBgColor, '#ececec');
-                } else if (messageEl.classList.contains('odd')) {
+                if (messageEl.classList.contains('odd') && !messageEl.classList.contains('has-donation')) {
                     setIfCustom(messageEl, 'background', chatColors.msgBgAltColor, '#0d1114');
-                } else {
+                } else if (!messageEl.classList.contains('has-donation')) {
                     setIfCustom(messageEl, 'background', chatColors.msgBgColor, '#0a0e12');
                 }
             }
@@ -217,8 +259,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             setIfCustom(messageEl, 'color', chatColors.textColor, '#e6edf3');
 
             const donation = messageEl.querySelector('.message-donation');
-            setIfCustom(donation, 'color', chatColors.donationColor, '#1bdf5f');
-            setIfCustom(donation, 'background', chatColors.donationBgColor, '#ececec');
+
+            if (donation) {
+                donation.style.removeProperty('background');
+                donation.style.removeProperty('color');
+            }
 
             const text = messageEl.querySelector('.message-text-inline');
             setIfCustom(text, 'color', chatColors.textColor, '#e6edf3');
@@ -239,10 +284,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function applyChatColors() {
         if (!isOBSWidget) return;
         await loadColors();
+
+    const themeStyle = document.getElementById('chat-theme-style');
+    const themeActive = !!(themeStyle && typeof themeStyle.textContent === 'string' && themeStyle.textContent.trim().length > 0);
+    updateDonationVars();
+
+        if (themeActive) {
+            if (chatContainer) chatContainer.style.removeProperty('background');
+            return;
+        }
+
         if (chatColors.bgColor === 'transparent') {
             if (chatContainer) chatContainer.style.removeProperty('background');
         } else {
-            chatContainer && chatContainer.style.setProperty('background', (chatColors.bgColor || '#080c10'), 'important');
+            chatContainer && chatContainer.style.setProperty('background', (chatColors.bgColor || '#0f1419'), 'important');
         }
     }
 
@@ -318,7 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             usernameElement.style.setProperty('text-shadow', `0 0 8px ${style.border}`, 'important');
         }
 
-        usernameElement.style.padding = '0px 4px';
+        usernameElement.style.padding = '1px 4px';
         usernameElement.style.borderRadius = '4px';
         usernameElement.style.transition = 'all 0.3s ease';
         usernameElement.style.display = 'inline-block';
@@ -482,6 +537,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         styleTag.textContent = themeCSS;
         if (chatContainer) {
+            chatContainer.classList.add('theme-active');
+            chatContainer.classList.remove('chat-default');
             if (isLightTheme) {
                 chatContainer.classList.add('theme-light');
             } else {
@@ -497,21 +554,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const config = await res.json();
             const serverCSS = (config.themeCSS || '').trim();
-            let isLightTheme = !!serverCSS && serverCSS.includes('--text: #1f2328');
+            let isLightTheme = !!serverCSS && (serverCSS.includes('--text: #1f2328') || serverCSS.includes('--text: #111'));
 
                         serverHasTheme = !!serverCSS;
                         if (serverHasTheme) {
                                 await loadColors();
                                 const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
 
+                                const donationOverrideCss = '';
+
                                 const extraCss = hasExplicitUserColors
                                     ? `\n.message-username.cyberpunk { color: ${chatColors.usernameColor || '#ffffff'} !important; background: ${chatColors.usernameBgColor || '#11ff79'} !important; }`
                                     : CYBERPUNK_PALETTE.map((p, i) => `\n.message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`).join('');
-                                const finalCss = serverCSS + extraCss;
+
+                                const finalCss = serverCSS + extraCss + (donationOverrideCss ? `\n${donationOverrideCss}` : '');
                 if (finalCss !== lastThemeCSS) {
                     lastThemeCSS = finalCss;
                     applyChatTheme(finalCss, isLightTheme);
                 }
+
+                const messages = chatContainer ? chatContainer.querySelectorAll('.message') : [];
+                messages.forEach((messageEl) => {
+                    messageEl.style.removeProperty('background');
+                    messageEl.style.removeProperty('border-left');
+                    messageEl.style.removeProperty('color');
+                    const donation = messageEl.querySelector('.message-donation');
+                    if (donation) {
+                        donation.style.removeProperty('background');
+                        donation.style.removeProperty('color');
+                    }
+                    const text = messageEl.querySelector('.message-text-inline');
+                    if (text) text.style.removeProperty('color');
+                });
+
+                updateDonationVars();
             } else {
                 const styleTag = document.getElementById('chat-theme-style');
                 if (styleTag) styleTag.textContent = '';
@@ -524,12 +600,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     applyChatTheme(local, isLightTheme);
                 } else {
                     await loadColors();
+
+                    const DEFAULT_BG = '#131313';
+                    const DEFAULT_TEXT = '#ddb826';
+                    const bgVar = (chatColors.donationBgColor || '').toLowerCase();
+                    const textVar = (chatColors.donationColor || '').toLowerCase();
                     let css = `
-                        .message { background: ${chatColors.msgBgColor || '#0a0e12'} !important; color: ${chatColors.textColor || '#e6edf3'} !important; border-left: 8px solid ${chatColors.borderColor || '#161b22'} !important; }
-                        .message.odd { background: ${chatColors.msgBgAltColor || '#0d1114'} !important; }
-                        .message.has-donation { background: ${chatColors.donationBgColor || '#ececec'} !important; }
-                        .message-donation { color: ${chatColors.donationColor || '#1bdf5f'} !important; background: ${chatColors.donationBgColor || '#ececec'} !important; }
-                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#080c10')} !important; }
+                        :root { ${bgVar && bgVar !== DEFAULT_BG ? `--donation-bg: ${bgVar};` : ''} ${textVar && textVar !== DEFAULT_TEXT ? `--donation-text: ${textVar};` : ''} }
+                        /* X-style fallback when no theme is active */
+                        .message { background: ${chatColors.msgBgColor || '#f7f7f7'} !important; color: ${chatColors.textColor || '#111'} !important; border-left: 8px solid ${chatColors.borderColor || '#3b5aff'} !important; }
+                        .message.odd:not(.has-donation) { background: ${chatColors.msgBgAltColor || '#f7f7f7'} !important; }
+                        /* Donation message background comes from base CSS/theme; no override here */
+                        /* Keep donation chip base styles unless Admin defines --donation-text */
+                        .message-donation { ${textVar && textVar !== DEFAULT_TEXT ? 'color: var(--donation-text) !important;' : ''} }
+                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#0f1419')} !important; }
                     `;
 
                     const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
@@ -543,7 +627,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         `;
                     }
 
-                    isLightTheme = (chatColors.textColor || '').toLowerCase() === '#1f2328';
+                    const txt = (chatColors.textColor || '').toLowerCase();
+                    isLightTheme = (txt === '#1f2328' || txt === '#111');
                     applyChatTheme(css, isLightTheme);
                 }
             }
