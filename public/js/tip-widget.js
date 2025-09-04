@@ -380,9 +380,7 @@ async function showDonationNotification(data) {
 
     notification.innerHTML = `
         <div class="notification-content">
-            <div class="notification-icon">
-                <img src="${data.avatar || '/assets/odysee.png'}" alt="💰" onerror="this.style.display='none'; this.parentNode.innerHTML='💰'">
-            </div>
+            <div class="notification-icon"></div>
             <div class="notification-text">
                 <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo!' : 'Tip Received. Woohoo!'}</div>
                 <div class="amount-container">
@@ -402,6 +400,20 @@ async function showDonationNotification(data) {
             </div>
         </div>
     `;
+
+    try {
+        const iconContainer = notification.querySelector('.notification-icon');
+        if (iconContainer) {
+            const imgEl = document.createElement('img');
+            imgEl.src = data.avatar || '/assets/odysee.png';
+            imgEl.alt = '💰';
+            imgEl.addEventListener('error', () => {
+                imgEl.style.display = 'none';
+                iconContainer.textContent = '💰';
+            });
+            iconContainer.appendChild(imgEl);
+        }
+    } catch {}
     notification.style.display = 'inline';
     notification.style.opacity = '1';
 

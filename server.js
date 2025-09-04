@@ -94,27 +94,41 @@ try {
     const scriptExtra = splitEnv('GETTY_CSP_SCRIPT_EXTRA');
     const imgExtra = splitEnv('GETTY_CSP_IMG_EXTRA');
     const mediaExtra = splitEnv('GETTY_CSP_MEDIA_EXTRA');
+    const scriptHashes = splitEnv('GETTY_CSP_SCRIPT_HASHES');
+    const allowUnsafeHashes = process.env.GETTY_CSP_UNSAFE_HASHES === '1';
+    const scriptAttr = (process.env.GETTY_CSP_SCRIPT_ATTR || '').trim();
 
-    app.use(helmet.contentSecurityPolicy({
-      useDefaults: true,
-      directives: {
-        defaultSrc: [self],
-        scriptSrc: [self, "'unsafe-inline'", ...unsafeEval, ...scriptExtra],
-        styleSrc: [self, "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        imgSrc: [
-          self, 'data:', 'blob:',
-          'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
-          'https://odysee.com', 'https://static.odycdn.com',
-          'https://twemoji.maxcdn.com', 'https://spee.ch',
-          'https://arweave.net', 'https://*.arweave.net',
-          ...imgExtra
-        ],
-        fontSrc: [self, 'data:', 'blob:', 'https://fonts.gstatic.com'],
-        mediaSrc: [self, 'blob:', 'https://arweave.net', 'https://*.arweave.net', ...mediaExtra],
-        connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
-        frameSrc: [self]
-      }
-    }));
+    const cspDirectives = {
+      defaultSrc: [self],
+      scriptSrc: [
+        self,
+        "'unsafe-inline'",
+        ...(allowUnsafeHashes ? ["'unsafe-hashes'"] : []),
+        ...unsafeEval,
+        ...scriptExtra,
+        ...scriptHashes
+      ],
+      styleSrc: [self, "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      imgSrc: [
+        self, 'data:', 'blob:',
+        'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
+        'https://odysee.com', 'https://static.odycdn.com',
+        'https://twemoji.maxcdn.com', 'https://spee.ch',
+        'https://arweave.net', 'https://*.arweave.net',
+        ...imgExtra
+      ],
+      fontSrc: [self, 'data:', 'blob:', 'https://fonts.gstatic.com'],
+      mediaSrc: [self, 'blob:', 'https://arweave.net', 'https://*.arweave.net', ...mediaExtra],
+      connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
+      frameSrc: [self]
+    };
+
+    if (scriptAttr) {
+      const parts = scriptAttr.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length) cspDirectives.scriptSrcAttr = parts;
+    }
+
+    app.use(helmet.contentSecurityPolicy({ useDefaults: true, directives: cspDirectives }));
   }
 } catch {}
 try { app.set('trust proxy', 1); } catch {}
@@ -833,7 +847,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
     const donationOnly = !!body.donationOnly;
     const rawCredits = Number(body.credits);
     let credits = Number.isFinite(rawCredits) ? rawCredits : 0;
-    if (donationOnly && credits <= 0) credits = 5;
+    if (donationOnly && credits <= 0) credits = 5; // ensure >0 for donation-only
     if (!donationOnly && credits < 0) credits = 0;
     const avatar = (typeof body.avatar === 'string' && body.avatar.trim()) ? body.avatar.trim() : undefined;
 
@@ -846,6 +860,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
     };
 
     if (typeof wss.broadcast === 'function' && ns) {
+
       const adminNs = await resolveAdminNsFromReq(req) || ns;
       wss.broadcast(adminNs, { type: 'chatMessage', data: chatMsg });
     } else {
