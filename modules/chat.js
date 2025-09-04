@@ -28,6 +28,8 @@ class ChatModule {
     this.ws = null;
     this.history = [];
     this.MAX_HISTORY = 100;
+    this._reconnectTimer = null;
+    this._reconnectDelayMs = 5000;
     
     if (process.env.NODE_ENV !== 'test') {
       this.init();
@@ -51,7 +53,26 @@ class ChatModule {
     }
 
     console.log(`Connecting to: ${websocketUrl}`);
-    if (this.ws) this.ws.close();
+
+    if (this.ws) {
+      try {
+        if (this.ws.readyState === WebSocket.OPEN) {
+          this.ws.close();
+        } else if (this.ws.readyState === WebSocket.CONNECTING) {
+          Logger.warn('[Chat] Connection is in progress; skipping duplicate connect');
+          return;
+        } else if (this.ws.readyState === WebSocket.CLOSING) {
+          Logger.warn('[Chat] Socket is closing; will retry shortly');
+          if (!this._reconnectTimer && process.env.NODE_ENV !== 'test') {
+            this._reconnectTimer = setTimeout(() => {
+              this._reconnectTimer = null;
+              this.connect(websocketUrl);
+            }, 1000);
+          }
+          return;
+        }
+      } catch {}
+    }
 
     this.ws = new WebSocket(websocketUrl);
     this.chatUrl = websocketUrl;
@@ -59,6 +80,10 @@ class ChatModule {
     this.ws.on('open', () => {
       console.log('Connection established with Odysee chat');
       this.notifyStatus(true);
+      if (this._reconnectTimer) {
+        clearTimeout(this._reconnectTimer);
+        this._reconnectTimer = null;
+      }
     });
 
     this.ws.on('error', (error) => {
@@ -69,8 +94,11 @@ class ChatModule {
     this.ws.on('close', () => {
       console.log('Connection closed, reconnecting...');
       this.notifyStatus(false);
-      if (process.env.NODE_ENV !== 'test') {
-        setTimeout(() => this.connect(this.chatUrl), 5000);
+      if (process.env.NODE_ENV !== 'test' && !this._reconnectTimer && this.chatUrl) {
+        this._reconnectTimer = setTimeout(() => {
+          this._reconnectTimer = null;
+          this.connect(this.chatUrl);
+        }, this._reconnectDelayMs);
       }
     });
 
@@ -262,6 +290,10 @@ class ChatModule {
       /^wss?:\/\//i.test(effectiveUrl) &&
       effectiveUrl.includes('commentron')
     ) {
+      if (this._reconnectTimer) {
+        clearTimeout(this._reconnectTimer);
+        this._reconnectTimer = null;
+      }
       this.connect(effectiveUrl);
     }
     return this.getStatus();
