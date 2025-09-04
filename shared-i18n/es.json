@@ -389,4 +389,16 @@
   "metricsLegendLatency": "Latencia",
   "streamHistoryBackfillTitle": "Completar segmento actual",
   "actions": "Acciones"
+  ,
+  "testMessages": "Mensajes de prueba",
+  "username": "Usuario",
+  "message": "Mensaje",
+  "credits": "Créditos",
+  "testMessagesHint": "Envía un mensaje de chat o una donación de prueba para previsualizar estilos sin usar el chat real.",
+  "sendTestMessage": "Enviar mensaje de prueba",
+  "sendTestDonation": "Enviar donación de prueba",
+  "sending": "Enviando...",
+  "sentTestMessage": "Mensaje de prueba enviado",
+  "sentTestDonation": "Donación de prueba enviada",
+  "sendFailed": "Error al enviar"
 }

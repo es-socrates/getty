@@ -109,6 +109,27 @@
         <CopyField :value="widgetHorizontalUrl" />
       </div>
     </OsCard>
+    <OsCard class="mt-4" :title="t('testMessages') || 'Test messages'">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div class="form-group">
+          <label class="label">{{ t('username') || 'Username' }}</label>
+          <input class="input" v-model="testForm.username" type="text" placeholder="TestUser" />
+        </div>
+        <div class="form-group">
+          <label class="label">{{ t('credits') || 'Credits' }}</label>
+          <input class="input" v-model.number="testForm.credits" type="number" min="0" step="1" placeholder="5" />
+        </div>
+        <div class="sm:col-span-2 form-group">
+          <label class="label">{{ t('message') || 'Message' }}</label>
+          <input class="input" v-model="testForm.message" type="text" placeholder="Hello from test" />
+          <small class="opacity-70">{{ t('testMessagesHint') || 'Send a fake chat message or a donation to preview styles without using real chat.' }}</small>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-2">
+        <button class="btn" :disabled="testSending" @click="sendTest('message')">{{ testSending && testKind==='message' ? (t('sending')||'Sending…') : (t('sendTestMessage')||'Send test message') }}</button>
+        <button class="btn" :disabled="testSending" @click="sendTest('donation')">{{ testSending && testKind==='donation' ? (t('sending')||'Sending…') : (t('sendTestDonation')||'Send test donation') }}</button>
+      </div>
+    </OsCard>
     <ChatThemeManager />
   </section>
 </template>
@@ -129,15 +150,15 @@ const colorHeadingId = 'chat-color-heading';
 const form = reactive({
   chatUrl: '',
   colors: {
-    bg: '#080c10',
-    msgBg: '#0a0e12',
-    msgBgAlt: '#0d1114',
-    border: '#161b22',
-    text: '#e6edf3',
-    username: '#ffffff',
-    usernameBg: '#11ff79',
-    donation: '#1bdf5f',
-    donationBg: '#ececec',
+  bg: '#0f1419',
+  msgBg: '#15202b',
+  msgBgAlt: '#192734',
+  border: '#1d9bf0',
+  text: '#e7e9ea',
+  username: '#ffffff',
+  usernameBg: '#11ff79',
+  donation: '#e7e9ea',
+  donationBg: '#ececec',
   },
 });
 const transparentBg = ref(false);
@@ -151,6 +172,9 @@ const saving = ref(false);
 const connected = ref(false);
 const lastStatusAt = ref(0);
 const original = reactive({ snapshot: null });
+const testForm = reactive({ username: 'TestUser', message: 'Hello from test', credits: 5 });
+const testSending = ref(false);
+const testKind = ref('');
 
 const publicToken = ref('');
 const widgetUrl = computed(() => `${location.origin}/widgets/chat${publicToken.value ? `?token=${encodeURIComponent(publicToken.value)}` : ''}${avatarRandomBg.value ? `${publicToken.value ? '&' : '?'}avatarRandom=1` : ''}`);
@@ -158,15 +182,15 @@ const widgetHorizontalUrl = computed(() => `${location.origin}/widgets/chat?hori
 
 function resetColors() {
   form.colors = {
-    bg: '#080c10',
-    msgBg: '#0a0e12',
-    msgBgAlt: '#0d1114',
-    border: '#161b22',
-    text: '#e6edf3',
-    username: '#ffffff',
-    usernameBg: '#11ff79',
-    donation: '#1bdf5f',
-    donationBg: '#ececec',
+  bg: '#0f1419',
+  msgBg: '#15202b',
+  msgBgAlt: '#192734',
+  border: '#1d9bf0',
+  text: '#e7e9ea',
+  username: '#ffffff',
+  usernameBg: '#11ff79',
+  donation: '#e7e9ea',
+  donationBg: '#ececec',
   };
   transparentBg.value = false;
   overrideUsername.value = false;
@@ -291,4 +315,34 @@ onMounted(() => {
     onUnmounted(() => clearInterval(id));
   } catch {}
 });
+
+async function sendTest(kind) {
+  try {
+    testSending.value = true;
+    testKind.value = kind;
+    if (kind === 'donation') {
+      const credits = Number.isFinite(Number(testForm.credits)) && Number(testForm.credits) > 0 ? Number(testForm.credits) : 5;
+      await api.post('/api/chat/test-message', {
+        username: testForm.username || 'TestUser',
+        message: testForm.message || '',
+        credits,
+        donationOnly: true
+      });
+      pushToast({ type: 'success', message: (t('sentTestDonation') || 'Test donation sent') });
+    } else {
+      await api.post('/api/chat/test-message', {
+        username: testForm.username || 'TestUser',
+        message: testForm.message || 'Hello from test',
+        credits: 0,
+        donationOnly: false
+      });
+      pushToast({ type: 'success', message: (t('sentTestMessage') || 'Test message sent') });
+    }
+  } catch (e) {
+    pushToast({ type: 'error', message: (t('sendFailed') || 'Failed to send'), detail: e?.response?.data?.error || e?.message });
+  } finally {
+    testSending.value = false;
+    testKind.value = '';
+  }
+}
 </script>

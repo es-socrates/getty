@@ -5,8 +5,8 @@
   --border: #161b22;
   --text: #e6edf3;
   --username: #fff;
-  --donation: #1bdf5f;
-  --donation-bg: #691fd5;
+  --donation: #ddb826;
+  --donation-bg: #ececec;
   --odysee-font-family: Inter, Roobert, "Helvetica Neue", Helvetica, Arial,
     sans-serif;
   --odysee-chat-text-size: 22px;
@@ -117,12 +117,12 @@ body {
   background: var(--bg-message);
   border-radius: 4px;
   padding: 12px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   animation: fadeIn 0.3s;
   box-sizing: border-box;
 }
 
-.message.odd {
+.message.odd:not(.has-donation) {
   background: var(--bg-message-alt);
   position: relative;
 }
@@ -177,10 +177,10 @@ body {
   position: absolute;
   right: -4px;
   bottom: 0;
-  margin-bottom: -14px;
+  margin-bottom: -16px;
   background-color: #ddb826;
   color: #131313;
-  padding: 3px 4px;
+  padding: 0px 2px;
   border-radius: 4px;
   font-weight: 800;
   font-size: 12px;
@@ -433,14 +433,12 @@ body {
 }
 
 .message.has-donation {
-  background: #ececec;
-  border-left: 8px solid #ddb826;
+  background: var(--donation-bg, #ececec);
+  border-left: 6px solid #ddb826;
 }
-
 .message.has-donation .message-username {
-  color: #fff;
+  color: #111;
 }
-
 .message.has-donation .message-text-inline {
   color: #111 !important;
 }
@@ -512,7 +510,7 @@ body {
   width: auto;
 }
 .horizontal-chat .message-username.cyberpunk {
-  font-weight: bold;
+  font-weight: 600;
   margin-right: 4px;
   white-space: nowrap;
   background: none;
@@ -520,9 +518,9 @@ body {
   text-shadow: none;
   padding: 0;
   border-radius: 0;
-  font-size: 13px;
+  font-size: 14px;
 }
-.horizontal-chat .message-text-inline {
+.horizontal-chat .message:not(.has-donation) .message-text-inline {
   display: inline;
   font-size: 14px;
   color: #fff;
@@ -531,15 +529,19 @@ body {
   line-height: 1.1;
 }
 
+.horizontal-chat .message-text-inline.has-donation {
+  font-size: 14px;
+}
+
 .theme-light .message-text-inline {
   color: var(--text) !important;
 }
 
-.horizontal-chat.theme-light .message-text-inline {
-  color: #1f2328 !important;
+.horizontal-chat.theme-light .message:not(.has-donation) .message-text-inline {
+  color: var(--text) !important;
 }
 
-.horizontal-chat.theme-light .message {
+.horizontal-chat.theme-light .message:not(.has-donation) {
   background: var(--bg-message-alt) !important;
 }
 .horizontal-chat .membership-icon {
@@ -552,7 +554,7 @@ body {
   top: 0;
 }
 .horizontal-chat .message-donation {
-  background: #ddb826;
+  background: var(--donation, #ddb826);
   color: #131313;
   padding: 2px 6px;
   border-radius: 10px;
@@ -583,7 +585,7 @@ body {
 }
 
 .theme-light .message,
-.theme-light .message.odd {
+.theme-light .message.odd:not(.has-donation) {
   background: var(--bg-message-alt) !important;
 }
 

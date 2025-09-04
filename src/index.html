@@ -23,14 +23,13 @@
     <link rel="stylesheet" href="/widgets/tip-goal.css">
     <link rel="stylesheet" href="/widgets/chat.css">
     <link rel="stylesheet" href="/widgets/raffle.css">
-    <script src="/js/min/i18n-runtime.js?v=623c1af3"></script>
+    <script src="/js/min/i18n-runtime.js?v=a2618340"></script>
     <style>
-        html:not(.dark) .chat-default .message.has-donation .message-text-inline { color: #111 !important; }
+        html:not(.dark) .chat-default:not(.theme-active) .message.has-donation .message-text-inline { color: #111 !important; }
         html:not(.dark) .chat-default .message { color: #fff !important; }
-        html:not(.dark) .theme-light .message-text-inline { color: var(--text) !important; }
+        html:not(.dark) .theme-light .message:not(.has-donation) .message-text-inline { color: var(--text) !important; }
         html:not(.dark) body .last-donation .notification-title { color: #fff !important; }
         html:not(.dark) #chat-container.theme-active:not(.theme-light) .message:not(.has-donation) .message-text-inline { color: #fff !important; }
-        html:not(.dark) #chat-container.theme-active:not(.theme-light) .message.has-donation .message-text-inline { color: #111 !important; }
         .raffle-embed .raffle-header { margin-bottom: 0.25rem; }
         .raffle-embed .participants-list { max-height: 200px; margin: 0.25rem 0; }
         .raffle-embed .participant { border-bottom-color: rgba(255,255,255,0.08); }

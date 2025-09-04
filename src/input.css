@@ -168,7 +168,7 @@
   }
 
   .message {
-    @apply py-1 break-words max-w-full;
+    @apply py-0 break-words max-w-full;
   }
 
   .message-header {
@@ -188,7 +188,7 @@
   }
 
   .message-donation {
-    @apply ml-auto text-sm;
+    @apply ml-auto;
   }
 
   @media (max-width: 768px) {

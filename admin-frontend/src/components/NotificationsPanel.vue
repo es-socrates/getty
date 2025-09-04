@@ -24,7 +24,7 @@
         </div>
       </div>
       <div v-if="errors.gif" class="small mt-2" style="color:#b91c1c">{{ errors.gif }}</div>
-      <div v-if="gif.gifPath" class="mt-3"><img :src="gif.gifPath" :alt="gif.fileName" style="max-height:120px" /></div>
+      <div v-if="gif.gifPath" class="mt-3"><img :src="gif.gifPath" :alt="gif.fileName" style="max-height:120px;border-radius:6px;" /></div>
   </OsCard>
   <OsCard class="mb-4" aria-describedby="tts-section-desc">
       <p id="tts-section-desc" class="sr-only">Configure text to speech engine settings.</p>

@@ -159,89 +159,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const defaultThemes = [
         {
-            name: 'Por defecto',
-            css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
-            .message { background: var(--bg-message); border-radius: 4px; padding: 12px; margin-bottom: 4px; box-sizing: border-box; }
-            .message.odd { background: var(--bg-message-alt); }
-            .message-username.cyberpunk { color: var(--username); font-weight: 600; }
-            .message-text-inline { color: #fff; font-weight: 600; }
-            .message.has-donation { background: #ececec; border-left: 8px solid #ddb826; }
-            .message.has-donation .message-username { color: #111; }
-            .message.has-donation .message-text-inline { color: #111 !important; }`
+            name: 'getty',
+            css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
+            .message { background: #0a0e12 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; color: #fff !important; }
+            .message.odd { background: #0a0e12 !important; }
+            .message-username.cyberpunk { color: #fff; font-weight: 600; }
+            .message-text-inline { color: #fff !important; font-weight: 600; }
+            .message.has-donation { background: #ececec !important; }
+            .message.has-donation .message-username { color: #111 !important; }
+            .message.has-donation .message-text-inline { color: #111 !important; }
+            .message-donation { background: #ddb826 !important; color: #111 !important; }`
+        },
+        {
+            name: 'X',
+            css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --border: #3b5aff; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
+            .message { background: #f7f7f7 !important; border-radius: 6px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; border-left: 6px solid #3b5aff !important; color: #111 !important; }
+            .message.odd { background: #f7f7f7 !important; }
+            .message-username.cyberpunk { color: #111; font-weight: 600; }
+            .message-text-inline { color: #111 !important; font-weight: 600; }
+            .message.has-donation { background: #3b5aff !important; }
+            .message.has-donation .message-username { color: #fff !important; }
+            .message.has-donation .message-text-inline { color: #fff !important; }
+            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`
         },
         {
             name: 'Twitch',
-            css: `:root { --bg-main: #18181b; --bg-message: #23232a; --bg-message-alt: #1e1e24; --border: #9147ff; --text: #f7f7fa; --username: #a970ff; --donation: #f7c948; --donation-bg: #9147ff; }
-            .message { background: #111; border-radius: 8px; padding: 10px 16px; margin-bottom: 4px; border-left: 6px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-            .message.odd { background: #111; border-left: 6px solid var(--border); }
-            .message-username.cyberpunk { color: var(--username); text-shadow: 0 0 4px #9147ff; }
-            .message-text-inline { color: #f7f7fa; }
-            .message.has-donation { background: #f7c948; border-left: 6px solid #f7c948; }
-            .message.has-donation .message-username { color: #9147ff; }
-            .message.has-donation .message-text-inline { color: #23232a !important; }`
+            css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --border: #9147ff; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
+            .message { background: #111 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
+            .message.odd { background: #111 !important; }
+            .message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; }
+            .message-text-inline { color: #fff !important; }
+            .message.has-donation { background: #9147ff !important; }
+            .message.has-donation .message-username { color: #fff !important; }
+            .message.has-donation .message-text-inline { color: #fff !important; }
+            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`
         },
         {
             name: 'Claro',
-            css: `:root { --bg-main: #ffffff; --bg-message: #f8fafc; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #1f2328; --username: #0969da; --donation: #ff8800; --donation-bg: #fff4e5; }
-            .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 4px; border: 1px solid var(--border); border-left: 6px solid transparent; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
-            .message.odd { background: var(--bg-message-alt); font-size: 14px; }
-            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 14px; }
-            .message-text-inline { color: var(--text); font-size: 14px; }
-            .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
-            .message.has-donation .message-username { color: var(--donation); font-size: 14px; }
-            .message.has-donation .message-text-inline { color: #663300 !important; font-size: 14px; }`
+            css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
+            .message { background: #f1f5f9 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
+            .message.odd { background: #f1f5f9 !important; font-size: 14px; }
+            .message-username.cyberpunk { color: #0969da; font-weight: 600; font-size: 14px; }
+            .message-text-inline { color: #111 !important; font-size: 14px; }
+            .message.has-donation { background: #fff4e5 !important; }
+            .message.has-donation .message-username { color: #111 !important; font-size: 14px; }
+            .message.has-donation .message-text-inline { color: #111 !important; font-size: 14px; }
+            .message-donation { background: #ffb44e !important; color: #111 !important; }`
         },
         {
             name: 'Oscuro',
-            css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #1bdf5f; --donation-bg: #691fd5; }
-            .message { background: var(--bg-message); border-radius: 8px; padding: 10px 16px; margin-bottom: 4px; border-left: 6px solid transparent; }
-            .message.odd { background: var(--bg-message-alt); border-left: 6px solid #262626; font-size: 14px; }
-            .message-username.cyberpunk { color: var(--username); font-weight: 600; font-size: 14px; }
-            .message-text-inline { color: var(--text); font-size: 14px; }
-            .message.has-donation { background: var(--donation-bg); border-left: 6px solid var(--donation); }
-            .message.has-donation .message-username { color: var(--donation); font-size: 14px; }
-            .message.has-donation .message-text-inline { color: #fff !important; font-size: 14px; }`
+            css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #2dcc89; }
+            .message { background: #0d1114 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
+            .message.odd { background: #0d1114 !important; font-size: 14px; }
+            .message-username.cyberpunk { color: #fff; font-weight: 600; font-size: 14px; }
+            .message-text-inline { color: #fff !important; font-size: 14px; }
+            .message.has-donation { background: #2dcc89 !important; }
+            .message.has-donation .message-username { color: #111 !important; font-size: 14px; }
+            .message.has-donation .message-text-inline { color: #111 !important; font-size: 14px; }
+            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`
         },
         {
             name: 'Minimalista',
             css: `/* THEME_ID:MINIMALISTA_AUTO10S */
-            :root {
-                --bg-main: transparent;
-                --bg-message: rgba(14,16,20,0.72);
-                --bg-message-alt: rgba(14,16,20,0.56);
-                --border: rgba(255,255,255,0.08);
-                --text: #e8eef2;
-                --username: #ffffff;
-                --donation: #10d39e;
-                --donation-bg: rgba(16,211,158,0.12);
-            }
-            .message {
-                background: var(--bg-message);
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                padding: 10px 14px;
-                margin-bottom: 4px;
-                overflow: hidden;
-                backdrop-filter: saturate(120%) blur(4px);
-                -webkit-backdrop-filter: saturate(120%) blur(4px);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-                will-change: opacity, transform;
-                /* Appears from bottom to top and disappears in 10s */
-                animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards;
-            }
-            .message.odd { background: var(--bg-message-alt); }
-            .message-username.cyberpunk { color: var(--username); font-weight: 600; }
-            .message-text-inline { color: var(--text); }
-            .message.has-donation { background: var(--donation-bg); border-color: var(--donation); }
-            .message.has-donation .message-username { color: var(--donation); }
-            .message.has-donation .message-text-inline { color: #eafff7 !important; }
-            @keyframes fadeInUp {
-                from { opacity: 0; transform: translateY(12px); }
-                to   { opacity: 1; transform: translateY(0); }
-            }
-            @keyframes fadeOut {
-                to { opacity: 0; transform: translateY(-6px); }
-            }`
+            :root { --bg-main: transparent; --bg-message: rgba(230,230,230,0.72); --bg-message-alt: rgba(230,230,230,0.72); --border: rgba(0,0,0,0.12); --text: #111; --username: #111; --donation: rgb(16,211,158); --donation-bg: rgba(42,197,213,0.12); }
+            .message { background: rgba(230,230,230,0.72) !important; border: 1px solid rgba(0,0,0,0.12); border-left: 6px solid rgba(0,0,0,0.12); border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; color: #111 !important; backdrop-filter: saturate(120%) blur(4px); -webkit-backdrop-filter: saturate(120%) blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.18); will-change: opacity, transform; animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards; }
+            .message.odd { background: rgba(230,230,230,0.72) !important; }
+            .message-username.cyberpunk { color: #111; font-weight: 600; }
+            .message-text-inline { color: #111 !important; }
+            .message.has-donation { background: rgba(42,197,213,0.12) !important; }
+            .message.has-donation .message-username { color: #111 !important; }
+            .message.has-donation .message-text-inline { color: #111 !important; }
+            .message-donation { background: rgb(16,211,158) !important; color: #111 !important; }
+            @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes fadeOut { to { opacity: 0; transform: translateY(-6px); } }`
         }
     ];
 
@@ -1267,8 +1257,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('chat-text-color').value = '#e6edf3';
             document.getElementById('chat-username-color').value = '#fff';
             document.getElementById('chat-username-bg-color').value = '#11ff79';
-            document.getElementById('chat-donation-color').value = '#1bdf5f';
-            document.getElementById('chat-donation-bg-color').value = '#ececec';
+            document.getElementById('chat-donation-color').value = '#ddb826';
+            document.getElementById('chat-donation-bg-color').value = '#131313';
             updateChatColorHex();
         });
     }
