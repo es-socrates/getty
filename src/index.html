@@ -67,15 +67,15 @@
             </button>
             
             <div class="relative">
-                <button id="user-menu-button" class="flex items-center gap-2 text-white">
-                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                <button id="user-menu-button" class="theme-toggle" title="User menu" aria-label="User menu">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z" />
                     </svg>
                 </button>
                 
                 <div id="user-menu" class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible transition-all duration-200 z-50">
                     <div class="py-1">
-                        <a href="/admin/" target="_blank" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors" data-i18n="settings"></a>
+                        <a href="/admin/" target="_blank" class="block px-4 py-2 text-sm transition-colors" data-i18n="settings"></a>
                         <div class="border-t border-border my-1"></div>
                         <div class="px-4 py-2">
                             <label for="language-selector" class="block text-sm text-gray-300 mb-1" data-i18n="language"></label>

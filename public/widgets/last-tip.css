@@ -7,7 +7,7 @@
   color: white;
   padding: 0;
   border-radius: 4px;
-  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  font-family: "Inter", "Helvetica Neue", sans-serif;
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   overflow: hidden;
@@ -45,6 +45,8 @@
   display: block;
   color: #fff;
   margin-top: 5px;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 .notification-text {
@@ -81,18 +83,30 @@
   bottom: 10px;
   left: 10px;
   color: #00ff7f;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 16px;
 }
 
-@keyframes pulseUpdate {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.03); }
-  100% { transform: scale(1); }
+@keyframes coinWobble {
+  0% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+  20% {
+    transform: translateX(-6px) rotate(-8deg) scale(1.02);
+  }
+  50% {
+    transform: translateX(6px) rotate(8deg) scale(1.02);
+  }
+  80% {
+    transform: translateX(-3px) rotate(-4deg) scale(1.01);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
 }
 
-.update-animation {
-  animation: pulseUpdate 0.5s ease;
+.update-animation .notification-icon svg {
+  animation: coinWobble 650ms ease-out;
 }
 
 .usd-value {

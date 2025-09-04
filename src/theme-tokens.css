@@ -99,6 +99,20 @@ html:not(.dark) #user-menu a:hover {
   color: var(--text-primary) !important;
 }
 
+.dark #user-menu {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 10px 15px -3px var(--shadow-color),
+    0 4px 6px -4px var(--shadow-color) !important;
+}
+.dark #user-menu a {
+  color: var(--text-secondary) !important;
+}
+.dark #user-menu a:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-primary) !important;
+}
+
 html:not(.dark) #user-menu select {
   background-color: var(--bg-background) !important;
   border-color: var(--border-color) !important;
