@@ -1572,15 +1572,19 @@ app.get('/api/modules', async (req, res) => {
         lastUpdated: st.lastUpdated
       };
     })(),
-    liveviews: (() => {
+  liveviews: (async () => {
       try {
-        if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-          const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-          const full = getLiveviewsConfigWithDefaults(raw || {});
-          const active = !!(full.claimid || full.icon || full.viewersLabel);
-          return { active, claimid: hasNs ? full.claimid : undefined, viewersLabel: full.viewersLabel };
+        let cfg = null;
+        if (store && ns) {
+          try { cfg = await store.get(ns, 'liveviews-config', null); } catch { cfg = null; }
         }
-        return { active: false };
+        if (!cfg && fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+          try { cfg = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')); } catch { cfg = null; }
+        }
+        if (!cfg) return { active: false };
+        const full = getLiveviewsConfigWithDefaults(cfg || {});
+        const active = !!(full.claimid || full.icon || full.viewersLabel);
+        return { active, claimid: hasNs ? full.claimid : undefined, viewersLabel: full.viewersLabel };
       } catch { return { active: false }; }
     })(),
   raffle: (async () => {

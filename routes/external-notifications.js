@@ -517,7 +517,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const hosted = !!process.env.REDIS_URL;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const can = hosted && !!store && !!ns && !!store.redis;
-      if (!can) return res.json({ ok: false, hosted, reason: 'unavailable' });
+      if (!can) {
+        const reason = !hosted ? 'not_hosted' : (!store ? 'no_store' : (!store.redis ? 'no_redis' : (!ns ? 'no_session' : 'unavailable')));
+        return res.json({ ok: false, hosted, reason });
+      }
       const AUTO_SET = 'getty:auto-live:namespaces';
       const LAST_POLL_KEY = 'getty:auto-live:lastpoll';
       const inSet = await store.redis.sismember(AUTO_SET, ns);
