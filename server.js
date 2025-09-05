@@ -441,6 +441,7 @@ try {
         const lastState = await getLastState();
         for (const ns of nsList) {
           try {
+
             const draft = await loadNsDraft(ns);
             if (!draft || !draft.auto) {
               try { await store.redis.srem(AUTO_SET, ns); } catch {}
@@ -454,6 +455,7 @@ try {
             const prev = !!lastState[ns];
             lastState[ns] = nowLive;
             if (nowLive && !prev) {
+
               const payload = {
                 title: typeof draft.title === 'string' ? draft.title : undefined,
                 description: typeof draft.description === 'string' ? draft.description : undefined,
@@ -474,7 +476,14 @@ try {
               };
               const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
               if (hasAny) {
-                try { await externalNotifications.sendLiveWithConfig(cfg, payload); } catch {}
+                try {
+                  const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
+                  if (!sent) console.warn('[auto-live] sendLiveWithConfig returned false for ns', ns);
+                } catch (e) {
+                  console.error('[auto-live] send failed for ns', ns, e?.message || e);
+                }
+              } else {
+                console.warn('[auto-live] no live targets configured for ns', ns);
               }
             }
           } catch {}

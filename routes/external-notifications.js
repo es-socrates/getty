@@ -12,6 +12,17 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
+
+      const body = req.body || {};
+      const normalized = {
+        discordWebhook: typeof body.discordWebhook === 'string' && body.discordWebhook.trim() ? body.discordWebhook.trim() : undefined,
+        telegramBotToken: typeof body.telegramBotToken === 'string' && body.telegramBotToken.trim() ? body.telegramBotToken.trim() : undefined,
+        telegramChatId: typeof body.telegramChatId === 'string' && body.telegramChatId.trim() ? body.telegramChatId.trim() : undefined,
+        template: typeof body.template === 'string' ? body.template : undefined,
+        liveDiscordWebhook: typeof body.liveDiscordWebhook === 'string' && body.liveDiscordWebhook.trim() ? body.liveDiscordWebhook.trim() : undefined,
+        liveTelegramBotToken: typeof body.liveTelegramBotToken === 'string' && body.liveTelegramBotToken.trim() ? body.liveTelegramBotToken.trim() : undefined,
+        liveTelegramChatId: typeof body.liveTelegramChatId === 'string' && body.liveTelegramChatId.trim() ? body.liveTelegramChatId.trim() : undefined
+      };
       const schema = z.object({
         discordWebhook: z.string().url().optional(),
         telegramBotToken: z.string().optional(),
@@ -21,9 +32,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         liveTelegramBotToken: z.string().optional(),
         liveTelegramChatId: z.string().optional()
       });
-      const parsed = schema.safeParse(req.body);
+      const parsed = schema.safeParse(normalized);
       if (!parsed.success) return res.status(400).json({ success: false, error: 'Invalid payload' });
-  const { discordWebhook, telegramBotToken, telegramChatId, template, liveDiscordWebhook, liveTelegramBotToken, liveTelegramChatId } = parsed.data;
+      const { discordWebhook, telegramBotToken, telegramChatId, template, liveDiscordWebhook, liveTelegramBotToken, liveTelegramChatId } = parsed.data;
 
   if (!discordWebhook && !(telegramBotToken && telegramChatId) && !liveDiscordWebhook && !(liveTelegramBotToken && liveTelegramChatId)) {
         return res.status(400).json({
@@ -32,7 +43,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         });
       }
 
-      const payload = {
+  const payload = {
         discordWebhook,
         telegramBotToken,
         telegramChatId,
@@ -88,21 +99,22 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     }
 
     const status = externalNotifications.getStatus();
-    const sanitized = {
+  const allowRevealLocal = !shouldRequireSession;
+  const sanitized = {
       active: !!status.active,
       lastTips: (hostedWithRedis || requireSessionFlag) && !hasNs ? [] : status.lastTips,
       config: {
         hasDiscord: !!status.config?.hasDiscord,
         hasTelegram: !!status.config?.hasTelegram,
         template: status.config?.template || '',
-        discordWebhook: '',
-        telegramBotToken: '',
-        telegramChatId: '',
+        discordWebhook: allowRevealLocal ? (externalNotifications.discordWebhook || '') : '',
+        telegramBotToken: allowRevealLocal ? (externalNotifications.telegramBotToken || '') : '',
+        telegramChatId: allowRevealLocal ? (externalNotifications.telegramChatId || '') : '',
         hasLiveDiscord: !!status.config?.hasLiveDiscord,
         hasLiveTelegram: !!status.config?.hasLiveTelegram,
-        liveDiscordWebhook: '',
-        liveTelegramBotToken: '',
-        liveTelegramChatId: ''
+        liveDiscordWebhook: allowRevealLocal ? (externalNotifications.liveDiscordWebhook || '') : '',
+        liveTelegramBotToken: allowRevealLocal ? (externalNotifications.liveTelegramBotToken || '') : '',
+        liveTelegramChatId: allowRevealLocal ? (externalNotifications.liveTelegramChatId || '') : ''
       },
       lastUpdated: status.lastUpdated
     };
