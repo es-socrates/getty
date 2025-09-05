@@ -160,7 +160,24 @@ app.use((req, _res, next) => {
   try {
     const admin = req.cookies?.[ADMIN_COOKIE] || null;
     const pub = req.cookies?.[PUBLIC_COOKIE] || null;
-    req.ns = { admin: admin || null, pub: pub || null };
+    let nsAdmin = admin || null;
+    let nsPub = pub || null;
+
+    try {
+      const qToken = typeof req.query?.token === 'string' ? req.query.token : null;
+      if (!nsAdmin && !nsPub && qToken) {
+        nsPub = qToken;
+
+        if (store && store.redis) {
+          store.get(qToken, 'adminToken', null).then((adm) => {
+            if (adm && !nsAdmin) {
+              req.ns = { admin: adm, pub: nsPub };
+            }
+          }).catch(() => {});
+        }
+      }
+    } catch {}
+    req.ns = { admin: nsAdmin, pub: nsPub };
   } catch { req.ns = { admin: null, pub: null }; }
   next();
 });

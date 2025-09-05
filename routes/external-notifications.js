@@ -328,7 +328,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
       const data = parsed.data || {};
 
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
+  const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (store && ns) {
         await store.set(ns, 'live-announcement-draft', data);
 
@@ -336,9 +336,11 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
           if (store.redis && typeof data.auto === 'boolean') {
             const SET_KEY = 'getty:auto-live:namespaces';
             if (data.auto) {
-              await store.redis.sadd(SET_KEY, ns);
+      await store.redis.sadd(SET_KEY, ns);
+      try { console.info('[auto-live] registered namespace for auto', ns); } catch {}
             } else {
-              await store.redis.srem(SET_KEY, ns);
+      await store.redis.srem(SET_KEY, ns);
+      try { console.info('[auto-live] unregistered namespace for auto', ns); } catch {}
             }
           }
         } catch {}
