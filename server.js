@@ -407,6 +407,7 @@ try {
   if (__hostedMode && store && store.redis && process.env.NODE_ENV !== 'test') {
     const AUTO_SET = 'getty:auto-live:namespaces';
     const LAST_STATE_KEY = 'getty:auto-live:laststate';
+    const LAST_POLL_KEY = 'getty:auto-live:lastpoll';
     const POLL_MS = 30000;
     const jitter = () => Math.floor(Math.random() * 5000);
 
@@ -448,12 +449,16 @@ try {
               continue;
             }
             const claim = await loadNsClaim(ns);
-            if (!claim) continue;
+            if (!claim) {
+              console.warn('[auto-live] ns has auto enabled but no ClaimID configured', ns);
+              continue;
+            }
             const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
             const resp = await axios.get(url, { timeout: 7000 });
             const nowLive = !!resp?.data?.data?.Live;
             const prev = !!lastState[ns];
             lastState[ns] = nowLive;
+            try { await store.redis.hset(LAST_POLL_KEY, ns, String(Date.now())); await store.redis.expire(LAST_POLL_KEY, 24 * 3600); } catch {}
             if (nowLive && !prev) {
 
               const payload = {
@@ -475,6 +480,7 @@ try {
                 liveTelegramChatId: externalNotifications?.liveTelegramChatId || cfg.liveTelegramChatId || ''
               };
               const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
+              console.info('[auto-live] transition offline->live detected', { ns, claim, hasAny, hasDiscord: !!cfg.liveDiscordWebhook || !!payload.discordWebhook, hasTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId) });
               if (hasAny) {
                 try {
                   const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);

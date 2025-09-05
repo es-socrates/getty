@@ -509,6 +509,24 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       res.json({ ok: false, url: null });
     }
   });
+
+  app.get('/api/external-notifications/live/diag', async (req, res) => {
+    try {
+      const hosted = !!process.env.REDIS_URL;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const can = hosted && !!store && !!ns && !!store.redis;
+      if (!can) return res.json({ ok: false, hosted, reason: 'unavailable' });
+      const AUTO_SET = 'getty:auto-live:namespaces';
+      const LAST_POLL_KEY = 'getty:auto-live:lastpoll';
+      const inSet = await store.redis.sismember(AUTO_SET, ns);
+      const lastPoll = await store.redis.hget(LAST_POLL_KEY, ns);
+      const draft = await store.get(ns, 'live-announcement-draft', null);
+      const ext = await store.get(ns, 'external-notifications-config', null);
+      res.json({ ok: true, ns, autoEnabled: !!draft?.auto, registered: inSet === 1 || inSet === true, lastPoll: lastPoll ? Number(lastPoll) : null, hasDiscord: !!(ext?.liveDiscordWebhook), hasTelegram: !!(ext?.liveTelegramBotToken && ext?.liveTelegramChatId) });
+    } catch (e) {
+      res.json({ ok: false, error: e?.message || String(e) });
+    }
+  });
 }
 
 module.exports = registerExternalNotificationsRoutes;
