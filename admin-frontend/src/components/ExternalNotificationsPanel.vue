@@ -193,6 +193,17 @@
         <small v-if="errors.liveTelegramChatId" class="small" style="color:#b91c1c">{{ errors.liveTelegramChatId }}</small>
       </div>
     </div>
+    <div class="mt-3">
+      <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
+      <div class="mt-2 small" :style="(liveHas.discord || liveHas.telegram) ? 'opacity:0.8' : 'color:#b91c1c'">
+        <template v-if="liveHas.discord || liveHas.telegram">
+          {{ t('liveTargetsLabel') }} {{ [ liveHas.discord ? t('discord') : null, liveHas.telegram ? t('telegram') : null ].filter(Boolean).join(', ') }}
+        </template>
+        <template v-else>
+          {{ t('liveTargetsNone') }}
+        </template>
+      </div>
+    </div>
   </OsCard>
   </section>
 </template>
@@ -237,6 +248,7 @@ const initial = ref('');
 const statusActive = ref(false);
 const dirty = ref(false);
 const saving = ref(false);
+const liveHas = ref({ discord: false, telegram: false });
 
 registerDirty(() => dirty.value);
 
@@ -260,6 +272,8 @@ async function load() {
     form.value.liveDiscordWebhook = r.data.config?.liveDiscordWebhook || '';
     form.value.liveTelegramBotToken = r.data.config?.liveTelegramBotToken || '';
     form.value.liveTelegramChatId = r.data.config?.liveTelegramChatId || '';
+    liveHas.value.discord = !!r.data.config?.hasLiveDiscord;
+    liveHas.value.telegram = !!r.data.config?.hasLiveTelegram;
     statusActive.value = !!r.data.active;
     initial.value = JSON.stringify(form.value);
     dirty.value = false;
@@ -367,13 +381,29 @@ async function save() {
   if (hasErrors.value) return;
   try {
     saving.value = true;
-    const payload = { ...form.value };
+
+    const payload = {
+      discordWebhook: (form.value.discordWebhook || '').trim() || undefined,
+      telegramBotToken: (form.value.telegramBotToken || '').trim() || undefined,
+      telegramChatId: (form.value.telegramChatId || '').trim() || undefined,
+      template: (form.value.template || '').toString(),
+      liveDiscordWebhook: (form.value.liveDiscordWebhook || '').trim() || undefined,
+      liveTelegramBotToken: (form.value.liveTelegramBotToken || '').trim() || undefined,
+      liveTelegramChatId: (form.value.liveTelegramChatId || '').trim() || undefined
+    };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     const r = await axios.post('/api/external-notifications', payload);
     if (r.data.success) {
       pushToast({ type: 'success', message: t('externalSaved') });
       statusActive.value = !!r.data.status?.active;
       initial.value = JSON.stringify(form.value);
       dirty.value = false;
+
+      try {
+        const rr = await axios.get('/api/external-notifications');
+        liveHas.value.discord = !!rr.data?.config?.hasLiveDiscord;
+        liveHas.value.telegram = !!rr.data?.config?.hasLiveTelegram;
+      } catch {}
     } else {
       pushToast({ type: 'error', message: mapError(r.data.error) });
     }
