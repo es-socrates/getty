@@ -11,6 +11,11 @@ export default defineConfig({
   plugins: [vue()],
   root: __dirname,
   base: '/admin/',
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src')
+    }
+  },
   build: {
     outDir: path.resolve(__dirname, '../public/admin-dist'),
     emptyOutDir: true,

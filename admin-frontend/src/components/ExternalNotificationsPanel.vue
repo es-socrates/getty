@@ -7,6 +7,7 @@
         <a href="/new-session" class="btn">{{ t('createSession') }}</a>
       </div>
     </div>
+
     <OsCard>
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
@@ -34,8 +35,52 @@
         </div>
         <small v-if="errors.discordWebhook" class="small" style="color:#b91c1c">{{ errors.discordWebhook }}</small>
       </div>
+  <div class="form-group grid mt-4" style="grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label class="label">{{ t('externalTelegramBotToken') }}</label>
+          <div class="input-group">
+            <input
+              class="input"
+              :class="{'input-error': errors.telegramBotToken}"
+              :type="reveal.telegram ? 'text' : 'password'"
+              v-model="form.telegramBotToken"
+              placeholder="123456:ABCDEF"
+              @input="validate"
+              autocomplete="off"
+            />
+            <button type="button" @click="reveal.telegram = !reveal.telegram" :aria-pressed="reveal.telegram ? 'true' : 'false'" :aria-label="reveal.telegram ? 'Hide' : 'Show'">
+              <svg v-if="!reveal.telegram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+                <path d="M1 1l22 22" />
+                <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+              </svg>
+            </button>
+          </div>
+          <small v-if="errors.telegramBotToken" class="small" style="color:#b91c1c">{{ errors.telegramBotToken }}</small>
+        </div>
+        <div>
+          <label class="label">{{ t('externalTelegramChatId') }}</label>
+          <input class="input" :class="{'input-error': errors.telegramChatId}" v-model="form.telegramChatId" placeholder="-1001234567890" @input="validate" />
+          <small v-if="errors.telegramChatId" class="small" style="color:#b91c1c">{{ errors.telegramChatId }}</small>
+        </div>
+      </div>
+  <div class="form-group mt-4">
+        <label class="label">{{ t('externalTemplate') }}</label>
+        <textarea class="input" rows="3" v-model="form.template"></textarea>
+        <small class="small">{{ t('externalTemplateHint') }}</small>
+      </div>
+  <div class="flex gap-2 items-center" role="group" aria-label="External notifications actions">
+  <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
+    <span class="small" :style="{color: statusActive ? '#16a34a':'#888'}" :aria-live="dirty ? 'polite':'off'">{{ statusActive ? t('externalStatusActive'): t('externalStatusInactive') }}</span>
+      </div>
+  </OsCard>
 
-    <div class="form-group mt-4">
+  <OsCard class="mt-4">
+    <div class="form-group">
       <label class="label" for="obs-ws-ip">{{ t('obsWsIpLabel') }}</label>
       <div class="input-group">
         <input
@@ -87,75 +132,68 @@
       <small v-if="obsErrors.ip || obsErrors.port" class="small" style="color:#b91c1c">
         {{ obsErrors.ip || obsErrors.port }}
       </small>
-  <button class="btn mt-2" :disabled="!obsDirty || hasObsErrors || obsSaving || masked" @click="saveObs" :aria-busy="obsSaving ? 'true':'false'">
+      <button class="btn mt-2" :disabled="!obsDirty || hasObsErrors || obsSaving || masked" @click="saveObs" :aria-busy="obsSaving ? 'true':'false'">
         <span v-if="obsSaving">{{ t('commonSaving') }}</span>
         <span v-else>{{ t('saveObsWsSettings') }}</span>
       </button>
     </div>
-
-  <div class="form-group grid mt-4" style="grid-template-columns:1fr 1fr; gap:12px;">
-        <div>
-          <label class="label">{{ t('externalTelegramBotToken') }}</label>
-          <div class="input-group">
-            <input
-              class="input"
-              :class="{'input-error': errors.telegramBotToken}"
-              :type="reveal.telegram ? 'text' : 'password'"
-              v-model="form.telegramBotToken"
-              placeholder="123456:ABCDEF"
-              @input="validate"
-              autocomplete="off"
-            />
-            <button type="button" @click="reveal.telegram = !reveal.telegram" :aria-pressed="reveal.telegram ? 'true' : 'false'" :aria-label="reveal.telegram ? 'Hide' : 'Show'">
-              <svg v-if="!reveal.telegram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
-                <path d="M1 1l22 22" />
-                <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
-              </svg>
-            </button>
-          </div>
-          <small v-if="errors.telegramBotToken" class="small" style="color:#b91c1c">{{ errors.telegramBotToken }}</small>
-        </div>
-        <div>
-          <label class="label">{{ t('externalTelegramChatId') }}</label>
-          <input class="input" :class="{'input-error': errors.telegramChatId}" v-model="form.telegramChatId" placeholder="-1001234567890" @input="validate" />
-          <small v-if="errors.telegramChatId" class="small" style="color:#b91c1c">{{ errors.telegramChatId }}</small>
-        </div>
-      </div>
-  <div class="form-group mt-4">
-        <label class="label">{{ t('externalTemplate') }}</label>
-        <textarea class="input" rows="3" v-model="form.template"></textarea>
-        <small class="small">{{ t('externalTemplateHint') }}</small>
-      </div>
-  <div class="flex gap-2 items-center" role="group" aria-label="External notifications actions">
-  <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
-    <span class="small" :style="{color: statusActive ? '#16a34a':'#888'}" :aria-live="dirty ? 'polite':'off'">{{ statusActive ? t('externalStatusActive'): t('externalStatusInactive') }}</span>
-      </div>
   </OsCard>
 
-  <div class="os-subtle p-4 rounded-os mt-4 flex items-start gap-3">
-      <svg width="24" height="24" fill="none" style="flex-shrink:0;">
-  <circle cx="12" cy="12" r="12" fill="#38bdf8" />
-  <path d="M12 8v4m0 4h.01" stroke="#fff" stroke-width="2" stroke-linecap="round" />
-      </svg>
-      <div>
-        <strong class="mr-1">{{ t('obsWsReminderTitle') }}</strong>
-        <span>{{ t('obsWsReminderDesc') }}</span>
-        <ul style="margin:8px 0 0 16px;">
-          <li>{{ t('obsWsReminderNetwork') }}</li>
-          <li>{{ t('obsWsReminderRemoteUrl') }}</li>
-          <li>{{ t('obsWsReminderLocalMode') }}</li>
-          <li>{{ t('obsWsReminderUpdateUrl') }}</li>
-          <li>{{ t('obsWsReminderFirewall') }}</li>
-          <li>{{ t('obsWsReminderNetworkConfig') }}</li>
-          <li style="color:#ca004b;font-size:16px;">{{ t('obsWsReminderCopyUrl') }}</li>
-        </ul>
+  <OsCard class="mt-4">
+    <div class="mt-1">
+      <Alert>
+        <Rocket class="h-5 w-5 alert-icon" />
+        <div class="flex-1">
+          <AlertTitle>{{ t('liveCredsWebhookHelpTitle') }}</AlertTitle>
+          <AlertDescription>{{ t('liveCredsWebhookHelp') }}</AlertDescription>
+        </div>
+      </Alert>
+    </div>
+    <div class="form-group mt-4">
+      <label class="label">Live Discord Webhook</label>
+      <div class="input-group">
+        <input
+          class="input"
+          :class="{'input-error': errors.liveDiscordWebhook}"
+          :type="reveal.liveDiscord ? 'text' : 'password'"
+          v-model="form.liveDiscordWebhook"
+          placeholder="https://discord.com/api/webhooks/..."
+          @input="validate"
+          autocomplete="off"
+        />
+        <button type="button" @click="reveal.liveDiscord = !reveal.liveDiscord" :aria-pressed="reveal.liveDiscord ? 'true' : 'false'">
+          <span>{{ reveal.liveDiscord ? 'Hide' : 'Show' }}</span>
+        </button>
       </div>
-  </div>
+      <small v-if="errors.liveDiscordWebhook" class="small" style="color:#b91c1c">{{ errors.liveDiscordWebhook }}</small>
+    </div>
+
+    <div class="form-group grid mt-4" style="grid-template-columns:1fr 1fr; gap:12px;">
+      <div>
+        <label class="label">Live Telegram Bot Token</label>
+        <div class="input-group">
+          <input
+            class="input"
+            :class="{'input-error': errors.liveTelegramBotToken}"
+            :type="reveal.liveTelegram ? 'text' : 'password'"
+            v-model="form.liveTelegramBotToken"
+            placeholder="123456:ABCDEF"
+            @input="validate"
+            autocomplete="off"
+          />
+          <button type="button" @click="reveal.liveTelegram = !reveal.liveTelegram" :aria-pressed="reveal.liveTelegram ? 'true' : 'false'">
+            <span>{{ reveal.liveTelegram ? 'Hide' : 'Show' }}</span>
+          </button>
+        </div>
+        <small v-if="errors.liveTelegramBotToken" class="small" style="color:#b91c1c">{{ errors.liveTelegramBotToken }}</small>
+      </div>
+      <div>
+        <label class="label">Live Telegram Chat ID</label>
+        <input class="input" :class="{'input-error': errors.liveTelegramChatId}" v-model="form.liveTelegramChatId" placeholder="-1001234567890" @input="validate" />
+        <small v-if="errors.liveTelegramChatId" class="small" style="color:#b91c1c">{{ errors.liveTelegramChatId }}</small>
+      </div>
+    </div>
+  </OsCard>
   </section>
 </template>
 <script setup>
@@ -167,24 +205,32 @@ import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { isHttpUrl } from '../utils/validation';
 import OsCard from './os/OsCard.vue'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Rocket } from 'lucide-vue-next'
 
 const { t } = useI18n();
 
 const masked = ref(false);
 
-const reveal = reactive({ discord: false, obsIp: false, obsPwd: false, telegram: false });
+const reveal = reactive({ discord: false, obsIp: false, obsPwd: false, telegram: false, liveDiscord: false, liveTelegram: false });
 
 const form = ref({
   discordWebhook: '',
   telegramBotToken: '',
   telegramChatId: '',
-  template: ''
+  template: '',
+  liveDiscordWebhook: '',
+  liveTelegramBotToken: '',
+  liveTelegramChatId: ''
 });
 
 const errors = ref({
   discordWebhook: '',
   telegramBotToken: '',
-  telegramChatId: ''
+  telegramChatId: '',
+  liveDiscordWebhook: '',
+  liveTelegramBotToken: '',
+  liveTelegramChatId: ''
 });
 
 const initial = ref('');
@@ -211,6 +257,9 @@ async function load() {
     form.value.telegramBotToken = r.data.config?.telegramBotToken || '';
     form.value.telegramChatId = r.data.config?.telegramChatId || '';
     form.value.template = r.data.config?.template || '';
+    form.value.liveDiscordWebhook = r.data.config?.liveDiscordWebhook || '';
+    form.value.liveTelegramBotToken = r.data.config?.liveTelegramBotToken || '';
+    form.value.liveTelegramChatId = r.data.config?.liveTelegramChatId || '';
     statusActive.value = !!r.data.active;
     initial.value = JSON.stringify(form.value);
     dirty.value = false;
@@ -294,6 +343,18 @@ function validate() {
   } else {
     errors.value.telegramBotToken = '';
     errors.value.telegramChatId = '';
+  }
+
+  errors.value.liveDiscordWebhook = form.value.liveDiscordWebhook && !isHttpUrl(form.value.liveDiscordWebhook)
+    ? t('invalidUrl')
+    : '';
+
+  if (form.value.liveTelegramBotToken || form.value.liveTelegramChatId) {
+    errors.value.liveTelegramBotToken = form.value.liveTelegramBotToken ? '' : t('requiredField');
+    errors.value.liveTelegramChatId = form.value.liveTelegramChatId ? '' : t('requiredField');
+  } else {
+    errors.value.liveTelegramBotToken = '';
+    errors.value.liveTelegramChatId = '';
   }
 }
 

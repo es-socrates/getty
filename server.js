@@ -328,7 +328,44 @@ if (!__hostedMode) try {
         if (nowLive) await recordHistoryEvent(true);
         lastLive = nowLive;
       } else if (nowLive !== lastLive) {
+        const prev = lastLive;
         await recordHistoryEvent(nowLive);
+
+        try {
+          if (nowLive === true && prev === false) {
+
+            const cfgPath = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+            let draft = null;
+            try { if (fs.existsSync(cfgPath)) draft = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch {}
+            if (draft && draft.auto) {
+
+              const payload = {
+                title: typeof draft.title === 'string' ? draft.title : undefined,
+                description: typeof draft.description === 'string' ? draft.description : undefined,
+                channelUrl: typeof draft.channelUrl === 'string' ? draft.channelUrl : undefined,
+                signature: typeof draft.signature === 'string' ? draft.signature : undefined,
+                discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined
+              };
+
+              Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+
+              try {
+                const statusCfg = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus().config || {}) : {};
+                const cfg = {
+                  ...statusCfg,
+                  liveDiscordWebhook: externalNotifications?.liveDiscordWebhook || '',
+                  liveTelegramBotToken: externalNotifications?.liveTelegramBotToken || '',
+                  liveTelegramChatId: externalNotifications?.liveTelegramChatId || ''
+                };
+
+                const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
+                if (hasAny) {
+                  try { await externalNotifications.sendLiveWithConfig(cfg, payload); } catch {}
+                }
+              } catch {}
+            }
+          }
+        } catch {}
         lastLive = nowLive;
       }
 
@@ -363,6 +400,91 @@ if (!__hostedMode) try {
   if (process.env.NODE_ENV !== 'test') {
     [2000, 8000, 20000].forEach(d => setTimeout(() => { checkLiveOnce(); }, d));
     setInterval(() => { checkLiveOnce(); }, 30000);
+  }
+} catch {}
+
+try {
+  if (__hostedMode && store && store.redis && process.env.NODE_ENV !== 'test') {
+    const AUTO_SET = 'getty:auto-live:namespaces';
+    const LAST_STATE_KEY = 'getty:auto-live:laststate';
+    const POLL_MS = 30000;
+    const jitter = () => Math.floor(Math.random() * 5000);
+
+    async function loadNsDraft(ns) {
+      try { return await store.get(ns, 'live-announcement-draft', null); } catch { return null; }
+    }
+    async function loadNsExtCfg(ns) {
+      try { return await store.get(ns, 'external-notifications-config', null); } catch { return null; }
+    }
+    async function loadNsClaim(ns) {
+      try {
+        const sh = await store.get(ns, 'stream-history-config', null);
+        if (sh && typeof sh.claimid === 'string' && sh.claimid.trim()) return sh.claimid.trim();
+      } catch {}
+      try {
+        const lv = await store.get(ns, 'liveviews-config', null);
+        if (lv && typeof lv.claimid === 'string' && lv.claimid.trim()) return lv.claimid.trim();
+      } catch {}
+      return '';
+    }
+    async function getLastState() {
+      try { const j = await store.redis.get(LAST_STATE_KEY); return j ? JSON.parse(j) : {}; } catch { return {}; }
+    }
+    async function setLastState(obj) {
+      try { await store.redis.set(LAST_STATE_KEY, JSON.stringify(obj), 'EX', 24 * 3600); } catch {}
+    }
+
+    async function pollHostedOnce() {
+      try {
+        const nsList = await store.redis.smembers(AUTO_SET);
+        if (!Array.isArray(nsList) || nsList.length === 0) return;
+        const lastState = await getLastState();
+        for (const ns of nsList) {
+          try {
+            const draft = await loadNsDraft(ns);
+            if (!draft || !draft.auto) {
+              try { await store.redis.srem(AUTO_SET, ns); } catch {}
+              continue;
+            }
+            const claim = await loadNsClaim(ns);
+            if (!claim) continue;
+            const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
+            const resp = await axios.get(url, { timeout: 7000 });
+            const nowLive = !!resp?.data?.data?.Live;
+            const prev = !!lastState[ns];
+            lastState[ns] = nowLive;
+            if (nowLive && !prev) {
+              const payload = {
+                title: typeof draft.title === 'string' ? draft.title : undefined,
+                description: typeof draft.description === 'string' ? draft.description : undefined,
+                channelUrl: typeof draft.channelUrl === 'string' ? draft.channelUrl : undefined,
+                signature: typeof draft.signature === 'string' ? draft.signature : undefined,
+                discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined,
+                livePostClaimId: typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : undefined
+              };
+              Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+
+              let cfg = await loadNsExtCfg(ns);
+              if (!cfg || typeof cfg !== 'object') cfg = {};
+              cfg = {
+                ...cfg,
+                liveDiscordWebhook: externalNotifications?.liveDiscordWebhook || cfg.liveDiscordWebhook || '',
+                liveTelegramBotToken: externalNotifications?.liveTelegramBotToken || cfg.liveTelegramBotToken || '',
+                liveTelegramChatId: externalNotifications?.liveTelegramChatId || cfg.liveTelegramChatId || ''
+              };
+              const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
+              if (hasAny) {
+                try { await externalNotifications.sendLiveWithConfig(cfg, payload); } catch {}
+              }
+            }
+          } catch {}
+        }
+        await setLastState(lastState);
+      } catch {}
+    }
+
+    setTimeout(() => { pollHostedOnce(); }, 5000 + jitter());
+    setInterval(() => { pollHostedOnce(); }, POLL_MS + jitter());
   }
 } catch {}
 
@@ -637,7 +759,10 @@ app.post('/api/session/import', async (req, res) => {
           template: typeof incomingExternal.template === 'string' ? incomingExternal.template : undefined,
           discordWebhook: typeof incomingExternal.discordWebhook === 'string' ? incomingExternal.discordWebhook : undefined,
           telegramBotToken: typeof incomingExternal.telegramBotToken === 'string' ? incomingExternal.telegramBotToken : undefined,
-          telegramChatId: typeof incomingExternal.telegramChatId === 'string' ? incomingExternal.telegramChatId : undefined
+          telegramChatId: typeof incomingExternal.telegramChatId === 'string' ? incomingExternal.telegramChatId : undefined,
+          liveDiscordWebhook: typeof incomingExternal.liveDiscordWebhook === 'string' ? incomingExternal.liveDiscordWebhook : undefined,
+          liveTelegramBotToken: typeof incomingExternal.liveTelegramBotToken === 'string' ? incomingExternal.liveTelegramBotToken : undefined,
+          liveTelegramChatId: typeof incomingExternal.liveTelegramChatId === 'string' ? incomingExternal.liveTelegramChatId : undefined
         };
         await externalNotifications.saveConfig(payloadExt);
         externalApplied = true;

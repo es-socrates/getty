@@ -16,13 +16,16 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         discordWebhook: z.string().url().optional(),
         telegramBotToken: z.string().optional(),
         telegramChatId: z.string().optional(),
-        template: z.string().optional()
+        template: z.string().optional(),
+        liveDiscordWebhook: z.string().url().optional(),
+        liveTelegramBotToken: z.string().optional(),
+        liveTelegramChatId: z.string().optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: 'Invalid payload' });
-      const { discordWebhook, telegramBotToken, telegramChatId, template } = parsed.data;
+  const { discordWebhook, telegramBotToken, telegramChatId, template, liveDiscordWebhook, liveTelegramBotToken, liveTelegramChatId } = parsed.data;
 
-      if (!discordWebhook && !(telegramBotToken && telegramChatId)) {
+  if (!discordWebhook && !(telegramBotToken && telegramChatId) && !liveDiscordWebhook && !(liveTelegramBotToken && liveTelegramChatId)) {
         return res.status(400).json({
           error: 'Either Discord webhook or Telegram credentials are required',
           success: false
@@ -33,7 +36,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         discordWebhook,
         telegramBotToken,
         telegramChatId,
-        template: template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"'
+        template: template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"',
+        liveDiscordWebhook,
+        liveTelegramBotToken,
+        liveTelegramChatId
       };
 
       const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -69,7 +75,12 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
             template: cfg.template || '',
             discordWebhook: '',
             telegramBotToken: '',
-            telegramChatId: ''
+            telegramChatId: '',
+            hasLiveDiscord: !!cfg.liveDiscordWebhook,
+            hasLiveTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId),
+            liveDiscordWebhook: '',
+            liveTelegramBotToken: '',
+            liveTelegramChatId: ''
           },
           lastUpdated: new Date().toISOString()
         });
@@ -86,11 +97,405 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         template: status.config?.template || '',
         discordWebhook: '',
         telegramBotToken: '',
-        telegramChatId: ''
+        telegramChatId: '',
+        hasLiveDiscord: !!status.config?.hasLiveDiscord,
+        hasLiveTelegram: !!status.config?.hasLiveTelegram,
+        liveDiscordWebhook: '',
+        liveTelegramBotToken: '',
+        liveTelegramChatId: ''
       },
       lastUpdated: status.lastUpdated
     };
     res.json(sanitized);
+  });
+
+  function extractClaimIdFromUrl(url) {
+    try {
+      const u = new URL(url);
+      if (!/^https?:$/i.test(u.protocol)) return '';
+      if (!/^(www\.)?odysee\.com$/i.test(u.hostname)) return '';
+
+      const parts = u.pathname.split('/').filter(Boolean);
+      const last = parts[parts.length - 1] || '';
+      const m = last.match(/:([a-z0-9]+)/i);
+      return m && m[1] ? m[1] : '';
+    } catch { return ''; }
+  }
+
+  app.post('/api/external-notifications/live/send', limiter, async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const schema = z.object({
+        title: z.string().max(150).optional(),
+        description: z.string().max(200).optional(),
+        channelUrl: z.string().url().optional(),
+        imageUrl: z.string().url().or(z.string().regex(/^\/(?:uploads\/live-announcements\/).+/)).optional(),
+        signature: z.string().max(80).optional(),
+        discordWebhook: z.string().url().optional(),
+        livePostClaimId: z.string().min(1).max(80).optional()
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
+      const payload = parsed.data;
+
+      try {
+        if (payload.livePostClaimId && payload.channelUrl) {
+          const fromUrl = extractClaimIdFromUrl(payload.channelUrl);
+          if (fromUrl) {
+            const a = String(payload.livePostClaimId).toLowerCase();
+            const b = String(fromUrl).toLowerCase();
+            const matches = a.startsWith(b) || b.startsWith(a);
+            if (!matches) return res.status(400).json({ success: false, error: 'claim_mismatch' });
+          }
+        }
+      } catch {}
+
+      let cfg = null;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        try { cfg = await store.get(ns, 'external-notifications-config', null); } catch {}
+      }
+      if (!cfg) {
+        const statusCfg = externalNotifications.getStatus()?.config || {};
+
+        cfg = {
+          ...statusCfg,
+          liveDiscordWebhook: externalNotifications.liveDiscordWebhook || '',
+          liveTelegramBotToken: externalNotifications.liveTelegramBotToken || '',
+          liveTelegramChatId: externalNotifications.liveTelegramChatId || ''
+        };
+      }
+
+      let draft = null;
+      if (store && ns) {
+        try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else {
+        try {
+          const fs = require('fs'); const path = require('path');
+          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+          if (fs.existsSync(file)) draft = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {}
+      }
+      if (!payload.discordWebhook && draft && typeof draft.discordWebhook === 'string' && draft.discordWebhook) {
+        payload.discordWebhook = draft.discordWebhook;
+      }
+
+      if (!(cfg.hasLiveDiscord || cfg.hasLiveTelegram || cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook)) {
+        return res.status(400).json({ success: false, error: 'no_live_channels_configured' });
+      }
+
+      try {
+        if (payload.imageUrl && /^\//.test(payload.imageUrl)) {
+          if (!/^\/uploads\/live-announcements\//.test(payload.imageUrl)) {
+            const base = `${req.protocol}://${req.get('host')}`;
+            payload.imageUrl = new URL(payload.imageUrl, base).toString();
+          }
+        }
+      } catch {}
+
+      const ok = await externalNotifications.sendLiveWithConfig(cfg, payload);
+      if (!ok) return res.json({ success: false, error: 'send_failed' });
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error sending live announcement:', e);
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.post('/api/external-notifications/live/test', limiter, async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const schema = z.object({
+        title: z.string().max(150).optional(),
+        description: z.string().max(200).optional(),
+        channelUrl: z.string().url().optional(),
+        imageUrl: z.string().url().or(z.string().regex(/^\/(?:uploads\/live-announcements\/).+/)).optional(),
+        signature: z.string().max(80).optional(),
+        discordWebhook: z.string().url().optional(),
+        livePostClaimId: z.string().min(1).max(80).optional()
+      });
+      const parsed = schema.safeParse(req.body || {});
+      let payload = parsed.success ? parsed.data : {};
+
+      let draft = null;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else {
+        try {
+          const fs = require('fs'); const path = require('path');
+          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+          if (fs.existsSync(file)) draft = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {}
+      }
+      payload = {
+        title: (`[TEST] ${payload.title || draft?.title || 'Live notification'}`).slice(0,150),
+        description: (payload.description || draft?.description || 'This is a test live notification to verify configuration.').slice(0,200),
+        channelUrl: payload.channelUrl || draft?.channelUrl || undefined,
+        signature: payload.signature || draft?.signature || undefined,
+        discordWebhook: payload.discordWebhook || draft?.discordWebhook || undefined,
+        imageUrl: payload.imageUrl || undefined,
+        livePostClaimId: payload.livePostClaimId || draft?.livePostClaimId || undefined
+      };
+
+      try {
+        if (payload.livePostClaimId && payload.channelUrl) {
+          const fromUrl = extractClaimIdFromUrl(payload.channelUrl);
+          if (fromUrl) {
+            const a = String(payload.livePostClaimId).toLowerCase();
+            const b = String(fromUrl).toLowerCase();
+            const matches = a.startsWith(b) || b.startsWith(a);
+            if (!matches) return res.status(400).json({ success: false, error: 'claim_mismatch' });
+          }
+        }
+      } catch {}
+      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+
+      let cfg = null;
+      if (store && ns) {
+        try { cfg = await store.get(ns, 'external-notifications-config', null); } catch {}
+      }
+      if (!cfg) {
+        const statusCfg = externalNotifications.getStatus()?.config || {};
+        cfg = {
+          ...statusCfg,
+          liveDiscordWebhook: externalNotifications.liveDiscordWebhook || '',
+          liveTelegramBotToken: externalNotifications.liveTelegramBotToken || '',
+          liveTelegramChatId: externalNotifications.liveTelegramChatId || ''
+        };
+      }
+
+      try {
+        if (payload.imageUrl && /^\//.test(payload.imageUrl)) {
+          if (!/^\/uploads\/live-announcements\//.test(payload.imageUrl)) {
+            const base = `${req.protocol}://${req.get('host')}`;
+            payload.imageUrl = new URL(payload.imageUrl, base).toString();
+          }
+        }
+      } catch {}
+
+      const ok = await externalNotifications.sendLiveWithConfig(cfg, payload);
+      if (!ok) return res.json({ success: false, error: 'send_failed' });
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error sending live test announcement:', e);
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.post('/api/external-notifications/live/config', limiter, async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const shouldRequireSession = requireSessionFlag || hosted;
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const schema = z.object({
+        title: z.string().max(150).optional(),
+        description: z.string().max(200).optional(),
+        channelUrl: z.string().url().optional(),
+        imageUrl: z.string().url().or(z.string().regex(/^\/(?:uploads\/live-announcements\/).+/)).optional(),
+        signature: z.string().max(80).optional(),
+        discordWebhook: z.string().url().optional(),
+        auto: z.boolean().optional(),
+        livePostClaimId: z.string().min(1).max(80).optional()
+      });
+      const parsed = schema.safeParse(req.body || {});
+      if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
+      const data = parsed.data || {};
+
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (store && ns) {
+        await store.set(ns, 'live-announcement-draft', data);
+
+        try {
+          if (store.redis && typeof data.auto === 'boolean') {
+            const SET_KEY = 'getty:auto-live:namespaces';
+            if (data.auto) {
+              await store.redis.sadd(SET_KEY, ns);
+            } else {
+              await store.redis.srem(SET_KEY, ns);
+            }
+          }
+        } catch {}
+      } else {
+        const fs = require('fs'); const path = require('path');
+        const cfgDir = path.join(process.cwd(), 'config');
+        const file = path.join(cfgDir, 'live-announcement-config.json');
+        if (!fs.existsSync(cfgDir)) fs.mkdirSync(cfgDir, { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(data, null, 2));
+      }
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error saving live draft:', e);
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.get('/api/external-notifications/live/config', async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const shouldRequireSession = requireSessionFlag || hosted;
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const hostedWithRedis = !!process.env.REDIS_URL;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let draft = null;
+      if (store && ns) {
+        try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      }
+      if (!draft) {
+        try {
+          const fs = require('fs'); const path = require('path');
+          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+          if (fs.existsSync(file)) draft = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {}
+      }
+      if (!draft) draft = {};
+      const sanitized = {
+        title: draft.title || '',
+        description: draft.description || '',
+        channelUrl: draft.channelUrl || '',
+        imageUrl: draft.imageUrl || '',
+        signature: draft.signature || '',
+        discordWebhook: (hostedWithRedis ? '' : (draft.discordWebhook || '')),
+        hasDiscordOverride: !!draft.discordWebhook,
+        auto: !!draft.auto,
+        livePostClaimId: typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : ''
+      };
+      res.json({ success: true, config: sanitized });
+  } catch {
+      res.json({ success: true, config: { title:'', description:'', channelUrl:'', imageUrl:'', signature:'', discordWebhook:'', hasDiscordOverride:false } });
+    }
+  });
+
+  app.post('/api/external-notifications/live/upload', async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const multer = require('multer');
+      const fs = require('fs');
+      const path = require('path');
+      const { imageSize } = require('image-size');
+      const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'live-announcements');
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const storage = multer.diskStorage({
+        destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+        filename: (_req, file, cb) => {
+          const ext = path.extname(file.originalname).toLowerCase();
+          const base = `live-${Date.now()}${ext}`;
+          cb(null, base);
+        }
+      });
+      const upload = multer({
+        storage,
+        limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+        fileFilter: (_req, file, cb) => {
+          const ok = /^image\/(png|jpe?g|webp)$/i.test(file.mimetype);
+          cb(ok ? null : new Error('invalid_type'), ok);
+        }
+      }).single('image');
+
+      upload(req, res, (err) => {
+        if (err) return res.status(400).json({ success: false, error: String(err.message || err) });
+        if (!req.file) return res.status(400).json({ success: false, error: 'no_file' });
+        try {
+          const filePath = path.join(UPLOAD_DIR, req.file.filename);
+          const dim = imageSize(filePath);
+          if (!dim || !dim.width || !dim.height) throw new Error('invalid_image');
+          if (dim.width > 1920 || dim.height > 1080) {
+            try { fs.unlinkSync(filePath); } catch {}
+            return res.status(400).json({ success: false, error: 'too_large_dimensions' });
+          }
+          const url = `/uploads/live-announcements/${req.file.filename}`;
+          res.json({ success: true, url, width: dim.width, height: dim.height });
+        } catch {
+          return res.status(400).json({ success: false, error: 'invalid_image' });
+        }
+      });
+    } catch {
+      res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.get('/api/external-notifications/live/og', async (req, res) => {
+    try {
+      const url = String(req.query.url || '').trim();
+      if (!url) return res.status(400).json({ error: 'missing_url' });
+      const u = new URL(url);
+      const allowedHosts = new Set(['odysee.com','www.odysee.com']);
+      if (!allowedHosts.has(u.hostname)) return res.status(400).json({ error: 'host_not_allowed' });
+      const axios = require('axios');
+      const r = await axios.get(url, { timeout: 5000 });
+      const html = String(r.data || '');
+      const matchFirst = (patterns) => {
+        for (const pattern of patterns) {
+          const mm = html.match(pattern);
+          if (mm && mm[1]) return mm[1];
+        }
+        return '';
+      };
+      const imgRaw = matchFirst([
+        /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+        /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image:secure_url["'][^>]*>/i,
+        /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+        /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["'][^>]*>/i,
+        /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+        /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["'][^>]*>/i,
+        /<meta[^>]+name=["']twitter:player:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+        /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:player:image["'][^>]*>/i
+      ]);
+      let img = imgRaw || '';
+      if (img && !/^https?:\/\//i.test(img)) {
+        img = `${u.origin}${img.startsWith('/') ? '' : '/'}${img}`;
+      }
+      const imgHost = img ? (new URL(img)).hostname : '';
+      const allowedImgHosts = new Set(['thumbs.odycdn.com','thumbnails.odycdn.com','static.odycdn.com','odysee.com','www.odysee.com']);
+      if (!img || !allowedImgHosts.has(imgHost)) return res.json({ ok: true, imageUrl: null });
+      res.json({ ok: true, imageUrl: img });
+    } catch {
+      res.json({ ok: true, imageUrl: null });
+    }
+  });
+
+  app.get('/api/external-notifications/live/resolve', async (req, res) => {
+    try {
+      const claimId = String(req.query.claimId || '').trim();
+      if (!claimId) return res.status(400).json({ ok: false, error: 'missing_claim' });
+      const axios = require('axios');
+      const r = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', {
+        method: 'claim_search',
+        params: { claim_ids: [claimId], no_totals: true, page: 1, page_size: 1 }
+      }, { timeout: 7000 });
+      const list = r?.data?.result?.items || r?.data?.data?.result?.items || [];
+      if (!Array.isArray(list) || !list.length) return res.json({ ok: false, url: null });
+      const it = list[0] || {};
+      const lbry = it.canonical_url || it.permanent_url || '';
+      if (!/^lbry:\/\//.test(lbry)) return res.json({ ok: false, url: null });
+      const web = 'https://odysee.com/' + lbry.replace(/^lbry:\/\//,'').replace(/#/g, ':');
+      res.json({ ok: true, url: web });
+    } catch {
+      res.json({ ok: false, url: null });
+    }
   });
 }
 
