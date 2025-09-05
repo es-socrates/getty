@@ -75,6 +75,11 @@ try {
 } catch {}
 const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
 try { app.set('store', store); } catch {}
+try {
+  if (process.env.REDIS_URL && !store.redis && process.env.NODE_ENV !== 'test') {
+    console.warn('[hosted] REDIS_URL is set but Redis client is not initialized. Check network/VPC/credentials.');
+  }
+} catch {}
 
 try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
 
