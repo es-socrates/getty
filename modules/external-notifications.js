@@ -19,6 +19,7 @@ class ExternalNotifications {
         this.discordWebhook = process.env.DISCORD_WEBHOOK || '';
         this.telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '';
         this.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
+
         this.liveDiscordWebhook = process.env.LIVE_DISCORD_WEBHOOK || '';
         this.liveTelegramBotToken = process.env.LIVE_TELEGRAM_BOT_TOKEN || '';
         this.liveTelegramChatId = process.env.LIVE_TELEGRAM_CHAT_ID || '';
@@ -440,13 +441,21 @@ class ExternalNotifications {
                 const jsonPayload = { username: 'getty', content: channelUrl || '', embeds };
                 fd.append('payload_json', JSON.stringify(jsonPayload));
                 fd.append('files[0]', fs.createReadStream(filePath), { filename: fileName, contentType: mime });
-                const res = await axios.post(webhook, fd, { headers: fd.getHeaders(), timeout: 12000, maxBodyLength: Infinity });
-                return res.status < 400;
+                const res = await axios.post(webhook, fd, { headers: fd.getHeaders(), timeout: 12000, maxBodyLength: Infinity, validateStatus: () => true });
+                if (res.status >= 400) {
+                    console.error('[ExternalNotifications] Live Discord multipart error:', res.status, res.data && (res.data.message || JSON.stringify(res.data)).slice(0,200));
+                    return false;
+                }
+                return true;
             }
 
             const body = { username: 'getty', content: channelUrl || '', embeds };
-            const res = await axios.post(webhook, body, { headers: { 'Content-Type': 'application/json' }, timeout: 7000 });
-            return res.status < 400;
+            const res = await axios.post(webhook, body, { headers: { 'Content-Type': 'application/json' }, timeout: 7000, validateStatus: () => true });
+            if (res.status >= 400) {
+                console.error('[ExternalNotifications] Live Discord JSON error:', res.status, res.data && (res.data.message || JSON.stringify(res.data)).slice(0,200));
+                return false;
+            }
+            return true;
         } catch (e) {
             console.error('[ExternalNotifications] Live Discord error:', e.message);
             return false;
@@ -459,7 +468,6 @@ class ExternalNotifications {
         if (!token || !chatId) return false;
         try {
             const { title, description, channelUrl, imageUrl, signature } = payload;
-
             const textParts = [
                 title ? `<b>${escapeHtml(title.slice(0,150))}</b>` : '<b>We are live on Odysee! 🎬</b>',
                 description ? `${escapeHtml(description.slice(0,200))}` : '',
