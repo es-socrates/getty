@@ -156,28 +156,54 @@ const ADMIN_COOKIE = 'getty_admin_token';
 const PUBLIC_COOKIE = 'getty_public_token';
 const SECURE_COOKIE = () => (process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production');
 
-app.use((req, _res, next) => {
+app.use(async (req, res, next) => {
   try {
-    const admin = req.cookies?.[ADMIN_COOKIE] || null;
-    const pub = req.cookies?.[PUBLIC_COOKIE] || null;
-    let nsAdmin = admin || null;
-    let nsPub = pub || null;
+    let nsAdmin = req.cookies?.[ADMIN_COOKIE] || null;
+    let nsPub = req.cookies?.[PUBLIC_COOKIE] || null;
 
+    const auth = typeof req.headers?.authorization === 'string' ? req.headers.authorization : '';
+    let bearerToken = '';
     try {
-      const qToken = typeof req.query?.token === 'string' ? req.query.token : null;
-      if (!nsAdmin && !nsPub && qToken) {
-        nsPub = qToken;
-
-        if (store && store.redis) {
-          store.get(qToken, 'adminToken', null).then((adm) => {
-            if (adm && !nsAdmin) {
-              req.ns = { admin: adm, pub: nsPub };
-            }
-          }).catch(() => {});
-        }
+      if (auth) {
+        const [scheme, value] = auth.split(' ');
+        if (scheme && /^Bearer$/i.test(scheme) && value) bearerToken = value.trim();
       }
     } catch {}
-    req.ns = { admin: nsAdmin, pub: nsPub };
+
+    const qToken = (typeof req.query?.token === 'string' && req.query.token.trim()) ? req.query.token.trim() : '';
+    const incomingToken = qToken || bearerToken;
+
+    if (incomingToken) {
+      nsPub = incomingToken;
+      try {
+        if (store) {
+          const adm = await store.get(incomingToken, 'adminToken', null);
+          if (adm) nsAdmin = adm;
+        }
+      } catch {}
+    } else if (!nsAdmin && nsPub && store) {
+
+      try {
+        const adm = await store.get(nsPub, 'adminToken', null);
+        if (adm) nsAdmin = adm;
+      } catch {}
+    }
+
+    req.ns = { admin: nsAdmin || null, pub: nsPub || null };
+
+    try {
+      if (incomingToken) {
+        const cookieOpts = {
+          httpOnly: true,
+          sameSite: 'Lax',
+          secure: SECURE_COOKIE(),
+          path: '/',
+          maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
+        };
+        res.cookie(PUBLIC_COOKIE, incomingToken, cookieOpts);
+        if (nsAdmin) res.cookie(ADMIN_COOKIE, nsAdmin, cookieOpts);
+      }
+    } catch {}
   } catch { req.ns = { admin: null, pub: null }; }
   next();
 });
@@ -268,7 +294,6 @@ app.get('/api/ar-price', async (_req, res) => {
     res.status(500).json({ error: 'failed_to_fetch_price' });
   }
 });
-
 const __hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
 if (!__hostedMode) try {
   const DATA_DIR = path.join(process.cwd(), 'data');
@@ -279,7 +304,7 @@ if (!__hostedMode) try {
   async function recordHistoryEvent(isLive) {
     try {
       const hist = (function load() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return { segments: [], samples: [] }; }
+        try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return { segments: [], samples: [] }; }
       })();
       const now = Date.now();
       const last = hist.segments[hist.segments.length - 1];
@@ -296,9 +321,9 @@ if (!__hostedMode) try {
       try {
         const cutoff = Date.now() - 400 * 86400000;
         hist.segments = hist.segments.filter(s => (s.end || s.start) >= cutoff);
-  if (!Array.isArray(hist.samples)) hist.samples = [];
-  hist.samples = hist.samples.filter(s => s.ts >= cutoff);
-  if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
+        if (!Array.isArray(hist.samples)) hist.samples = [];
+        hist.samples = hist.samples.filter(s => s.ts >= cutoff);
+        if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
       } catch {}
       fs.writeFileSync(DATA_FILE, JSON.stringify(hist, null, 2));
     } catch {}
@@ -350,12 +375,10 @@ if (!__hostedMode) try {
 
         try {
           if (nowLive === true && prev === false) {
-
             const cfgPath = path.join(process.cwd(), 'config', 'live-announcement-config.json');
             let draft = null;
             try { if (fs.existsSync(cfgPath)) draft = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch {}
             if (draft && draft.auto) {
-
               const payload = {
                 title: typeof draft.title === 'string' ? draft.title : undefined,
                 description: typeof draft.description === 'string' ? draft.description : undefined,
@@ -363,7 +386,6 @@ if (!__hostedMode) try {
                 signature: typeof draft.signature === 'string' ? draft.signature : undefined,
                 discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined
               };
-
               Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
 
               try {
@@ -374,7 +396,6 @@ if (!__hostedMode) try {
                   liveTelegramBotToken: externalNotifications?.liveTelegramBotToken || '',
                   liveTelegramChatId: externalNotifications?.liveTelegramChatId || ''
                 };
-
                 const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
                 if (hasAny) {
                   try { await externalNotifications.sendLiveWithConfig(cfg, payload); } catch {}
