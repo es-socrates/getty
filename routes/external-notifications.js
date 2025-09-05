@@ -527,7 +527,21 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const lastPoll = await store.redis.hget(LAST_POLL_KEY, ns);
       const draft = await store.get(ns, 'live-announcement-draft', null);
       const ext = await store.get(ns, 'external-notifications-config', null);
-      res.json({ ok: true, ns, autoEnabled: !!draft?.auto, registered: inSet === 1 || inSet === true, lastPoll: lastPoll ? Number(lastPoll) : null, hasDiscord: !!(ext?.liveDiscordWebhook), hasTelegram: !!(ext?.liveTelegramBotToken && ext?.liveTelegramChatId) });
+      const hasDiscord = !!(ext?.liveDiscordWebhook);
+      const hasTelegram = !!(ext?.liveTelegramBotToken && ext?.liveTelegramChatId);
+      const hasDiscordOverride = !!(draft && typeof draft.discordWebhook === 'string' && draft.discordWebhook.trim());
+      const hasAnyLiveTarget = !!(hasDiscord || hasTelegram || hasDiscordOverride);
+      res.json({
+        ok: true,
+        ns,
+        autoEnabled: !!draft?.auto,
+        registered: inSet === 1 || inSet === true,
+        lastPoll: lastPoll ? Number(lastPoll) : null,
+        hasDiscord,
+        hasTelegram,
+        hasDiscordOverride,
+        hasAnyLiveTarget
+      });
     } catch (e) {
       res.json({ ok: false, error: e?.message || String(e) });
     }
