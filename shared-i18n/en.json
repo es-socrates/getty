@@ -105,8 +105,6 @@
   "liveChatSettings": "Live Chat Settings",
   "chatUrl": "ClaimID of the live stream on Odysee:",
   "chatWidgetUrl": "Chat Widget URL:",
-  "externalServices": "External Services",
-  "externalNotifications": "External Notifications",
   "discordWebhook": "Discord Webhook URL:",
   "telegramBotToken": "Telegram Bot Token:",
   "telegramChatId": "Telegram Chat ID:",
@@ -432,5 +430,8 @@
   "liveClaimIdResolveOk": "URL filled from ClaimID",
   "liveClaimIdResolveFail": "Couldn't resolve URL from ClaimID",
   "resolving": "Resolving...",
-  "liveDiscordOverrideHint": "Optional: send this post to a specific Discord channel."
+  "liveDiscordOverrideHint": "Optional: send this post to a specific Discord channel.",
+  "tokenTipsTitle": "About your session tokens",
+  "tokenTipsBody": "Use the admin token only inside the admin panel. Share the public token with OBS widgets if you want others to see overlays without control access. In hosted mode, tokens isolate your data and real time updates.",
+  "settingsTitle": "Settings"
 }

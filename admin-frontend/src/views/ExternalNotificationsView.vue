@@ -1,5 +1,15 @@
 <template>
   <div class="mb-4">
+    <Alert>
+      <Rocket class="h-5 w-5 alert-icon" />
+      <div class="flex-1">
+        <AlertTitle class="mb-0.5">{{ t('externalNotificationsTitle') }}</AlertTitle>
+        <AlertDescription>{{ t('integrationsIntro') }}</AlertDescription>
+      </div>
+    </Alert>
+  </div>
+
+  <div class="mb-4">
     <div v-if="showObsBanner" class="relative p-3 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex items-start gap-3">
       <span class="icon os-icon" aria-hidden="true">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -50,6 +60,8 @@
   </div>
 </template>
 <script setup>
+import { Rocket } from 'lucide-vue-next';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import ExternalNotificationsPanel from '../components/ExternalNotificationsPanel.vue';
 import LiveAnnouncementPanel from '../components/LiveAnnouncementPanel.vue';
 import { useI18n } from 'vue-i18n';

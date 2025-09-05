@@ -264,15 +264,17 @@ class ExternalNotifications {
 
             return true;
         } catch (e) {
-            console.error('Failed to send to Discord:', {
-                error: e.message,
-                tipData: {
-                    from: tipData.from,
-                    amount: tipData.amount,
-                    source: tipData.source
-                },
-                stack: e.stack
-            });
+            if (!IS_TEST) {
+                console.error('Failed to send to Discord:', {
+                    error: e.message,
+                    tipData: {
+                        from: tipData.from,
+                        amount: tipData.amount,
+                        source: tipData.source
+                    },
+                    stack: e.stack
+                });
+            }
             return false;
         }
     }
@@ -296,7 +298,7 @@ class ExternalNotifications {
             
             return true;
         } catch (e) {
-            console.error('[ExternalNotifications] Telegram error:', e.message);
+            if (!IS_TEST) console.error('[ExternalNotifications] Telegram error:', e.message);
             return false;
         }
     }
