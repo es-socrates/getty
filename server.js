@@ -70,7 +70,41 @@ let redisClient = null;
 try {
   if (process.env.REDIS_URL) {
     const Redis = require('ioredis');
-    redisClient = new Redis(process.env.REDIS_URL);
+    const url = process.env.REDIS_URL;
+    let isTls = /^rediss:\/\//i.test(url);
+    try {
+      const parsed = new URL(url);
+      if (/\.upstash\.io$/i.test(parsed.hostname)) isTls = true;
+    } catch {}
+    const redisOpts = {
+      tls: isTls ? {} : undefined,
+      enableReadyCheck: false,
+      lazyConnect: true,
+      maxRetriesPerRequest: null,
+      retryStrategy(times) { return Math.min(1000 * Math.pow(2, times), 15000); },
+      reconnectOnError: () => true,
+      connectTimeout: 10000,
+      keepAlive: 15000,
+      noDelay: true
+    };
+    try { console.info('[redis] initializing client', { tls: !!redisOpts.tls, lazy: !!redisOpts.lazyConnect }); } catch {}
+    redisClient = new Redis(url, redisOpts);
+
+    try {
+      redisClient.on('error', (err) => {
+        try { console.warn('[redis] error:', err?.message || String(err)); } catch {}
+      });
+      redisClient.on('end', () => { try { console.warn('[redis] connection ended'); } catch {} });
+      redisClient.on('reconnecting', (delay) => { try { console.warn('[redis] reconnecting in', delay, 'ms'); } catch {} });
+      redisClient.on('ready', () => { try { console.info('[redis] ready'); } catch {} });
+      redisClient.on('connect', () => { try { console.info('[redis] connect'); } catch {} });
+    } catch {}
+
+    try {
+      redisClient.connect().catch((e) => {
+        try { console.warn('[redis] initial connect failed:', e?.message || String(e)); } catch {}
+      });
+    } catch {}
   }
 } catch {}
 const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
