@@ -104,9 +104,7 @@
   "ttsHint": "Habilitar o deshabilitar texto a voz para notificaciones de propinas",
   "liveChatSettings": "Configuración de chat en vivo",
   "chatUrl": "ClaimID del directo en Odysee:",
-  "chatWidgetUrl": "URL del widget de chat:",
-  "externalServices": "Servicios externos",
-  "externalNotifications": "Notificaciones externas",
+  "chatWidgetUrl": "URL del widget de chat:",  
   "discordWebhook": "URL del webhook de Discord:",
   "telegramBotToken": "Token del bot de Telegram:",
   "telegramChatId": "ID del chat de Telegram:",
@@ -432,5 +430,8 @@
   "liveClaimIdResolveOk": "URL completada desde ClaimID",
   "liveClaimIdResolveFail": "No se pudo resolver la URL desde ClaimID",
   "resolving": "Resolviendo...",
-  "liveDiscordOverrideHint": "Opcional: enviar este post a un canal específico de Discord."
+  "liveDiscordOverrideHint": "Opcional: enviar este post a un canal específico de Discord.",
+  "tokenTipsTitle": "Sobre tus tokens de sesión",
+  "tokenTipsBody": "Usa el token de administrador solo dentro del panel. Comparte el token público con los widgets de OBS si quieres que otros vean overlays sin acceso de control. En modo hosted, los tokens aíslan tus datos y actualizaciones en tiempo real.",
+  "settingsTitle": "Ajustes"
 }

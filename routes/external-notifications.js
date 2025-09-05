@@ -531,6 +531,23 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const hasTelegram = !!(ext?.liveTelegramBotToken && ext?.liveTelegramChatId);
       const hasDiscordOverride = !!(draft && typeof draft.discordWebhook === 'string' && draft.discordWebhook.trim());
       const hasAnyLiveTarget = !!(hasDiscord || hasTelegram || hasDiscordOverride);
+
+      const imageUrl = (draft && typeof draft.imageUrl === 'string' && draft.imageUrl.trim()) ? draft.imageUrl.trim() : '';
+      const channelUrl = (draft && typeof draft.channelUrl === 'string' && draft.channelUrl.trim()) ? draft.channelUrl.trim() : '';
+      const hasImageUrl = !!imageUrl;
+      const ogCandidate = (() => {
+        try { const u = new URL(channelUrl); return /^https?:$/i.test(u.protocol) && /^(www\.)?odysee\.com$/i.test(u.hostname); } catch { return false; }
+      })();
+      const claimFromUrl = channelUrl ? extractClaimIdFromUrl(channelUrl) : '';
+      const livePostClaimId = (draft && typeof draft.livePostClaimId === 'string' && draft.livePostClaimId.trim()) ? draft.livePostClaimId.trim() : '';
+      const claimMatch = (function() {
+        try {
+          if (!livePostClaimId || !claimFromUrl) return null;
+          const a = livePostClaimId.toLowerCase();
+          const b = claimFromUrl.toLowerCase();
+          return a.startsWith(b) || b.startsWith(a);
+        } catch { return null; }
+      })();
       res.json({
         ok: true,
         ns,
@@ -540,7 +557,13 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         hasDiscord,
         hasTelegram,
         hasDiscordOverride,
-        hasAnyLiveTarget
+        hasAnyLiveTarget,
+        hasImageUrl,
+        imageUrl,
+        ogCandidate,
+        livePostClaimId,
+        claimFromUrl,
+        claimMatch
       });
     } catch (e) {
       res.json({ ok: false, error: e?.message || String(e) });
