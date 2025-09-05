@@ -985,7 +985,6 @@ const goalAudioUpload = multer({
 
 registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE, { store });
 
-registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter);
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerTipNotificationGifRoutes(app, strictLimiter);
