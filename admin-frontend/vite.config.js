@@ -3,14 +3,28 @@ import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+let appVersion = 'dev';
+try {
+  const rootPkgPath = path.resolve(__dirname, '..', 'package.json');
+  const pkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'));
+  appVersion = pkg.version || 'dev';
+} catch {
+  // ignore version read errors
+}
 
 export default defineConfig({
   plugins: [vue()],
   root: __dirname,
   base: '/admin/',
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion)
+  },
+  envPrefix: 'VITE_',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src')

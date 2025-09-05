@@ -9,6 +9,7 @@
     </div>
 
     <OsCard>
+      <div class="mb-2 font-semibold">{{ t('tipNotificationsTitle') }}</div>
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
         <div class="input-group">

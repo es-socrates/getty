@@ -101,6 +101,15 @@ Español
         role="navigation"
         aria-label="Primary"
       >
+        <div class="px-3 pt-3 pb-2">
+          <div class="flex items-center gap-2">
+            <img :src="sidebarIcon" alt="getty" class="w-7 h-7 rounded" />
+            <div class="flex flex-col gap-0.5 leading-none" v-if="!sidebarCollapsed">
+              <span class="font-semibold">{{ t('administration') }}</span>
+              <span class="text-xs opacity-80">v{{ appVersion }}</span>
+            </div>
+          </div>
+        </div>
         <button
           class="sidebar-toggle-btn"
           @click="toggleSidebar"
@@ -308,6 +317,43 @@ Español
   <div class="admin-overlay md:hidden" @click="setMobileSidebar(false)"></div>
       <main class="admin-main flex-1 min-w-0" id="main" tabindex="-1" role="main">
         <RouterView />
+
+  <footer class="mt-10 pt-6 border-t border-border text-xs text-[var(--text-secondary)]" role="contentinfo">
+          <div class="flex justify-end">
+            <nav class="flex items-center gap-3" aria-label="Footer">
+              <a :href="privacyUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 hover:text-[var(--text-primary)]">
+                <span class="w-4 h-4 inline-flex items-center justify-center" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="6" y="11" width="12" height="9" rx="2" />
+                    <path d="M9 11V7a3 3 0 0 1 6 0v4" />
+                  </svg>
+                </span>
+                <span>{{ t('footerPrivacy') }}</span>
+              </a>
+              <a :href="githubUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 hover:text-[var(--text-primary)]">
+                <span class="w-4 h-4 inline-flex items-center justify-center" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M12 .5C5.73.5.98 5.24.98 11.5c0 4.84 3.14 8.94 7.49 10.39.55.1.75-.24.75-.53 0-.26-.01-1.13-.02-2.05-3.05.66-3.7-1.3-3.7-1.3-.5-1.27-1.22-1.61-1.22-1.61-.99-.68.08-.67.08-.67 1.1.08 1.68 1.13 1.68 1.13.97 1.67 2.54 1.19 3.15.91.1-.7.38-1.19.69-1.46-2.43-.28-4.98-1.22-4.98-5.43 0-1.2.43-2.18 1.13-2.95-.11-.28-.49-1.42.11-2.95 0 0 .93-.3 3.05 1.13a10.6 10.6 0 0 1 5.56 0c2.12-1.43 3.05-1.13 3.05-1.13.6 1.53.22 2.67.11 2.95.7.77 1.13 1.75 1.13 2.95 0 4.22-2.56 5.14-5 5.42.39.33.74.98.74 1.98 0 1.43-.01 2.58-.01 2.93 0 .29.2.64.75.53 4.35-1.45 7.49-5.55 7.49-10.39C23.02 5.24 18.27.5 12 .5Z" />
+                  </svg>
+                </span>
+                <span>{{ t('footerGithub') }}</span>
+              </a>
+              <a :href="xUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 hover:text-[var(--text-primary)]">
+                <span class="w-4 h-4 inline-flex items-center justify-center" aria-hidden="true">
+                  <svg viewBox="0 0 1024 1024" width="16" height="16">
+                    <g fill="none" fill-rule="evenodd" stroke="none" stroke-width="1" transform="translate(112 112)">
+                      <path class="footer-x-bg" d="M711.111 800H88.89C39.8 800 0 760.2 0 711.111V88.89C0 39.8 39.8 0 88.889 0H711.11C760.2 0 800 39.8 800 88.889V711.11C800 760.2 760.2 800 711.111 800" />
+                      <path class="footer-x-fg" fill-rule="nonzero" d="M628 623H484.942L174 179h143.058zm-126.012-37.651h56.96L300.013 216.65h-56.96z" />
+                      <path class="footer-x-fg" fill-rule="nonzero" d="M219.296885 623 379 437.732409 358.114212 410 174 623z" />
+                      <path class="footer-x-fg" fill-rule="nonzero" d="M409 348.387347 429.212986 377 603 177 558.330417 177z" />
+                    </g>
+                  </svg>
+                </span>
+                <span>{{ t('footerX') }}</span>
+              </a>
+            </nav>
+          </div>
+        </footer>
       </main>
     </div>
     <ToastHost />
@@ -323,6 +369,12 @@ import { anyDirty } from './composables/useDirtyRegistry';
 import ToastHost from './components/shared/ToastHost.vue';
 const logoLight = 'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ';
 const logoDark = 'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak';
+
+const sidebarIcon = '/favicon.ico';
+const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
+const privacyUrl = import.meta.env.VITE_PRIVACY_URL || 'https://getty.sh/privacy';
+const githubUrl = import.meta.env.VITE_GITHUB_URL || 'https://github.com/es-socrates/getty';
+const xUrl = import.meta.env.VITE_X_URL || 'https://x.com/getty_sh';
 
 const { locale, t } = useI18n();
 const route = useRoute();
@@ -511,4 +563,9 @@ html.dark .logo-light {
 html.dark .logo-dark {
   display: none;
 }
+
+.footer-x-bg { fill: #000; }
+.footer-x-fg { fill: #fff; }
+html.dark .footer-x-bg { fill: #fff; }
+html.dark .footer-x-fg { fill: #000; }
 </style>

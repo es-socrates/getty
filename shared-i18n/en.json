@@ -433,5 +433,9 @@
   "liveDiscordOverrideHint": "Optional: send this post to a specific Discord channel.",
   "tokenTipsTitle": "About your session tokens",
   "tokenTipsBody": "Use the admin token only inside the admin panel. Share the public token with OBS widgets if you want others to see overlays without control access. In hosted mode, tokens isolate your data and real time updates.",
-  "settingsTitle": "Settings"
+  "settingsTitle": "Settings",
+  "administration": "Administration",
+  "footerPrivacy": "Privacy Policy",
+  "footerGithub": "",
+  "footerX": ""
 }
