@@ -23,6 +23,7 @@ body {
   height: 100vh;
   overflow-y: auto;
   scrollbar-width: none;
+  border-radius: 6px;
 }
 
 #chat-container::-webkit-scrollbar {

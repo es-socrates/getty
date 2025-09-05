@@ -323,9 +323,8 @@ Español
             <nav class="flex items-center gap-3" aria-label="Footer">
               <a :href="privacyUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 hover:text-[var(--text-primary)]">
                 <span class="w-4 h-4 inline-flex items-center justify-center" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="6" y="11" width="12" height="9" rx="2" />
-                    <path d="M9 11V7a3 3 0 0 1 6 0v4" />
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
                   </svg>
                 </span>
                 <span>{{ t('footerPrivacy') }}</span>

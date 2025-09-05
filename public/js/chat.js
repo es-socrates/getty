@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         /* Donation message background comes from base CSS/theme; no override here */
                         /* Keep donation chip base styles unless Admin defines --donation-text */
                         .message-donation { ${textVar && textVar !== DEFAULT_TEXT ? 'color: var(--donation-text) !important;' : ''} }
-                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#0f1419')} !important; }
+                        #chat-container { background: ${chatColors.bgColor === 'transparent' ? 'transparent' : (chatColors.bgColor || '#080c10')} !important; }
                     `;
 
                     const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);

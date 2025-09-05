@@ -274,26 +274,38 @@ class TipGoalModule {
 
             let newDonations = false;
             let totalNewAR = 0;
+
+            const skipRecount = initialLoad && this.currentTipsAR > 0;
+            if (skipRecount) {
+                console.log('[TipGoal] Initial load: avoiding re-summing historical transactions (currentTipsAR=%s).', this.currentTipsAR);
+            }
+            let latestTs = this.lastDonationTimestamp || 0;
             
             for (const tx of txs) {
                 if (!tx.id || this.processedTxs.has(tx.id)) continue;
-                
                 if (tx.target === this.walletAddress && tx.amount > 0) {
                     const amount = parseFloat(tx.amount);
                     this.processedTxs.add(tx.id);
-                    
-                    console.log(`💰 New transaction: ${amount} AR`, {
-                        from: tx.owner.slice(0, 6) + '...',
-                        txId: tx.id.slice(0, 8) + '...',
-                        timestamp: tx.timestamp ? new Date(tx.timestamp * 1000).toISOString() : 'pending',
-                        source: tx.source || 'unknown'
-                    });
-                    
-                    this.currentTipsAR += amount;
-                    totalNewAR += amount;
-                    this.lastDonationTimestamp = tx.timestamp || Math.floor(Date.now() / 1000);
-                    newDonations = true;
+                    const tsIso = tx.timestamp ? new Date(tx.timestamp * 1000).toISOString() : 'pending';
+                    if (!skipRecount) {
+                        console.log(`💰 New transaction: ${amount} AR`, {
+                            from: tx.owner.slice(0, 6) + '...',
+                            txId: tx.id.slice(0, 8) + '...',
+                            timestamp: tsIso,
+                            source: tx.source || 'unknown'
+                        });
+                        this.currentTipsAR += amount;
+                        totalNewAR += amount;
+                        this.lastDonationTimestamp = tx.timestamp || Math.floor(Date.now() / 1000);
+                        latestTs = Math.max(latestTs, this.lastDonationTimestamp);
+                        newDonations = true;
+                    } else {
+                        if (tx.timestamp) latestTs = Math.max(latestTs, tx.timestamp);
+                    }
                 }
+            }
+            if (skipRecount && latestTs && !this.lastDonationTimestamp) {
+                this.lastDonationTimestamp = latestTs;
             }
 
             if (newDonations) {
@@ -381,7 +393,6 @@ class TipGoalModule {
     }
     
     updateWalletAddress(newAddress) {
-
         if (newAddress === this.walletAddress) {
             return this.getStatus();
         }
