@@ -436,6 +436,8 @@
   "settingsTitle": "Settings",
   "administration": "Administration",
   "footerPrivacy": "Privacy Policy",
-  "footerGithub": "",
-  "footerX": ""
+  "footerTerms": "Terms",
+  "footerSite": "Website",
+  "footerGithub": "GitHub",
+  "footerX": "X"
 }

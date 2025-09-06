@@ -66,6 +66,32 @@ const app = express();
 const cookieParser = require('cookie-parser');
 const { NamespacedStore } = require('./lib/store');
 
+const __LOG_LEVEL = (process.env.GETTY_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug')).toLowerCase();
+const __levelRank = { debug: 10, info: 20, warn: 30, error: 40, silent: 50 };
+function __allow(level) {
+  return (__levelRank[level] || 999) >= (__levelRank[__LOG_LEVEL] || 0) && __LOG_LEVEL !== 'silent';
+}
+
+if (!__allow('debug')) { try { console.debug = () => {}; } catch {} }
+if (__LOG_LEVEL === 'silent') {
+  try { console.info = () => {}; } catch {}
+  try { console.warn = () => {}; } catch {}
+}
+
+function anonymizeIp(ip) {
+  try {
+    if (!ip) return '';
+    ip = ip.replace(/^::ffff:/, '');
+    if (ip.includes(':')) {
+      const parts = ip.split(':').filter(Boolean);
+      return parts.slice(0, 3).join(':') + '::';
+    }
+    const segs = ip.split('.');
+    if (segs.length === 4) { segs[3] = '0'; return segs.join('.'); }
+    return ip;
+  } catch { return ''; }
+}
+
 let redisClient = null;
 try {
   if (process.env.REDIS_URL) {
@@ -175,7 +201,23 @@ try { app.use(express.json({ limit: '1mb' })); } catch {}
 try { app.use(express.urlencoded({ extended: true, limit: '1mb' })); } catch {}
 try { app.use(cookieParser()); } catch {}
 try { app.use(compression()); } catch {}
-try { if (process.env.NODE_ENV !== 'test') app.use(morgan('dev')); } catch {}
+
+try {
+  morgan.token('anonip', (req) => anonymizeIp(req.ip || req.connection?.remoteAddress || ''));
+  const logFormat = process.env.GETTY_LOG_FORMAT || ':method :url :status :res[content-length] - :response-time ms :anonip';
+  if (process.env.NODE_ENV !== 'test' && __allow('info')) {
+    app.use(morgan(logFormat, {
+      skip: () => __LOG_LEVEL === 'silent'
+    }));
+  }
+} catch {}
+
+try {
+  app.use((req, _res, next) => {
+    try { req.anonymizedIp = anonymizeIp(req.ip || req.connection?.remoteAddress || ''); } catch { req.anonymizedIp = ''; }
+    next();
+  });
+} catch {}
 
 try {
   app.use((req, res, next) => {
