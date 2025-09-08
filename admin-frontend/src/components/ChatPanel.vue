@@ -110,6 +110,20 @@
       </div>
     </OsCard>
     <OsCard class="mt-4" :title="t('testMessages') || 'Test messages'">
+      <div class="flex flex-wrap items-center gap-2 mb-3 text-xs" aria-live="polite">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[var(--card-border)] bg-[var(--bg-chat)]">
+          <strong>AR</strong>
+          <span v-if="price.loading">…</span>
+          <span v-else>{{ price.usd.toFixed(4) }} USD</span>
+        </span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[var(--card-border)] bg-[var(--bg-chat)]" :title="'Tried: ' + price.providersTried.join(', ')">
+          <span>{{ price.source }}</span>
+          <span v-if="price.ageSeconds >= 0">({{ price.ageSeconds.toFixed(0) }}s)</span>
+        </span>
+        <button type="button" class="btn btn-sm" style="padding:2px 8px" @click="refreshPrice" :disabled="price.refreshing">{{ price.refreshing ? (t('refreshing')||'Refreshing…') : (t('refresh')||'Refresh') }}</button>
+        <span v-if="price.isFallback" class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-600/40">Fallback</span>
+        <span v-else-if="price.isStale" class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-600/40">Stale</span>
+      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div class="form-group">
           <label class="label">{{ t('username') || 'Username' }}</label>
@@ -345,4 +359,26 @@ async function sendTest(kind) {
     testKind.value = '';
   }
 }
+
+const price = reactive({ usd: 0, source: 'none', ageSeconds: 0, providersTried: [], loading: true, refreshing: false, isFallback: false, isStale: false });
+
+async function fetchPrice(force=false) {
+  try {
+    if (force) price.refreshing = true; else price.loading = true;
+    const { data } = await api.get(`/api/ar-price${force ? '?force=1' : ''}`);
+    price.usd = Number(data?.arweave?.usd || 0);
+    price.source = data?.source || 'unknown';
+    price.ageSeconds = Number(data?.ageSeconds || 0);
+    price.providersTried = Array.isArray(data?.providersTried) ? data.providersTried : [];
+    price.isFallback = /fallback/.test(price.source);
+    price.isStale = !price.isFallback && price.ageSeconds > 90;
+  } catch {
+    price.source = 'error';
+  } finally {
+    price.loading = false; price.refreshing = false;
+  }
+}
+function refreshPrice(){ fetchPrice(true); }
+
+onMounted(() => { fetchPrice(false); const id = setInterval(()=>fetchPrice(false), 60000); try { onUnmounted(()=>clearInterval(id)); } catch {}; });
 </script>
