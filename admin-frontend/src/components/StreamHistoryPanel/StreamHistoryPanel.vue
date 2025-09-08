@@ -371,6 +371,18 @@
         <button
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
+          :aria-pressed="showViewers ? 'true' : 'false'"
+          :class="showViewers ? 'ring-1 ring-[var(--card-border)]' : ''"
+          @click="toggleShowViewers"
+          :title="showViewers ? 'Hide viewers' : 'Show viewers'">
+          <span
+            class="inline-block w-2.5 h-2.5 rounded-full"
+            style="background: var(--viewers-line-color, #e11d48)"></span>
+          <span>{{ showViewers ? 'Viewers: on' : 'Viewers: off' }}</span>
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
           :aria-pressed="mode === 'line' ? 'true' : 'false'"
           :class="mode === 'line' ? 'ring-1 ring-[var(--card-border)]' : ''"
           @click="mode = 'line'">
@@ -559,6 +571,8 @@ const {
   confirmClear,
   showClaimChangeModal,
   confirmClearAfterClaimChange,
+  showViewers,
+  toggleShowViewers,
 } = state;
 </script>
 <style scoped src="./StreamHistoryPanel.css"></style>

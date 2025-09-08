@@ -75,19 +75,51 @@ function aggregate(hist, period = 'day', span = 30) {
     };
     for (let i = span - 1; i >= 0; i--) {
       const dayStart = todayStart - i * 86400000;
-
-      buckets.push({ key: dayStart, label: fmtLocalYMD(dayStart), ms: 0 });
+      buckets.push({ key: dayStart, label: fmtLocalYMD(dayStart), ms: 0, vsec: 0, lsec: 0 });
     }
-    for (const seg of hist.segments) {
-      const s = seg.start;
-      const e = seg.end || Date.now();
-      if (e < buckets[0].key || s > buckets[buckets.length - 1].key + 86400000) continue;
-      for (const part of splitSpanByDay(s, e)) {
-        const idx = buckets.findIndex(b => b.key === part.day);
-        if (idx !== -1) buckets[idx].ms += part.ms;
+
+    const bmap = new Map();
+    for (const b of buckets) bmap.set(b.key, b);
+    const rangeStart = buckets[0]?.key ?? todayStart;
+    const rangeEnd = (buckets[buckets.length - 1]?.key ?? todayStart) + 86400000;
+
+    for (const seg of hist.segments || []) {
+      const s = Number(seg.start);
+      const e = Number(seg.end || Date.now());
+      if (!isFinite(s) || !isFinite(e)) continue;
+      if (e < rangeStart || s > rangeEnd) continue;
+      for (const part of splitSpanByDay(Math.max(s, rangeStart), Math.min(e, rangeEnd))) {
+        const b = bmap.get(part.day);
+        if (b) b.ms += Math.max(0, part.ms);
       }
     }
-    return buckets.map(b => ({ date: b.label, hours: +(b.ms / 3600000).toFixed(2) }));
+
+    try {
+      const samples = Array.isArray(hist.samples) ? hist.samples : [];
+      for (let i = 0; i < samples.length; i++) {
+        const cur = samples[i];
+        const next = samples[i + 1] || null;
+        const t0 = Math.max(rangeStart, Number(cur?.ts || 0));
+        const t1 = Math.min(rangeEnd, Number(next ? next.ts : Date.now()));
+        if (!(isFinite(t0) && isFinite(t1)) || t1 <= t0) continue;
+        if (cur && cur.live) {
+          const v = Math.max(0, Number(cur.viewers || 0));
+          for (const part of splitSpanByDay(t0, t1)) {
+            const b = bmap.get(part.day);
+            if (b) {
+              const sec = Math.max(0, part.ms / 1000);
+              b.vsec += v * sec;
+              b.lsec += sec;
+            }
+          }
+        }
+      }
+    } catch {}
+    return buckets.map(b => ({
+      date: b.label,
+      hours: +(b.ms / 3600000).toFixed(2),
+      avgViewers: b.lsec > 0 ? +(b.vsec / b.lsec).toFixed(2) : 0,
+    }));
   }
 
   const daily = aggregate(hist, 'day', span * (period === 'week' ? 7 : period === 'month' ? 30 : 365));
@@ -111,9 +143,21 @@ function aggregate(hist, period = 'day', span = 30) {
     if (period === 'week') key = weekKey(item.date);
     else if (period === 'month') key = monthKey(item.date);
     else key = yearKey(item.date);
-    map.set(key, (map.get(key) || 0) + item.hours);
+    const cur = map.get(key) || { hours: 0, vsec: 0, lsec: 0 };
+    cur.hours += Number(item.hours || 0);
+
+    const inferredLsec = Math.max(0, Number(item.hours || 0)) * 3600;
+    if (inferredLsec > 0 && isFinite(Number(item.avgViewers || 0))) {
+      cur.vsec += Number(item.avgViewers) * inferredLsec;
+      cur.lsec += inferredLsec;
+    }
+    map.set(key, cur);
   }
-  const arr = Array.from(map.entries()).map(([k, v]) => ({ date: k, hours: +v.toFixed(2) }));
+  const arr = Array.from(map.entries()).map(([k, agg]) => ({
+    date: k,
+    hours: +Number(agg.hours || 0).toFixed(2),
+    avgViewers: agg.lsec > 0 ? +Number(agg.vsec / agg.lsec).toFixed(2) : 0,
+  }));
   arr.sort((a, b) => a.date.localeCompare(b.date));
 
   return arr.slice(-span);

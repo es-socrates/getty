@@ -2,7 +2,7 @@ import { ref, computed, watch } from 'vue';
 import axios from 'axios';
 
 export const metrics = ref({});
-export const hist = ref({ rpm: [], heap: [], bandwidth: [], chat: [], tips: [], ws: [], latency: [] });
+export const hist = ref({ rpm: [], heap: [], bandwidth: [], chat: [], tips: [], ws: [], latency: [], views: [] });
 export const deltas = ref({ rpm: null, heap: null, bandwidth: null, chat: null, ws: null });
 
 const MAX_CAP = 240;
@@ -63,6 +63,7 @@ async function refresh(){
     push(hist.value.tips, +(m.tips?.rate?.perMin?.ar ?? 0));
     push(hist.value.ws, +(m.system?.wsClients ?? 0));
     push(hist.value.latency, +((m.latency?.ms ?? m.system?.latencyMs ?? 0)));
+    push(hist.value.views, +(m.liveviews?.viewerCount ?? 0));
 
     deltas.value = {
       rpm: deltaFromArr(hist.value.rpm),

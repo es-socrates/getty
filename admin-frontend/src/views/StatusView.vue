@@ -280,7 +280,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue';
-import ActivityPanel from '../components/ActivityPanel.vue';
+import ActivityPanel from '../components/ActivityPanel';
 import MetricsPanel from '../components/MetricsPanel.vue';
 import StreamHistoryPanel from '../components/StreamHistoryPanel/StreamHistoryPanel.vue';
 import { pushToast } from '../services/toast';

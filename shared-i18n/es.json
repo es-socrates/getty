@@ -435,13 +435,13 @@
   "tokenTipsTitle": "Sobre tus tokens de sesión",
   "tokenTipsBody": "Usa el token de administrador solo dentro del panel. Comparte el token público con los widgets de OBS si quieres que otros vean overlays sin acceso de control. En modo hosted, los tokens aíslan tus datos y actualizaciones en tiempo real.",
   "settingsTitle": "Ajustes",
-  "administration": "Administración",
+  "administration": "Panel de control",
   "footerPrivacy": "Política de Privacidad",
   "footerTerms": "Términos",
   "footerSite": "Sitio",
   "footerGithub": "GitHub",
-  "footerX": "X"
-  ,"chatThemeCustomize": "Constructor personalizado:",
+  "footerX": "X",
+  "chatThemeCustomize": "Constructor personalizado:",
   "chatThemeEditing": "Editando…",
   "saveSizeVariant": "Guardar variante de tamaños",
   "chatFontUsername": "Usuario px",
@@ -456,8 +456,8 @@
   "commonClose": "Cerrar",
   "chatThemeSaved": "Tema guardado",
   "chatThemeSaveError": "No se pudo guardar el tema",
-  "chatThemeNameRequired": "Nombre requerido"
-  ,"chatThemeDefaults": "Temas por defecto",
+  "chatThemeNameRequired": "Nombre requerido",
+  "chatThemeDefaults": "Temas por defecto",
   "chatThemeCustom": "Temas personalizados",
   "chatThemeCustomHint": "Los temas personalizados (★) son los que creas o editas.",
   "duplicateTheme": "Duplicar",
@@ -469,15 +469,15 @@
   "revertSizes": "Revertir tamaños",
   "revertSizesDone": "Tamaños revertidos",
   "revertSizesFail": "No se pudo revertir",
-  "updatedBadge": "Actualizado"
-  ,"themeSearchPlaceholder": "Buscar",
+  "updatedBadge": "Actualizado",
+  "themeSearchPlaceholder": "Buscar",
   "themeOrderRecent": "Recientes",
   "themeOrderAlpha": "A→Z",
   "diffThemes": "Diff",
   "diffModalTitle": "Comparar temas (Diff)",
   "diffSideBySide": "Lado a lado",
-  "diffNoChanges": "Sin diferencias / selecciona temas"
-  ,"exportThemes": "Exportar",
+  "diffNoChanges": "Sin diferencias / selecciona temas",
+  "exportThemes": "Exportar",
   "importThemes": "Importar",
   "exportModalTitle": "Exportar temas JSON",
   "exportModalHint": "Copia este JSON para respaldar o compartir tus temas personalizados.",
@@ -492,12 +492,12 @@
   "importApply": "Importar",
   "importSuccess": "Importación completada",
   "importFail": "Importación fallida (JSON inválido)",
-  "importPlaceholder": "[{\"name\":\"Mi Tema\",\"css\":\".message { color: red; }\"}]"
-  ,"importDropHint": "Arrastra un archivo .json aquí",
+  "importPlaceholder": "[{\"name\":\"Mi Tema\",\"css\":\".message { color: red; }\"}]",
+  "importDropHint": "Arrastra un archivo .json aquí",
   "importTooMany": "Demasiados temas (máx 200)",
   "importNameTooLong": "Nombre de tema demasiado largo omitido",
   "importNoValid": "No hay entradas válidas",
   "importFileType": "No es un archivo JSON",
-  "importFileTooLarge": "Archivo demasiado grande (máx 200KB)"
-  ,"importHintAltJson": "Consejo: Mantén Alt (Option) al hacer clic en Importar para pegar JSON en lugar de seleccionar un archivo."
+  "importFileTooLarge": "Archivo demasiado grande (máx 200KB)",
+  "importHintAltJson": "Consejo: Mantén Alt (Option) al hacer clic en Importar para pegar JSON en lugar de seleccionar un archivo."
 }

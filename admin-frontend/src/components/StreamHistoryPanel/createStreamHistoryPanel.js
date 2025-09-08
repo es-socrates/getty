@@ -30,6 +30,7 @@ export function createStreamHistoryPanel(t) {
   const overlayCollapsed = ref(false);
   const OVERLAY_KEY = 'streamHistory.overlayCollapsed';
   const EARNINGS_HIDE_KEY = 'streamHistory.earningsHidden';
+  const showViewers = ref(true);
   const totalAR = ref(0);
   const arUsd = ref(null);
   const earningsHidden = ref(false);
@@ -205,8 +206,20 @@ export function createStreamHistoryPanel(t) {
   watch(span, (s) => { if ([7,14,30,90,180,365].includes(Number(s))) filterQuickSpan.value = Number(s); });
   watch(overlayCollapsed, (v) => { try { localStorage.setItem(OVERLAY_KEY, v ? '1':'0'); } catch {} });
   watch(earningsHidden, (v) => { try { localStorage.setItem(EARNINGS_HIDE_KEY, v ? '1':'0'); } catch {} });
+  watch(showViewers, () => { try { renderChart(lastSummaryData.value || []); } catch {} });
 
-  function renderChart(data) { try { renderStreamHistoryChart(chartEl.value, data, { mode: mode.value, period: period.value }); } catch {} }
+  function renderChart(data) {
+    try {
+      renderStreamHistoryChart(chartEl.value, data, {
+        mode: mode.value,
+        period: period.value,
+        showViewers: !!showViewers.value,
+        smoothWindow: 5,
+      });
+    } catch {}
+  }
+
+  function toggleShowViewers() { showViewers.value = !showViewers.value; }
 
   async function backfill(hours) {
     try { await axios.post('/api/stream-history/backfill-current', { hours }); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryBackfilled') }); } catch {} }
@@ -244,10 +257,10 @@ export function createStreamHistoryPanel(t) {
   return {
     chartEl, period, span, mode, filterQuick, filterQuickSpan, claimid, saving, showClearModal,
     showClaimChangeModal, clearBusy, perf, status, overlayCollapsed, totalAR, arUsd, earningsHidden,
-    menuOpen, overlayMenuEl, showBackfill, lastSummaryData, initialClaimid,
+    menuOpen, overlayMenuEl, showBackfill, lastSummaryData, initialClaimid, showViewers,
     saveConfig, refresh, onQuickFilterChange, onQuickRangeChange, clearHistory, confirmClear,
     confirmClearAfterClaimChange, downloadExport, onImport, toggleMenu, onBackfillClick,
-    onBackfillDismiss, toggleEarningsHidden, backfill,
+    onBackfillDismiss, toggleEarningsHidden, backfill, toggleShowViewers,
     fmtHours: formatHours, fmtTotal: formatTotalHours, usdFromAr,
   };
 }

@@ -69,7 +69,7 @@ const adminExtra = {
     streamHistoryImported: 'Imported history',
     streamHistoryImportFailed: 'Import failed',
     streamHistoryClaimChangeClearConfirm: 'ClaimID changed. Clear the existing chart history to start fresh? You can Export first to keep a backup.',
-    activity: 'Activity',
+    activity: 'Live analytics',
     tipNotificationsTitle: 'Tip notifications'
   },
   es: {
@@ -136,7 +136,7 @@ const adminExtra = {
     streamHistoryImported: 'Historial importado',
     streamHistoryImportFailed: 'Error al importar',
     streamHistoryClaimChangeClearConfirm: 'El ClaimID cambió. ¿Limpiar el historial de la gráfica para empezar de cero? Puedes Exportar antes para hacer un respaldo.',
-    activity: 'Actividad',
+    activity: 'Analíticas de directos',
     tipNotificationsTitle: 'Notificaciones de propinas'
   }
 };
