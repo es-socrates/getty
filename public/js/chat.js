@@ -535,6 +535,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             styleTag.id = 'chat-theme-style';
             document.head.appendChild(styleTag);
         }
+
         styleTag.textContent = themeCSS;
         if (chatContainer) {
             chatContainer.classList.add('theme-active');
@@ -568,10 +569,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     : CYBERPUNK_PALETTE.map((p, i) => `\n.message-username.cyberpunk.cp-${i + 1} { color: ${p.text} !important; background: ${p.bg} !important; text-shadow: 0 0 8px ${p.border} !important; }`).join('');
 
                                 const finalCss = serverCSS + extraCss + (donationOverrideCss ? `\n${donationOverrideCss}` : '');
-                if (finalCss !== lastThemeCSS) {
-                    lastThemeCSS = finalCss;
-                    applyChatTheme(finalCss, isLightTheme);
-                }
+                                if (finalCss !== lastThemeCSS) {
+                                        lastThemeCSS = finalCss;
+                                        applyChatTheme(finalCss, isLightTheme);
+                                }
+
+                                try {
+                                    const localAuto = (localStorage.getItem('chatLiveThemeCSS') || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+                                    if (localAuto && !/AUTO_FONT_SIZES_START/.test(finalCss)) {
+                                        const merged = finalCss + '\n' + localAuto[0];
+                                        if (merged !== lastThemeCSS) {
+                                            lastThemeCSS = merged;
+                                            applyChatTheme(merged, isLightTheme);
+                                        }
+                                    }
+                                } catch {}
 
                 const messages = chatContainer ? chatContainer.querySelectorAll('.message') : [];
                 messages.forEach((messageEl) => {
@@ -594,11 +606,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (chatContainer) chatContainer.classList.remove('theme-light');
 
                 const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
-                if (local && local !== lastThemeCSS) {
-                    lastThemeCSS = local;
-                    isLightTheme = local.includes('--text: #1f2328');
-                    applyChatTheme(local, isLightTheme);
-                } else {
+                                if (local && local !== lastThemeCSS) {
+
+                                        const sizeBlock = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+                                        let combined = local;
+                                        if (sizeBlock && !/AUTO_FONT_SIZES_START/.test(local)) {
+                                            combined = local + '\n' + sizeBlock[0];
+                                        }
+                                        lastThemeCSS = combined;
+                                        isLightTheme = combined.includes('--text: #1f2328');
+                                        applyChatTheme(combined, isLightTheme);
+                                } else {
                     await loadColors();
 
                     const DEFAULT_BG = '#131313';
@@ -638,15 +656,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetchAndApplyTheme();
     setInterval(fetchAndApplyTheme, 15000);
 
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'chatLiveThemeCSS') {
-            if (serverHasTheme) return;
-            const local = e.newValue || '';
-            if (local !== lastThemeCSS) {
-                lastThemeCSS = local;
-                applyChatTheme(local);
-            }
+    try {
+        const initialVars = (localStorage.getItem('chatLiveThemeVars') || '').trim();
+        if (initialVars) {
+            let tag = document.getElementById('chat-theme-size-vars');
+            if (!tag) { tag = document.createElement('style'); tag.id = 'chat-theme-size-vars'; document.head.appendChild(tag); }
+            tag.textContent = /}\s*$/.test(initialVars) ? initialVars : (initialVars + '}');
         }
+    } catch {/* ignore */}
+
+    window.addEventListener('storage', function(e) {
+        if (e.key !== 'chatLiveThemeCSS') return;
+        if (serverHasTheme) return;
+        const local = (e.newValue || '').trim();
+        if (!local) return;
+
+        const sizeBlockMatch = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+        let finalCss = local;
+        if (!sizeBlockMatch) {
+            const existing = (lastThemeCSS || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+            if (existing) finalCss += '\n' + existing[0];
+        }
+        if (finalCss !== lastThemeCSS) {
+            lastThemeCSS = finalCss;
+            const isLight = finalCss.includes('--text: #1f2328') || finalCss.includes('--text: #111');
+            applyChatTheme(finalCss, isLight);
+        }
+    });
+
+    window.addEventListener('storage', function(e) {
+        if (e.key !== 'chatLiveThemeVars') return;
+        if (serverHasTheme) return;
+        const vars = (e.newValue || '').trim();
+        if (!vars) return;
+        let tag = document.getElementById('chat-theme-size-vars');
+        if (!tag) { tag = document.createElement('style'); tag.id = 'chat-theme-size-vars'; document.head.appendChild(tag); }
+        tag.textContent = /}\s*$/.test(vars) ? vars : (vars + '}');
     });
 });
 

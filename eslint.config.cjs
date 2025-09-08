@@ -68,6 +68,7 @@ module.exports = [
         'vue/html-self-closing': 'off',
         'vue/html-indent': 'off',
         'vue/singleline-html-element-content-newline': 'off',
+        'vue/html-closing-bracket-newline': 'off',
         'vue/attributes-order': 'off',
         'no-console': ['warn', { allow: ['warn','error'] }],
         'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^e$|^err$', varsIgnorePattern: '^(MAX_TITLE_LEN|e)$' }],
@@ -85,7 +86,7 @@ module.exports = [
     languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs' },
     rules: {
       'no-console': 'off',
-  'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^e$|^err$', varsIgnorePattern: '^(z|SETTINGS_FILE|saveAudioSettings|Logger|error|err|e|clientsNotified|WebSocket)$' }],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^e$|^err$', varsIgnorePattern: '^(z|SETTINGS_FILE|saveAudioSettings|Logger|error|err|e|clientsNotified|WebSocket)$' }],
       'no-empty': ['error', { allowEmptyCatch: true }]
     }
   }
