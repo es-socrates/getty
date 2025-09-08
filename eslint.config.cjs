@@ -60,6 +60,27 @@ module.exports = [
     }
   },
   {
+    files: ['jest.setup.js', 'tests/mocks/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        require: 'readonly',
+        module: 'readonly',
+        __dirname: 'readonly',
+        process: 'readonly',
+        jest: 'readonly',
+        afterAll: 'readonly',
+        beforeAll: 'readonly',
+        Buffer: 'readonly',
+        setImmediate: 'readonly'
+      }
+    },
+    rules: {
+      'no-undef': 'off'
+    }
+  },
+  {
     files: ['admin-frontend/src/**/*.{js,vue}'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
     rules: {

@@ -14,7 +14,7 @@ function formatTotalHours(h) {
   const v = Number(h || 0);
   if (v >= 24) return (v / 24).toFixed(v / 24 >= 10 ? 0 : 1) + ' d';
   if (v >= 10) return Math.round(v) + ' h';
-  if (v >= 1) return v.toFixed(1) + ' h';
+  if (v >= 1) return (Number.isInteger(v) ? v : v.toFixed(1)) + ' h';
   return v.toFixed(2) + ' h';
 }
 
@@ -30,7 +30,7 @@ function buildDisplayData(source) {
   let i = 0;
   while (i < arr.length && (!arr[i] || !arr[i].hours || arr[i].hours === 0)) i++;
   if (i === 0) return arr;
-  if (i >= arr.length) return arr; // all zeros
+  if (i >= arr.length) return arr;
   const trimmed = arr.slice(i);
   const removed = i;
   const display = [...trimmed];
