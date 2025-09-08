@@ -1109,10 +1109,21 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
     if (!donationOnly && credits < 0) credits = 0;
     const avatar = (typeof body.avatar === 'string' && body.avatar.trim()) ? body.avatar.trim() : undefined;
 
-    const chatMsg = {
+  let rateObj = null;
+  try { rateObj = await getArUsdCached(false); } catch {}
+  const rate = (rateObj && rateObj.usd) ? rateObj.usd : 5;
+  const isTip = credits > 0;
+  const usdAmount = isTip ? credits : 0;
+  const arAmount = isTip ? (usdAmount / (rate || 5)) : 0;
+  const chatMsg = {
       channelTitle: username,
       message: text,
       credits,
+      creditsIsUsd: isTip,
+      isChatTip: isTip,
+      usdAmount: isTip ? Number(usdAmount.toFixed(2)) : undefined,
+      arAmount: isTip ? Number(arAmount.toFixed(6)) : undefined,
+      rateUsed: isTip ? rate : undefined,
       ...(avatar ? { avatar } : {}),
       timestamp: new Date().toISOString()
     };

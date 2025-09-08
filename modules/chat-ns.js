@@ -185,6 +185,8 @@ class ChatNsManager {
         channelTitle: titleFromApi || comment.channel_name || 'Anonymous',
         message: comment.comment,
         credits: comment.support_amount || 0,
+        creditsIsUsd: true,
+        isChatTip: (comment.support_amount || 0) > 0,
         avatar: avatarUrl,
         timestamp: comment.timestamp || Date.now(),
         userId: comment.channel_id || comment.channel_claim_id || comment.channel_name,
@@ -237,7 +239,9 @@ class ChatNsManager {
           amount: chatMessage.credits,
           message: chatMessage.message || '',
           source: 'chat',
-          timestamp: chatMessage.timestamp || new Date().toISOString()
+          timestamp: chatMessage.timestamp || new Date().toISOString(),
+          creditsIsUsd: true,
+          isChatTip: true
         };
         try {
           if (this.wss && typeof this.wss.emit === 'function') this.wss.emit('tip', tipData, ns);

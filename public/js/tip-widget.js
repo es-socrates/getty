@@ -355,15 +355,35 @@ async function showDonationNotification(data) {
     notification.style.display = 'none';
     void notification.offsetWidth;
 
-    await updateExchangeRate();
+    if (!(typeof data.usdAmount === 'number' && typeof data.arAmount === 'number')) {
+        await updateExchangeRate();
+    } else {
+        if (!AR_TO_USD && data.arAmount > 0) {
+            AR_TO_USD = data.usdAmount / data.arAmount;
+        }
+    }
     
     const formattedMessage = data.message ? formatText(data.message) : '';
-    const arAmount = parseFloat(data.amount || data.credits || 0).toLocaleString('en-US', {
-        minimumFractionDigits: 2, 
+    const isChatTipHeuristic = !!data.isChatTip && (data.amount === undefined || data.amount === null);
+    const creditsIsUsd = !!data.creditsIsUsd;
+    let rawAr = 0, rawUsd = 0;
+    if (typeof data.usdAmount === 'number' && typeof data.arAmount === 'number') {
+        rawUsd = data.usdAmount;
+        rawAr = data.arAmount;
+    } else if (isChatTipHeuristic || creditsIsUsd) {
+        rawUsd = parseFloat(data.credits || 0) || 0;
+        rawAr = AR_TO_USD > 0 ? (rawUsd / AR_TO_USD) : (rawUsd / 5);
+    } else {
+        rawAr = parseFloat(data.amount || data.credits || 0) || 0;
+        rawUsd = AR_TO_USD > 0 ? (rawAr * AR_TO_USD) : (rawAr * 5);
+    }
+
+    const arAmount = rawAr.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
         maximumFractionDigits: 6
     });
-    const usdAmount = (parseFloat(data.amount || data.credits || 0) * AR_TO_USD).toLocaleString('en-US', {
-        minimumFractionDigits: 2, 
+    const usdAmount = rawUsd.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
     
@@ -385,7 +405,7 @@ async function showDonationNotification(data) {
                 <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo!' : 'Tip Received. Woohoo!'}</div>
                 <div class="amount-container">
                     <span class="ar-amount">${arAmount} AR</span>
-                    <span class="usd-value">($${usdAmount} USD)</span>
+                    <span class="usd-value">($${usdAmount} USD${isChatTipHeuristic ? '' : ''})</span>
                 </div>
                 <div class="notification-from">
                     ${senderInfo} <span class="thank-you">👏</span>
