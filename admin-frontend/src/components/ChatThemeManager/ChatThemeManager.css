@@ -1,0 +1,295 @@
+.chat-theme-manager {
+  --ctm-text-light: #111;
+  --ctm-text-dark: #f1f5f9;
+  color: var(--ctm-text-light);
+}
+.dark .chat-theme-manager {
+  color: var(--ctm-text-dark);
+}
+
+body:not(.dark) .chat-theme-manager {
+  --text: #111;
+  --card-text: #111;
+}
+.dark .chat-theme-manager {
+  --text: #f1f5f9;
+  --card-text: #f1f5f9;
+}
+
+.chat-theme-manager {
+  --ctm-text-light: #111;
+  --ctm-text-dark: #f1f5f9;
+  --text: var(--ctm-text-light);
+  --card-text: var(--ctm-text-light);
+  color: var(--ctm-text-light);
+}
+.dark .chat-theme-manager {
+  --text: var(--ctm-text-dark);
+  --card-text: var(--ctm-text-dark);
+  color: var(--ctm-text-dark);
+}
+
+.chat-theme-manager .os-card-title,
+.chat-theme-manager h3,
+.chat-theme-manager h4,
+.chat-theme-manager label,
+.chat-theme-manager p,
+.chat-theme-manager small,
+.chat-theme-manager span.text-[11px],
+.chat-theme-manager .field-label,
+.chat-theme-manager .modal-title {
+  color: var(--text);
+}
+
+.dark
+  .chat-theme-manager
+  :where(h3, h4, label, summary, p, small, span.text-[11px]) {
+  color: var(--ctm-text-dark);
+}
+
+.dark .chat-theme-manager button.btn {
+  color: #fff;
+}
+
+body:not(.dark) .modal-overlay.ctm .modal-card {
+  color: #111;
+}
+.dark .modal-overlay.ctm .modal-card {
+  color: #f1f5f9;
+}
+
+.dark
+  .modal-overlay.ctm
+  .modal-card
+  :where(label, p, small, span, div, h1, h2, h3, h4) {
+  color: #f1f5f9;
+}
+
+body:not(.dark) .chat-theme-manager .message-username.cyberpunk {
+  color: inherit;
+}
+
+.badge-btn.badge-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+.badge-btn.badge-updated:focus-visible {
+  outline: 2px solid #334155;
+  outline-offset: 2px;
+}
+.preview-light .badge-btn.badge-updated {
+  background: #64748b !important;
+  color: #fff !important;
+}
+
+.chat-theme-preview {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.chat-theme-preview .message {
+  font-family: "Inter", system-ui, sans-serif;
+}
+.chat-theme-preview .message-username {
+  margin-right: 0.5rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 1rem;
+}
+.modal-card {
+  background: var(--bg-card, #fff);
+  color: var(--text, #111);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 1rem 1.25rem 1.25rem;
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.35);
+  width: 100%;
+}
+.dark .modal-card {
+  background: var(--bg-card, #111);
+}
+.modal-title {
+  margin-bottom: 0.75rem;
+}
+.modal-actions {
+  justify-content: flex-end;
+}
+.badge-updated {
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.chat-theme-preview.preview-light {
+  background: #ffffff !important;
+  --bg-card: #ffffff;
+  color: #111;
+}
+.btn.btn-xs {
+  --btn-pad-y: 2px;
+  --btn-pad-x: 6px;
+  font-size: 11px;
+  padding: var(--btn-pad-y) var(--btn-pad-x);
+  line-height: 1.1;
+}
+.diff-container {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 6px;
+  background: var(--bg-card, #fff);
+}
+.dark .diff-container {
+  background: #1e293b;
+  border-color: #334155;
+}
+.diff-lines {
+  font-family: monospace;
+  font-size: 12px;
+}
+.diff-line {
+  display: flex;
+  align-items: flex-start;
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.dark .diff-line {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.diff-line:last-child {
+  border-bottom: 0;
+}
+.diff-gutter {
+  width: 14px;
+  display: inline-block;
+  opacity: 0.6;
+}
+.diff-line.type-add {
+  background: rgba(16, 185, 129, 0.12);
+}
+.diff-line.type-del {
+  background: rgba(239, 68, 68, 0.12);
+}
+.diff-line.type-eq {
+  opacity: 0.7;
+}
+.dark .diff-line.type-add {
+  background: rgba(16, 185, 129, 0.25);
+}
+.dark .diff-line.type-del {
+  background: rgba(239, 68, 68, 0.25);
+}
+.dark .diff-line.type-neutral {
+  background: rgba(148, 163, 184, 0.18);
+}
+.diff-code {
+  margin: 0;
+  font-family: inherit;
+  color: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  flex: 1;
+}
+
+.dark .chat-theme-manager .diff-lines,
+.dark .modal-overlay.ctm .diff-lines {
+  color: #f1f5f9;
+}
+.dark .chat-theme-manager .diff-code,
+.dark .modal-overlay.ctm .diff-code {
+  color: #f1f5f9;
+}
+.import-drop {
+  border: 1px dashed var(--card-border, #94a3b8);
+  padding: 10px;
+  text-align: center;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.import-drop.over {
+  background: rgba(99, 102, 241, 0.08);
+  border-color: #6366f1;
+}
+
+.diff-sbs {
+  display: flex;
+  gap: 12px;
+  max-height: 460px;
+  overflow: auto;
+}
+.diff-sbs-column {
+  flex: 1 1 50%;
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 6px;
+  background: var(--bg-card, #fff);
+  display: flex;
+  flex-direction: column;
+}
+.diff-sbs-title {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--card-border, #e2e8f0);
+  opacity: 0.7;
+}
+.diff-sbs-column .diff-line {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+.diff-line.type-neutral {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.copy-tooltip {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  transform: translateY(-100%);
+  background: #16a34a;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  animation: fadeInOut 1.4s ease forwards;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.9);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-100%) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.95);
+  }
+}

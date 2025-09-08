@@ -178,6 +178,86 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       res.status(500).json({ error: 'Internal server error', details: error.message });
     }
   });
+
+  const CHAT_CUSTOM_THEMES_FILE = path.join(process.cwd(), 'config', 'chat-custom-themes.json');
+
+  function sanitizeThemesArray(arr) {
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    const nameSet = new Set();
+    for (const raw of arr) {
+      if (!raw || typeof raw.name !== 'string' || typeof raw.css !== 'string') continue;
+      const name = raw.name.trim();
+      if (!name || name.length > 100) continue;
+      if (nameSet.has(name)) continue;
+      const css = raw.css.slice(0, 50000);
+      if (!css) continue;
+      const updatedAt = (typeof raw.updatedAt === 'number' && isFinite(raw.updatedAt)) ? raw.updatedAt : Date.now();
+      nameSet.add(name);
+      out.push({ name, css, updatedAt });
+      if (out.length >= 200) break;
+    }
+    return out;
+  }
+
+  async function loadStoredThemes(ns) {
+    try {
+      if (store && ns) {
+        const arr = await store.get(ns, 'chat-custom-themes', []);
+        return sanitizeThemesArray(arr);
+      }
+      if (fs.existsSync(CHAT_CUSTOM_THEMES_FILE)) {
+        const raw = JSON.parse(fs.readFileSync(CHAT_CUSTOM_THEMES_FILE, 'utf8'));
+        return sanitizeThemesArray(raw);
+      }
+    } catch { /* ignore */ }
+    return [];
+  }
+
+  async function saveStoredThemes(ns, themes) {
+    const sanitized = sanitizeThemesArray(themes);
+    try {
+      if (store && ns) {
+        await store.set(ns, 'chat-custom-themes', sanitized);
+      } else {
+        fs.writeFileSync(CHAT_CUSTOM_THEMES_FILE, JSON.stringify(sanitized, null, 2));
+      }
+    } catch { /* ignore */ }
+    return sanitized;
+  }
+
+  app.get('/api/chat-custom-themes', async (req, res) => {
+    try {
+      const shouldRequire = requireSessionFlag || hostedWithRedis;
+      const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
+      if (shouldRequire && !ns) return res.status(401).json({ error: 'session_required' });
+      const list = await loadStoredThemes( (store && ns && req.ns?.admin) ? req.ns.admin : null );
+      res.json({ themes: list, count: list.length });
+    } catch (e) {
+      res.status(500).json({ error: 'failed_to_load_custom_themes', details: e?.message });
+    }
+  });
+
+  app.post('/api/chat-custom-themes', limiter, async (req, res) => {
+    try {
+      const shouldRequire = requireSessionFlag || hostedWithRedis;
+      const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
+      if (shouldRequire && !ns) return res.status(401).json({ error: 'session_required' });
+      const payload = req.body || {};
+      const themes = Array.isArray(payload.themes) ? payload.themes : [];
+      if (themes.length > 500) {
+        return res.status(400).json({ error: 'too_many_themes' });
+      }
+      const sanitized = sanitizeThemesArray(themes);
+      if (sanitized.length !== themes.length && themes.length > 0 && sanitized.length === 0) {
+        return res.status(400).json({ error: 'invalid_payload' });
+      }
+      const saved = await saveStoredThemes( (store && ns && req.ns?.admin) ? req.ns.admin : null, sanitized );
+      res.json({ ok: true, count: saved.length });
+    } catch (e) {
+      res.status(500).json({ error: 'failed_to_save_custom_themes', details: e?.message });
+    }
+  });
 }
 
 module.exports = registerChatRoutes;
