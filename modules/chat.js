@@ -136,6 +136,8 @@ class ChatModule {
         channelTitle: channelTitle || comment.channel_name || 'Anonymous',
         message: comment.comment,
         credits: comment.support_amount || 0,
+        creditsIsUsd: true,
+        isChatTip: (comment.support_amount || 0) > 0,
         avatar: avatarUrl,
         timestamp: comment.timestamp || Date.now(),
         userId: comment.channel_id || comment.channel_claim_id || comment.channel_name,
@@ -242,7 +244,9 @@ class ChatModule {
                   amount: data.credits,
                   message: data.message || '',
                   source: 'chat',
-                  timestamp: data.timestamp || new Date().toISOString()
+                  timestamp: data.timestamp || new Date().toISOString(),
+                  creditsIsUsd: true,
+                  isChatTip: true
               };
 
               if (this.wss && typeof this.wss.emit === 'function') {

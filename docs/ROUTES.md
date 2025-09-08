@@ -30,6 +30,16 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 
 - GET `/api/external-notifications`
 - POST `/api/external-notifications` [RL]
+  Live (stream announcement) endpoints:
+- POST `/api/external-notifications/live/config` [RL] — Save draft (title, description, imageUrl, channelUrl, signature, discordWebhook override, auto, livePostClaimId)
+- GET `/api/external-notifications/live/config` — Gets draft (hides webhook override if hosted)
+- POST `/api/external-notifications/live/upload` — Upload image (multipart field `image`) max 2MB 1920x1080
+- POST `/api/external-notifications/live/send` [RL] — Send real Live announcement (uses override `discordWebhook` if present in payload or draft, otherwise use global liveDiscordWebhook / Telegram live)
+- POST `/api/external-notifications/live/test` [RL] — Send test announcement (prefix `[TEST]` to the title)
+- GET `/api/external-notifications/live/og?url=` — Extracts valid OG image from an Odysee URL (filters allowed hosts)
+- GET `/api/external-notifications/live/resolve?claimId=` — Resolves claimId to an Odysee web URL
+- GET `/api/external-notifications/live/diag` — Auto-live diagnostics (namespace, registration, overrides, claim matching)
+- POST `/api/external-notifications/live/clear-override` [RL] — Clears pointwise override (body optional `{ target: "discord"|"all" }`)
 
 ## Social Media — `routes/socialmedia.js`
 
@@ -165,5 +175,3 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/test-tip` [RL]
 - POST `/api/test-discord` [RL]
 - POST `/api/test-donation`
-
-# Notes

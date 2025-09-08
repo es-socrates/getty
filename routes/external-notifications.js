@@ -211,6 +211,17 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       } catch {}
 
       const ok = await externalNotifications.sendLiveWithConfig(cfg, payload);
+      try {
+        console.info('[live/send] result', {
+          ns,
+          ok,
+          usedWebhook: payload.discordWebhook ? 'override' : (cfg.liveDiscordWebhook ? 'global' : 'none'),
+          telegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId),
+          title: payload.title,
+          channelUrl: payload.channelUrl,
+          livePostClaimId: payload.livePostClaimId
+        });
+      } catch {}
       if (!ok) return res.json({ success: false, error: 'send_failed' });
       res.json({ success: true });
     } catch (e) {
@@ -297,6 +308,17 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       } catch {}
 
       const ok = await externalNotifications.sendLiveWithConfig(cfg, payload);
+      try {
+        console.info('[live/test] result', {
+          ns,
+          ok,
+          title: payload.title,
+          channelUrl: payload.channelUrl,
+          livePostClaimId: payload.livePostClaimId,
+          hasOverride: !!payload.discordWebhook,
+          hasGlobal: !!cfg.liveDiscordWebhook
+        });
+      } catch {}
       if (!ok) return res.json({ success: false, error: 'send_failed' });
       res.json({ success: true });
     } catch (e) {
@@ -567,6 +589,60 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       });
     } catch (e) {
       res.json({ ok: false, error: e?.message || String(e) });
+    }
+  });
+
+  app.post('/api/external-notifications/live/clear-override', limiter, async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const shouldRequireSession = requireSessionFlag || hosted;
+      if (shouldRequireSession) {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      const target = (req.body && typeof req.body.target === 'string') ? req.body.target.toLowerCase() : 'discord';
+      const allowed = new Set(['discord','all']);
+      if (!allowed.has(target)) return res.status(400).json({ success: false, error: 'invalid_target' });
+
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let draft = null;
+      if (store && ns) {
+        try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else {
+        try {
+          const fs = require('fs'); const path = require('path');
+            const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+            if (fs.existsSync(file)) draft = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {}
+      }
+      if (!draft) draft = {};
+
+      const removed = [];
+      if (target === 'discord' || target === 'all') {
+        if (draft.discordWebhook) removed.push('discordWebhook');
+        delete draft.discordWebhook;
+      }
+
+      if (store && ns) {
+        await store.set(ns, 'live-announcement-draft', draft);
+      } else {
+        try {
+          const fs = require('fs'); const path = require('path');
+          const cfgDir = path.join(process.cwd(), 'config');
+          const file = path.join(cfgDir, 'live-announcement-config.json');
+          if (!fs.existsSync(cfgDir)) fs.mkdirSync(cfgDir, { recursive: true });
+          fs.writeFileSync(file, JSON.stringify(draft, null, 2));
+        } catch {}
+      }
+
+      try {
+        console.info('[live/clear-override] cleared', { ns, target, removed });
+      } catch {}
+      return res.json({ success: true, removed });
+    } catch (e) {
+      console.error('[live/clear-override] error', e?.message || e);
+      res.status(500).json({ success: false, error: 'internal_error' });
     }
   });
 }
