@@ -328,16 +328,105 @@ const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
 
 const wss = new WebSocket.Server({ noServer: true });
 
-let __arPriceCache = { usd: 0, ts: 0, source: 'none' };
+let __arPriceCache = { usd: 0, ts: 0, source: 'none', providersTried: [] };
+let __arPriceFetchPromise = null;
 async function getArUsdCached(_force = false) {
   try {
-    if (process.env.NODE_ENV === 'test') return { usd: 0, ts: Date.now(), source: 'test' };
-    const now = Date.now();
-    if (!__arPriceCache.usd || (now - __arPriceCache.ts) > 10 * 60 * 1000) {
-      __arPriceCache = { usd: 5, ts: now, source: 'fallback' };
+    if (process.env.NODE_ENV === 'test') {
+      return { usd: 0, ts: Date.now(), source: 'test', providersTried: ['test'] };
     }
-    return __arPriceCache;
-  } catch { return { usd: 0, ts: Date.now(), source: 'error' }; }
+    const now = Date.now();
+    const MAX_AGE_MS = 60 * 1000;
+    if (!_force && __arPriceCache.usd > 0 && (now - __arPriceCache.ts) < MAX_AGE_MS) {
+      return __arPriceCache;
+    }
+
+    if (!__arPriceFetchPromise) {
+      __arPriceFetchPromise = (async () => {
+        const axios = require('axios');
+        const tried = [];
+        let price = 0; let source = 'none';
+
+        try {
+          tried.push('coingecko');
+          const r = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+            timeout: 3500,
+            params: { ids: 'arweave', vs_currencies: 'usd' }
+          });
+          const v = r?.data?.arweave?.usd;
+          if (typeof v === 'number' && v > 0) { price = v; source = 'coingecko'; }
+        } catch {}
+
+        if (!(price > 0)) {
+          try {
+            tried.push('kucoin');
+            const r = await axios.get('https://api.kucoin.com/api/v1/market/orderbook/level1', {
+              timeout: 3000,
+              params: { symbol: 'AR-USDT' }
+            });
+            const v = Number(r?.data?.data?.price);
+            if (v > 0) { price = v; source = 'kucoin'; }
+          } catch {}
+        }
+
+        if (!(price > 0)) {
+          try {
+            tried.push('coinpaprika');
+            const r = await axios.get('https://api.coinpaprika.com/v1/tickers/arweave-ar', { timeout: 3000 });
+            const v = Number(r?.data?.quotes?.USD?.price);
+            if (v > 0) { price = v; source = 'coinpaprika'; }
+          } catch {}
+        }
+
+        if (!(price > 0)) {
+            const ccKey = process.env.CRYPTOCOMPARE_API_KEY || '';
+            try {
+              tried.push('cryptocompare');
+              const headers = ccKey ? { authorization: `Apikey ${ccKey}` } : {};
+              const r = await axios.get('https://min-api.cryptocompare.com/data/price', {
+                timeout: 3000,
+                params: { fsym: 'AR', tsyms: 'USD' },
+                headers
+              });
+              const v = Number(r?.data?.USD);
+              if (v > 0) { price = v; source = 'cryptocompare'; }
+            } catch {}
+        }
+
+        if (!(price > 0)) {
+          if (__arPriceCache.usd > 0) {
+            price = __arPriceCache.usd;
+            source = __arPriceCache.source === 'fallback' ? 'stale-cache' : (__arPriceCache.source || 'stale-cache');
+          } else {
+            price = 5;
+            source = 'fallback';
+          }
+        }
+        __arPriceCache = { usd: price, ts: Date.now(), source, providersTried: tried };
+        return __arPriceCache;
+      })();
+      try {
+        const result = await __arPriceFetchPromise;
+        __arPriceFetchPromise = null;
+        return result;
+      } catch {
+        __arPriceFetchPromise = null;
+        if (__arPriceCache.usd > 0) return __arPriceCache;
+        return { usd: 5, ts: Date.now(), source: 'fallback-error', providersTried: [] };
+      }
+    } else {
+      try {
+        const result = await __arPriceFetchPromise;
+        return result;
+      } catch {
+        if (__arPriceCache.usd > 0) return __arPriceCache;
+        return { usd: 5, ts: Date.now(), source: 'fallback-error', providersTried: [] };
+      }
+    }
+  } catch {
+    if (__arPriceCache.usd > 0) return __arPriceCache;
+    return { usd: 5, ts: Date.now(), source: 'fallback-exception', providersTried: [] };
+  }
 }
 
 function getLiveviewsConfigWithDefaults(partial) {
@@ -367,12 +456,19 @@ const chatNs = new ChatNsManager(wssBound, store);
 
 const announcementLimiters = { config: (_req,_res,next)=>next(), message: (_req,_res,next)=>next(), favicon: (_req,_res,next)=>next() };
 
-app.get('/api/ar-price', async (_req, res) => {
+app.get('/api/ar-price', async (req, res) => {
   try {
-    const data = await getArUsdCached(false);
-    res.json({ arweave: { usd: data.usd }, source: data.source, ts: data.ts });
-  } catch {
-    res.status(500).json({ error: 'failed_to_fetch_price' });
+    const force = String(req.query.force || '').trim() === '1';
+    const data = await getArUsdCached(force);
+    res.json({
+      arweave: { usd: data.usd },
+      source: data.source,
+      ts: data.ts,
+      ageSeconds: Number(((Date.now() - data.ts) / 1000).toFixed(1)),
+      providersTried: data.providersTried || []
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_fetch_price', details: e?.message });
   }
 });
 const __hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
