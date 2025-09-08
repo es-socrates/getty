@@ -103,7 +103,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day' } = 
           txt.setAttribute('fill', labelColor);
           txt.setAttribute('font-size', '10');
           txt.setAttribute('text-anchor', 'start');
-          try { txt.textContent = formatHours(val); } catch { txt.textContent = String(Math.round(val)); }
+          try { txt.textContent = formatHours ? formatHours(val) : String(Math.round(val)); } catch { txt.textContent = String(Math.round(val)); }
           svg.appendChild(txt);
         }
       }
@@ -192,7 +192,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day' } = 
         txt.setAttribute('fill', labelColor);
         txt.setAttribute('font-size', '10');
         txt.setAttribute('text-anchor', 'start');
-        try { txt.textContent = formatHours(val); } catch { txt.textContent = String(Math.round(val)); }
+  try { txt.textContent = formatHours ? formatHours(val) : String(Math.round(val)); } catch { txt.textContent = String(Math.round(val)); }
         gridSvg.appendChild(txt);
       }
     }
@@ -236,9 +236,5 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day' } = 
 }
 
 export { renderStreamHistoryChart };
-
 // eslint-disable-next-line no-undef
-if (typeof module !== 'undefined' && module?.exports) {
-  // eslint-disable-next-line no-undef
-  module.exports = { renderStreamHistoryChart };
-}
+if (typeof module !== 'undefined' && module?.exports) { module.exports = { renderStreamHistoryChart }; }
