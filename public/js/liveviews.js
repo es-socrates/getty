@@ -3,18 +3,10 @@ function notify(message, type = 'error') {
     if (window.showAlert) return window.showAlert(message, type);
   } catch(e) {}
   try {
-    const el = document.createElement('div');
-    el.textContent = message;
-    el.setAttribute('role','status');
-    el.style.position = 'fixed';
-    el.style.right = '12px';
-    el.style.bottom = '12px';
-    el.style.zIndex = '9999';
-    el.style.padding = '10px 12px';
-    el.style.borderRadius = '10px';
-    el.style.border = '1px solid rgba(0,0,0,.15)';
-    el.style.background = type === 'success' ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.12)';
-    el.style.color = type === 'success' ? '#065f46' : '#7f1d1d';
+  const el = document.createElement('div');
+  el.textContent = message;
+  el.setAttribute('role','status');
+  el.className = `lv-toast ${type === 'success' ? 'lv-toast-success' : 'lv-toast-error'}`;
     document.body.appendChild(el);
     setTimeout(() => { el.remove(); }, 2500);
   } catch(e) {
@@ -35,6 +27,38 @@ if (!window.languageManager && window.__i18n && typeof window.__i18n.t === 'func
     updatePageLanguage: () => {}
   };
 }
+
+function getNonce() {
+  try {
+    const m = document.querySelector('meta[property="csp-nonce"]');
+    return (m && (m.nonce || m.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
+  } catch { return ''; }
+}
+function ensureStyleTag(id) {
+  let tag = document.getElementById(id);
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = id;
+    const n = getNonce();
+    if (n) tag.setAttribute('nonce', n);
+    document.head.appendChild(tag);
+  } else {
+    try { const n = getNonce(); if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n); } catch {}
+  }
+  return tag;
+}
+function setLiveviewsVars({ bg, fg, font, sizePx }) {
+  try {
+    const tag = ensureStyleTag('liveviews-inline-vars');
+    const decls = [
+      bg ? `--lv-bg:${bg};` : '',
+      fg ? `--lv-fg:${fg};` : '',
+      font ? `--lv-font:${font};` : '',
+      sizePx ? `--lv-size-px:${sizePx};` : ''
+    ].filter(Boolean).join('');
+    tag.textContent = decls ? `#viewer-count{${decls}}` : '';
+  } catch {}
+}
 async function fetchLiveviewsConfig() {
   try {
     const res = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
@@ -54,10 +78,8 @@ async function fetchLiveviewsConfig() {
 function applyLiveviewsConfig(config) {
   const viewerCountEl = document.getElementById('viewer-count');
   if (viewerCountEl) {
-    viewerCountEl.style.background = config.bg;
-    viewerCountEl.style.color = config.color;
-    viewerCountEl.style.fontFamily = config.font;
-    viewerCountEl.style.fontSize = config.size + 'px';
+  const sizePx = (config.size || '32').toString().endsWith('px') ? config.size : `${config.size}px`;
+  setLiveviewsVars({ bg: config.bg, fg: config.color, font: config.font, sizePx });
 
   if (!viewerCountEl.textContent || viewerCountEl.textContent.trim() === '' || viewerCountEl.textContent === t('viewers')) {
       viewerCountEl.textContent = config.viewersLabel || 'viewers';
@@ -75,26 +97,15 @@ function applyLiveviewsConfig(config) {
   if (!iconEl && config.icon && viewerCountEl && viewerCountEl.parentNode) {
     iconEl = document.createElement('img');
     iconEl.id = 'liveviews-icon';
-    iconEl.style.height = iconSize + 'px';
-    iconEl.style.width = iconSize + 'px';
-    iconEl.style.borderRadius = '50%';
-    iconEl.style.objectFit = 'cover';
-    iconEl.style.marginRight = '18px';
-    iconEl.style.verticalAlign = 'middle';
+    iconEl.className = 'liveviews-avatar';
     viewerCountEl.parentNode.insertBefore(iconEl, viewerCountEl);
   }
   if (iconEl && config.icon) {
     iconEl.src = config.icon;
-    iconEl.style.display = '';
-    iconEl.style.height = '54px';
-    iconEl.style.width = '54px';
-    iconEl.style.borderRadius = '50%';
-    iconEl.style.objectFit = 'cover';
-    iconEl.style.verticalAlign = 'middle';
-    iconEl.style.marginLeft = '10px';
-    iconEl.style.marginRight = '10px';
+    iconEl.classList.remove('hidden');
+    iconEl.classList.add('liveviews-avatar');
   } else if (iconEl) {
-    iconEl.style.display = 'none';
+    iconEl.classList.add('hidden');
   }
 }
 
@@ -124,10 +135,10 @@ async function fetchViewerCountAndDisplay(url) {
     let color = config && config.color ? config.color : '#222';
     let font = config && config.font ? config.font : 'Arial';
     let size = config && config.size ? config.size : '32';
-    viewerCountEl.style.background = bg;
-    viewerCountEl.style.color = color;
-    viewerCountEl.style.fontFamily = font;
-    viewerCountEl.style.fontSize = size + 'px';
+      try {
+        const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
+        setLiveviewsVars({ bg, fg: color, font, sizePx });
+      } catch {}
   if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
       viewerCountEl.textContent = `${data.data.ViewerCount} ${customLabel}`;
       const was = liveButtonEl.textContent === t('liveNow');
@@ -158,10 +169,10 @@ async function fetchViewerCountAndDisplay(url) {
     let color = config && config.color ? config.color : '#222';
     let font = config && config.font ? config.font : 'Arial';
     let size = config && config.size ? config.size : '32';
-    viewerCountEl.style.background = bg;
-    viewerCountEl.style.color = color;
-    viewerCountEl.style.fontFamily = font;
-    viewerCountEl.style.fontSize = size + 'px';
+    try {
+      const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
+      setLiveviewsVars({ bg, fg: color, font, sizePx });
+    } catch {}
     viewerCountEl.textContent = `0 ${customLabel}`;
   const was = liveButtonEl.textContent === t('liveNow');
   const nowLive = false;
@@ -212,10 +223,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
       let count = typeof liveviews.count === 'number' ? liveviews.count : 0;
       viewerCount.textContent = `${count} ${label}`;
-      viewerCount.style.background = config.bg || '#fff';
-      viewerCount.style.color = config.color || '#222';
-      viewerCount.style.fontFamily = config.font || 'Arial';
-      viewerCount.style.fontSize = (config.size || '32') + 'px';
+      try {
+        const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
+        setLiveviewsVars({ bg: config.bg || '#fff', fg: config.color || '#222', font: config.font || 'Arial', sizePx });
+      } catch {}
     }
   }
 
@@ -266,10 +277,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const viewerCountInit = document.getElementById('viewer-count');
   if (viewerCountInit) {
     viewerCountInit.textContent = `0 ${config.viewersLabel || 'viewers'}`;
-    viewerCountInit.style.background = config.bg || '#fff';
-    viewerCountInit.style.color = config.color || '#222';
-    viewerCountInit.style.fontFamily = config.font || 'Arial';
-    viewerCountInit.style.fontSize = (config.size || '32') + 'px';
+    try {
+  const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
+  setLiveviewsVars({ bg: config.bg || '#fff', fg: config.color || '#222', font: config.font || 'Arial', sizePx });
+    } catch {}
   }
 
   const searchToken = (() => { try { return new URL(window.location.href).searchParams.get('token') || ''; } catch { return ''; } })();
@@ -281,9 +292,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (iconInput) {
 
     let warning = document.createElement('div');
-    warning.style.color = 'red';
-    warning.style.fontSize = '14px';
-    warning.style.marginBottom = '6px';
+  warning.className = 'liveviews-warning';
     warning.innerText = 'The icon must weigh a maximum of 1MB.';
     iconInput.parentNode.insertBefore(warning, iconInput);
     iconInput.addEventListener('change', function() {
@@ -310,12 +319,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   const liveButton = document.querySelector('.live-button');
   const viewerCount = document.getElementById('viewer-count');
   if (widget) {
-    widget.style.display = 'flex';
-    widget.style.alignItems = 'center';
+    widget.classList.add('liveviews-flex-center');
   }
   if (liveButton && viewerCount) {
-    liveButton.style.marginRight = '0px';
-    viewerCount.style.marginLeft = '10px';
+    liveButton.classList.add('mr-0');
+    viewerCount.classList.add('ml-2p5');
   }
 });
 
@@ -376,22 +384,22 @@ if (window.location.pathname.startsWith('/admin')) {
         const iconPreview = document.getElementById('liveviews-icon-preview');
         const iconMeta = document.getElementById('liveviews-icon-meta');
         const removeBtn = document.getElementById('liveviews-remove-icon');
-        if (config.icon && iconPreview) {
-            iconPreview.innerHTML = `<img src="${config.icon}" alt="icon" style="max-width:64px;max-height:64px;border-radius:50%;border:1px solid #ccc;">`;
-            if (removeBtn) removeBtn.style.display = '';
+    if (config.icon && iconPreview) {
+      iconPreview.innerHTML = `<img src="${config.icon}" alt="icon" class="liveviews-admin-preview">`;
+      if (removeBtn) removeBtn.classList.remove('hidden');
             if (iconMeta) iconMeta.textContent = '';
         } else if (iconPreview) {
             iconPreview.innerHTML = '';
-            if (removeBtn) removeBtn.style.display = 'none';
+      if (removeBtn) removeBtn.classList.add('hidden');
             if (iconMeta) iconMeta.textContent = '';
         }
 
         if (removeBtn) {
-            removeBtn.onclick = function () {
+      removeBtn.onclick = function () {
                 iconPreview.innerHTML = '';
                 if (iconMeta) iconMeta.textContent = '';
                 if (iconInput) iconInput.value = '';
-                removeBtn.style.display = 'none';
+        removeBtn.classList.add('hidden');
 
                 iconInput.dataset.remove = '1';
             };
@@ -404,20 +412,20 @@ if (window.location.pathname.startsWith('/admin')) {
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = function (e) {
-                        if (iconPreview) {
-                            iconPreview.innerHTML = `<img src="${e.target.result}" alt="icon" style="max-width:64px;max-height:64px;border-radius:50%;border:1px solid #ccc;">`;
-                        }
+            if (iconPreview) {
+              iconPreview.innerHTML = `<img src="${e.target.result}" alt="icon" class="liveviews-admin-preview">`;
+            }
                     };
                     reader.readAsDataURL(file);
                     if (iconMeta) {
                         iconMeta.textContent = `${file.name} (${(file.size/1024).toFixed(1)} KB)`;
                     }
-                    if (removeBtn) removeBtn.style.display = '';
+          if (removeBtn) removeBtn.classList.remove('hidden');
                     iconInput.dataset.remove = '';
                 } else {
                     if (iconPreview) iconPreview.innerHTML = '';
                     if (iconMeta) iconMeta.textContent = '';
-                    if (removeBtn) removeBtn.style.display = 'none';
+          if (removeBtn) removeBtn.classList.add('hidden');
                 }
             });
         }
@@ -482,13 +490,13 @@ if (window.location.pathname.startsWith('/admin')) {
             const iconPreview = document.getElementById('liveviews-icon-preview');
             const iconMeta = document.getElementById('liveviews-icon-meta');
             const removeBtn = document.getElementById('liveviews-remove-icon');
-            if (config.icon && iconPreview) {
-                iconPreview.innerHTML = `<img src="${config.icon}" alt="icon" style="max-width:64px;max-height:64px;border-radius:50%;border:1px solid #ccc;">`;
-                if (removeBtn) removeBtn.style.display = '';
+      if (config.icon && iconPreview) {
+        iconPreview.innerHTML = `<img src="${config.icon}" alt="icon" class="liveviews-admin-preview">`;
+        if (removeBtn) removeBtn.classList.remove('hidden');
                 if (iconMeta) iconMeta.textContent = '';
             } else if (iconPreview) {
                 iconPreview.innerHTML = '';
-                if (removeBtn) removeBtn.style.display = 'none';
+        if (removeBtn) removeBtn.classList.add('hidden');
                 if (iconMeta) iconMeta.textContent = '';
             }
             if (iconInput) iconInput.value = '';
@@ -504,10 +512,10 @@ if (window.location.pathname.startsWith('/admin')) {
                 let label = config.viewersLabel || 'viewers';
                 let count = typeof config.count === 'number' ? config.count : 0;
                 viewerCountSave.textContent = `${count} ${label}`;
-                viewerCountSave.style.background = config.bg || '#fff';
-                viewerCountSave.style.color = config.color || '#222';
-                viewerCountSave.style.fontFamily = config.font || 'Arial';
-                viewerCountSave.style.fontSize = (config.size || '32') + 'px';
+                try {
+                  const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
+                  setLiveviewsVars({ bg: config.bg || '#fff', fg: config.color || '#222', font: config.font || 'Arial', sizePx });
+                } catch {}
             }
     } catch (err) {
       notify('Error saving configuration: ' + (err.message || err), 'error');

@@ -123,16 +123,16 @@
       container.innerHTML = `
         <div class="winner-display">
           <div class="winner-icon">🏆</div>
-          <div class="text-xl" style="font-weight: 600;" data-i18n="raffleWinnerTitle">We have a winner!</div>
+          <div class="text-xl winner-title" data-i18n="raffleWinnerTitle">We have a winner!</div>
           <div class="winner-name" id="winnerName">${winnerNameHTML}</div>
           <div class="text-lg" data-i18n="rafflePrizeLabel"></div>
           <div class="winner-prize" id="winnerPrize">${raffleData.prize || '---'}</div>
-          <div class="winner-meta" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;justify-content:center;">
+          <div class="winner-meta">
             <div class="winner-command" id="winnerCommand">
               <span data-i18n="raffleCommandLabel">Command:</span>
               <span class="winner-command-value">${raffleData.command || window.lastRaffleCommand || ''}</span>
             </div>
-            <div class="winner-icon" style="font-size:2rem;">🎉</div>
+            <div class="winner-icon winner-icon-sm">🎉</div>
             <div class="winner-timestamp text-gray-400 text-sm" id="winnerTimestamp">${winnerTimestampText}</div>
           </div>
         </div>`;
@@ -144,10 +144,10 @@
         let idx = 0;
         function showNextWinner() {
           if (!fadeElem) return;
-          fadeElem.style.opacity = 0;
+          fadeElem.classList.add('opacity-0');
           setTimeout(() => {
             fadeElem.textContent = truncate(winnerNames[idx]);
-            fadeElem.style.opacity = 1;
+            fadeElem.classList.remove('opacity-0');
             idx = (idx + 1) % winnerNames.length;
           }, 400);
         }
@@ -180,9 +180,9 @@
     } else {
       participantsHTML = '<div class="text-center text-gray-400">No participants yet</div>';
     }
-    container.innerHTML = `
+  container.innerHTML = `
       <div id="raffleActiveContent">
-        <div id="raffleTimer" class="text-center text-lg font-bold text-yellow-300 mb-2" style="display:none;"></div>
+    <div id="raffleTimer" class="text-center text-lg font-bold text-yellow-300 mb-2 hidden"></div>
         <div class="raffle-header">
           <h2 class="raffle-title" data-i18n="raffleActiveTitle"></h2>
           <div class="participant-count">

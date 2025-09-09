@@ -2,6 +2,36 @@ const root = document.getElementById('announcement-root');
 let currentTimeout = null;
 let currentConfig = null;
 
+function getNonce() {
+  try {
+    const m = document.querySelector('meta[property="csp-nonce"]');
+    return (m && (m.nonce || m.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
+  } catch { return ''; }
+}
+function ensureStyleTag(id) {
+  let tag = document.getElementById(id);
+  if (!tag) {
+    tag = document.createElement('style');
+    tag.id = id;
+    const n = getNonce();
+    if (n) tag.setAttribute('nonce', n);
+    document.head.appendChild(tag);
+  } else {
+    try { const n = getNonce(); if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n); } catch {}
+  }
+  return tag;
+}
+function setAnnouncementVars({ bg, text }) {
+  try {
+    const tag = ensureStyleTag('announcement-inline-vars');
+    const decls = [
+      bg ? `--ann-bg-dynamic:${bg};` : '',
+      text ? `--ann-text-dynamic:${text};` : ''
+    ].filter(Boolean).join('');
+    tag.textContent = decls ? `#announcement-root{${decls}}` : '';
+  } catch {}
+}
+
 function escapeHTML(str) {
   return str.replace(/[&<>"']/g, c => ({
     '&': '&amp;',
@@ -25,7 +55,7 @@ function renderMarkdown(text) {
   html = html.replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, (m, label, url) => {
     const safeLabel = escapeHTML(label);
     const safeUrl = url.replace(/"|'|\\/g,'');
-    return '<a href="'+safeUrl+'" target="_blank" rel="noopener" style="color:var(--ann-accent);text-decoration:none;">'+safeLabel+'</a>';
+  return '<a href="'+safeUrl+'" target="_blank" rel="noopener" class="ann-link">'+safeLabel+'</a>';
   });
   return stripDangerous(html);
 }
@@ -80,8 +110,6 @@ async function showAnnouncement(msg) {
   linkWrap.className = 'announcement-bottom-link';
   linkWrap.textContent = msg.linkUrl.replace(/^https?:\/\//,'');
   ensureFavicon(msg.linkUrl).then(fav => { if (fav) { const img = document.createElement('img'); img.src = fav; linkWrap.prepend(img); } });
-
-  linkWrap.style.cursor = 'default';
   wrapper.appendChild(linkWrap);
   }
   root.appendChild(wrapper);
@@ -115,8 +143,10 @@ function bootstrap() {
 
 function applyColors() {
   if (!root || !currentConfig) return;
-  if (currentConfig.bgColor) root.style.setProperty('--ann-bg-dynamic', currentConfig.bgColor);
-  if (currentConfig.textColor) root.style.setProperty('--ann-text-dynamic', currentConfig.textColor);
+  setAnnouncementVars({
+    bg: currentConfig.bgColor || '',
+    text: currentConfig.textColor || ''
+  });
 }
 
 function showMessage() {}

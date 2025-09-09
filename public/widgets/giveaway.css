@@ -1,5 +1,12 @@
 @import url('/css/output.css');
 
+.hidden {
+  display: none !important;
+}
+.opacity-0 {
+  opacity: 0 !important;
+}
+
 .winner-icon {
   display: flex;
   align-items: center;
@@ -180,7 +187,10 @@ html:not(.dark) {
   pointer-events: none;
   user-select: none;
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -203,6 +213,26 @@ html:not(.dark) {
   font-weight: 700;
   color: #00ff7f;
   margin-bottom: 0.2rem;
+}
+
+.winner-title {
+  font-weight: 700;
+  color: #00ff7f;
+}
+.winner-strong {
+  font-weight: 600;
+  color: #ffffff;
+}
+.winner-command .winner-command-value {
+  font-weight: 600;
+}
+.winner-label {
+  font-weight: 600;
+  color: #ffffff;
+}
+.command-label {
+  font-weight: 600;
+  margin-right: 6px;
 }
 
 .giveaway-participants-label {
@@ -241,14 +271,15 @@ html:not(.dark) {
   border-radius: 4px;
 }
 
-/* Fade-out visual abajo */
 .participants-list::after {
   content: '';
   position: absolute;
-  left: 0; right: 0; bottom: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   height: 24px;
   pointer-events: none;
-  background: linear-gradient(to bottom, rgba(24,24,24,0), #080c10 90%);
+  background: linear-gradient(to bottom, rgba(24, 24, 24, 0), #080c10 90%);
   z-index: 2;
 }
 
@@ -309,7 +340,6 @@ html:not(.dark) {
   text-align: center;
 }
 
-
 .giveaway-command-area {
   background: #1a1a1a;
   color: #fff;
@@ -359,8 +389,14 @@ html:not(.dark) {
 }
 
 @keyframes winner-fade-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .winner-display {
@@ -372,7 +408,7 @@ html:not(.dark) {
   text-align: center;
   box-shadow: none;
   opacity: 0;
-  animation: winner-fade-in 0.8s cubic-bezier(.4,0,.2,1) forwards;
+  animation: winner-fade-in 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @media (max-width: 600px) {

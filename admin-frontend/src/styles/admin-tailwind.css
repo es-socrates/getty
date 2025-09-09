@@ -1,12 +1,12 @@
-@import "../../../src/theme-tokens.css";
-@import "./util.css";
+@import '../../../src/theme-tokens.css';
+@import './util.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
   select,
   textarea {
     border-color: var(--border-color);
@@ -18,8 +18,7 @@
     color: var(--text-secondary);
     opacity: 0.7;
   }
-  html.dark
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  html.dark input:not([type='checkbox']):not([type='radio']):not([type='range']),
   html.dark select,
   html.dark textarea {
     border-color: var(--border-color);
@@ -75,7 +74,7 @@
   .os-nav-link {
     @apply flex items-center gap-2 px-3 py-2 rounded-os-sm text-sm text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 hover:bg-neutral-50 dark:hover:text-neutral-100 dark:hover:bg-neutral-900 transition;
   }
-  .os-nav-link[aria-current="page"],
+  .os-nav-link[aria-current='page'],
   .os-nav-link.is-active {
     @apply bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-medium border border-neutral-200 dark:border-neutral-800;
   }
@@ -330,7 +329,7 @@
       width: var(--sidebar-w, 14rem);
       height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)));
       overflow-x: visible;
-      z-index: 40;
+      z-index: 40; /* under header controls but above content */
     }
   }
   .sidebar-collapsed .admin-sidebar {
@@ -391,11 +390,22 @@
     @apply text-red-500 not-italic;
   }
 
+  .tip-title {
+    @apply font-semibold mb-0.5;
+  }
+  .tip-subtle {
+    opacity: 0.9;
+  }
+  .tip-viewers {
+    opacity: 0.9;
+    color: var(--viewers-line-color, #e11d48);
+  }
+
   .skeleton {
     @apply relative overflow-hidden bg-[var(--bg-chat)] rounded;
   }
   .skeleton:after {
-    content: "";
+    content: '';
     position: absolute;
     inset: 0;
     background: linear-gradient(
@@ -432,30 +442,30 @@
     @apply skeleton h-24 w-full;
   }
 
-  input[type="checkbox"]:not(.checkbox) {
+  input[type='checkbox']:not(.checkbox) {
     @apply w-4 h-4 rounded border border-[var(--card-border)] bg-transparent cursor-pointer align-middle appearance-none transition;
     box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
     display: inline-flex;
     justify-content: center;
     align-items: center;
   }
-  input[type="checkbox"]:not(.checkbox):hover {
+  input[type='checkbox']:not(.checkbox):hover {
     background: color-mix(in srgb, var(--card-bg) 85%, transparent);
   }
-  input[type="checkbox"]:not(.checkbox):focus-visible {
+  input[type='checkbox']:not(.checkbox):focus-visible {
     @apply outline-none ring-2 ring-offset-0 ring-primary-600;
   }
-  input[type="checkbox"]:not(.checkbox):checked {
+  input[type='checkbox']:not(.checkbox):checked {
     background: #553fee;
     border-color: #553fee;
   }
-  html.dark input[type="checkbox"]:not(.checkbox) {
+  html.dark input[type='checkbox']:not(.checkbox) {
     background: color-mix(in srgb, var(--card-bg) 70%, transparent);
   }
-  html.dark input[type="checkbox"]:not(.checkbox):hover {
+  html.dark input[type='checkbox']:not(.checkbox):hover {
     background: color-mix(in srgb, var(--card-bg) 55%, transparent);
   }
-  html.dark input[type="checkbox"]:not(.checkbox):checked {
+  html.dark input[type='checkbox']:not(.checkbox):checked {
     background: #553fee;
     border-color: #553fee;
   }
@@ -464,7 +474,7 @@
     display: inline-flex;
     align-items: center;
   }
-  input[type="checkbox"].checkbox {
+  input[type='checkbox'].checkbox {
     appearance: none;
     -webkit-appearance: none;
     @apply cursor-pointer align-middle;
@@ -478,13 +488,13 @@
     flex-shrink: 0;
     margin: 0;
   }
-  input[type="checkbox"].checkbox::before {
-    content: "";
+  input[type='checkbox'].checkbox::before {
+    content: '';
     position: absolute;
     inset: -6px;
   }
-  input[type="checkbox"].checkbox::after {
-    content: "";
+  input[type='checkbox'].checkbox::after {
+    content: '';
     position: absolute;
     top: 3px;
     left: 3px;
@@ -492,51 +502,50 @@
     height: 14px;
     border-radius: 50%;
     background-color: #fff;
-    transition: transform 120ms ease-out, left 120ms ease-out,
-      background-color 120ms ease-out;
+    transition: transform 120ms ease-out, left 120ms ease-out, background-color 120ms ease-out;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   }
-  input[type="checkbox"].checkbox:hover {
+  input[type='checkbox'].checkbox:hover {
     background-color: color-mix(in srgb, var(--card-bg) 65%, transparent);
     transition-duration: 0s;
   }
-  input[type="checkbox"].checkbox:focus-visible {
+  input[type='checkbox'].checkbox:focus-visible {
     @apply outline-none ring-2 ring-offset-0 ring-primary-600;
   }
-  input[type="checkbox"].checkbox:checked {
+  input[type='checkbox'].checkbox:checked {
     background-color: #553fee;
     border-color: #553fee;
   }
-  input[type="checkbox"].checkbox:checked::after {
+  input[type='checkbox'].checkbox:checked::after {
     left: 17px;
   }
-  input[type="checkbox"].checkbox:checked:hover {
+  input[type='checkbox'].checkbox:checked:hover {
     background-color: #111;
   }
-  input[type="checkbox"].checkbox:disabled {
+  input[type='checkbox'].checkbox:disabled {
     @apply opacity-60 cursor-not-allowed;
   }
-  html.dark input[type="checkbox"].checkbox {
+  html.dark input[type='checkbox'].checkbox {
     background-color: color-mix(in srgb, var(--card-bg) 60%, transparent);
   }
-  html.dark input[type="checkbox"].checkbox:hover {
+  html.dark input[type='checkbox'].checkbox:hover {
     background-color: color-mix(in srgb, var(--card-bg) 50%, transparent);
   }
 
-  input[type="color"] {
+  input[type='color'] {
     -webkit-appearance: none;
     border: 1px solid var(--card-border);
     @apply rounded-md w-10 h-10 p-0 cursor-pointer overflow-hidden;
     background: transparent;
   }
-  input[type="color"]::-webkit-color-swatch-wrapper {
+  input[type='color']::-webkit-color-swatch-wrapper {
     padding: 0;
   }
-  input[type="color"]::-webkit-color-swatch {
+  input[type='color']::-webkit-color-swatch {
     border: none;
     border-radius: 4px;
   }
-  input[type="color"]:focus-visible {
+  input[type='color']:focus-visible {
     @apply outline-none ring-2 ring-primary-600;
   }
 }

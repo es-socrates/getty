@@ -7,15 +7,14 @@
   --username: #fff;
   --donation: #ddb826;
   --donation-bg: #ececec;
-  --odysee-font-family: Inter, Roobert, "Helvetica Neue", Helvetica, Arial,
-    sans-serif;
+  --odysee-font-family: Inter, Roobert, 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --odysee-chat-text-size: 22px;
 }
 
 body {
   background: #040509;
   margin: 0;
-  font-family: Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: Inter, Roobert, 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--text);
 }
 
@@ -24,6 +23,7 @@ body {
   overflow-y: auto;
   scrollbar-width: none;
   border-radius: 6px;
+  background: var(--chat-bg, transparent);
 }
 
 #chat-container::-webkit-scrollbar {
@@ -116,6 +116,7 @@ body {
 
 .message {
   background: var(--bg-message);
+  border-left: 8px solid var(--border, #161b22);
   border-radius: 4px;
   padding: 12px;
   margin-bottom: 6px;
@@ -161,7 +162,7 @@ body {
   min-width: 0;
   font-family: var(--odysee-font-family);
   font-size: 12px;
-  color: #fff;
+  color: var(--text, #fff);
   font-weight: 600;
   line-height: 1.4;
   flex: 1;
@@ -242,7 +243,9 @@ body {
   width: 10px;
   height: 10px;
   opacity: 0;
-  animation: confettiFall 5s linear forwards;
+  animation-name: confettiFall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
 
 @keyframes confettiFall {
@@ -352,84 +355,84 @@ body {
 }
 
 .membership-icon.crown {
-  background: url("../assets/icons/crown.png") no-repeat center;
+  background: url('../assets/icons/crown.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.star {
-  background: url("../assets/icons/star.png") no-repeat center;
+  background: url('../assets/icons/star.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.hamburger {
-  background: url("../assets/icons/hamburger.png") no-repeat center;
+  background: url('../assets/icons/hamburger.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.heart {
-  background: url("../assets/icons/heart.png") no-repeat center;
+  background: url('../assets/icons/heart.png') no-repeat center;
   background-size: contain;
   width: 16px;
   top: 1px;
 }
 
 .membership-icon.tongue {
-  background: url("../assets/icons/tongue.png") no-repeat center;
+  background: url('../assets/icons/tongue.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.astro {
-  background: url("../assets/icons/astro.png") no-repeat center;
+  background: url('../assets/icons/astro.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.laugh {
-  background: url("../assets/icons/laugh.png") no-repeat center;
+  background: url('../assets/icons/laugh.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.lemon {
-  background: url("../assets/icons/lemon.png") no-repeat center;
+  background: url('../assets/icons/lemon.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.serious {
-  background: url("../assets/icons/serious.png") no-repeat center;
+  background: url('../assets/icons/serious.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.cool {
-  background: url("../assets/icons/cool.png") no-repeat center;
+  background: url('../assets/icons/cool.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.fire {
-  background: url("../assets/icons/fire.png") no-repeat center;
+  background: url('../assets/icons/fire.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.rocket {
-  background: url("../assets/icons/rocket.png") no-repeat center;
+  background: url('../assets/icons/rocket.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.creamy {
-  background: url("../assets/icons/creamy.png") no-repeat center;
+  background: url('../assets/icons/creamy.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.unicorn {
-  background: url("../assets/icons/unicorn.png") no-repeat center;
+  background: url('../assets/icons/unicorn.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.pizza {
-  background: url("../assets/icons/pizza.png") no-repeat center;
+  background: url('../assets/icons/pizza.png') no-repeat center;
   background-size: contain;
 }
 
 .membership-icon.whale {
-  background: url("../assets/icons/whale.png") no-repeat center;
+  background: url('../assets/icons/whale.png') no-repeat center;
   background-size: contain;
 }
 
@@ -592,4 +595,210 @@ body {
 
 .chat-default .message-text-inline {
   color: #fff !important;
+}
+
+.message-avatar.avatar-bg-0 {
+  background-color: #00bcd4;
+}
+.message-avatar.avatar-bg-1 {
+  background-color: #ff9800;
+}
+.message-avatar.avatar-bg-2 {
+  background-color: #8bc34a;
+}
+.message-avatar.avatar-bg-3 {
+  background-color: #e91e63;
+}
+.message-avatar.avatar-bg-4 {
+  background-color: #9c27b0;
+}
+.message-avatar.avatar-bg-5 {
+  background-color: #3f51b5;
+}
+.message-avatar.avatar-bg-6 {
+  background-color: #ff5722;
+}
+.message-avatar.avatar-bg-7 {
+  background-color: #4caf50;
+}
+.message-avatar.avatar-bg-8 {
+  background-color: #2196f3;
+}
+.message-avatar.avatar-bg-9 {
+  background-color: #ffc107;
+}
+.message-avatar img.avatar-img-hidden {
+  display: none !important;
+}
+
+.confetti.pos-0 {
+  left: 0%;
+}
+.confetti.pos-1 {
+  left: 5%;
+}
+.confetti.pos-2 {
+  left: 10%;
+}
+.confetti.pos-3 {
+  left: 15%;
+}
+.confetti.pos-4 {
+  left: 20%;
+}
+.confetti.pos-5 {
+  left: 25%;
+}
+.confetti.pos-6 {
+  left: 30%;
+}
+.confetti.pos-7 {
+  left: 35%;
+}
+.confetti.pos-8 {
+  left: 40%;
+}
+.confetti.pos-9 {
+  left: 45%;
+}
+.confetti.pos-10 {
+  left: 50%;
+}
+.confetti.pos-11 {
+  left: 55%;
+}
+.confetti.pos-12 {
+  left: 60%;
+}
+.confetti.pos-13 {
+  left: 65%;
+}
+.confetti.pos-14 {
+  left: 70%;
+}
+.confetti.pos-15 {
+  left: 75%;
+}
+.confetti.pos-16 {
+  left: 80%;
+}
+.confetti.pos-17 {
+  left: 85%;
+}
+.confetti.pos-18 {
+  left: 90%;
+}
+.confetti.pos-19 {
+  left: 95%;
+}
+
+/* sizes */
+.confetti.size-0 {
+  width: 6px;
+  height: 6px;
+}
+.confetti.size-1 {
+  width: 8px;
+  height: 8px;
+}
+.confetti.size-2 {
+  width: 10px;
+  height: 10px;
+}
+.confetti.size-3 {
+  width: 12px;
+  height: 12px;
+}
+.confetti.size-4 {
+  width: 14px;
+  height: 14px;
+}
+.confetti.round {
+  border-radius: 50%;
+}
+
+.confetti.color-0 {
+  background-color: #ff69b4;
+}
+.confetti.color-1 {
+  background-color: #ffd700;
+}
+.confetti.color-2 {
+  background-color: #ffffff;
+}
+.confetti.color-3 {
+  background-color: #e81161;
+}
+.confetti.color-4 {
+  background-color: #0070ff;
+}
+.confetti.color-5 {
+  background-color: #00ff28;
+}
+
+.confetti.dur-0 {
+  animation-duration: 2s;
+}
+.confetti.dur-1 {
+  animation-duration: 3s;
+}
+.confetti.dur-2 {
+  animation-duration: 4s;
+}
+.confetti.dur-3 {
+  animation-duration: 5s;
+}
+.confetti.dur-4 {
+  animation-duration: 6s;
+}
+.confetti.dur-5 {
+  animation-duration: 7s;
+}
+.confetti.dur-6 {
+  animation-duration: 8s;
+}
+.confetti.dur-7 {
+  animation-duration: 9s;
+}
+.confetti.dur-8 {
+  animation-duration: 10s;
+}
+
+.confetti.delay-0 {
+  animation-delay: 0s;
+}
+.confetti.delay-1 {
+  animation-delay: 1s;
+}
+.confetti.delay-2 {
+  animation-delay: 2s;
+}
+.confetti.delay-3 {
+  animation-delay: 3s;
+}
+.confetti.delay-4 {
+  animation-delay: 4s;
+}
+.confetti.delay-5 {
+  animation-delay: 5s;
+}
+.confetti.delay-6 {
+  animation-delay: 6s;
+}
+.confetti.delay-7 {
+  animation-delay: 7s;
+}
+.confetti.delay-8 {
+  animation-delay: 8s;
+}
+.confetti.delay-9 {
+  animation-delay: 9s;
+}
+.confetti.delay-10 {
+  animation-delay: 10s;
+}
+
+.confetti-container.fade-out {
+  opacity: 0;
+  transition: opacity 1s ease;
 }

@@ -25,16 +25,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (removeImgBtn) {
     removeImgBtn.addEventListener('click', () => {
       removeImageFlag = true;
-      if (currentImgBox) currentImgBox.style.display = 'none';
+      if (currentImgBox) currentImgBox.classList.add('hidden');
       if (imageInput) imageInput.value = '';
 
       let pending = document.getElementById('ann-remove-indicator');
       if (!pending) {
         pending = document.createElement('div');
         pending.id = 'ann-remove-indicator';
-        pending.style.fontSize = '12px';
-        pending.style.color = '#ca004b';
-        pending.style.marginTop = '6px';
+        pending.className = 'ann-remove-indicator';
         pending.textContent = t('announcementRemoveImage') + ' ✓';
         form.appendChild(pending);
       }
@@ -70,30 +68,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!listEl) return;
     listEl.innerHTML = '';
     if (!messages.length) {
-      if (emptyEl) emptyEl.style.display='block';
+      if (emptyEl) emptyEl.classList.remove('hidden');
       return;
     }
-    if (emptyEl) emptyEl.style.display='none';
+    if (emptyEl) emptyEl.classList.add('hidden');
     messages.forEach(m => {
       const li = document.createElement('li');
       li.className = 'announcement-msg-item';
-      li.style.display='flex';
-      li.style.justifyContent='space-between';
-      li.style.alignItems='center';
-      li.style.gap='10px';
-      li.style.border='1px solid #333';
-      li.style.padding='8px 10px';
-      li.style.borderRadius='8px';
       const safe = m.text.replace(/</g,'&lt;');
       const durVal = (m.durationSeconds || (defaultDurationInput? Number(defaultDurationInput.value) : 10));
-      const durationHtml = `${durVal}s${m.usesDefaultDuration ? ' <span style=\"color:#4f36ff;font-weight:500;\">(def)</span>' : ''}`;
+      const durationHtml = `${durVal}s${m.usesDefaultDuration ? ' <span class="ann-def-tag">(def)</span>' : ''}`;
       li.innerHTML = `
-        <div class="ann-msg-text" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${safe}">${safe}</div>
-        <div class="ann-msg-duration" style="font-size:12px;color:#999;min-width:64px;text-align:right;">${durationHtml}</div>
-        <div class="ann-msg-actions" style="display:flex;gap:6px;">
-          <button data-action="toggle" data-id="${m.id}" class="save-btn" style="background:${m.enabled? '#181818':'#181818'};">${m.enabled? t('active'):t('inactive')}</button>
-          <button data-action="edit" data-id="${m.id}" class="save-btn" style="background:#181818;">✎</button>
-          <button data-action="delete" data-id="${m.id}" class="save-btn danger-btn" style="min-width:36px;">✕</button>
+        <div class="ann-msg-text" title="${safe}">${safe}</div>
+        <div class="ann-msg-duration">${durationHtml}</div>
+        <div class="ann-msg-actions">
+          <button data-action="toggle" data-id="${m.id}" class="save-btn">${m.enabled? t('active'):t('inactive')}</button>
+          <button data-action="edit" data-id="${m.id}" class="save-btn">✎</button>
+          <button data-action="delete" data-id="${m.id}" class="save-btn danger-btn ann-minw-36">✕</button>
         </div>`;
       listEl.appendChild(li);
     });
@@ -141,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textEl = btn.closest('li').querySelector('.ann-msg-text');
         const original = textEl ? textEl.getAttribute('title') : '';
         document.getElementById('announcement-text').value = original.replace(/&lt;/g,'<');
-        cancelEditBtn.style.display='inline-flex';
+  cancelEditBtn.classList.remove('hidden');
         const span = document.querySelector('#announcement-message-form button[type="submit"] span');
         if (span) { span.setAttribute('data-i18n','announcementEditBtn'); span.textContent = t('announcementEditBtn'); }
 
@@ -153,10 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
               if (durationInput) durationInput.value = msg.durationSeconds || 10;
               if (msg.imageUrl) {
                 currentImgThumb.src = msg.imageUrl;
-                currentImgBox.style.display='flex';
+    currentImgBox.classList.remove('hidden');
                 removeImageFlag = false;
               } else {
-                currentImgBox.style.display='none';
+    currentImgBox.classList.add('hidden');
               }
             }
           }
@@ -185,9 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelEditBtn.addEventListener('click', () => {
       editIdInput.value='';
       form.reset();
-      cancelEditBtn.style.display='none';
-      previewBox.style.display='none';
-      currentImgBox.style.display='none';
+  cancelEditBtn.classList.add('hidden');
+  previewBox.classList.add('hidden');
+  currentImgBox.classList.add('hidden');
       removeImageFlag = false;
     });
   }
@@ -195,14 +186,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (previewBtn && previewBox) {
     previewBtn.addEventListener('click', () => {
       const raw = document.getElementById('announcement-text').value;
-      if (!raw.trim()) { previewBox.style.display='none'; return; }
+      if (!raw.trim()) { previewBox.classList.add('hidden'); return; }
       const md = raw
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
         .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
         .replace(/\*(.+?)\*/g,'<em>$1</em>')
-        .replace(/\[(.+?)\]\((https?:\/\/[^\s]+?)\)/g,'<a href="$2" target="_blank" style="color:#4f36ff;text-decoration:none;">$1</a>');
+        .replace(/\[(.+?)\]\((https?:\/\/[^\s]+?)\)/g,'<a href="$2" target="_blank" class="ann-link">$1<\/a>');
       previewBox.innerHTML = md;
-      previewBox.style.display='block';
+      previewBox.classList.remove('hidden');
     });
   }
 
@@ -245,11 +236,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function finalizeEdit() {
     editIdInput.value='';
-    cancelEditBtn.style.display='none';
-    previewBox.style.display='none';
+  cancelEditBtn.classList.add('hidden');
+  previewBox.classList.add('hidden');
     form.reset();
   if (durationInput) durationInput.value = '10';
-    currentImgBox.style.display='none';
+  currentImgBox.classList.add('hidden');
     removeImageFlag = false;
   const pending = document.getElementById('ann-remove-indicator');
   if (pending) pending.remove();
@@ -263,13 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (listsCard && !listsCard.querySelector('.ann-clear-buttons')) {
       const bar = document.createElement('div');
       bar.className = 'ann-clear-buttons';
-      bar.style.display = 'flex';
-      bar.style.gap = '8px';
-      bar.style.margin = '0 0 10px 0';
       const btnTest = document.createElement('button');
       btnTest.type = 'button';
       btnTest.className = 'save-btn';
-      btnTest.style.background = '#181818';
       btnTest.textContent = t('announcementClearTest') || 'Clean test';
       const btnAll = document.createElement('button');
       btnAll.type = 'button';

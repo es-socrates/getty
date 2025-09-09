@@ -85,34 +85,46 @@
     let hasRenderedOnce = false;
     let lastTipColors = {};
 
+    function getNonce() {
+        try {
+            const m = document.querySelector('meta[property="csp-nonce"]');
+            return (m && (m.nonce || m.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
+        } catch { return ''; }
+    }
+    function ensureStyleTag(id) {
+        let tag = document.getElementById(id);
+        if (!tag) {
+            tag = document.createElement('style');
+            tag.id = id;
+            const n = getNonce();
+            if (n) tag.setAttribute('nonce', n);
+            document.head.appendChild(tag);
+        } else {
+            try { const n = getNonce(); if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n); } catch {}
+        }
+        return tag;
+    }
+    function setLastTipVars(colors) {
+        try {
+            const tag = ensureStyleTag('last-tip-inline-vars');
+            const c = colors || {};
+            const decls = [
+                c.bgColor ? `--lt-bg:${c.bgColor};` : '',
+                c.borderColor ? `--lt-border:${c.borderColor};` : '',
+                c.fontColor ? `--lt-text:${c.fontColor};` : '',
+                c.amountColor ? `--lt-amount:${c.amountColor};` : '',
+                c.iconColor ? `--lt-icon:${c.iconColor};` : '',
+                c.iconBgColor ? `--lt-icon-bg:${c.iconBgColor};` : '',
+                c.fromColor ? `--lt-from:${c.fromColor};` : ''
+            ].filter(Boolean).join('');
+            tag.textContent = decls ? `#last-donation{${decls}}` : '';
+        } catch {}
+    }
+
     function applyCustomColors(customColors = {}) {
         if (!isOBSWidget) return;
         const colors = { ...lastTipColors, ...customColors };
-
-        lastDonationElement.style.setProperty('background', colors.bgColor || '#080c10', 'important');
-        lastDonationElement.style.setProperty('border-left', `8px solid ${colors.borderColor || '#00ff7f'}`, 'important');
-        lastDonationElement.style.setProperty('color', colors.fontColor || '#ffffff', 'important');
-
-        if (titleElement && colors.fontColor) {
-            titleElement.style.setProperty('color', colors.fontColor, 'important');
-        }
-
-        const amount = document.querySelector('.notification-amount');
-        if (amount) amount.style.setProperty('color', colors.amountColor || '#00ff7f', 'important');
-        const arAmount = document.querySelector('.ar-amount');
-        if (arAmount) arAmount.style.setProperty('color', colors.amountColor || '#00ff7f', 'important');
-
-        const icon = document.querySelector('.notification-icon');
-        if (icon) {
-            const ic = colors.iconColor || '#ffffff';
-            const icBg = colors.iconBgColor || '#4f36ff';
-            icon.style.setProperty('background', icBg, 'important');
-            const svg = icon.querySelector('svg');
-            if (svg) svg.style.setProperty('color', ic, 'important');
-        }
-
-        const from = document.querySelector('.notification-from-lasttip');
-        if (from) from.style.setProperty('color', colors.fromColor || '#817ec8', 'important');
+        setLastTipVars(colors);
     }
 
     async function loadColors() {

@@ -8,14 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!timerBox) {
         timerBox = document.createElement('div');
         timerBox.id = 'raffle-timer';
-        timerBox.style.display = 'none';
-        timerBox.style.background = '#333';
-        timerBox.style.color = '#fff';
-        timerBox.style.fontSize = '1.1em';
-        timerBox.style.padding = '6px 10px';
-        timerBox.style.margin = '8px 0';
-        timerBox.style.textAlign = 'center';
-        timerBox.style.borderRadius = '6px';
+    timerBox.className = 'raffle-timer hidden';
         document.querySelector('#raffle-tab .form-card')?.prepend(timerBox);
     }
     let timerInterval = null;
@@ -37,8 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!errorBox) {
         errorBox = document.createElement('div');
         errorBox.id = 'raffle-error';
-        errorBox.style.display = 'none';
-        errorBox.style.color = 'red';
+    errorBox.className = 'raffle-error hidden';
         document.querySelector('#raffle-tab .form-card')?.prepend(errorBox);
     }
 
@@ -61,25 +53,18 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!winnerBanner) {
         winnerBanner = document.createElement('div');
         winnerBanner.id = 'raffle-winner-banner';
-        winnerBanner.style.display = 'none';
-        winnerBanner.style.background = '#0a0e12';
-        winnerBanner.style.color = '#FFD700';
-        winnerBanner.style.fontSize = '1.3em';
-        winnerBanner.style.padding = '10px';
-        winnerBanner.style.margin = '10px 0';
-        winnerBanner.style.textAlign = 'center';
-        winnerBanner.style.borderRadius = '8px';
+        winnerBanner.className = 'raffle-winner-banner hidden';
         document.querySelector('#raffle-tab .form-card')?.prepend(winnerBanner);
     }
 
     function showError(msg) {
         if (errorBox) {
             errorBox.textContent = msg;
-            errorBox.style.display = 'block';
+            errorBox.classList.remove('hidden');
         }
     }
     function clearError() {
-        if (errorBox) errorBox.style.display = 'none';
+        if (errorBox) errorBox.classList.add('hidden');
     }
 
     function showSaveToast(success = true) {
@@ -89,11 +74,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (success) {
             icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
             message.textContent = 'Configuration saved successfully';
-            toast.style.borderColor = 'var(--secondary-color)';
+            toast.classList.remove('toast-error');
+            toast.classList.add('toast-success');
         } else {
             icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
             message.textContent = 'Error saving configuration';
-            toast.style.borderColor = 'var(--error-color)';
+            toast.classList.remove('toast-success');
+            toast.classList.add('toast-error');
         }
         toast.classList.add('show');
         setTimeout(() => {
@@ -103,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateUI(state) {
         if (timerInterval) clearInterval(timerInterval);
-        timerBox.style.display = 'none';
+    timerBox.classList.add('hidden');
         try {
             if (!state || typeof state !== 'object') {
                 lastState = {};
@@ -151,9 +138,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (maxWinnersInput && document.activeElement !== maxWinnersInput) maxWinnersInput.value = state.maxWinners || 1;
             if (state.imageUrl && imagePreview) {
                 imagePreview.src = state.imageUrl;
-                imagePreview.style.display = '';
+                imagePreview.classList.remove('hidden');
             } else if (imagePreview) {
-                imagePreview.style.display = 'none';
+                imagePreview.classList.add('hidden');
             }
 
             if (participantsList) {
@@ -295,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(res => {
                 if (res.imageUrl && imagePreview) {
                     imagePreview.src = res.imageUrl;
-                    imagePreview.style.display = '';
+                    imagePreview.classList.remove('hidden');
                 } else {
                     showError(res.error || 'Error uploading image.');
                 }
@@ -310,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (res.success) {
 
                     if (action === 'reset' && winnerBanner) {
-                        winnerBanner.style.display = 'none';
+                        winnerBanner.classList.add('hidden');
                         winnerBanner.innerHTML = '';
                         if (winnersList) winnersList.innerHTML = '';
                     }
@@ -346,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (msg.type === 'raffle_state') {
 
                     if (msg.reset && winnerBanner) {
-                        winnerBanner.style.display = 'none';
+                        winnerBanner.classList.add('hidden');
                         winnerBanner.innerHTML = '';
                     }
                     updateUI(msg);
@@ -356,8 +343,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         winnerName = winnerName.username || winnerName.name || '';
                     }
                     if (typeof winnerName === 'string' && winnerName) {
-                        winnerBanner.innerHTML = `<span style="font-size:1.5em;color:#FFD700;">🏆</span> <b>Winner!</b> <span style="color:#00ff7f;">${winnerName}</span> <span style="font-size:1.5em;">🎉</span>`;
-                        winnerBanner.style.display = '';
+                        const safeName = String(winnerName).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+                        winnerBanner.innerHTML = `<span class="trophy" aria-hidden="true">🏆</span> <b>Winner!</b> <span class="winner-name">${safeName}</span> <span class="confetti" aria-hidden="true">🎉</span>`;
+                        winnerBanner.classList.remove('hidden');
                     }
 
                     fetchSettings();

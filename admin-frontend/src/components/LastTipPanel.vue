@@ -3,18 +3,34 @@
     <OsCard class="mb-4">
       <div class="form-group">
         <label class="label" for="last-tip-title">{{ t('lastTipCustomTitleLabel') }}</label>
-        <input class="input" :class="{'input-error': errors.title}" id="last-tip-title" v-model="form.title" type="text" maxlength="120" :placeholder="t('lastTipCustomTitlePlaceholder')" />
-        <div class="flex gap-2 small" style="justify-content:space-between;">
+        <input
+          class="input"
+          :class="{ 'input-error': errors.title }"
+          id="last-tip-title"
+          v-model="form.title"
+          type="text"
+          maxlength="120"
+          :placeholder="t('lastTipCustomTitlePlaceholder')" />
+        <div class="flex gap-2 small justify-between">
           <small>{{ errors.title || t('lastTipCustomTitleHint') }}</small>
-          <small aria-live="polite" aria-atomic="true">{{ t('charsUsed', { used: form.title.length, max: 120 }) }}</small>
+          <small aria-live="polite" aria-atomic="true">{{
+            t('charsUsed', { used: form.title.length, max: 120 })
+          }}</small>
         </div>
       </div>
       <div class="form-group mt-2">
         <label class="label" for="wallet-address">{{ t('arWalletAddress') }}</label>
-        <input class="input" :class="{'input-error': errors.walletAddress}" id="wallet-address" v-model="form.walletAddress" type="text" />
-  <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
-  <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
-  <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
+        <input
+          class="input"
+          :class="{ 'input-error': errors.walletAddress }"
+          id="wallet-address"
+          v-model="form.walletAddress"
+          type="text" />
+        <small v-if="errors.walletAddress" class="small text-red-700">{{
+          errors.walletAddress
+        }}</small>
+        <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
+        <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="mt-3">
         <div class="flex justify-between items-center mb-2">
@@ -22,19 +38,27 @@
           <button type="button" class="btn" @click="resetColors">{{ t('resetColors') }}</button>
         </div>
         <div class="flex flex-wrap gap-2">
-          <ColorInput v-for="c in colorFields" :key="c.key" v-model="form.colors[c.key]" :label="t(c.label)" />
+          <ColorInput
+            v-for="c in colorFields"
+            :key="c.key"
+            v-model="form.colors[c.key]"
+            :label="t(c.label)" />
         </div>
       </div>
-  <div class="mt-3"><button class="btn" :disabled="saving" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('saveSettings') }}</button></div>
-  </OsCard>
-  <OsCard class="mt-4" :title="t('obsIntegration')">
+      <div class="mt-3">
+        <button class="btn" :disabled="saving" @click="save" :aria-busy="saving ? 'true' : 'false'">
+          {{ saving ? t('commonSaving') : t('saveSettings') }}
+        </button>
+      </div>
+    </OsCard>
+    <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
           <span class="label mb-0">{{ t('lastTipWidgetUrl') }}</span>
           <CopyField :value="widgetUrl" :aria-label="t('lastTipWidgetUrl')" />
         </div>
       </div>
-  </OsCard>
+    </OsCard>
   </section>
 </template>
 <script setup>
@@ -47,13 +71,25 @@ import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import { usePublicToken } from '../composables/usePublicToken';
-import OsCard from './os/OsCard.vue'
+import OsCard from './os/OsCard.vue';
 
 const original = reactive({ snapshot: null });
 
 const { t } = useI18n();
-const form = reactive({ title: '', walletAddress: '', colors: { bg: '#080c10', font: '#ffffff', border: '#00ff7f', amount: '#00ff7f', icon: '#ffffff', iconBg: '#4f36ff', from: '#817ec8' } });
-const errors = reactive({ title:'', walletAddress:'' });
+const form = reactive({
+  title: '',
+  walletAddress: '',
+  colors: {
+    bg: '#080c10',
+    font: '#ffffff',
+    border: '#00ff7f',
+    amount: '#00ff7f',
+    icon: '#ffffff',
+    iconBg: '#4f36ff',
+    from: '#817ec8',
+  },
+});
+const errors = reactive({ title: '', walletAddress: '' });
 const saving = ref(false);
 const hostedSupported = ref(false);
 const sessionActive = ref(false);
@@ -65,13 +101,21 @@ const colorFields = [
   { key: 'amount', label: 'colorAmount' },
   { key: 'icon', label: 'colorIcon' },
   { key: 'iconBg', label: 'colorIconBg' },
-  { key: 'from', label: 'colorFrom' }
+  { key: 'from', label: 'colorFrom' },
 ];
 const pt = usePublicToken();
-const widgetUrl = computed(()=> pt.withToken(`${location.origin}/widgets/last-tip`));
+const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/last-tip`));
 
 function resetColors() {
-  form.colors = { bg: '#080c10', font: '#ffffff', border: '#00ff7f', amount: '#00ff7f', icon: '#ffffff', iconBg: '#4f36ff', from: '#817ec8' };
+  form.colors = {
+    bg: '#080c10',
+    font: '#ffffff',
+    border: '#00ff7f',
+    amount: '#00ff7f',
+    icon: '#ffffff',
+    iconBg: '#4f36ff',
+    from: '#817ec8',
+  };
 }
 async function load() {
   try {
@@ -79,14 +123,13 @@ async function load() {
     hostedSupported.value = !!statusRes?.data?.supported;
     sessionActive.value = !!statusRes?.data?.active;
 
-  const { data } = await api.get('/api/last-tip');
-  if (data && data.success) {
+    const { data } = await api.get('/api/last-tip');
+    if (data && data.success) {
       const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
         walletHiddenMsg.value = '';
       } else {
-
         if (hostedSupported.value && !sessionActive.value) {
           walletHiddenMsg.value = t('walletHiddenHostedNotice');
         } else if (!hostedSupported.value) {
@@ -99,12 +142,9 @@ async function load() {
 
       const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
       const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
-      const demoTitles = new Set([
-        'Last tip received 👏',
-        'Configure tip goal 💸'
-      ]);
+      const demoTitles = new Set(['Last tip received 👏', 'Configure tip goal 💸']);
       const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));
-      form.title = isSeed ? '' : (incomingTitle || '');
+      form.title = isSeed ? '' : incomingTitle || '';
       form.colors.bg = data.bgColor || form.colors.bg;
       form.colors.font = data.fontColor || form.colors.font;
       form.colors.border = data.borderColor || form.colors.border;
@@ -125,7 +165,7 @@ async function save() {
     pushToast({ type: 'info', message: t('sessionRequiredToast') });
     return;
   }
-  if(!validate()) return;
+  if (!validate()) return;
   try {
     saving.value = true;
     const payload = {
@@ -137,17 +177,19 @@ async function save() {
       iconColor: form.colors.icon,
       iconBgColor: form.colors.iconBg,
       fromColor: form.colors.from,
-      title: form.title
+      title: form.title,
     };
     await api.post('/api/last-tip', payload);
     original.snapshot = JSON.stringify(form);
     pushToast({ type: 'success', message: t('savedLastTip') });
   } catch {
     pushToast({ type: 'error', message: t('saveFailedLastTip') });
-  } finally { saving.value = false; }
+  } finally {
+    saving.value = false;
+  }
 }
-function validate(){
-  errors.title = form.title.length>MAX_TITLE_LEN ? t('valMax120') : '';
+function validate() {
+  errors.title = form.title.length > MAX_TITLE_LEN ? t('valMax120') : '';
   if (form.walletAddress && !isArweaveAddress(form.walletAddress)) {
     errors.walletAddress = t('valArweaveOnly');
   } else {
@@ -156,9 +198,14 @@ function validate(){
   return !errors.title && !errors.walletAddress;
 }
 
-function isLastTipDirty() { return original.snapshot && original.snapshot !== JSON.stringify(form); }
+function isLastTipDirty() {
+  return original.snapshot && original.snapshot !== JSON.stringify(form);
+}
 registerDirty(isLastTipDirty);
 watch(form, () => {}, { deep: true });
 
-onMounted(async () => { await pt.refresh(); await load(); });
+onMounted(async () => {
+  await pt.refresh();
+  await load();
+});
 </script>

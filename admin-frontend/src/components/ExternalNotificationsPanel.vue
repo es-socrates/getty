@@ -1,7 +1,10 @@
 <template>
   <section class="admin-tab active relative" role="form">
-    <div v-if="masked" class="absolute inset-0 z-10 flex items-center justify-center" style="backdrop-filter: blur(4px); background: rgba(0,0,0,0.35);">
-      <div class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+    <div
+      v-if="masked"
+      class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
+      <div
+        class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
         <div class="mb-2 text-lg font-semibold">{{ t('externalSessionRequiredTitle') }}</div>
         <p class="mb-4 text-sm">{{ t('externalSessionRequiredBody') }}</p>
         <a href="/new-session" class="btn">{{ t('createSession') }}</a>
@@ -15,216 +18,374 @@
         <div class="input-group">
           <input
             class="input"
-            :class="{'input-error': errors.discordWebhook}"
+            :class="{ 'input-error': errors.discordWebhook }"
             :type="reveal.discord ? 'text' : 'password'"
             v-model="form.discordWebhook"
             placeholder="https://discord.com/api/webhooks/..."
             @input="validate"
-            autocomplete="off"
-          />
-          <button type="button" @click="reveal.discord = !reveal.discord" :aria-pressed="reveal.discord ? 'true' : 'false'" :aria-label="reveal.discord ? 'Hide' : 'Show'">
-            <svg v-if="!reveal.discord" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            autocomplete="off" />
+          <button
+            type="button"
+            @click="reveal.discord = !reveal.discord"
+            :aria-pressed="reveal.discord ? 'true' : 'false'"
+            :aria-label="reveal.discord ? 'Hide' : 'Show'">
+            <svg
+              v-if="!reveal.discord"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="#fff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="#fff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path
+                d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
               <path d="M1 1l22 22" />
               <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
             </svg>
           </button>
         </div>
-        <small v-if="errors.discordWebhook" class="small" style="color:#b91c1c">{{ errors.discordWebhook }}</small>
+        <small v-if="errors.discordWebhook" class="small text-red-700">{{
+          errors.discordWebhook
+        }}</small>
       </div>
-  <div class="form-group grid mt-4" style="grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="form-group grid mt-4 grid-cols-2 gap-3">
         <div>
           <label class="label">{{ t('externalTelegramBotToken') }}</label>
           <div class="input-group">
             <input
               class="input"
-              :class="{'input-error': errors.telegramBotToken}"
+              :class="{ 'input-error': errors.telegramBotToken }"
               :type="reveal.telegram ? 'text' : 'password'"
               v-model="form.telegramBotToken"
               placeholder="123456:ABCDEF"
               @input="validate"
-              autocomplete="off"
-            />
-            <button type="button" @click="reveal.telegram = !reveal.telegram" :aria-pressed="reveal.telegram ? 'true' : 'false'" :aria-label="reveal.telegram ? 'Hide' : 'Show'">
-              <svg v-if="!reveal.telegram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              autocomplete="off" />
+            <button
+              type="button"
+              @click="reveal.telegram = !reveal.telegram"
+              :aria-pressed="reveal.telegram ? 'true' : 'false'"
+              :aria-label="reveal.telegram ? 'Hide' : 'Show'">
+              <svg
+                v-if="!reveal.telegram"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="#fff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
                 <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+              <svg
+                v-else
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="#fff"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path
+                  d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
                 <path d="M1 1l22 22" />
                 <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
               </svg>
             </button>
           </div>
-          <small v-if="errors.telegramBotToken" class="small" style="color:#b91c1c">{{ errors.telegramBotToken }}</small>
+          <small v-if="errors.telegramBotToken" class="small text-red-700">{{
+            errors.telegramBotToken
+          }}</small>
         </div>
         <div>
           <label class="label">{{ t('externalTelegramChatId') }}</label>
-          <input class="input" :class="{'input-error': errors.telegramChatId}" v-model="form.telegramChatId" placeholder="-1001234567890" @input="validate" />
-          <small v-if="errors.telegramChatId" class="small" style="color:#b91c1c">{{ errors.telegramChatId }}</small>
+          <input
+            class="input"
+            :class="{ 'input-error': errors.telegramChatId }"
+            v-model="form.telegramChatId"
+            placeholder="-1001234567890"
+            @input="validate" />
+          <small v-if="errors.telegramChatId" class="small text-red-700">{{
+            errors.telegramChatId
+          }}</small>
         </div>
       </div>
-  <div class="form-group mt-4">
+      <div class="form-group mt-4">
         <label class="label">{{ t('externalTemplate') }}</label>
         <textarea class="input" rows="3" v-model="form.template"></textarea>
         <small class="small">{{ t('externalTemplateHint') }}</small>
       </div>
-  <div class="flex gap-2 items-center" role="group" aria-label="External notifications actions">
-  <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save" :aria-busy="saving? 'true':'false'">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
-    <span class="small" :style="{color: statusActive ? '#16a34a':'#888'}" :aria-live="dirty ? 'polite':'off'">{{ statusActive ? t('externalStatusActive'): t('externalStatusInactive') }}</span>
-      </div>
-  </OsCard>
-
-  <OsCard class="mt-4">
-    <div class="form-group">
-      <label class="label" for="obs-ws-ip">{{ t('obsWsIpLabel') }}</label>
-      <div class="input-group">
-        <input
-          class="input"
-          id="obs-ws-ip"
-          :type="reveal.obsIp ? 'text' : 'password'"
-          v-model="obsForm.ip"
-          :placeholder="t('obsWsIpPlaceholder')"
-          @input="validateObs"
-          autocomplete="off"
-        />
-        <button type="button" @click="reveal.obsIp = !reveal.obsIp" :aria-pressed="reveal.obsIp ? 'true' : 'false'" :aria-label="reveal.obsIp ? 'Hide' : 'Show'">
-          <svg v-if="!reveal.obsIp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
-            <path d="M1 1l22 22" />
-            <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
-          </svg>
+      <div class="flex gap-2 items-center" role="group" aria-label="External notifications actions">
+        <button
+          class="btn"
+          :disabled="!dirty || hasErrors || saving || masked"
+          @click="save"
+          :aria-busy="saving ? 'true' : 'false'">
+          {{ saving ? t('commonSaving') : t('externalSave') }}
         </button>
+        <span
+          class="small"
+          :class="statusActive ? 'text-green-600' : 'text-gray-500'"
+          :aria-live="dirty ? 'polite' : 'off'"
+          >{{ statusActive ? t('externalStatusActive') : t('externalStatusInactive') }}</span
+        >
       </div>
-      <label class="label mt-2" for="obs-ws-port">{{ t('obsWsPortLabel') }}</label>
-      <input class="input" id="obs-ws-port" type="number" v-model="obsForm.port" :placeholder="t('obsWsPortPlaceholder')" @input="validateObs" />
-      <label class="label mt-2" for="obs-ws-password">{{ t('obsWsPasswordLabel') }}</label>
-      <div class="input-group">
-        <input
-          class="input"
-          id="obs-ws-password"
-          :type="reveal.obsPwd ? 'text' : 'password'"
-          v-model="obsForm.password"
-          :placeholder="t('obsWsPasswordPlaceholder')"
-          @input="validateObs"
-          autocomplete="off"
-        />
-        <button type="button" @click="reveal.obsPwd = !reveal.obsPwd" :aria-pressed="reveal.obsPwd ? 'true' : 'false'" :aria-label="reveal.obsPwd ? 'Hide' : 'Show'">
-          <svg v-if="!reveal.obsPwd" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
-            <path d="M1 1l22 22" />
-            <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
-          </svg>
-        </button>
-      </div>
-      <small v-if="obsErrors.ip || obsErrors.port" class="small" style="color:#b91c1c">
-        {{ obsErrors.ip || obsErrors.port }}
-      </small>
-      <button class="btn mt-2" :disabled="!obsDirty || hasObsErrors || obsSaving || masked" @click="saveObs" :aria-busy="obsSaving ? 'true':'false'">
-        <span v-if="obsSaving">{{ t('commonSaving') }}</span>
-        <span v-else>{{ t('saveObsWsSettings') }}</span>
-      </button>
-    </div>
-  </OsCard>
+    </OsCard>
 
-  <OsCard class="mt-4">
-    <div class="mt-1">
-      <Alert>
-        <Rocket class="h-5 w-5 alert-icon" />
-        <div class="flex-1">
-          <AlertTitle>{{ t('liveCredsWebhookHelpTitle') }}</AlertTitle>
-          <AlertDescription>{{ t('liveCredsWebhookHelp') }}</AlertDescription>
-        </div>
-      </Alert>
-    </div>
-    <div class="form-group mt-4">
-      <label class="label">Live Discord Webhook</label>
-      <div class="input-group">
-        <input
-          class="input"
-          :class="{'input-error': errors.liveDiscordWebhook}"
-          :type="reveal.liveDiscord ? 'text' : 'password'"
-          v-model="form.liveDiscordWebhook"
-          placeholder="https://discord.com/api/webhooks/..."
-          @input="validate"
-          autocomplete="off"
-        />
-        <button type="button" @click="reveal.liveDiscord = !reveal.liveDiscord" :aria-pressed="reveal.liveDiscord ? 'true' : 'false'">
-          <span>{{ reveal.liveDiscord ? 'Hide' : 'Show' }}</span>
-        </button>
-      </div>
-      <small v-if="errors.liveDiscordWebhook" class="small" style="color:#b91c1c">{{ errors.liveDiscordWebhook }}</small>
-    </div>
-
-    <div class="form-group grid mt-4" style="grid-template-columns:1fr 1fr; gap:12px;">
-      <div>
-        <label class="label">Live Telegram Bot Token</label>
+    <OsCard class="mt-4">
+      <div class="form-group">
+        <label class="label" for="obs-ws-ip">{{ t('obsWsIpLabel') }}</label>
         <div class="input-group">
           <input
             class="input"
-            :class="{'input-error': errors.liveTelegramBotToken}"
-            :type="reveal.liveTelegram ? 'text' : 'password'"
-            v-model="form.liveTelegramBotToken"
-            placeholder="123456:ABCDEF"
-            @input="validate"
-            autocomplete="off"
-          />
-          <button type="button" @click="reveal.liveTelegram = !reveal.liveTelegram" :aria-pressed="reveal.liveTelegram ? 'true' : 'false'">
-            <span>{{ reveal.liveTelegram ? 'Hide' : 'Show' }}</span>
+            id="obs-ws-ip"
+            :type="reveal.obsIp ? 'text' : 'password'"
+            v-model="obsForm.ip"
+            :placeholder="t('obsWsIpPlaceholder')"
+            @input="validateObs"
+            autocomplete="off" />
+          <button
+            type="button"
+            @click="reveal.obsIp = !reveal.obsIp"
+            :aria-pressed="reveal.obsIp ? 'true' : 'false'"
+            :aria-label="reveal.obsIp ? 'Hide' : 'Show'">
+            <svg
+              v-if="!reveal.obsIp"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="#fff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="#fff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path
+                d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+              <path d="M1 1l22 22" />
+              <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+            </svg>
           </button>
         </div>
-        <small v-if="errors.liveTelegramBotToken" class="small" style="color:#b91c1c">{{ errors.liveTelegramBotToken }}</small>
+        <label class="label mt-2" for="obs-ws-port">{{ t('obsWsPortLabel') }}</label>
+        <input
+          class="input"
+          id="obs-ws-port"
+          type="number"
+          v-model="obsForm.port"
+          :placeholder="t('obsWsPortPlaceholder')"
+          @input="validateObs" />
+        <label class="label mt-2" for="obs-ws-password">{{ t('obsWsPasswordLabel') }}</label>
+        <div class="input-group">
+          <input
+            class="input"
+            id="obs-ws-password"
+            :type="reveal.obsPwd ? 'text' : 'password'"
+            v-model="obsForm.password"
+            :placeholder="t('obsWsPasswordPlaceholder')"
+            @input="validateObs"
+            autocomplete="off" />
+          <button
+            type="button"
+            @click="reveal.obsPwd = !reveal.obsPwd"
+            :aria-pressed="reveal.obsPwd ? 'true' : 'false'"
+            :aria-label="reveal.obsPwd ? 'Hide' : 'Show'">
+            <svg
+              v-if="!reveal.obsPwd"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="#fff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="#fff"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path
+                d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
+              <path d="M1 1l22 22" />
+              <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
+            </svg>
+          </button>
+        </div>
+        <small v-if="obsErrors.ip || obsErrors.port" class="small text-red-700">
+          {{ obsErrors.ip || obsErrors.port }}
+        </small>
+        <button
+          class="btn mt-2"
+          :disabled="!obsDirty || hasObsErrors || obsSaving || masked"
+          @click="saveObs"
+          :aria-busy="obsSaving ? 'true' : 'false'">
+          <span v-if="obsSaving">{{ t('commonSaving') }}</span>
+          <span v-else>{{ t('saveObsWsSettings') }}</span>
+        </button>
       </div>
-      <div>
-        <label class="label">Live Telegram Chat ID</label>
-        <input class="input" :class="{'input-error': errors.liveTelegramChatId}" v-model="form.liveTelegramChatId" placeholder="-1001234567890" @input="validate" />
-        <small v-if="errors.liveTelegramChatId" class="small" style="color:#b91c1c">{{ errors.liveTelegramChatId }}</small>
+    </OsCard>
+
+    <OsCard class="mt-4">
+      <div class="mt-1">
+        <Alert>
+          <Rocket class="h-5 w-5 alert-icon" />
+          <div class="flex-1">
+            <AlertTitle>{{ t('liveCredsWebhookHelpTitle') }}</AlertTitle>
+            <AlertDescription>{{ t('liveCredsWebhookHelp') }}</AlertDescription>
+          </div>
+        </Alert>
       </div>
-    </div>
-    <div class="mt-3">
-      <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save">{{ saving ? t('commonSaving') : t('externalSave') }}</button>
-      <div class="mt-2 small" :style="(liveHas.discord || liveHas.telegram) ? 'opacity:0.8' : 'color:#b91c1c'">
-        <template v-if="liveHas.discord || liveHas.telegram">
-          {{ t('liveTargetsLabel') }} {{ [ liveHas.discord ? t('discord') : null, liveHas.telegram ? t('telegram') : null ].filter(Boolean).join(', ') }}
-        </template>
-        <template v-else>
-          {{ t('liveTargetsNone') }}
-        </template>
+      <div class="form-group mt-4">
+        <label class="label">Live Discord Webhook</label>
+        <div class="input-group">
+          <input
+            class="input"
+            :class="{ 'input-error': errors.liveDiscordWebhook }"
+            :type="reveal.liveDiscord ? 'text' : 'password'"
+            v-model="form.liveDiscordWebhook"
+            placeholder="https://discord.com/api/webhooks/..."
+            @input="validate"
+            autocomplete="off" />
+          <button
+            type="button"
+            @click="reveal.liveDiscord = !reveal.liveDiscord"
+            :aria-pressed="reveal.liveDiscord ? 'true' : 'false'">
+            <span>{{ reveal.liveDiscord ? 'Hide' : 'Show' }}</span>
+          </button>
+        </div>
+        <small v-if="errors.liveDiscordWebhook" class="small text-red-700">{{
+          errors.liveDiscordWebhook
+        }}</small>
       </div>
-    </div>
-  </OsCard>
+
+      <div class="form-group grid mt-4 grid-cols-2 gap-3">
+        <div>
+          <label class="label">Live Telegram Bot Token</label>
+          <div class="input-group">
+            <input
+              class="input"
+              :class="{ 'input-error': errors.liveTelegramBotToken }"
+              :type="reveal.liveTelegram ? 'text' : 'password'"
+              v-model="form.liveTelegramBotToken"
+              placeholder="123456:ABCDEF"
+              @input="validate"
+              autocomplete="off" />
+            <button
+              type="button"
+              @click="reveal.liveTelegram = !reveal.liveTelegram"
+              :aria-pressed="reveal.liveTelegram ? 'true' : 'false'">
+              <span>{{ reveal.liveTelegram ? 'Hide' : 'Show' }}</span>
+            </button>
+          </div>
+          <small v-if="errors.liveTelegramBotToken" class="small text-red-700">{{
+            errors.liveTelegramBotToken
+          }}</small>
+        </div>
+        <div>
+          <label class="label">Live Telegram Chat ID</label>
+          <input
+            class="input"
+            :class="{ 'input-error': errors.liveTelegramChatId }"
+            v-model="form.liveTelegramChatId"
+            placeholder="-1001234567890"
+            @input="validate" />
+          <small v-if="errors.liveTelegramChatId" class="small text-red-700">{{
+            errors.liveTelegramChatId
+          }}</small>
+        </div>
+      </div>
+      <div class="mt-3">
+        <button class="btn" :disabled="!dirty || hasErrors || saving || masked" @click="save">
+          {{ saving ? t('commonSaving') : t('externalSave') }}
+        </button>
+        <div
+          class="mt-2 small"
+          :class="liveHas.discord || liveHas.telegram ? 'opacity-80' : 'text-red-700'">
+          <template v-if="liveHas.discord || liveHas.telegram">
+            {{ t('liveTargetsLabel') }}
+            {{
+              [liveHas.discord ? t('discord') : null, liveHas.telegram ? t('telegram') : null]
+                .filter(Boolean)
+                .join(', ')
+            }}
+          </template>
+          <template v-else>
+            {{ t('liveTargetsNone') }}
+          </template>
+        </div>
+      </div>
+    </OsCard>
   </section>
 </template>
 <script setup>
-
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { isHttpUrl } from '../utils/validation';
-import OsCard from './os/OsCard.vue'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Rocket } from 'lucide-vue-next'
+import OsCard from './os/OsCard.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Rocket } from 'lucide-vue-next';
 
 const { t } = useI18n();
 
 const masked = ref(false);
 
-const reveal = reactive({ discord: false, obsIp: false, obsPwd: false, telegram: false, liveDiscord: false, liveTelegram: false });
+const reveal = reactive({
+  discord: false,
+  obsIp: false,
+  obsPwd: false,
+  telegram: false,
+  liveDiscord: false,
+  liveTelegram: false,
+});
 
 const form = ref({
   discordWebhook: '',
@@ -233,7 +394,7 @@ const form = ref({
   template: '',
   liveDiscordWebhook: '',
   liveTelegramBotToken: '',
-  liveTelegramChatId: ''
+  liveTelegramChatId: '',
 });
 
 const errors = ref({
@@ -242,7 +403,7 @@ const errors = ref({
   telegramChatId: '',
   liveDiscordWebhook: '',
   liveTelegramBotToken: '',
-  liveTelegramChatId: ''
+  liveTelegramChatId: '',
 });
 
 const initial = ref('');
@@ -253,17 +414,21 @@ const liveHas = ref({ discord: false, telegram: false });
 
 registerDirty(() => dirty.value);
 
-const hasErrors = computed(() => Object.values(errors.value).some(e => e));
+const hasErrors = computed(() => Object.values(errors.value).some((e) => e));
 
-watch(form, () => {
-  dirty.value = JSON.stringify(form.value) !== initial.value;
-}, { deep: true });
+watch(
+  form,
+  () => {
+    dirty.value = JSON.stringify(form.value) !== initial.value;
+  },
+  { deep: true }
+);
 
 async function load() {
   try {
     const [modulesRes, r] = await Promise.all([
       axios.get('/api/modules').catch(() => ({ data: {} })),
-      axios.get('/api/external-notifications')
+      axios.get('/api/external-notifications'),
     ]);
     masked.value = !!modulesRes?.data?.masked;
     form.value.discordWebhook = r.data.config?.discordWebhook || '';
@@ -288,11 +453,15 @@ const obsInitial = ref('');
 const obsDirty = ref(false);
 const obsSaving = ref(false);
 const obsErrors = ref({ ip: '', port: '' });
-const hasObsErrors = computed(() => Object.values(obsErrors.value).some(e => e));
+const hasObsErrors = computed(() => Object.values(obsErrors.value).some((e) => e));
 
-watch(obsForm, () => {
-  obsDirty.value = JSON.stringify(obsForm.value) !== obsInitial.value;
-}, { deep: true });
+watch(
+  obsForm,
+  () => {
+    obsDirty.value = JSON.stringify(obsForm.value) !== obsInitial.value;
+  },
+  { deep: true }
+);
 
 async function loadObs() {
   try {
@@ -308,12 +477,16 @@ async function loadObs() {
 }
 
 function validateObs() {
-  obsErrors.value.ip = obsForm.value.ip && !/^([\d]{1,3}\.){3}[\d]{1,3}$/.test(obsForm.value.ip) && obsForm.value.ip !== 'localhost'
-    ? t('invalidUrl')
-    : '';
-  obsErrors.value.port = obsForm.value.port && (isNaN(Number(obsForm.value.port)) || Number(obsForm.value.port) < 1)
-    ? t('requiredField')
-    : '';
+  obsErrors.value.ip =
+    obsForm.value.ip &&
+    !/^([\d]{1,3}\.){3}[\d]{1,3}$/.test(obsForm.value.ip) &&
+    obsForm.value.ip !== 'localhost'
+      ? t('invalidUrl')
+      : '';
+  obsErrors.value.port =
+    obsForm.value.port && (isNaN(Number(obsForm.value.port)) || Number(obsForm.value.port) < 1)
+      ? t('requiredField')
+      : '';
 }
 
 async function saveObs() {
@@ -348,9 +521,8 @@ function mapError(msg) {
 }
 
 function validate() {
-  errors.value.discordWebhook = form.value.discordWebhook && !isHttpUrl(form.value.discordWebhook)
-    ? t('invalidUrl')
-    : '';
+  errors.value.discordWebhook =
+    form.value.discordWebhook && !isHttpUrl(form.value.discordWebhook) ? t('invalidUrl') : '';
 
   if (form.value.telegramBotToken || form.value.telegramChatId) {
     errors.value.telegramBotToken = form.value.telegramBotToken ? '' : t('requiredField');
@@ -360,9 +532,10 @@ function validate() {
     errors.value.telegramChatId = '';
   }
 
-  errors.value.liveDiscordWebhook = form.value.liveDiscordWebhook && !isHttpUrl(form.value.liveDiscordWebhook)
-    ? t('invalidUrl')
-    : '';
+  errors.value.liveDiscordWebhook =
+    form.value.liveDiscordWebhook && !isHttpUrl(form.value.liveDiscordWebhook)
+      ? t('invalidUrl')
+      : '';
 
   if (form.value.liveTelegramBotToken || form.value.liveTelegramChatId) {
     errors.value.liveTelegramBotToken = form.value.liveTelegramBotToken ? '' : t('requiredField');
@@ -390,9 +563,11 @@ async function save() {
       template: (form.value.template || '').toString(),
       liveDiscordWebhook: (form.value.liveDiscordWebhook || '').trim() || undefined,
       liveTelegramBotToken: (form.value.liveTelegramBotToken || '').trim() || undefined,
-      liveTelegramChatId: (form.value.liveTelegramChatId || '').trim() || undefined
+      liveTelegramChatId: (form.value.liveTelegramChatId || '').trim() || undefined,
     };
-    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+    Object.keys(payload).forEach((k) => {
+      if (payload[k] === undefined) delete payload[k];
+    });
     const r = await axios.post('/api/external-notifications', payload);
     if (r.data.success) {
       pushToast({ type: 'success', message: t('externalSaved') });

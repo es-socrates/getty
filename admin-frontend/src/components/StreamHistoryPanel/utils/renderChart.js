@@ -205,7 +205,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       c.style.transition = 'opacity 450ms ease 120ms';
       c.addEventListener('mouseenter', (e) => {
         const title = fmtDate(p.date);
-        tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${(p.hours||0)} h</div><div style="opacity:.9;color:var(--viewers-line-color,#e11d48);">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
+        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div><div class="tip-viewers">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
         tip.style.display = 'block';
         placeTipFromMouse(e, (p.hours || 0) === 0);
       });
@@ -224,7 +224,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
         cv.style.transition = 'opacity 450ms ease 180ms';
         const show = (e) => {
           const title = fmtDate(p.date);
-          tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${(p.hours||0)} h</div><div style="opacity:.9;color:var(--viewers-line-color,#e11d48);">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
+          tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div><div class="tip-viewers">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
           tip.style.display = 'block'; placeTipFromMouse(e, (p.hours || 0) === 0);
         };
         cv.addEventListener('mouseenter', show);
@@ -327,7 +327,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       }
       bar.appendChild(wrap);
     }
-  const show = (e) => { try { const title = fmtDate(d.date); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${v} h</div>${showViewers ? `<div style="opacity:.9;color:var(--viewers-line-color,#e11d48);">${vv} avg</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
+  const show = (e) => { try { const title = fmtDate(d.date); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${v} h</div>${showViewers ? `<div class="tip-viewers">${vv} avg</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
     const hide = () => { tip.style.display = 'none'; };
     bar.addEventListener('mouseenter', show);
     bar.addEventListener('mousemove', show);

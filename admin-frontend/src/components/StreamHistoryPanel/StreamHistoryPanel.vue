@@ -25,10 +25,8 @@
         {{ status.live ? t('liveNow') : t('notLive') }}
       </span>
     </div>
-    <div
-      class="grid"
-      style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px">
-      <div class="form-group" style="grid-column: 1/-1">
+    <div class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+      <div class="form-group [grid-column:1/-1]">
         <label class="label">{{ t('streamHistoryClaimId') }}</label>
         <input class="input" v-model="claimid" />
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
@@ -178,7 +176,7 @@
               <path d="M4 21h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
             </svg>
             <span>{{ t('streamHistoryImport') }}</span>
-            <input type="file" accept="application/json" @change="onImport" style="display: none" />
+            <input type="file" accept="application/json" @change="onImport" class="hidden" />
           </label>
         </div>
       </div>
@@ -376,8 +374,7 @@
           @click="toggleShowViewers"
           :title="showViewers ? 'Hide viewers' : 'Show viewers'">
           <span
-            class="inline-block w-2.5 h-2.5 rounded-full"
-            style="background: var(--viewers-line-color, #e11d48)"></span>
+            class="inline-block w-2.5 h-2.5 rounded-full bg-[var(--viewers-line-color,#e11d48)]"></span>
           <span>{{ showViewers ? 'Viewers: on' : 'Viewers: off' }}</span>
         </button>
         <button

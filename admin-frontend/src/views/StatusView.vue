@@ -1,30 +1,9 @@
 <template>
   <section class="admin-tab active">
-    <div
-      v-if="showInfo"
-      style="position: fixed; inset: 0; z-index: 50"
-      aria-modal="true"
-      role="dialog">
+    <div v-if="showInfo" class="fixed inset-0 z-50" aria-modal="true" role="dialog">
+      <div class="absolute inset-0 bg-black/45 backdrop-blur" @click="showInfo = false"></div>
       <div
-        style="
-          position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.45);
-          backdrop-filter: blur(3px);
-        "
-        @click="showInfo = false"></div>
-      <div
-        style="
-          position: relative;
-          max-width: 560px;
-          margin: 12vh auto;
-          background: var(--bg-chat);
-          color: var(--card-text);
-          border: 1px solid var(--card-border);
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-        ">
+        class="relative max-w-[560px] mx-auto mt-[12vh] bg-[var(--bg-chat)] text-[var(--card-text)] border border-[var(--card-border)] rounded-lg p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
         <div class="text-lg font-semibold mb-1">{{ t('tokenModalTitle') }}</div>
         <div class="opacity-90 text-sm leading-6 mb-3">{{ t('tokenModalBody') }}</div>
         <div class="flex gap-2 justify-end">
@@ -87,9 +66,7 @@
           {{ t('statusModules') }}
         </h3>
       </template>
-      <div
-        class="grid"
-        style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px">
+      <div class="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(200px,1fr))]">
         <div
           v-for="m in modulesList"
           :key="m.key"

@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="usd-value">${usdValue}</span>
       </div>
     `;
-    fromElement.innerHTML = `📦 From: ${data.from.slice(0, 8)}... <span style="color: #00ff7f;">🟢 Thank you! 🤞</span>`;
+  fromElement.innerHTML = `📦 From: ${data.from.slice(0, 8)}... <span class="text-success">🟢 Thank you! 🤞</span>`;
 
     lastDonationElement.classList.remove('update-animation');
     void lastDonationElement.offsetWidth;

@@ -305,7 +305,7 @@
             class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
             :class="visible.rpm ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
             @click="visible.rpm = !visible.rpm">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #34d399"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#34d399]"></span>
             {{ t('metricsLegendRpm') || 'RPM' }}
           </button>
           <button
@@ -313,7 +313,7 @@
             class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
             :class="visible.chat ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
             @click="visible.chat = !visible.chat">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #a78bfa"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#a78bfa]"></span>
             {{ t('metricsLegendChat') || 'Chat' }}
           </button>
           <button
@@ -323,7 +323,7 @@
               visible.bandwidth ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
             "
             @click="visible.bandwidth = !visible.bandwidth">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #f59e0b"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#f59e0b]"></span>
             {{ t('metricsLegendBandwidth') || 'BW' }}
           </button>
           <button
@@ -331,7 +331,7 @@
             class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
             :class="visible.heap ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
             @click="visible.heap = !visible.heap">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #60a5fa"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#60a5fa]"></span>
             {{ t('metricsLegendHeap') || 'Heap' }}
           </button>
           <button
@@ -339,7 +339,7 @@
             class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
             :class="visible.tips ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
             @click="visible.tips = !visible.tips">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #ef4444"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#ef4444]"></span>
             {{ t('metricsLegendTips') || 'Tips' }}
           </button>
           <button
@@ -350,7 +350,7 @@
               visible.latency ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
             "
             @click="visible.latency = !visible.latency">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #f472b6"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#f472b6]"></span>
             {{ t('metricsLegendLatency') || 'Latency' }}
           </button>
           <button
@@ -361,7 +361,7 @@
               visible.viewsAvg ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
             "
             @click="visible.viewsAvg = !visible.viewsAvg">
-            <span class="inline-block w-2 h-2 rounded-sm" style="background: #e11d48"></span>
+            <span class="inline-block w-2 h-2 rounded-sm bg-[#e11d48]"></span>
             {{ t('metricsLegendViewsAvg') || 'Views avg' }}
           </button>
 
