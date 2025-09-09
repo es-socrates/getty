@@ -20,6 +20,38 @@ const { z } = require('zod');
 const SETTINGS_FILE = path.join(process.cwd(), 'tts-settings.json');
 const OBS_WS_CONFIG_FILE = path.join(__dirname, 'config', 'obs-ws-config.json');
 
+try {
+  const isProd = process.env.NODE_ENV === 'production';
+  const keepSri = process.env.GETTY_KEEP_SRI_DEV === '1';
+  if (!isProd && !keepSri) {
+    const PUBLIC_DIR = path.join(process.cwd(), 'public');
+    const stripSriInHtml = (html) => {
+      try {
+        return html
+          .replace(/\s+integrity=["'][^"']+["']/gi, '')
+          .replace(/\s+crossorigin=["'][^"']+["']/gi, '');
+      } catch { return html; }
+    };
+    const walk = (dir) => {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const e of entries) {
+          const p = path.join(dir, e.name);
+          if (e.isDirectory()) walk(p);
+          else if (e.isFile() && p.toLowerCase().endsWith('.html')) {
+            try {
+              const raw = fs.readFileSync(p, 'utf8');
+              const out = stripSriInHtml(raw);
+              if (out !== raw) fs.writeFileSync(p, out);
+            } catch {}
+          }
+        }
+      } catch {}
+    };
+    if (fs.existsSync(PUBLIC_DIR)) walk(PUBLIC_DIR);
+  }
+} catch {}
+
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
 const { TipGoalModule } = require('./modules/tip-goal');
@@ -1714,6 +1746,15 @@ try {
             body = body.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}`);
           }
         }
+
+        try {
+          const isProd = process.env.NODE_ENV === 'production';
+          const keepSri = process.env.GETTY_KEEP_SRI_DEV === '1';
+          if (!isProd && !keepSri && typeof body === 'string' && /text\/html/i.test(ct)) {
+            body = body.replace(/\s+integrity=["'][^"']+["']/gi, '')
+                       .replace(/\s+crossorigin=["'][^"']+["']/gi, '');
+          }
+        } catch {}
       } catch {}
       return send.call(this, body);
     };
