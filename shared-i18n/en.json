@@ -439,6 +439,7 @@
   "footerSite": "Website",
   "footerGithub": "GitHub",
   "footerX": "X",
+  "footerOdysee": "Odysee",
   "chatThemeCustomize": "Custom builder:",
   "chatThemeEditing": "Editing…",
   "saveSizeVariant": "Save size variant",
@@ -497,5 +498,8 @@
   "importNoValid": "No valid entries",
   "importFileType": "Not a JSON file",
   "importFileTooLarge": "File too large (200KB max)",
-  "chatThemeSizeBlockRebuilt": "Font size block rebuilt to match sliders"
+  "chatThemeSizeBlockRebuilt": "Font size block rebuilt to match sliders",
+  "comingSoonHeading": "Coming soon",
+  "comingSoonAlertTitle": "We’re working on this",
+  "comingSoonAlertBody": "This panel will host a new feature that’s in active development. Check back soon!"
 }

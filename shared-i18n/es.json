@@ -440,6 +440,7 @@
   "footerSite": "Sitio",
   "footerGithub": "GitHub",
   "footerX": "X",
+  "footerOdysee": "Odysee",
   "chatThemeCustomize": "Constructor personalizado:",
   "chatThemeEditing": "Editando…",
   "saveSizeVariant": "Guardar variante de tamaños",
@@ -497,5 +498,8 @@
   "importNameTooLong": "Nombre de tema demasiado largo omitido",
   "importNoValid": "No hay entradas válidas",
   "importFileType": "No es un archivo JSON",
-  "importFileTooLarge": "Archivo demasiado grande (máx 200KB)"
+  "importFileTooLarge": "Archivo demasiado grande (máx 200KB)",
+  "comingSoonHeading": "Próximamente",
+  "comingSoonAlertTitle": "Estamos trabajando en esto",
+  "comingSoonAlertBody": "Este panel tendrá una nueva funcionalidad que está en desarrollo activo. ¡Vuelve pronto!"
 }
