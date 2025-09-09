@@ -70,12 +70,20 @@
 .winner-name-fade {
   display: inline-block;
   min-width: 6ch;
-  transition: opacity .4s ease;
+  transition: opacity 0.4s ease;
   animation: winnerPulse 4s ease-in-out infinite;
 }
+.opacity-0 {
+  opacity: 0 !important;
+}
 @keyframes winnerPulse {
-  0%,100% { filter: drop-shadow(0 0 0px #00ff7f); }
-  50% { filter: drop-shadow(0 0 6px #00ff7f); }
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0px #00ff7f);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px #00ff7f);
+  }
 }
 .winner-prize {
   font-size: 1.2rem;
@@ -84,6 +92,22 @@
 }
 .winner-icon {
   font-size: 3rem;
+}
+.winner-icon-sm {
+  font-size: 2rem;
+}
+.winner-title {
+  font-weight: 600;
+}
+.winner-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.hidden {
+  display: none !important;
 }
 .winner-command {
   font-size: 1rem;

@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tipWrapper.classList.remove('position-left','position-right','position-top','position-bottom');
         tipWrapper.classList.add('position-' + (gifConfig.position || 'right'));
         if (gifSlot) {
-            gifSlot.style.display = 'none';
+            gifSlot.classList.add('hidden');
             gifSlot.innerHTML = '';
         }
     }
@@ -119,11 +119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ...msg.data,
                     isChatTip: true
                 });
-            } else if (msg.type === 'donation') {
+        } else if (msg.type === 'donation' || msg.type === 'tip') {
                 await showDonationNotification({
-                    amount: msg.amount,
-                    from: msg.from,
-                    message: msg.message,
+            amount: msg.amount ?? msg.data?.amount,
+            from: msg.from ?? msg.data?.from,
+            message: msg.message ?? msg.data?.message,
                     isTestDonation: true
                 });
             }
@@ -352,7 +352,7 @@ async function showDonationNotification(data) {
     shownTips.add(uniqueId);
 
     playNotificationSound();
-    notification.style.display = 'none';
+    notification.classList.add('hidden');
     void notification.offsetWidth;
 
     if (!(typeof data.usdAmount === 'number' && typeof data.arAmount === 'number')) {
@@ -428,21 +428,20 @@ async function showDonationNotification(data) {
             imgEl.src = data.avatar || '/assets/odysee.png';
             imgEl.alt = '💰';
             imgEl.addEventListener('error', () => {
-                imgEl.style.display = 'none';
+                imgEl.classList.add('hidden');
                 iconContainer.textContent = '💰';
             });
             iconContainer.appendChild(imgEl);
         }
     } catch {}
-    notification.style.display = 'inline';
-    notification.style.opacity = '1';
+    notification.classList.remove('hidden');
 
     if (gifConfig.gifPath && gifSlot) {
         const cacheBust = `${gifConfig.width||0}x${gifConfig.height||0}-${Date.now()}`;
-        gifSlot.innerHTML = `<img class="tip-gif-img" src="${gifConfig.gifPath}?v=${cacheBust}" alt="Tip GIF" />`;
-        gifSlot.style.display = 'block';
+    gifSlot.innerHTML = `<img class="tip-gif-img" src="${gifConfig.gifPath}?v=${cacheBust}" alt="Tip GIF" />`;
+    gifSlot.classList.remove('hidden');
     } else if (gifSlot) {
-        gifSlot.style.display = 'none';
+    gifSlot.classList.add('hidden');
         gifSlot.innerHTML = '';
     }
 
@@ -454,10 +453,10 @@ async function showDonationNotification(data) {
         notification.classList.add('fade-out');
         if (gifSlot) gifSlot.classList.add('fade-out');
         setTimeout(() => {
-            notification.style.display = 'none';
+            notification.classList.add('hidden');
             notification.classList.remove('fade-out');
             if (gifSlot) {
-                gifSlot.style.display = 'none';
+                gifSlot.classList.add('hidden');
                 gifSlot.innerHTML = '';
                 gifSlot.classList.remove('fade-out');
             }
@@ -465,23 +464,9 @@ async function showDonationNotification(data) {
     }, VISIBLE_TIME);
 }
 
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); }
-        to { transform: translateX(0); }
-    }
-
-    @keyframes fadeOut {
-        from { opacity: 1; }
-        to { opacity: 0; }
-    }
-`;
-document.head.appendChild(style);
-
     function showError(message) {
         notification.innerHTML = `
-            <div class="notification-content" style="color: #ff5555;">
+            <div class="notification-content error">
                 <div class="notification-icon">⚠️</div>
                 <div class="notification-text">
                     <div class="notification-title">Error</div>
@@ -489,8 +474,8 @@ document.head.appendChild(style);
                 </div>
             </div>
         `;
-        notification.classList.add('show');
-        setTimeout(() => notification.classList.remove('show'), 3000);
+        notification.classList.remove('hidden');
+        setTimeout(() => notification.classList.add('hidden'), 3000);
     }
 
     function showConnectionStatus(connected) {
@@ -500,11 +485,6 @@ document.head.appendChild(style);
             statusElement.id = 'connection-status';
             document.body.appendChild(statusElement);
         }
-        // statusElement.textContent = connected ? '🟢 Connected' : '🔴 Offline';
-        statusElement.style.position = 'absolute';
-        statusElement.style.bottom = '10px';
-        statusElement.style.left = '10px';
-        statusElement.style.color = connected ? '#00ff7f' : '#ff5555';
-        statusElement.style.fontFamily = "'Inter', sans-serif";
+    statusElement.className = connected ? 'conn-status conn-online' : 'conn-status conn-offline';
     }
 });

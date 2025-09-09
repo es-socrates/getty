@@ -158,13 +158,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     let chatColors = {};
+    function getNonce() {
+        try {
+            const m = document.querySelector('meta[property="csp-nonce"]');
+            return (m && (m.nonce || m.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
+        } catch { return ''; }
+    }
+    function ensureStyleTag(id) {
+        let tag = document.getElementById(id);
+        if (!tag) {
+            tag = document.createElement('style');
+            tag.id = id;
+            const n = getNonce();
+            if (n) tag.setAttribute('nonce', n);
+            document.head.appendChild(tag);
+        } else {
+            try {
+                const n = getNonce();
+                if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n);
+            } catch {}
+        }
+        return tag;
+    }
     function setCssVar(name, value) {
         try {
-            if (value) {
-                document.documentElement.style.setProperty(name, value);
-            } else {
-                document.documentElement.style.removeProperty(name);
-            }
+            const tag = ensureStyleTag('chat-theme-inline-vars');
+            const current = tag.textContent || '';
+            const re = new RegExp(`${name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*:\\s*[^;]+;?`, 'i');
+            const decl = value ? `${name}: ${value};` : '';
+            const base = /:root\s*\{[\s\S]*?\}/.test(current) ? current : ':root{}';
+            const updated = base.replace(/:root\s*\{([\s\S]*?)\}/, (m, body) => {
+                const body2 = re.test(body) ? body.replace(re, decl) : (decl ? (body + (body.trim()? ' ' : '') + decl) : body);
+                return `:root{${body2}}`;
+            });
+            tag.textContent = updated;
         } catch {}
     }
 
@@ -205,20 +232,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { /* ignore */ }
     }
 
-    function setIfCustom(element, property, value, defaultValue) {
-        if (!element) return;
-        if (value && value !== defaultValue) {
-            element.style.setProperty(property, value, 'important');
-        } else {
-            element.style.removeProperty(property);
-        }
+    function setIfCustomVar(varName, value, defaultValue) {
+        try { setCssVar(varName, (value && value !== defaultValue) ? value : ''); } catch {}
     }
+
+    function setIfCustomInline() { /* deprecated */ }
 
     const originalAddMessage = addMessage;
     addMessage = function(msg) {
         originalAddMessage(msg);
         if (!isOBSWidget) return;
-        const messages = chatContainer.querySelectorAll('.message');
+    const messages = chatContainer.querySelectorAll('.message');
         const isLightThemeActive = !!(chatContainer && chatContainer.classList.contains('theme-light'));
         const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
     messages.forEach((messageEl) => {
@@ -227,53 +251,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             const anyThemeActive = (typeof serverHasTheme !== 'undefined' && serverHasTheme) ||
                 !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
             if (anyThemeActive) {
-                messageEl.style.removeProperty('background');
-                messageEl.style.removeProperty('border-left');
-                messageEl.style.removeProperty('color');
-
-                const donation = messageEl.querySelector('.message-donation');
-                if (donation) {
-                    donation.style.removeProperty('background');
-                    donation.style.removeProperty('color');
-                }
-
-                const text = messageEl.querySelector('.message-text-inline');
-                if (text) text.style.removeProperty('color');
-
                 return;
             }
 
-            if (isLightThemeActive) {
-                if (!messageEl.classList.contains('has-donation')) {
-                    messageEl.style.removeProperty('background');
-                }
-            } else {
-                if (messageEl.classList.contains('odd') && !messageEl.classList.contains('has-donation')) {
-                    setIfCustom(messageEl, 'background', chatColors.msgBgAltColor, '#0d1114');
-                } else if (!messageEl.classList.contains('has-donation')) {
-                    setIfCustom(messageEl, 'background', chatColors.msgBgColor, '#0a0e12');
-                }
+            if (!isLightThemeActive) {
+                setIfCustomVar('--bg-message', chatColors.msgBgColor, '#0a0e12');
+                setIfCustomVar('--bg-message-alt', chatColors.msgBgAltColor, '#0d1114');
             }
-
-            setIfCustom(messageEl, 'border-left', `8px solid ${chatColors.borderColor}`, '8px solid #161b22');
-            setIfCustom(messageEl, 'color', chatColors.textColor, '#e6edf3');
-
-            const donation = messageEl.querySelector('.message-donation');
-
-            if (donation) {
-                donation.style.removeProperty('background');
-                donation.style.removeProperty('color');
-            }
-
-            const text = messageEl.querySelector('.message-text-inline');
-            setIfCustom(text, 'color', chatColors.textColor, '#e6edf3');
+            setIfCustomVar('--border', chatColors.borderColor, '#161b22');
+            setIfCustomVar('--text', chatColors.textColor, '#e6edf3');
 
             const uname = messageEl.querySelector('.message-username.cyberpunk');
-            if (uname && (serverHasTheme || hasExplicitUserColors)) {
-                uname.style.removeProperty('background-color');
-                uname.style.removeProperty('color');
-                uname.style.removeProperty('text-shadow');
-            }
         });
 
         if (isHorizontal) {
@@ -289,16 +277,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const themeActive = !!(themeStyle && typeof themeStyle.textContent === 'string' && themeStyle.textContent.trim().length > 0);
     updateDonationVars();
 
-        if (themeActive) {
-            if (chatContainer) chatContainer.style.removeProperty('background');
-            return;
-        }
-
-        if (chatColors.bgColor === 'transparent') {
-            if (chatContainer) chatContainer.style.removeProperty('background');
-        } else {
-            chatContainer && chatContainer.style.setProperty('background', (chatColors.bgColor || '#0f1419'), 'important');
-        }
+    if (themeActive) { setCssVar('--chat-bg', ''); return; }
+    if (chatColors.bgColor === 'transparent') { setCssVar('--chat-bg', ''); }
+    else { setCssVar('--chat-bg', (chatColors.bgColor || '#0f1419')); }
     }
 
     applyChatColors();
@@ -321,18 +302,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const initialSrc = hasCustom ? msg.avatar : DEFAULT_AVATAR_URL;
             img.src = initialSrc;
             img.alt = username;
-            if (!hasCustom) {
-                avatar.style.backgroundColor = colorForAvatar(username);
-            }
+        if (!hasCustom) { try { const bgIdx = Math.abs(username.split('').reduce((a,c)=>c.charCodeAt(0)+((a<<5)-a),0)) % 10; avatar.classList.add(`avatar-bg-${bgIdx}`); } catch {} }
             img.onerror = () => {
                 if (img.src !== DEFAULT_AVATAR_URL) {
                     img.onerror = null;
                     img.src = DEFAULT_AVATAR_URL;
-                    avatar.style.backgroundColor = colorForAvatar(username);
-                    avatar.style.display = '';
+            try { const bgIdx = Math.abs(username.split('').reduce((a,c)=>c.charCodeAt(0)+((a<<5)-a),0)) % 10; avatar.classList.add(`avatar-bg-${bgIdx}`); } catch {}
                 } else {
-                    img.style.display = 'none';
-                    avatar.style.backgroundColor = colorForAvatar(username);
+            img.classList.add('avatar-img-hidden');
+            try { const bgIdx = Math.abs(username.split('').reduce((a,c)=>c.charCodeAt(0)+((a<<5)-a),0)) % 10; avatar.classList.add(`avatar-bg-${bgIdx}`); } catch {}
                 }
             };
             avatar.appendChild(img);
@@ -368,15 +346,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
     if (!serverHasTheme && !hasExplicitUserColors) {
-            usernameElement.style.setProperty('background-color', style.bg, 'important');
-            usernameElement.style.setProperty('color', style.text, 'important');
-            usernameElement.style.setProperty('text-shadow', `0 0 8px ${style.border}`, 'important');
+            // default CSS handles cp-N pill styling
         }
-
-        usernameElement.style.padding = '1px 4px';
-        usernameElement.style.borderRadius = '4px';
-        usernameElement.style.transition = 'all 0.3s ease';
-        usernameElement.style.display = 'inline-block';
         userContainer.appendChild(usernameElement);
 
         const cleanMessage = (msg.message || '').replace(/&lt;stkr&gt;(.*?)&lt;\/stkr&gt;/g, '<stkr>$1</stkr>');
@@ -417,21 +388,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (let i = 0; i < 200; i++) {
                 const confetti = document.createElement('div');
                 confetti.className = 'confetti';
-                confetti.style.left = `${Math.random() * 100}%`;
-                confetti.style.width = `${6 + Math.random() * 6}px`;
-                confetti.style.height = confetti.style.width;
-                const colors = ['#ff69b4', '#ffd700', '#ffffff', '#e81161', '#0070ff', '#00ff28'];
-                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                const duration = 2 + Math.random() * 8;
-                const delay = Math.random() * 10;
-                confetti.style.animation = `confettiFall ${duration}s linear ${delay}s forwards`;
-                if (Math.random() > 0.5) confetti.style.borderRadius = '50%';
+                const posClass = `pos-${Math.floor(Math.random()*20)}`; confetti.classList.add(posClass);
+                const sizeBucket = Math.floor(Math.random()*5); confetti.classList.add(`size-${sizeBucket}`);
+                const colorIdx = Math.floor(Math.random()*6); confetti.classList.add(`color-${colorIdx}`);
+                const durBucket = Math.floor(Math.random()*9); confetti.classList.add(`dur-${durBucket}`);
+                const delayBucket = Math.floor(Math.random()*11); confetti.classList.add(`delay-${delayBucket}`);
+                if (Math.random() > 0.5) confetti.classList.add('round');
                 confettiContainer.appendChild(confetti);
             }
             messageEl.appendChild(confettiContainer);
             setTimeout(() => {
                 donation.classList.remove('highlight');
-                confettiContainer.style.opacity = '0';
+                confettiContainer.classList.add('fade-out');
                 setTimeout(() => confettiContainer.remove(), 1000);
             }, 20000);
         }
@@ -529,12 +497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function applyChatTheme(themeCSS, isLightTheme) {
-        let styleTag = document.getElementById('chat-theme-style');
-        if (!styleTag) {
-            styleTag = document.createElement('style');
-            styleTag.id = 'chat-theme-style';
-            document.head.appendChild(styleTag);
-        }
+    let styleTag = ensureStyleTag('chat-theme-style');
 
         styleTag.textContent = themeCSS;
         if (chatContainer) {
@@ -585,19 +548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     }
                                 } catch {}
 
-                const messages = chatContainer ? chatContainer.querySelectorAll('.message') : [];
-                messages.forEach((messageEl) => {
-                    messageEl.style.removeProperty('background');
-                    messageEl.style.removeProperty('border-left');
-                    messageEl.style.removeProperty('color');
-                    const donation = messageEl.querySelector('.message-donation');
-                    if (donation) {
-                        donation.style.removeProperty('background');
-                        donation.style.removeProperty('color');
-                    }
-                    const text = messageEl.querySelector('.message-text-inline');
-                    if (text) text.style.removeProperty('color');
-                });
+                // No inline resets needed; theme CSS takes precedence
 
                 updateDonationVars();
             } else {
@@ -659,8 +610,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const initialVars = (localStorage.getItem('chatLiveThemeVars') || '').trim();
         if (initialVars) {
-            let tag = document.getElementById('chat-theme-size-vars');
-            if (!tag) { tag = document.createElement('style'); tag.id = 'chat-theme-size-vars'; document.head.appendChild(tag); }
+            let tag = ensureStyleTag('chat-theme-size-vars');
             tag.textContent = /}\s*$/.test(initialVars) ? initialVars : (initialVars + '}');
         }
     } catch {/* ignore */}
@@ -689,8 +639,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (serverHasTheme) return;
         const vars = (e.newValue || '').trim();
         if (!vars) return;
-        let tag = document.getElementById('chat-theme-size-vars');
-        if (!tag) { tag = document.createElement('style'); tag.id = 'chat-theme-size-vars'; document.head.appendChild(tag); }
+        let tag = ensureStyleTag('chat-theme-size-vars');
         tag.textContent = /}\s*$/.test(vars) ? vars : (vars + '}');
     });
 });

@@ -4,40 +4,15 @@ fetch('/api/socialmedia-config')
     if (!data.success || !Array.isArray(data.config)) return;
     const config = data.config;
     const container = document.createElement('div');
-    container.className = 'socialmedia-overlay';
-    container.style.display = 'flex';
-    container.style.flexWrap = 'wrap';
-    container.style.justifyContent = 'center';
-    container.style.alignItems = 'flex-start';
-    container.style.gap = '12px';
-    container.style.height = 'auto';
-    container.style.fontFamily = "'Inter', Arial, sans-serif";
+    container.className = 'socialmedia-widget';
     config.forEach(item => {
-      const panel = document.createElement('div');
-      panel.className = 'socialmedia-panel';
-      panel.style.display = 'flex';
-      panel.style.flexDirection = 'row';
-      panel.style.alignItems = 'center';
-      panel.style.background = 'var(--card-bg, #181c22)';
-      panel.style.borderRadius = '4px';
-      panel.style.padding = '8px 18px 8px 10px';
-      panel.style.minWidth = '90px';
-      panel.style.margin = '0';
-      panel.style.boxShadow = 'none';
-      panel.style.transition = 'none';
+    const panel = document.createElement('div');
+    panel.className = 'socialmedia-panel';
       
       const icon = document.createElement('div');
       icon.className = 'socialmedia-icon';
-      icon.style.width = '28px';
-      icon.style.height = '28px';
-      icon.style.borderRadius = '50%';
-      icon.style.background = 'var(--darker-bg, #222)';
-      icon.style.display = 'flex';
-      icon.style.alignItems = 'center';
-      icon.style.justifyContent = 'center';
-      icon.style.marginRight = '8px';
       if (item.icon === 'custom' && item.customIcon) {
-        icon.innerHTML = `<img src="${item.customIcon}" alt="Custom" style="height:32px;max-width:120px;max-height:120px;border-radius:50%;object-fit:cover;">`;
+        icon.innerHTML = `<img src="${item.customIcon}" alt="Custom" class="socialmedia-custom-icon">`;
       } else {
         icon.innerHTML = getSocialIconSVG(item.icon);
       }
@@ -46,13 +21,6 @@ fetch('/api/socialmedia-config')
       const name = document.createElement('div');
       name.className = 'socialmedia-name';
       name.textContent = item.name;
-      name.style.fontWeight = '600';
-      name.style.fontSize = '1rem';
-      name.style.color = 'var(--text-color, #fff)';
-      name.style.marginRight = '8px';
-      name.style.marginBottom = '0';
-      name.style.letterSpacing = '0.02em';
-      name.style.textShadow = 'none';
       panel.appendChild(name);
       
       const link = document.createElement('a');
@@ -60,12 +28,6 @@ fetch('/api/socialmedia-config')
       link.href = item.link;
       link.target = '_blank';
       link.textContent = item.link.replace(/^https?:\/\//, '');
-      link.style.color = '#00ff7f';
-      link.style.fontWeight = '600';
-      link.style.fontSize = '1rem';
-      link.style.wordBreak = 'break-all';
-      link.style.textDecoration = 'none';
-      link.style.transition = 'none';
       panel.appendChild(link);
       container.appendChild(panel);
     });

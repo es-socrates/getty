@@ -51,8 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('edit') === 'true') {
-        container.style.position = 'absolute';
-        container.style.resize = 'both';
-        container.style.overflow = 'hidden';
+        container.classList.add('pn-edit');
     }
 });

@@ -1,11 +1,13 @@
 <template>
   <section class="admin-tab active" role="form">
-    <OsCard class="mb-4" :title="t('announcementSettings')" aria-describedby="announce-settings-desc">
-      <p id="announce-settings-desc" class="sr-only">Configure announcement rotation timing, theme, colors and animation.</p>
-      <div
-        class="grid"
-        style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"
-      >
+    <OsCard
+      class="mb-4"
+      :title="t('announcementSettings')"
+      aria-describedby="announce-settings-desc">
+      <p id="announce-settings-desc" class="sr-only">
+        Configure announcement rotation timing, theme, colors and animation.
+      </p>
+      <div class="grid [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))] gap-3">
         <div class="form-group">
           <label class="label">{{ t('announcementCooldownSeconds') }}</label>
           <input class="input" type="number" v-model.number="cooldownMinutes" min="1" />
@@ -37,11 +39,7 @@
         </div>
         <div class="form-group">
           <label class="label">{{ t('announcementDefaultDuration') }}</label>
-          <input
-            class="input"
-            type="number"
-            v-model.number="settings.defaultDurationSeconds"
-          />
+          <input class="input" type="number" v-model.number="settings.defaultDurationSeconds" />
         </div>
         <div class="form-group">
           <label class="label">{{ t('announcementApplyAll') }}</label>
@@ -49,11 +47,7 @@
         </div>
       </div>
       <div class="mt-3 flex gap-2">
-        <button
-          class="btn"
-          :disabled="savingSettings"
-          @click="saveSettings"
-        >
+        <button class="btn" :disabled="savingSettings" @click="saveSettings">
           {{ savingSettings ? t('commonSaving') : t('announcementSaveSettings') }}
         </button>
         <button class="btn" @click="clearAll('all')">
@@ -68,33 +62,28 @@
     <OsCard :title="t('announcementAddMessage')">
       <form
         @submit.prevent="addMessage"
-        class="grid"
-        aria-describedby="add-message-desc"
-        style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"
-      >
-        <p id="add-message-desc" class="sr-only">Add a new announcement with optional link, duration and image.</p>
-        <div class="form-group" style="grid-column:1/-1;">
+        class="grid [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))] gap-3"
+        aria-describedby="add-message-desc">
+        <p id="add-message-desc" class="sr-only">
+          Add a new announcement with optional link, duration and image.
+        </p>
+        <div class="form-group [grid-column:1/-1]">
           <label class="label">{{ t('announcementText') }}</label>
           <input
             class="input"
             :class="{ 'input-error': errors.text }"
             v-model="newMsg.text"
             maxlength="120"
-            required
-          />
-          <div class="flex gap-2 small" style="justify-content:space-between;">
-            <small :style="errors.text ? 'color:#ef4444':''">
+            required />
+          <div class="flex gap-2 small justify-between">
+            <small :class="errors.text ? 'text-red-500' : ''">
               {{ errors.text || ' ' }}
             </small>
             <small aria-live="polite" aria-atomic="true">
               {{ t('charsUsed', { used: newMsg.text.length, max: 120 }) }}
             </small>
           </div>
-          <small
-            v-if="errors.text"
-            class="small"
-            style="color:#ef4444"
-          >
+          <small v-if="errors.text" class="small text-red-500">
             {{ errors.text }}
           </small>
         </div>
@@ -103,13 +92,8 @@
           <input
             class="input"
             :class="{ 'input-error': errors.linkUrl }"
-            v-model="newMsg.linkUrl"
-          />
-          <small
-            v-if="errors.linkUrl"
-            class="small"
-            style="color:#ef4444"
-          >
+            v-model="newMsg.linkUrl" />
+          <small v-if="errors.linkUrl" class="small text-red-500">
             {{ errors.linkUrl }}
           </small>
         </div>
@@ -119,34 +103,24 @@
             class="input"
             type="number"
             :class="{ 'input-error': errors.durationSeconds }"
-            v-model.number="newMsg.durationSeconds"
-          />
-          <small
-            v-if="errors.durationSeconds"
-            class="small"
-            style="color:#ef4444"
-          >
+            v-model.number="newMsg.durationSeconds" />
+          <small v-if="errors.durationSeconds" class="small text-red-500">
             {{ errors.durationSeconds }}
           </small>
         </div>
         <div class="form-group">
           <label class="label">{{ t('announcementImage') }}</label>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/gif"
-            @change="onNewImage"
-          />
+          <input type="file" accept="image/png,image/jpeg,image/gif" @change="onNewImage" />
           <div v-if="newMsg.imageFile" class="mt-1 small">
             {{ newMsg.imageFile.name }}
           </div>
         </div>
-        <div style="grid-column:1/-1;" class="flex gap-2">
+        <div class="[grid-column:1/-1] flex gap-2">
           <button
             class="btn"
             :disabled="adding"
             type="submit"
-            :aria-busy="adding ? 'true' : 'false'"
-          >
+            :aria-busy="adding ? 'true' : 'false'">
             {{ adding ? t('commonAdding') : t('announcementAddMessage') }}
           </button>
         </div>
@@ -156,39 +130,36 @@
         <div v-for="m in messages" :key="m.id" class="announcement-item">
           <div class="flex gap-3 items-start">
             <div class="flex-1 min-w-0">
-              <div class="font-semibold leading-snug" style="font-size:14px;">{{ m.text }}</div>
+              <div class="font-semibold leading-snug text-[14px]">{{ m.text }}</div>
               <div class="small break-all" v-if="m.linkUrl">{{ m.linkUrl }}</div>
               <div class="small" v-if="m.durationSeconds">
                 {{ t('announcementDurationSeconds') }}: {{ m.durationSeconds }}
               </div>
             </div>
             <div v-if="m.imageUrl" class="shrink-0">
-              <img :src="m.imageUrl" style="height:50px;object-fit:cover;border-radius:4px;" />
+              <img :src="m.imageUrl" class="h-[50px] object-cover rounded" />
             </div>
-            <div class="flex flex-col gap-2 items-end shrink-0" style="min-width:140px;">
-        <label class="small flex items-center gap-1">
+            <div class="flex flex-col gap-2 items-end shrink-0 min-w-[140px]">
+              <label class="small flex items-center gap-1">
                 <input
                   type="checkbox"
-          class="checkbox"
+                  class="checkbox"
                   v-model="m.enabled"
                   @change="toggleMessageEnabled(m)"
-                  :aria-label="t('announcementEnabled') + ' ' + m.text"
-                />
+                  :aria-label="t('announcementEnabled') + ' ' + m.text" />
                 {{ t('announcementEnabled') }}
               </label>
               <div class="flex gap-2">
                 <button
                   class="btn"
                   @click="openEdit(m)"
-                  :aria-label="t('commonEdit') + ' ' + m.text"
-                >
+                  :aria-label="t('commonEdit') + ' ' + m.text">
                   {{ t('commonEdit') }}
                 </button>
                 <button
                   class="btn danger"
                   @click="deleteMessage(m)"
-                  :aria-label="t('commonDelete') + ' ' + m.text"
-                >
+                  :aria-label="t('commonDelete') + ' ' + m.text">
                   {{ t('commonDelete') }}
                 </button>
               </div>
@@ -203,16 +174,17 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="announcement-edit-title"
-        @keydown.esc.prevent="closeEdit"
-      >
-        <div class="modal os-surface rounded-os border border-[var(--card-border)] p-4 shadow-os bg-[var(--bg-card)]" style="max-width:480px;width:100%;" ref="modalRef">
+        @keydown.esc.prevent="closeEdit">
+        <div
+          class="modal os-surface rounded-os border border-[var(--card-border)] p-4 shadow-os bg-[var(--bg-card)] max-w-[480px] w-full"
+          ref="modalRef">
           <h3 id="announcement-edit-title" class="os-card-title mb-2">
             {{ t('commonEdit') }}
           </h3>
           <div class="form-group">
             <label class="label">{{ t('announcementText') }}</label>
             <input class="input" v-model="editForm.text" maxlength="120" />
-            <div class="flex gap-2 small" style="justify-content:space-between;">
+            <div class="flex gap-2 small justify-between">
               <small>&nbsp;</small>
               <small aria-live="polite" aria-atomic="true">
                 {{ t('charsUsed', { used: editForm.text.length, max: 120 }) }}
@@ -223,21 +195,17 @@
             <label class="label">{{ t('announcementLinkUrl') }}</label>
             <input class="input" v-model="editForm.linkUrl" />
           </div>
-            <div class="form-group">
+          <div class="form-group">
             <label class="label">{{ t('announcementDurationSeconds') }}</label>
-            <input
-              class="input"
-              type="number"
-              v-model.number="editForm.durationSeconds"
-            />
+            <input class="input" type="number" v-model.number="editForm.durationSeconds" />
           </div>
-      <div class="form-group flex gap-2 items-center">
+          <div class="form-group flex gap-2 items-center">
             <label>
-        <input type="checkbox" class="checkbox" v-model="editForm.enabled" />
+              <input type="checkbox" class="checkbox" v-model="editForm.enabled" />
               {{ t('announcementEnabled') }}
             </label>
             <label>
-        <input type="checkbox" class="checkbox" v-model="editForm.removeImage" />
+              <input type="checkbox" class="checkbox" v-model="editForm.removeImage" />
               {{ t('announcementRemoveImage') }}
             </label>
           </div>
@@ -253,22 +221,15 @@
       <div class="mt-6">
         <h3 class="os-card-title mb-2">{{ t('announcementFavicon') }}</h3>
         <div class="flex gap-2 items-end">
-          <div class="form-group" style="flex:1;">
+          <div class="form-group flex-1">
             <label class="label">{{ t('announcementSiteUrl') }}</label>
-            <input
-              class="input"
-              v-model="faviconUrl"
-              placeholder="https://example.com"
-            />
+            <input class="input" v-model="faviconUrl" placeholder="https://example.com" />
           </div>
           <button class="btn" @click="fetchFavicon">
             {{ t('announcementFaviconFetch') }}
           </button>
           <div v-if="faviconData" class="flex items-center gap-2">
-            <img
-              :src="faviconData"
-              style="height:32px;width:32px;object-fit:contain;"
-            />
+            <img :src="faviconData" class="h-8 w-8 object-contain" />
             <button class="btn" @click="clearFavicon">
               {{ t('announcementFaviconNone') }}
             </button>
@@ -311,8 +272,13 @@ const settings = ref({
 });
 
 const cooldownMinutes = computed({
-  get() { return Math.max(1, Math.round((settings.value.cooldownSeconds || 300) / 60)); },
-  set(v) { const n = Number(v); settings.value.cooldownSeconds = Number.isFinite(n) && n > 0 ? n * 60 : 300; }
+  get() {
+    return Math.max(1, Math.round((settings.value.cooldownSeconds || 300) / 60));
+  },
+  set(v) {
+    const n = Number(v);
+    settings.value.cooldownSeconds = Number.isFinite(n) && n > 0 ? n * 60 : 300;
+  },
 });
 
 const messages = ref([]);
@@ -378,8 +344,10 @@ function onNewImage(e) {
 function validateNew() {
   errors.value = { text: '', linkUrl: '', durationSeconds: '' };
   if (!newMsg.value.text.trim()) errors.value.text = t('requiredField');
-  if (newMsg.value.linkUrl && !isHttpUrl(newMsg.value.linkUrl)) errors.value.linkUrl = t('invalidUrl');
-  if (!withinRange(newMsg.value.durationSeconds, 1, 60)) errors.value.durationSeconds = t('valRange1to60');
+  if (newMsg.value.linkUrl && !isHttpUrl(newMsg.value.linkUrl))
+    errors.value.linkUrl = t('invalidUrl');
+  if (!withinRange(newMsg.value.durationSeconds, 1, 60))
+    errors.value.durationSeconds = t('valRange1to60');
   return !errors.value.text && !errors.value.linkUrl && !errors.value.durationSeconds;
 }
 
@@ -570,11 +538,13 @@ onBeforeUnmount(() => document.removeEventListener('keydown', trapFocus));
   border-radius: 0.65rem;
   background: color-mix(in srgb, var(--card-bg) 55%, transparent);
   backdrop-filter: blur(4px);
-  transition: background .25s, border-color .25s;
+  transition: background 0.25s, border-color 0.25s;
 }
 .announcement-item:hover {
   background: color-mix(in srgb, var(--card-bg) 70%, transparent);
   border-color: color-mix(in srgb, var(--card-border) 60%, transparent);
 }
-.announcement-item:last-child { margin-bottom: 0; }
+.announcement-item:last-child {
+  margin-bottom: 0;
+}
 </style>

@@ -29,7 +29,7 @@ function loadSavedData() {
     if (activeState) {
         try {
             const parsed = JSON.parse(activeState);
-            if (!raffleData.winner && parsed.timestamp && (Date.now() - parsed.timestamp) < (30 * 60 * 1000)) { // 30 min
+            if (!raffleData.winner && parsed.timestamp && (Date.now() - parsed.timestamp) < (30 * 60 * 1000)) {
                 lastActiveState = parsed;
                 updateRaffleState(parsed, true);
                 return false;
@@ -85,7 +85,7 @@ function renderRaffleContent() {
             <div class="winner-flex-row">
                 <div class="winner-image-area">
                     <img id="winnerPrizeImage" src="${raffleData.imageUrl || ''}" alt="Giveaway image" class="winner-prize-image${raffleData.imageUrl ? '' : ' hidden'}">
-                    <div id="winnerPrizeImagePlaceholder" class="prize-image-placeholder" style="display:${raffleData.imageUrl ? 'none' : ''}">Giveaway<br>image</div>
+                    <div id="winnerPrizeImagePlaceholder" class="prize-image-placeholder${raffleData.imageUrl ? ' hidden' : ''}">Giveaway<br>image</div>
                 </div>
                 <div class="winner-info-area">
                     <div class="winner-icon" aria-label="Trophy" title="Trophy">
@@ -100,13 +100,13 @@ function renderRaffleContent() {
                             <circle cx="18" cy="13" r="3.5" fill="#fffbe6" stroke="#d3a74f" stroke-width="1.5"/>
                         </svg>
                     </div>
-                    <div class="text-xl" style="font-weight: 700; color: #00ff7f" data-i18n="raffleWinnerTitle">¡Tenemos un ganador!</div>
-                    <div class="winner-name" style="font-weight: 600; color: #fff;" id="winnerName">
+                    <div class="text-xl winner-title" data-i18n="raffleWinnerTitle">¡Tenemos un ganador!</div>
+                    <div class="winner-name winner-strong" id="winnerName">
                         ${winnerNameHTML}
                     </div>
-                    <div class="text-lg" style="font-weight: 600; color: #fff;" data-i18n="rafflePrizeLabel"></div>
-                    <div class="winner-prize" style="font-weight: 600; color: #fff;" id="winnerPrize">${raffleData.prize || '---'}</div>
-                    <div class="winner-command" style="font-weight: 600; color: #fff;" id="winnerCommand">
+                    <div class="text-lg winner-label" data-i18n="rafflePrizeLabel"></div>
+                    <div class="winner-prize winner-strong" id="winnerPrize">${raffleData.prize || '---'}</div>
+                    <div class="winner-command winner-strong" id="winnerCommand">
                         <span data-i18n="raffleCommandLabel">Comando:</span>
                         <span class="winner-command-value">${raffleData.command || window.lastRaffleCommand || ''}</span>
                     </div>
@@ -121,10 +121,10 @@ function renderRaffleContent() {
             let idx = 0;
             function showNextWinner() {
                 if (!fadeElem) return;
-                fadeElem.style.opacity = 0;
+                fadeElem.classList.add('opacity-0');
                 setTimeout(() => {
                     fadeElem.textContent = winnerNames[idx].length > 12 ? winnerNames[idx].slice(0, 12) + '…' : winnerNames[idx];
-                    fadeElem.style.opacity = 1;
+                    fadeElem.classList.remove('opacity-0');
                     idx = (idx + 1) % winnerNames.length;
                 }, 400);
             }
@@ -157,7 +157,7 @@ function renderRaffleContent() {
             <div class="giveaway-row">
                 <div class="giveaway-prize-image-area">
                     <img id="prizeImage" src="${state && state.imageUrl ? state.imageUrl : ''}" alt="Award image" class="prize-image${state && state.imageUrl ? '' : ' hidden'}">
-                    <div id="prizeImagePlaceholder" class="prize-image-placeholder" style="display:${state && state.imageUrl ? 'none' : ''}">Image<br>of<br>the<br>award</div>
+                    <div id="prizeImagePlaceholder" class="prize-image-placeholder${state && state.imageUrl ? ' hidden' : ''}">Image<br>of<br>the<br>award</div>
                 </div>
                 <div class="giveaway-main-info">
                     <div class="giveaway-prize-name" id="prizeName">${state && state.prize ? state.prize : '<span data-i18n="raffleLoading">Loading...</span>'}</div>
@@ -173,7 +173,7 @@ function renderRaffleContent() {
                     <span id="participantCountBox">${participantCount}</span>
                 </div>
                 <div class="giveaway-command-area" id="commandArea">
-                    <span style="font-weight:600; margin-right:6px;" data-i18n="raffleCommandLabel">Command:</span> <span id="raffleCommand" class="giveaway-command">${state && state.command ? state.command : 'Command name'}</span>
+                    <span class="command-label" data-i18n="raffleCommandLabel">Command:</span> <span id="raffleCommand" class="giveaway-command">${state && state.command ? state.command : 'Command name'}</span>
                 </div>
             </div>
         </div>

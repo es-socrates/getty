@@ -15,8 +15,7 @@
           <input
             :placeholder="t('themeSearchPlaceholder') || 'Search'"
             v-model="searchTerm"
-            class="input w-40"
-            style="min-width: 140px" />
+            class="input w-40 min-w-[140px]" />
           <select v-model="orderMode" class="select w-32">
             <option value="recent">
               {{ t('themeOrderRecent') || 'Recent' }}
@@ -122,11 +121,10 @@
         <div class="mt-3">
           <textarea
             id="chat-theme-css-copy"
-            class="textarea mt-1 w-full"
+            class="textarea mt-1 w-full font-mono resize-y"
             readonly
             rows="10"
-            :value="currentCSS"
-            style="font-family: monospace; resize: vertical"></textarea>
+            :value="currentCSS"></textarea>
         </div>
       </details>
     </OsCard>
@@ -264,10 +262,9 @@
           }}</label>
           <textarea
             id="chat-theme-working-css"
-            class="textarea w-full"
+            class="textarea w-full font-mono resize-y"
             v-model="customWorkingCSS"
-            rows="10"
-            style="font-family: monospace; resize: vertical"></textarea>
+            rows="10"></textarea>
         </div>
       </div>
     </OsCard>
@@ -279,7 +276,7 @@
         role="dialog"
         aria-modal="true"
         @click.self="!creatingVariant && (showVariantModal = false)">
-        <div class="modal-card" style="max-width: 420px">
+        <div class="modal-card max-w-[420px]">
           <div class="modal-title text-sm font-semibold">
             {{ t('saveSizeVariant') || 'Save size variant' }}
           </div>
@@ -344,7 +341,7 @@
         role="dialog"
         aria-modal="true"
         @click.self="closeExport">
-        <div class="modal-card" style="max-width: 780px">
+        <div class="modal-card max-w-[780px]">
           <div class="modal-title text-sm font-semibold flex items-center justify-between">
             <span>{{ t('exportModalTitle') || 'Export themes JSON' }}</span>
             <button class="btn btn-xs" @click="closeExport">✕</button>
@@ -356,10 +353,9 @@
             }}
           </p>
           <textarea
-            class="textarea w-full"
+            class="textarea w-full font-mono"
             rows="12"
             readonly
-            style="font-family: monospace"
             :value="exportText"></textarea>
           <div class="modal-actions flex gap-2 mt-3">
             <button class="btn" @click="copyExport" :disabled="copiedExport">
@@ -383,7 +379,7 @@
         role="dialog"
         aria-modal="true"
         @click.self="closeImport">
-        <div class="modal-card" style="max-width: 780px">
+        <div class="modal-card max-w-[780px]">
           <div class="modal-title text-sm font-semibold flex items-center justify-between">
             <span>{{ t('importModalTitle') || 'Import themes JSON' }}</span>
             <button class="btn btn-xs" @click="closeImport">✕</button>
@@ -421,9 +417,8 @@
             <span class="text-xs" v-else>{{ droppedFileName }}</span>
           </div>
           <textarea
-            class="textarea w-full"
+            class="textarea w-full font-mono"
             rows="12"
-            style="font-family: monospace"
             v-model="importText"
             :placeholder="importPlaceholder"></textarea>
           <div class="modal-actions flex gap-2 mt-3">
@@ -445,7 +440,7 @@
         role="dialog"
         aria-modal="true"
         @click.self="closeDiff">
-        <div class="modal-card" style="max-width: 960px">
+        <div class="modal-card max-w-[960px]">
           <div class="modal-title text-sm font-semibold flex items-center justify-between">
             <span>{{ t('diffModalTitle') || 'Compare themes (Diff)' }}</span>
             <button class="btn btn-xs" @click="closeDiff">✕</button>

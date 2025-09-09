@@ -14,8 +14,8 @@
           v-model="form.chatUrl"
           type="text"
           :placeholder="claimPlaceholder" />
-        <div class="flex gap-2 small" style="justify-content: space-between">
-          <small :style="errors.chatUrl ? 'color:#b91c1c' : ''">
+        <div class="flex gap-2 small justify-between">
+          <small :class="errors.chatUrl ? 'text-red-700' : ''">
             {{ errors.chatUrl || ' ' }}
           </small>
           <small aria-live="polite" aria-atomic="true">
@@ -124,9 +124,8 @@
           <span
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs">
             <span
-              :style="`width:8px;height:8px;border-radius:9999px;display:inline-block;background:${
-                connected ? '#22c55e' : '#ef4444'
-              }`"></span>
+              class="inline-block w-2 h-2 rounded-full"
+              :class="connected ? 'bg-green-500' : 'bg-red-500'"></span>
             <span>{{
               connected ? t('connected') || 'Connected' : t('disconnected') || 'Disconnected'
             }}</span>
@@ -166,8 +165,7 @@
         </span>
         <button
           type="button"
-          class="btn btn-sm"
-          style="padding: 2px 8px"
+          class="btn btn-sm px-2 py-0.5"
           @click="refreshPrice"
           :disabled="price.refreshing">
           {{ price.refreshing ? t('refreshing') || 'Refreshing…' : t('refresh') || 'Refresh' }}

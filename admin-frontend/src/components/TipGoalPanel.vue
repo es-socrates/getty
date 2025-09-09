@@ -1,13 +1,25 @@
 <template>
   <section class="admin-tab active" role="form">
     <OsCard :title="t('monthlyGoalTitle')" class="mb-4" aria-describedby="tip-goal-desc">
-      <p id="tip-goal-desc" class="sr-only">Configuration for tip goal title, wallet, amounts and colors.</p>
+      <p id="tip-goal-desc" class="sr-only">
+        Configuration for tip goal title, wallet, amounts and colors.
+      </p>
       <div class="form-group" aria-live="polite">
         <label class="label" for="tip-goal-title">{{ t('tipGoalCustomTitleLabel') }}</label>
-        <input class="input" :aria-invalid="!!errors.title" :class="{'input-error': errors.title}" id="tip-goal-title" v-model="form.title" type="text" maxlength="120" :placeholder="t('tipGoalCustomTitlePlaceholder')" />
-        <div class="flex gap-2 small" style="justify-content:space-between;">
+        <input
+          class="input"
+          :aria-invalid="!!errors.title"
+          :class="{ 'input-error': errors.title }"
+          id="tip-goal-title"
+          v-model="form.title"
+          type="text"
+          maxlength="120"
+          :placeholder="t('tipGoalCustomTitlePlaceholder')" />
+        <div class="flex gap-2 small justify-between">
           <small>{{ errors.title || t('tipGoalCustomTitleHint') }}</small>
-          <small aria-live="polite" aria-atomic="true">{{ t('charsUsed', { used: form.title.length, max: 120 }) }}</small>
+          <small aria-live="polite" aria-atomic="true">{{
+            t('charsUsed', { used: form.title.length, max: 120 })
+          }}</small>
         </div>
       </div>
       <div class="form-group mt-2">
@@ -19,32 +31,62 @@
       </div>
       <div class="form-group mt-2">
         <label class="label" for="tip-goal-wallet-address">{{ t('arWalletAddress') }}</label>
-        <input class="input" :aria-invalid="!!errors.walletAddress" :class="{'input-error': errors.walletAddress}" id="tip-goal-wallet-address" v-model="form.walletAddress" type="text" />
-  <small v-if="errors.walletAddress" class="small" style="color:#b91c1c">{{ errors.walletAddress }}</small>
-  <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
-  <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
+        <input
+          class="input"
+          :aria-invalid="!!errors.walletAddress"
+          :class="{ 'input-error': errors.walletAddress }"
+          id="tip-goal-wallet-address"
+          v-model="form.walletAddress"
+          type="text" />
+        <small v-if="errors.walletAddress" class="small text-red-700">{{
+          errors.walletAddress
+        }}</small>
+        <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
+        <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="form-group mt-2">
         <label class="label" for="goal-amount">{{ t('monthlyGoal') }}</label>
-  <input class="input" :aria-invalid="!!errors.goalAmount" :class="{'input-error': errors.goalAmount}" id="goal-amount" v-model.number="form.goalAmount" type="number" min="1" />
-  <small v-if="errors.goalAmount" class="small" style="color:#b91c1c">{{ errors.goalAmount }}</small>
+        <input
+          class="input"
+          :aria-invalid="!!errors.goalAmount"
+          :class="{ 'input-error': errors.goalAmount }"
+          id="goal-amount"
+          v-model.number="form.goalAmount"
+          type="number"
+          min="1" />
+        <small v-if="errors.goalAmount" class="small text-red-700">{{ errors.goalAmount }}</small>
       </div>
       <div class="form-group mt-2">
         <label class="label" for="starting-amount">{{ t('initialAmount') }}</label>
-  <input class="input" :aria-invalid="!!errors.startingAmount" :class="{'input-error': errors.startingAmount}" id="starting-amount" v-model.number="form.startingAmount" type="number" min="0" />
-        <small v-if="errors.startingAmount" class="small" style="color:#b91c1c">{{ errors.startingAmount }}</small>
+        <input
+          class="input"
+          :aria-invalid="!!errors.startingAmount"
+          :class="{ 'input-error': errors.startingAmount }"
+          id="starting-amount"
+          v-model.number="form.startingAmount"
+          type="number"
+          min="0" />
+        <small v-if="errors.startingAmount" class="small text-red-700">{{
+          errors.startingAmount
+        }}</small>
       </div>
       <div class="mt-3">
         <div class="flex justify-between items-center mb-2">
           <h3 class="os-card-title mb-0">{{ t('colorCustomizationTitle') }}</h3>
-          <button type="button" class="btn" @click="resetColors" :aria-label="t('resetColors')">{{ t('resetColors') }}</button>
+          <button type="button" class="btn" @click="resetColors" :aria-label="t('resetColors')">
+            {{ t('resetColors') }}
+          </button>
         </div>
         <div class="flex flex-wrap gap-2">
-          <ColorInput v-for="c in colorFields" :key="c.key" v-model="form.colors[c.key]" :label="t(c.label)" />
+          <ColorInput
+            v-for="c in colorFields"
+            :key="c.key"
+            v-model="form.colors[c.key]"
+            :label="t(c.label)" />
         </div>
       </div>
       <div class="mt-3">
-  <h3 class="os-card-title mb-2">{{ t('audioSettingsTitle') }}</h3>
+        <h3 class="os-card-title mb-2">{{ t('audioSettingsTitle') }}</h3>
         <div class="form-group">
           <label class="label" for="audio-source">{{ t('audioSourceLabel') }}</label>
           <select id="audio-source" v-model="form.audioSource" class="input">
@@ -54,30 +96,47 @@
         </div>
         <div v-if="form.audioSource === 'custom'" class="form-group mt-2">
           <label class="label" for="custom-audio-upload">{{ t('customAudioUploadLabel') }}</label>
-          <input id="custom-audio-upload" type="file" accept="audio/*" @change="onAudioFileChange" :disabled="saving" />
+          <input
+            id="custom-audio-upload"
+            type="file"
+            accept="audio/*"
+            @change="onAudioFileChange"
+            :disabled="saving" />
           <div v-if="audioState.hasCustomAudio" class="mt-2">
             <div class="flex gap-2 items-center">
-              <span>{{ t('customAudioFileName') }}: <b>{{ audioState.audioFileName }}</b></span>
-              <span>{{ t('customAudioFileSize') }}: <b>{{ formatSize(audioState.audioFileSize) }}</b></span>
-              <button class="btn btn-danger" @click="deleteCustomAudio" :disabled="saving">{{ t('deleteCustomAudio') }}</button>
+              <span
+                >{{ t('customAudioFileName') }}: <b>{{ audioState.audioFileName }}</b></span
+              >
+              <span
+                >{{ t('customAudioFileSize') }}:
+                <b>{{ formatSize(audioState.audioFileSize) }}</b></span
+              >
+              <button class="btn btn-danger" @click="deleteCustomAudio" :disabled="saving">
+                {{ t('deleteCustomAudio') }}
+              </button>
             </div>
           </div>
         </div>
-        <button class="btn mt-3" :disabled="saving" @click="save" :aria-busy="saving ? 'true':'false'">{{ saving ? t('commonSaving') : t('saveSettings') }}</button>
+        <button
+          class="btn mt-3"
+          :disabled="saving"
+          @click="save"
+          :aria-busy="saving ? 'true' : 'false'">
+          {{ saving ? t('commonSaving') : t('saveSettings') }}
+        </button>
       </div>
-  </OsCard>
-  <OsCard class="mt-4" :title="t('obsIntegration')">
+    </OsCard>
+    <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
           <span class="label mb-0">{{ t('tipGoalWidgetUrl') }}</span>
           <CopyField :value="widgetUrl" :aria-label="t('tipGoalWidgetUrl')" />
         </div>
       </div>
-  </OsCard>
+    </OsCard>
   </section>
 </template>
 <script setup>
-
 import { reactive, computed, onMounted, watch, ref } from 'vue';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { useI18n } from 'vue-i18n';
@@ -86,7 +145,7 @@ import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
-import OsCard from './os/OsCard.vue'
+import OsCard from './os/OsCard.vue';
 import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
@@ -103,15 +162,15 @@ const form = reactive({
     bg: '#080c10',
     font: '#ffffff',
     border: '#00ff7f',
-    progress: '#00ff7f'
+    progress: '#00ff7f',
   },
-  audioSource: 'remote'
+  audioSource: 'remote',
 });
 
 const audioState = reactive({
   hasCustomAudio: false,
   audioFileName: '',
-  audioFileSize: 0
+  audioFileSize: 0,
 });
 
 const audioFile = ref(null);
@@ -120,7 +179,7 @@ const errors = reactive({
   title: '',
   walletAddress: '',
   goalAmount: '',
-  startingAmount: ''
+  startingAmount: '',
 });
 
 const saving = ref(false);
@@ -132,7 +191,7 @@ const colorFields = [
   { key: 'bg', label: 'colorBg' },
   { key: 'font', label: 'colorFont' },
   { key: 'border', label: 'colorBorder' },
-  { key: 'progress', label: 'colorProgress' }
+  { key: 'progress', label: 'colorProgress' },
 ];
 
 const pt = usePublicToken();
@@ -148,8 +207,8 @@ async function load() {
     hostedSupported.value = !!statusRes?.data?.supported;
     sessionActive.value = !!statusRes?.data?.active;
 
-  const { data } = await api.get('/api/tip-goal');
-  if (data && data.success) {
+    const { data } = await api.get('/api/tip-goal');
+    if (data && data.success) {
       const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
@@ -168,18 +227,18 @@ async function load() {
       const demoTitles = new Set([
         'Monthly tip goal 🎖️',
         'Meta mensual de propinas 🎖️',
-        'Configure tip goal 💸'
+        'Configure tip goal 💸',
       ]);
       const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
       const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
       const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));
 
       const incomingGoal = data.monthlyGoal || data.goalAmount;
-      const incomingCurrent = (data.currentAmount !== undefined ? data.currentAmount : undefined);
+      const incomingCurrent = data.currentAmount !== undefined ? data.currentAmount : undefined;
 
-      form.goalAmount = isSeed ? null : (incomingGoal || form.goalAmount);
-      form.startingAmount = isSeed ? null : (incomingCurrent ?? form.startingAmount);
-      form.title = isSeed ? '' : (incomingTitle || '');
+      form.goalAmount = isSeed ? null : incomingGoal || form.goalAmount;
+      form.startingAmount = isSeed ? null : incomingCurrent ?? form.startingAmount;
+      form.title = isSeed ? '' : incomingTitle || '';
       form.theme = data.theme || 'classic';
       form.colors.bg = data.bgColor || form.colors.bg;
       form.colors.font = data.fontColor || form.colors.font;
@@ -221,14 +280,16 @@ async function save() {
       borderColor: form.colors.border,
       progressColor: form.colors.progress,
       title: form.title,
-      audioSource: form.audioSource
+      audioSource: form.audioSource,
     };
     let res;
     if (form.audioSource === 'custom' && audioFile.value) {
       const fd = new FormData();
       Object.entries(payload).forEach(([k, v]) => fd.append(k, v));
       fd.append('audioFile', audioFile.value);
-      res = await api.post('/api/tip-goal', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      res = await api.post('/api/tip-goal', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
     } else {
       res = await api.post('/api/tip-goal', payload);
     }
@@ -297,6 +358,8 @@ function isTipGoalDirty() {
 registerDirty(isTipGoalDirty);
 watch(form, () => {}, { deep: true });
 
-onMounted(async () => { await pt.refresh(); await load(); });
-
+onMounted(async () => {
+  await pt.refresh();
+  await load();
+});
 </script>

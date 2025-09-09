@@ -1,8 +1,10 @@
 <template>
   <section class="admin-tab active" role="form">
     <OsCard class="mb-4" aria-describedby="gif-section-desc">
-      <p id="gif-section-desc" class="sr-only">Configure animated GIF position and upload for notifications.</p>
-  <h3 class="os-card-title">GIF</h3>
+      <p id="gif-section-desc" class="sr-only">
+        Configure animated GIF position and upload for notifications.
+      </p>
+      <h3 class="os-card-title">GIF</h3>
       <div class="form-group">
         <label class="label">{{ t('notificationGifPositionLabel') }}</label>
         <select class="input" v-model="gif.position">
@@ -12,28 +14,64 @@
           <option value="bottom">{{ t('positionBottom') }}</option>
         </select>
       </div>
-  <div class="form-group mt-4 flex flex-col gap-3 md:flex-row md:items-end md:gap-4" aria-label="GIF controls">
+      <div
+        class="form-group mt-4 flex flex-col gap-3 md:flex-row md:items-end md:gap-4"
+        aria-label="GIF controls">
         <div class="flex items-center gap-2">
-        <input ref="gifInput" type="file" accept="image/gif" style="display:none" @change="onGifChange" aria-hidden="true" />
-        <button class="btn-secondary" type="button" @click="triggerGif" :aria-busy="savingGif? 'true':'false'">{{ t('notificationGifChooseBtn') }}</button>
-        <button v-if="gif.gifPath" class="btn-danger" type="button" @click="removeGif" :aria-label="t('notificationGifRemoveBtn')">{{ t('notificationGifRemoveBtn') }}</button>
-        <span v-if="gif.fileName" class="small">{{ gif.fileName }}</span>
+          <input
+            ref="gifInput"
+            type="file"
+            accept="image/gif"
+            class="hidden"
+            @change="onGifChange"
+            aria-hidden="true" />
+          <button
+            class="btn-secondary"
+            type="button"
+            @click="triggerGif"
+            :aria-busy="savingGif ? 'true' : 'false'">
+            {{ t('notificationGifChooseBtn') }}
+          </button>
+          <button
+            v-if="gif.gifPath"
+            class="btn-danger"
+            type="button"
+            @click="removeGif"
+            :aria-label="t('notificationGifRemoveBtn')">
+            {{ t('notificationGifRemoveBtn') }}
+          </button>
+          <span v-if="gif.fileName" class="small">{{ gif.fileName }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <button class="btn-save" :disabled="savingGif" type="button" @click="saveGif" :aria-busy="savingGif? 'true':'false'">{{ savingGif ? t('commonSaving') : t('saveSettings') }}</button>
+          <button
+            class="btn-save"
+            :disabled="savingGif"
+            type="button"
+            @click="saveGif"
+            :aria-busy="savingGif ? 'true' : 'false'">
+            {{ savingGif ? t('commonSaving') : t('saveSettings') }}
+          </button>
         </div>
       </div>
-      <div v-if="errors.gif" class="small mt-2" style="color:#b91c1c">{{ errors.gif }}</div>
-      <div v-if="gif.gifPath" class="mt-3"><img :src="gif.gifPath" :alt="gif.fileName" style="max-height:120px;border-radius:6px;" /></div>
-  </OsCard>
-  <OsCard class="mb-4" aria-describedby="tts-section-desc">
+      <div v-if="errors.gif" class="small mt-2 text-red-700">{{ errors.gif }}</div>
+      <div v-if="gif.gifPath" class="mt-3">
+        <img :src="gif.gifPath" :alt="gif.fileName" class="max-h-[120px] rounded-md" />
+      </div>
+    </OsCard>
+    <OsCard class="mb-4" aria-describedby="tts-section-desc">
       <p id="tts-section-desc" class="sr-only">Configure text to speech engine settings.</p>
-  <h3 class="os-card-title">TTS</h3>
+      <h3 class="os-card-title">TTS</h3>
       <div class="form-group">
-        <label class="label"><input type="checkbox" class="checkbox" v-model="tts.enabled" /> {{ t('enableTextToSpeech') }}</label>
+        <label class="label"
+          ><input type="checkbox" class="checkbox" v-model="tts.enabled" />
+          {{ t('enableTextToSpeech') }}</label
+        >
       </div>
       <div class="form-group">
-        <label class="label"><input type="checkbox" class="checkbox" v-model="tts.allChat" /> {{ t('enableTtsAllChat') }}</label>
+        <label class="label"
+          ><input type="checkbox" class="checkbox" v-model="tts.allChat" />
+          {{ t('enableTtsAllChat') }}</label
+        >
       </div>
       <div class="form-group">
         <label class="label">{{ t('ttsLanguage') }}</label>
@@ -42,11 +80,22 @@
           <option value="es">{{ t('spanish') }}</option>
         </select>
       </div>
-  <div class="mt-2"><button class="btn" :disabled="savingTts" type="button" @click="saveTts" :aria-busy="savingTts? 'true':'false'">{{ savingTts ? t('commonSaving') : t('saveSettings') }}</button></div>
-  </OsCard>
-  <OsCard class="mb-4" aria-describedby="audio-section-desc">
-      <p id="audio-section-desc" class="sr-only">Configure custom audio source for notifications.</p>
-  <h3 class="os-card-title">{{ t('customAudioTitle') }}</h3>
+      <div class="mt-2">
+        <button
+          class="btn"
+          :disabled="savingTts"
+          type="button"
+          @click="saveTts"
+          :aria-busy="savingTts ? 'true' : 'false'">
+          {{ savingTts ? t('commonSaving') : t('saveSettings') }}
+        </button>
+      </div>
+    </OsCard>
+    <OsCard class="mb-4" aria-describedby="audio-section-desc">
+      <p id="audio-section-desc" class="sr-only">
+        Configure custom audio source for notifications.
+      </p>
+      <h3 class="os-card-title">{{ t('customAudioTitle') }}</h3>
       <div class="form-group">
         <label class="label" for="audio-source">{{ t('audioSourceLabel') }}</label>
         <select id="audio-source" v-model="audio.audioSource" class="input">
@@ -54,29 +103,51 @@
           <option value="custom">{{ t('audioSourceCustom') }}</option>
         </select>
       </div>
-  <div v-if="audio.audioSource === 'custom'" class="form-group mt-2">
+      <div v-if="audio.audioSource === 'custom'" class="form-group mt-2">
         <label class="label" for="custom-audio-upload">{{ t('customAudioUploadLabel') }}</label>
-        <input id="custom-audio-upload" ref="audioInput" type="file" accept="audio/*" style="display:none" @change="onAudioChange" />
-        <button class="btn" type="button" @click="triggerAudio">{{ t('customAudioUploadLabel') }}</button>
+        <input
+          id="custom-audio-upload"
+          ref="audioInput"
+          type="file"
+          accept="audio/*"
+          class="hidden"
+          @change="onAudioChange" />
+        <button class="btn" type="button" @click="triggerAudio">
+          {{ t('customAudioUploadLabel') }}
+        </button>
         <div v-if="audioState.hasCustomAudio" class="mt-2">
           <div class="flex gap-2 items-center">
-            <span>{{ t('customAudioFileName') }}: <b>{{ audioState.audioFileName }}</b></span>
-            <span>{{ t('customAudioFileSize') }}: <b>{{ formatSize(audioState.audioFileSize) }}</b></span>
-            <button class="btn btn-danger" @click="deleteCustomAudio" :disabled="savingAudio">{{ t('deleteCustomAudio') }}</button>
+            <span
+              >{{ t('customAudioFileName') }}: <b>{{ audioState.audioFileName }}</b></span
+            >
+            <span
+              >{{ t('customAudioFileSize') }}:
+              <b>{{ formatSize(audioState.audioFileSize) }}</b></span
+            >
+            <button class="btn btn-danger" @click="deleteCustomAudio" :disabled="savingAudio">
+              {{ t('deleteCustomAudio') }}
+            </button>
           </div>
         </div>
       </div>
-      <div v-if="errors.audio" class="small" style="color:#b91c1c">{{ errors.audio }}</div>
-      <button class="btn mt-3" :disabled="savingAudio" type="button" @click="saveAudio" :aria-busy="savingAudio? 'true':'false'">{{ savingAudio ? t('commonSaving') : t('saveSettings') }}</button>
-  </OsCard>
-  <OsCard class="mt-4" :title="t('obsIntegration')">
+      <div v-if="errors.audio" class="small text-red-700">{{ errors.audio }}</div>
+      <button
+        class="btn mt-3"
+        :disabled="savingAudio"
+        type="button"
+        @click="saveAudio"
+        :aria-busy="savingAudio ? 'true' : 'false'">
+        {{ savingAudio ? t('commonSaving') : t('saveSettings') }}
+      </button>
+    </OsCard>
+    <OsCard class="mt-4" :title="t('obsIntegration')">
       <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
           <span class="label mb-0">{{ t('notificationWidgetUrl') }}</span>
           <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" />
         </div>
       </div>
-  </OsCard>
+    </OsCard>
   </section>
 </template>
 <script setup>
@@ -88,7 +159,7 @@ import { registerDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE, MAX_AUDIO_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
 import { usePublicToken } from '../composables/usePublicToken';
-import OsCard from './os/OsCard.vue'
+import OsCard from './os/OsCard.vue';
 
 const { t } = useI18n();
 
@@ -100,38 +171,38 @@ const gif = reactive({
   gifPath: '',
   file: null,
   fileName: '',
-  original: ''
+  original: '',
 });
 
 const tts = reactive({
   enabled: true,
   allChat: false,
   language: 'en',
-  original: ''
+  original: '',
 });
 
 const audio = reactive({
   audioSource: 'remote',
   file: null,
   fileName: '',
-  original: ''
+  original: '',
 });
 
 const errors = reactive({
   gif: '',
-  audio: ''
+  audio: '',
 });
 
 const savingGif = ref(false);
 const savingTts = ref(false);
 const savingAudio = ref(false);
 const pt = usePublicToken();
-const widgetUrl = computed(()=> pt.withToken(`${location.origin}/widgets/tip-notification`));
+const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/tip-notification`));
 
 const audioState = reactive({
   hasCustomAudio: false,
   audioFileName: '',
-  audioFileSize: 0
+  audioFileSize: 0,
 });
 
 function isDirty() {
@@ -176,7 +247,7 @@ async function saveGif() {
     fd.append('position', gif.position);
     if (gif.file) fd.append('gifFile', gif.file);
     const { data } = await api.post('/api/tip-notification-gif', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     gif.gifPath = data.gifPath || '';
     gif.file = null;
@@ -273,7 +344,7 @@ async function saveAudio() {
       fd.append('audioFile', audio.file);
     }
     await api.post('/api/audio-settings', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     audio.file = null;
     audio.original = JSON.stringify({ s: audio.audioSource, f: !!audio.fileName });

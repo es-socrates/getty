@@ -154,6 +154,14 @@ try {
   const cspFlag = process.env.GETTY_ENABLE_CSP;
   const enableCsp = (cspFlag === '1') || (typeof cspFlag === 'undefined' && isProd);
   if (enableCsp) {
+    app.use((req, res, next) => {
+      try {
+        const nonce = require('crypto').randomBytes(16).toString('base64');
+        res.locals.cspNonce = nonce;
+        res.setHeader('X-CSP-Nonce', nonce);
+      } catch {}
+      next();
+    });
     const self = "'self'";
     const unsafeEval = isProd ? [] : ["'unsafe-eval'"];
     const splitEnv = (k) => (process.env[k] || '')
@@ -168,18 +176,20 @@ try {
     const scriptHashes = splitEnv('GETTY_CSP_SCRIPT_HASHES');
     const allowUnsafeHashes = process.env.GETTY_CSP_UNSAFE_HASHES === '1';
     const scriptAttr = (process.env.GETTY_CSP_SCRIPT_ATTR || '').trim();
+    const allowInlineScripts = process.env.GETTY_CSP_ALLOW_INLINE_SCRIPTS === '1';
 
     const cspDirectives = {
       defaultSrc: [self],
       scriptSrc: [
         self,
-        "'unsafe-inline'",
+        ...(allowInlineScripts ? ["'unsafe-inline'"] : []),
         ...(allowUnsafeHashes ? ["'unsafe-hashes'"] : []),
         ...unsafeEval,
         ...scriptExtra,
         ...scriptHashes
       ],
-      styleSrc: [self, "'unsafe-inline'", 'https://fonts.googleapis.com'],
+
+      styleSrc: [self, 'https://fonts.googleapis.com', (req, res) => `'nonce-${res.locals.cspNonce || ''}'`],
       imgSrc: [
         self, 'data:', 'blob:',
         'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
@@ -199,7 +209,13 @@ try {
       if (parts.length) cspDirectives.scriptSrcAttr = parts;
     }
 
-    app.use(helmet.contentSecurityPolicy({ useDefaults: true, directives: cspDirectives }));
+    try {
+      const existing = Array.isArray(cspDirectives.scriptSrcAttr) ? cspDirectives.scriptSrcAttr : [];
+      const merged = Array.from(new Set([...existing, 'integrity']));
+      cspDirectives.scriptSrcAttr = merged;
+    } catch {}
+
+  app.use(helmet.contentSecurityPolicy({ useDefaults: true, directives: cspDirectives }));
   }
 } catch {}
 try { app.set('trust proxy', 1); } catch {}
@@ -1271,15 +1287,16 @@ app.post('/api/test-tip', limiter, async (req, res) => {
     };
     
     const ns = req?.ns?.admin || req?.ns?.pub || null;
+
     if (typeof wss.broadcast === 'function' && ns) {
       wss.broadcast(ns, { type: 'tip', data: donation });
-    } else {
-      wss.clients.forEach(client => {
-        if (client.readyState === 1) {
-          client.send(JSON.stringify({ type: 'tip', data: donation }));
-        }
-      });
     }
+
+    wss.clients.forEach(client => {
+      if (client && client.readyState === 1) {
+        try { client.send(JSON.stringify({ type: 'tip', data: donation })); } catch {}
+      }
+    });
     
     if (store && ns) {
       try {
@@ -1300,8 +1317,21 @@ app.post('/api/test-tip', limiter, async (req, res) => {
   }
 });
 
-app.get('/widgets/persistent-notifications', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/persistent-notifications.html'));
+app.get('/widgets/persistent-notifications', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'persistent-notifications.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
 app.get('/obs/widgets', (req, res) => {
@@ -1364,39 +1394,156 @@ app.get('/obs/widgets', (req, res) => {
   res.json(widgets);
 });
 
-app.get('/widgets/last-tip', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/last-tip.html'));
+app.get('/widgets/last-tip', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'last-tip.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/widgets/tip-goal', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/tip-goal.html'));
+app.get('/widgets/tip-goal', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'tip-goal.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/widgets/tip-notification', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/tip-notification.html'));
+app.get('/widgets/tip-notification', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'tip-notification.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/widgets/chat', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/chat.html'));
+app.get('/widgets/chat', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'chat.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
-app.get('/widgets/announcement', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/announcement.html'));
+app.get('/widgets/announcement', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'announcement.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/widgets/giveaway', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/giveaway.html'));
+app.get('/widgets/giveaway', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'giveaway.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/obs-help', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/obs-integration.html'));
+app.get('/obs-help', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'obs-integration.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/widgets/socialmedia', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/socialmedia.html'));
+app.get('/widgets/socialmedia', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'socialmedia.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
-app.get('/widgets/liveviews', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public/widgets/liveviews.html'));
+app.get('/widgets/liveviews', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'liveviews.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
 });
 
 const AUDIO_CONFIG_FILE = './audio-settings.json';
@@ -1494,6 +1641,49 @@ try {
   });
 } catch {}
 
+try {
+  app.get('/', (req, res, next) => {
+    try {
+      const indexPath = path.join(__dirname, 'public', 'index.html');
+      if (!fs.existsSync(indexPath)) return next();
+      const nonce = res.locals?.cspNonce || '';
+      let html = fs.readFileSync(indexPath, 'utf8');
+      if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+        const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+        const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+        html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+      return res.send(html);
+    } catch { return next(); }
+  });
+} catch {}
+
+try {
+  app.get(/^(?!\/admin)(.*\.html)$/i, (req, res, next) => {
+    try {
+      const reqPath = req.path.replace(/\/+/, '/');
+      const unsafeFsPath = path.join(__dirname, 'public', reqPath);
+      const publicDir = path.join(__dirname, 'public');
+      const filePath = path.resolve(unsafeFsPath);
+      if (!filePath.startsWith(publicDir + path.sep)) return next();
+      if (!fs.existsSync(filePath)) return next();
+      let html = fs.readFileSync(filePath, 'utf8');
+      const nonce = res.locals?.cspNonce || '';
+      if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+        const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+        const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+        html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+      }
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+      return res.send(html);
+    } catch { return next(); }
+  });
+} catch {}
+
 
 app.use(express.static('public', {
   etag: true,
@@ -1501,7 +1691,9 @@ app.use(express.static('public', {
   maxAge: '1h',
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+  try { if (res.locals?.cspNonce) res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
     }
 
     if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
@@ -1509,6 +1701,25 @@ app.use(express.static('public', {
     }
   }
 }));
+
+try {
+  app.use((req, res, next) => {
+    const send = res.send;
+    res.send = function (body) {
+      try {
+        const ct = res.getHeader('Content-Type') || '';
+        if (typeof body === 'string' && /text\/html/i.test(ct) && res.locals?.cspNonce) {
+          if (!/property=["']csp-nonce["']/.test(body)) {
+            const meta = `<meta property="csp-nonce" nonce="${res.locals.cspNonce}">`;
+            body = body.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}`);
+          }
+        }
+      } catch {}
+      return send.call(this, body);
+    };
+    next();
+  });
+} catch {}
 
 registerRaffleRoutes(app, raffle, wss, { store });
 
@@ -2227,11 +2438,38 @@ registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOB
 try {
   const adminDist = path.join(__dirname, 'public', 'admin-dist');
   if (fs.existsSync(adminDist)) {
+    app.get(['/admin', '/admin/'], (req, res, next) => {
+      try {
+        const indexPath = path.join(adminDist, 'index.html');
+        if (!fs.existsSync(indexPath)) return next();
+        const nonce = res.locals?.cspNonce || '';
+        let html = fs.readFileSync(indexPath, 'utf8');
+        if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+          const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+          const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+          html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+        return res.send(html);
+      } catch { return next(); }
+    });
     app.use('/admin', express.static(adminDist, { index: 'index.html' }));
-    app.get('/admin/*', (_req, res, next) => {
-      const indexPath = path.join(adminDist, 'index.html');
-      if (fs.existsSync(indexPath)) return res.sendFile(indexPath);
-      next();
+    app.get('/admin/*', (req, res, next) => {
+      try {
+        const indexPath = path.join(adminDist, 'index.html');
+        if (!fs.existsSync(indexPath)) return next();
+        const nonce = res.locals?.cspNonce || '';
+        let html = fs.readFileSync(indexPath, 'utf8');
+        if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+          const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+          const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+          html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+        return res.send(html);
+      } catch { return next(); }
     });
   } else {
     app.get(['/admin','/admin/*'], (_req, res) => {
@@ -2249,7 +2487,20 @@ app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
     const adminDist = path.join(__dirname, 'public', 'admin-dist');
     const indexPath = path.join(adminDist, 'index.html');
     if (fs.existsSync(indexPath)) {
-      return res.sendFile(indexPath);
+      try {
+        const nonce = res.locals?.cspNonce || '';
+        let html = fs.readFileSync(indexPath, 'utf8');
+        if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+          const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+          const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+          html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+        return res.send(html);
+  } catch {
+        return res.sendFile(indexPath);
+      }
     }
 
     return res.status(503).send('Admin UI not built. Run "npm run admin:build".');

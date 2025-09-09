@@ -9,7 +9,7 @@ window.addEventListener('DOMContentLoaded', function () {
     );
     if (isLocal) {
       var footEl = document.querySelector('.foot');
-      if (footEl) footEl.style.display = 'none';
+      if (footEl) footEl.classList.add('hidden');
     }
   } catch (_) {}
 

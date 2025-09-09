@@ -3,15 +3,15 @@
   bottom: 30px;
   right: 30px;
   width: 380px;
-  background: #080c10;
-  color: white;
+  background: var(--lt-bg, #080c10);
+  color: var(--lt-text, #ffffff);
   padding: 0;
   border-radius: 4px;
-  font-family: "Inter", "Helvetica Neue", sans-serif;
+  font-family: 'Inter', 'Helvetica Neue', sans-serif;
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   overflow: hidden;
-  border-left: 8px solid #00ff7f;
+  border-left: 8px solid var(--lt-border, #00ff7f);
 }
 .last-donation-content {
   padding: 10px;
@@ -31,7 +31,7 @@
   min-width: 78px;
   min-height: 78px;
   border-radius: 4px;
-  background: transparent;
+  background: var(--lt-icon-bg, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,7 +43,7 @@
   width: 58px;
   height: 58px;
   display: block;
-  color: #fff;
+  color: var(--lt-icon, #ffffff);
   margin-top: 5px;
   transform-origin: 50% 50%;
   will-change: transform;
@@ -83,7 +83,7 @@
   bottom: 10px;
   left: 10px;
   color: #00ff7f;
-  font-family: "Inter", sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 16px;
 }
 
@@ -111,7 +111,7 @@
 
 .usd-value {
   font-size: 16px;
-  color: #fff;
+  color: var(--lt-text, #ffffff);
   margin-top: 4px;
   font-weight: 600;
 }
@@ -126,4 +126,32 @@
   font-size: 24px;
   font-weight: 800;
   text-shadow: none;
+  color: var(--lt-amount, #00ff7f);
+}
+
+.notification-icon-lasttip {
+  width: 78px;
+  height: 78px;
+  min-width: 78px;
+  min-height: 78px;
+  border-radius: 4px;
+  background: var(--lt-icon-bg, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  margin-left: 5px;
+}
+.notification-icon-lasttip svg {
+  width: 58px;
+  height: 58px;
+  display: block;
+  color: var(--lt-icon, #ffffff);
+  margin-top: 5px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.notification-from-lasttip {
+  color: var(--lt-from, #817ec8);
 }

@@ -1,4 +1,8 @@
-document.addEventListener('DOMContentLoaded', () => {
+(function(){
+    if (window.__tip_goal_started) return;
+    const start = () => {
+        if (window.__tip_goal_started) return;
+        window.__tip_goal_started = true;
     const goalWidget = document.getElementById('goal-widget');
     
     if (!goalWidget) {
@@ -25,6 +29,52 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
+
+    function getNonce() {
+        try {
+            const m = document.querySelector('meta[property="csp-nonce"]');
+            return (m && (m.nonce || m.getAttribute('nonce'))) || (document.head && document.head.dataset && document.head.dataset.cspNonce) || '';
+        } catch { return ''; }
+    }
+    function ensureStyleTag(id) {
+        let tag = document.getElementById(id);
+        if (!tag) {
+            tag = document.createElement('style');
+            tag.id = id;
+            const n = getNonce();
+            if (n) tag.setAttribute('nonce', n);
+            document.head.appendChild(tag);
+        } else {
+            try {
+                const n = getNonce();
+                if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n);
+            } catch {}
+        }
+        return tag;
+    }
+    function setTipGoalVars({ modern, base }) {
+        try {
+            const tag = ensureStyleTag('tip-goal-inline-vars');
+            let css = '';
+            if (modern) {
+                css += `#goal-widget.modern-theme .modern-card{` +
+                    (modern.bg ? `--modern-bg:${modern.bg};` : '') +
+                    (modern.text ? `--modern-text:${modern.text};` : '') +
+                    (modern.accent ? `--modern-accent:${modern.accent};` : '') +
+                    (modern.progressBg ? `--modern-progress-bg:${modern.progressBg};` : '') +
+                    `}`;
+            }
+            if (base) {
+                css += `#goal-widget:not(.modern-theme).tip-goal-widget{` +
+                    (base.bg ? `--tg-bg:${base.bg};` : '') +
+                    (base.border ? `--tg-border:${base.border};` : '') +
+                    (base.text ? `--tg-text:${base.text};` : '') +
+                    (base.progress ? `--tg-progress:${base.progress};` : '') +
+                    `}`;
+            }
+            tag.textContent = css;
+        } catch {}
+    }
 
     function playGoalSound() {
         let audioUrl;
@@ -67,22 +117,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const playBtn = document.getElementById('play-goal-audio');
         const removeBtn = document.getElementById('remove-goal-audio');
 
-        function updateAudioUI() {
+    function updateAudioUI() {
             if (!remoteRadio || !customRadio || !customSection || !audioStatus) return;
             if (remoteRadio.checked) {
-                customSection.style.display = 'none';
-                audioStatus.style.display = 'block';
+        customSection.classList.add('hidden');
+        audioStatus.classList.remove('hidden');
                 audioStatus.textContent = '🔊 ' + (audioSettings.hasCustomAudio ? 'Remote Audio (custom one is saved, but not active))' : 'Remote audio');
             } else if (customRadio.checked) {
-                customSection.style.display = 'block';
+        customSection.classList.remove('hidden');
                 if (audioSettings.hasCustomAudio) {
-                    audioStatus.style.display = 'block';
+            audioStatus.classList.remove('hidden');
                     audioStatus.textContent = '🎵 Custom Audio Active';
-                    if (preview) preview.style.display = 'block';
+            if (preview) preview.classList.remove('hidden');
                 } else {
-                    audioStatus.style.display = 'block';
+            audioStatus.classList.remove('hidden');
                     audioStatus.textContent = '⚠️ No Custom Audio Saved';
-                    if (preview) preview.style.display = 'none';
+            if (preview) preview.classList.add('hidden');
                 }
             }
         }
@@ -98,9 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     audio.addEventListener('loadedmetadata', function () {
                         durationEl.textContent = (audio.duration ? (audio.duration >= 60 ? Math.floor(audio.duration / 60) + ':' + String(Math.round(audio.duration % 60)).padStart(2, '0') : audio.duration.toFixed(2) + 's') : '');
                     });
-                    preview.style.display = 'block';
+                    preview.classList.remove('hidden');
                 } else {
-                    preview.style.display = 'none';
+                    preview.classList.add('hidden');
                 }
             });
         }
@@ -118,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (removeBtn && fileInput) {
             removeBtn.addEventListener('click', function () {
                 fileInput.value = '';
-                if (preview) preview.style.display = 'none';
+                if (preview) preview.classList.add('hidden');
             });
         }
 
@@ -155,22 +205,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function createConfetti(container, count = 50) {
-        const colors = ['#ff69b4', '#ffd700', '#ffffff', '#e81161', '#0070ff', '#00ff28'];
         for (let i = 0; i < count; i++) {
-            const confetti = document.createElement('div');
-            confetti.className = 'confetti';
-            confetti.style.left = `${Math.random() * 100}%`;
-            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            confetti.style.width = `${5 + Math.random() * 10}px`;
-            confetti.style.height = `${5 + Math.random() * 10}px`;
-            confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-            const animationDuration = 2 + Math.random() * 3;
-            const animationDelay = Math.random() * 2;
-            confetti.style.animation = `confetti-fall ${animationDuration}s ${animationDelay}s linear forwards`;
-            container.appendChild(confetti);
-            setTimeout(() => {
-                confetti.remove();
-            }, (animationDuration + animationDelay) * 1000);
+            const el = document.createElement('div');
+            el.classList.add('confetti');
+            const pos = Math.floor(Math.random() * 20);
+            const size = Math.floor(Math.random() * 5);
+            const color = Math.floor(Math.random() * 6);
+            const dur = Math.floor(Math.random() * 7) + 2;
+            const delay = Math.floor(Math.random() * 11);
+            if (Math.random() > 0.5) el.classList.add('round');
+            el.classList.add(`pos-${pos}`, `size-${size}`, `color-${color}`, `dur-${dur-2}`, `delay-${delay}`);
+            container.appendChild(el);
+            const ttl = (dur + delay) * 1000;
+            setTimeout(() => { el.remove(); }, ttl);
         }
     }
 
@@ -194,10 +241,10 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < count; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
-            particle.style.left = `${Math.random() * 100}%`;
-            const duration = 1 + Math.random() * 2;
-            const delay = Math.random() * 2;
-            particle.style.animation = `particle-fall ${duration}s ${delay}s forwards`;
+            const pos = Math.floor(Math.random() * 20);
+            const duration = Math.floor(Math.random() * 3) + 1; // 1..3
+            const delay = Math.floor(Math.random() * 3); // 0..2
+            particle.classList.add(`pos-${pos}`, `p-dur-${duration}`, `p-delay-${delay}`);
             particlesContainer.appendChild(particle);
         }
         container.appendChild(particlesContainer);
@@ -351,6 +398,15 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    function setWidthClass(el, pct) {
+        if (!el) return;
+        const n = Math.max(0, Math.min(100, Math.round(pct || 0)));
+        try {
+            el.classList.forEach(c => { if (c.startsWith('w-pct-')) el.classList.remove(c); });
+        } catch {}
+        el.classList.add(`w-pct-${n}`);
+    }
+
     function renderModernListTheme(data) {
         const prefersDark = (() => {
             try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; }
@@ -378,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="modern-label">${t('tipGoalCardProgress')}</span>
                     <span class="modern-value">${(data.progress || 0).toFixed(0)}%</span>
                 </div>
-                <div class="modern-progress"><div class="modern-bar" style="width:${data.progress}%"></div></div>
+                <div class="modern-progress"><div class="modern-bar w-pct-${Math.max(0, Math.min(100, Math.round(data.progress || 0)))}"></div></div>
                 <div class="modern-row">
                     <span class="modern-amount">$${targetUsd}</span>
                     <span class="modern-muted">${t('tipGoalCardTarget')}</span>
@@ -397,29 +453,16 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        try {
-            goalWidget.style.removeProperty('background');
-            goalWidget.style.removeProperty('border-left');
-            goalWidget.style.removeProperty('color');
-            goalWidget.style.removeProperty('border');
-            goalWidget.style.removeProperty('padding');
-            goalWidget.style.removeProperty('width');
-        } catch(_){}
-
-        const card = goalWidget.querySelector('.modern-card');
+    const card = goalWidget.querySelector('.modern-card');
         const bg = data.bgColor || (prefersDark ? '#0F0F12' : '#ffffff');
         const text = data.fontColor || (prefersDark ? '#ffffff' : '#0a0a0a');
         const accent = data.progressColor || (prefersDark ? '#00ff7f' : '#0a0a0a');
         const progressBg = prefersDark ? 'rgba(35,38,47,0.31)' : '#e5e7eb';
-        card.style.setProperty('--modern-bg', bg);
-        card.style.setProperty('--modern-text', text);
-        card.style.setProperty('--modern-accent', accent);
-        card.style.setProperty('--modern-progress-bg', progressBg);
 
-        const bar = goalWidget.querySelector('.modern-bar');
-        if (bar && (data.progress || 0) >= 100) {
-            bar.style.background = 'linear-gradient(90deg,#1c5928,#eaeaea)';
-        }
+        setTipGoalVars({ modern: { bg, text, accent, progressBg } });
+
+    const bar = goalWidget.querySelector('.modern-bar');
+    if (bar) setWidthClass(bar, data.progress || 0);
     }
 
     function updateGoalDisplay(data) {
@@ -448,15 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (data.theme === 'modern-list' && isOBSWidget) {
 
-            try {
-                goalWidget.classList.add('modern-theme');
-                goalWidget.style.removeProperty('background');
-                goalWidget.style.removeProperty('border-left');
-                goalWidget.style.removeProperty('color');
-                goalWidget.style.removeProperty('border');
-                goalWidget.style.removeProperty('padding');
-                goalWidget.style.removeProperty('width');
-            } catch(_){}
+            goalWidget.classList.add('modern-theme');
 
             renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
         } else {
@@ -472,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="progress-container ${reachedGoal ? 'reached-goal' : ''}">
-                    <div class="progress-bar" style="width: ${progressPercentage}%"></div>
+                    <div class="progress-bar w-pct-${Math.max(0, Math.min(100, Math.round(progressPercentage)))}"></div>
                     <div class="progress-text">${progressPercentage.toFixed(1)}%</div>
                 </div>
             </div>
@@ -487,52 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
         goalWidget.classList.remove('modern-theme');
         }
 
-    if (isOBSWidget && data.theme !== 'modern-list') {
-            goalWidget.style.setProperty('background', bgColor, 'important');
-            goalWidget.style.setProperty('border-left', `8px solid ${borderColor}`, 'important');
-            goalWidget.style.setProperty('color', fontColor, 'important');
+        if (isOBSWidget && data.theme !== 'modern-list') {
+            setTipGoalVars({ base: { bg: bgColor, border: borderColor, text: fontColor, progress: progressColor } });
         }
 
-        const container = goalWidget.querySelector('.goal-container');
-        if (container && isOBSWidget) {
-            if (data.theme !== 'modern-list') {
-                container.style.setProperty('background', bgColor, 'important');
-                container.style.setProperty('color', fontColor, 'important');
-            }
-        }
-        const title = goalWidget.querySelector('.goal-title');
-        if (title && isOBSWidget) {
-            if (data.theme !== 'modern-list') title.style.setProperty('color', fontColor, 'important');
-        }
-        const currentAr = goalWidget.querySelector('.current-ar');
-        if (currentAr && isOBSWidget) {
-            if (data.theme !== 'modern-list') currentAr.style.setProperty('color', progressColor, 'important');
-        }
-        const goalAr = goalWidget.querySelector('.goal-ar');
-        if (goalAr && isOBSWidget) {
-            if (data.theme !== 'modern-list') goalAr.style.setProperty('color', fontColor, 'important');
-        }
-        const usdValue = goalWidget.querySelector('.usd-value');
-        if (usdValue && isOBSWidget) {
-            if (data.theme !== 'modern-list') usdValue.style.setProperty('color', fontColor, 'important');
-        }
-        const progressContainer = goalWidget.querySelector('.progress-container');
-        if (progressContainer && isOBSWidget) {
-            if (data.theme !== 'modern-list') progressContainer.style.setProperty('background', 'rgba(35,38,47,0.31)', 'important');
-        }
-        const progressBar = goalWidget.querySelector('.progress-bar');
-        if (progressBar && isOBSWidget) {
-            if (data.theme === 'modern-list') {
-            } else if (reachedGoal) {
-                progressBar.style.setProperty('background', 'linear-gradient(90deg, #7058a4, #c83fee)', 'important');
-            } else {
-                progressBar.style.setProperty('background', progressColor, 'important');
-            }
-        }
-        const progressText = goalWidget.querySelector('.progress-text');
-        if (progressText && isOBSWidget) {
-            if (data.theme !== 'modern-list') progressText.style.setProperty('color', fontColor, 'important');
-        }
+    const progressBar = goalWidget.querySelector('.progress-bar');
+    if (progressBar) setWidthClass(progressBar, progressPercentage);
 
         if (reachedGoal) {
             if (!wasCelebrating) {
@@ -592,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
             <div class="progress-container">
-                <div class="progress-bar" style="width: 0%"></div>
+                <div class="progress-bar w-pct-0"></div>
                 <div class="progress-text">0%</div>
             </div>
         </div>
@@ -600,4 +595,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     goalWidget.className = existingClasses;
     goalWidget.classList.remove('modern-theme');
-});
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else {
+        start();
+    }
+})();

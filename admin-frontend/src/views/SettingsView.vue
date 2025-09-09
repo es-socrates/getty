@@ -1,7 +1,8 @@
 <template>
   <section class="admin-tab active">
     <div class="mb-4">
-      <div class="p-3 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex flex-col gap-2">
+      <div
+        class="p-3 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex flex-col gap-2">
         <div class="font-semibold">{{ t('tokenTipsTitle') }}</div>
         <div class="text-sm opacity-90">{{ t('tokenTipsBody') }}</div>
       </div>
@@ -11,7 +12,13 @@
       <template #header>
         <h3 class="os-card-title flex items-center gap-1.5">
           <span class="icon os-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
               <rect x="3" y="8" width="18" height="10" rx="2" />
               <path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               <path d="M12 12v2" />
@@ -27,24 +34,24 @@
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm"
               @click="regeneratePublic"
-              :disabled="regenLoading || !sessionStatus.supported || !sessionStatus.active"
-            >
+              :disabled="regenLoading || !sessionStatus.supported || !sessionStatus.active">
               {{ regenLoading ? t('commonUpdating') : t('regeneratePublicToken') }}
             </button>
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm disabled:opacity-50"
               :disabled="!sessionStatus.supported || !sessionStatus.active || !lastPublicToken"
-              @click="exportPublicToken"
-            >
+              @click="exportPublicToken">
               {{ t('exportPublicToken') || 'Export public token' }}
             </button>
           </div>
           <div v-if="lastPublicToken" class="flex gap-2 items-center">
-            <input :value="lastPublicToken" readonly class="flex-1 px-2 py-1 rounded-os-sm bg-[var(--bg-chat)] border border-[var(--card-border)] text-xs font-mono" />
+            <input
+              :value="lastPublicToken"
+              readonly
+              class="flex-1 px-2 py-1 rounded-os-sm bg-[var(--bg-chat)] border border-[var(--card-border)] text-xs font-mono" />
             <button
               class="px-2 py-1 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-xs"
-              @click="copyToken"
-            >
+              @click="copyToken">
               {{ t('commonCopy') || 'Copy' }}
             </button>
           </div>
@@ -54,8 +61,7 @@
           <div>
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm"
-              @click="exportCfg"
-            >
+              @click="exportCfg">
               {{ t('exportConfig') }}
             </button>
           </div>
@@ -63,46 +69,83 @@
         <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
           <div class="os-th text-xs">{{ t('importConfig') }}</div>
           <div class="flex flex-col gap-2">
-            <input ref="fileInputEl" type="file" accept="application/json,.json" @change="onImportFile" style="display:none" aria-hidden="true" tabindex="-1" />
+            <input
+              ref="fileInputEl"
+              type="file"
+              accept="application/json,.json"
+              @change="onImportFile"
+              class="hidden"
+              aria-hidden="true"
+              tabindex="-1" />
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm disabled:opacity-50"
               :disabled="importing"
-              @click="triggerFile"
-            >
+              @click="triggerFile">
               {{ importing ? t('commonLoading') : t('importConfig') }}
             </button>
-            <div v-if="importApplied.lastTip !== null || importApplied.tipGoal !== null || importApplied.socialmedia !== null || importApplied.external !== null || importApplied.liveviews !== null || importApplied.announcement !== null" class="flex flex-wrap gap-2 text-xs mt-1">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+            <div
+              v-if="
+                importApplied.lastTip !== null ||
+                importApplied.tipGoal !== null ||
+                importApplied.socialmedia !== null ||
+                importApplied.external !== null ||
+                importApplied.liveviews !== null ||
+                importApplied.announcement !== null
+              "
+              class="flex flex-wrap gap-2 text-xs mt-1">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('lastTip') }}:
-                <span :class="importApplied.lastTip ? 'text-green-500' : 'text-red-500'">{{ importApplied.lastTip ? '✓' : '✗' }}</span>
+                <span :class="importApplied.lastTip ? 'text-green-500' : 'text-red-500'">{{
+                  importApplied.lastTip ? '✓' : '✗'
+                }}</span>
               </span>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('tipGoal') }}:
-                <span :class="importApplied.tipGoal ? 'text-green-500' : 'text-red-500'">{{ importApplied.tipGoal ? '✓' : '✗' }}</span>
+                <span :class="importApplied.tipGoal ? 'text-green-500' : 'text-red-500'">{{
+                  importApplied.tipGoal ? '✓' : '✗'
+                }}</span>
               </span>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('socialMediaTitle') }}:
-                <span :class="importApplied.socialmedia ? 'text-green-500' : 'text-red-500'">{{ importApplied.socialmedia ? '✓' : '✗' }}</span>
+                <span :class="importApplied.socialmedia ? 'text-green-500' : 'text-red-500'">{{
+                  importApplied.socialmedia ? '✓' : '✗'
+                }}</span>
               </span>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('externalNotificationsTitle') }}:
-                <span :class="importApplied.external ? 'text-green-500' : 'text-red-500'">{{ importApplied.external ? '✓' : '✗' }}</span>
+                <span :class="importApplied.external ? 'text-green-500' : 'text-red-500'">{{
+                  importApplied.external ? '✓' : '✗'
+                }}</span>
               </span>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('liveviewsTitle') }}:
-                <span :class="importApplied.liveviews ? 'text-green-500' : 'text-red-500'">{{ importApplied.liveviews ? '✓' : '✗' }}</span>
+                <span :class="importApplied.liveviews ? 'text-green-500' : 'text-red-500'">{{
+                  importApplied.liveviews ? '✓' : '✗'
+                }}</span>
               </span>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)]">
                 {{ t('announcementTitle') }}:
-                <span :class="importApplied.announcement ? 'text-green-500' : 'text-red-500'">{{ importApplied.announcement ? '✓' : '✗' }}</span>
+                <span :class="importApplied.announcement ? 'text-green-500' : 'text-red-500'">{{
+                  importApplied.announcement ? '✓' : '✗'
+                }}</span>
               </span>
             </div>
           </div>
         </div>
-        <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2" v-if="sessionStatus.supported && !sessionStatus.active">
+        <div
+          class="p-3 os-subtle rounded-os-sm flex flex-col gap-2"
+          v-if="sessionStatus.supported && !sessionStatus.active">
           <div class="os-th text-xs">{{ t('newSession') }}</div>
           <div>
-            <a href="/new-session" class="px-3 py-2 inline-block rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm">
+            <a
+              href="/new-session"
+              class="px-3 py-2 inline-block rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm">
               {{ t('newSession') }}
             </a>
           </div>
@@ -126,7 +169,14 @@ const lastPublicToken = ref('');
 const sessionStatus = ref({ supported: false, active: false });
 const importing = ref(false);
 const fileInputEl = ref(null);
-const importApplied = ref({ lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null });
+const importApplied = ref({
+  lastTip: null,
+  tipGoal: null,
+  socialmedia: null,
+  external: null,
+  liveviews: null,
+  announcement: null,
+});
 let importAppliedTimer = null;
 
 async function load() {
@@ -148,7 +198,9 @@ async function load() {
 
 onMounted(() => {
   load();
-  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+  try {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch {}
   try {
     const KEY = 'getty_settings_tip_shown_v1';
     if (localStorage.getItem(KEY) !== '1') {
@@ -189,16 +241,19 @@ function exportPublicToken() {
       publicToken: lastPublicToken.value,
       origin: window.location.origin,
       createdAt: new Date().toISOString(),
-      note: 'Public token for getty session. Do not share the admin token.'
+      note: 'Public token for getty session. Do not share the admin token.',
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `getty-public-token-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+    a.download = `getty-public-token-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 0);
   } catch {}
 }
 
@@ -226,7 +281,11 @@ async function onImportFile(e) {
     importing.value = true;
     const text = await file.text();
     let data;
-    try { data = JSON.parse(text); } catch { data = null; }
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
     if (!data || typeof data !== 'object') {
       pushToast({ message: 'Invalid JSON', type: 'error', timeout: 2500, autoTranslate: false });
       return;
@@ -247,9 +306,16 @@ async function onImportFile(e) {
 
       try {
         if (importAppliedTimer) clearTimeout(importAppliedTimer);
-        importAppliedTimer = setTimeout(() => { 
-          importApplied.value = { lastTip: null, tipGoal: null, socialmedia: null, external: null, liveviews: null, announcement: null };
-          importAppliedTimer = null; 
+        importAppliedTimer = setTimeout(() => {
+          importApplied.value = {
+            lastTip: null,
+            tipGoal: null,
+            socialmedia: null,
+            external: null,
+            liveviews: null,
+            announcement: null,
+          };
+          importAppliedTimer = null;
         }, 6000);
       } catch {}
     } else {
@@ -260,10 +326,11 @@ async function onImportFile(e) {
     pushToast({ message: msg, type: 'error', timeout: 3000, autoTranslate: false });
   } finally {
     importing.value = false;
-    try { e.target.value = ''; } catch {}
+    try {
+      e.target.value = '';
+    } catch {}
   }
 }
 </script>
 
-<style scoped>
-</style>
+<style scoped></style>

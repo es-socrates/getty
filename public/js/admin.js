@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const img = new Image();
                 img.onload = function() {
                     previewImg.src = url;
-                    previewWrapper.style.display = 'block';
+                    if (previewWrapper) previewWrapper.classList.remove('hidden');
                     filenameLabel.textContent = file.name + ` (${img.width}x${img.height})`;
                 };
                 img.onerror = function() {
@@ -116,8 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok || !data.success) throw new Error(data.error || 'Failed to remove GIF');
                     previewImg.src = '';
-                    previewWrapper.style.display = 'none';
-                    removeBtn.style.display = 'none';
+                    if (previewWrapper) previewWrapper.classList.add('hidden');
+                    if (removeBtn) removeBtn.classList.add('hidden');
                     document.getElementById('tip-gif-filename').textContent = '';
                     showAlert('GIF removed', 'success');
                 } catch (err) {
@@ -140,8 +140,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (posSel && cfg.position) posSel.value = cfg.position;
             if (cfg.gifPath && previewImg) {
                 previewImg.src = cfg.gifPath + '?t=' + Date.now();
-                previewWrapper.style.display = 'block';
-                if (removeBtn) removeBtn.style.display = 'inline-flex';
+                if (previewWrapper) previewWrapper.classList.remove('hidden');
+                if (removeBtn) removeBtn.classList.remove('hidden');
             }
         } catch (e) {
             console.warn('Could not load GIF config:', e.message);
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 removeBtn = document.createElement('button');
                 removeBtn.id = 'remove-custom-theme-btn';
                 removeBtn.textContent = 'Remove Custom Theme';
-                removeBtn.style.margin = '8px 0 0 0';
+                removeBtn.classList.add('mt-8');
                 chatThemeSelect.parentNode.appendChild(removeBtn);
             }
             removeBtn.onclick = function() {
@@ -316,9 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
             container.id = 'chat-theme-css-copy-container';
             container.style.margin = '18px 0';
             container.innerHTML = `
-                <label for="chat-theme-css-copy" style="font-weight:bold;">Theme CSS for OBS:</label><br>
-                <textarea id="chat-theme-css-copy" readonly style="width:100%;height:120px;font-family:monospace;font-size:13px;margin-top:6px;"></textarea>
-                <button id="copy-chat-theme-css" style="margin-top:8px;">Copy CSS</button>
+                <label for="chat-theme-css-copy" class="fw-600">Theme CSS for OBS:</label><br>
+                <textarea id="chat-theme-css-copy" readonly class="textarea-mono"></textarea>
+                <button id="copy-chat-theme-css" class="btn mt-8">Copy CSS</button>
             `;
             chatThemeSelect.parentNode.appendChild(container);
         }
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatThemeNameInput.value = '';
                 chatThemeCSSInput.value = '';
             }
-            document.getElementById('chat-theme-editor').style.display = 'block';
+            document.getElementById('chat-theme-editor').classList.remove('hidden');
         });
     }
     if (chatThemeSaveBtn) {
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderThemeOptions();
             chatThemeSelect.value = getAllThemes().length - 1;
             applyThemePreview(chatThemeSelect.value);
-            document.getElementById('chat-theme-editor').style.display = 'none';
+            document.getElementById('chat-theme-editor').classList.add('hidden');
             localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
             showCopyThemeCSS();
         });
@@ -433,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderThemeOptions();
             chatThemeSelect.value = getAllThemes().length - 1;
             applyThemePreview(chatThemeSelect.value);
-            document.getElementById('chat-theme-editor').style.display = 'none';
+            document.getElementById('chat-theme-editor').classList.add('hidden');
             localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
             showCopyThemeCSS();
         };
@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (chatThemeCancelBtnEditor) {
         chatThemeCancelBtnEditor.onclick = function() {
-            document.getElementById('chat-theme-editor').style.display = 'none';
+            document.getElementById('chat-theme-editor').classList.add('hidden');
         };
     }
 
@@ -489,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
             li.className = 'socialmedia-item';
             let iconHTML = '';
             if (item.icon === 'custom' && item.customIcon) {
-                iconHTML = `<img src="${item.customIcon}" alt="Custom" style="height:24px;max-width:24px;max-height:24px;border-radius:50%;object-fit:cover;">`;
+                iconHTML = `<img src="${item.customIcon}" alt="Custom" class="icon-custom-24">`;
             } else {
                 iconHTML = getSocialIconSVG(item.icon);
             }
@@ -584,9 +584,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (iconSelect) {
         iconSelect.addEventListener('change', function() {
             if (iconSelect.value === 'custom') {
-                customIconUpload.style.display = '';
+                customIconUpload.classList.remove('hidden');
             } else {
-                customIconUpload.style.display = 'none';
+                customIconUpload.classList.add('hidden');
                 customIconInput.value = '';
                 customIconBase64 = '';
             }
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSocialmediaList();
             saveSocialmediaConfig();
             socialmediaForm.reset();
-            customIconUpload.style.display = 'none';
+            customIconUpload.classList.add('hidden');
             customIconBase64 = '';
         });
     }
@@ -1057,10 +1057,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (type === 'success') {
             icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
-            toast.style.borderColor = 'var(--secondary-color)';
+            toast.classList.remove('toast-error');
+            toast.classList.add('toast-success');
         } else {
             icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
-            toast.style.borderColor = 'var(--error-color)';
+            toast.classList.remove('toast-success');
+            toast.classList.add('toast-error');
         }
         
         toast.classList.add('show');
@@ -1280,13 +1282,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (audioRemoteRadio && audioCustomRadio) {
         audioRemoteRadio.addEventListener('change', function() {
             if (this.checked) {
-                customAudioSection.style.display = 'none';
+                customAudioSection.classList.add('hidden');
             }
         });
 
         audioCustomRadio.addEventListener('change', function() {
             if (this.checked) {
-                customAudioSection.style.display = 'block';
+                customAudioSection.classList.remove('hidden');
             }
         });
     }
@@ -1345,10 +1347,10 @@ document.addEventListener('DOMContentLoaded', () => {
             audioSize.textContent = formatFileSize(file.size);
         }
         if (uploadZone && uploadZone.parentElement) {
-            uploadZone.parentElement.style.display = 'none';
+            uploadZone.parentElement.classList.add('hidden');
         }
         if (audioPreview) {
-            audioPreview.style.display = 'flex';
+            audioPreview.classList.remove('hidden');
         }
     }
 
@@ -1436,10 +1438,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 customAudioFile.value = '';
             }
             if (uploadZone && uploadZone.parentElement) {
-                uploadZone.parentElement.style.display = 'block';
+                uploadZone.parentElement.classList.remove('hidden');
             }
             if (audioPreview) {
-                audioPreview.style.display = 'none';
+                audioPreview.classList.add('hidden');
             }
             clearAudioError();
         });
@@ -1494,15 +1496,15 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 if (data.audioSource === 'custom') {
                     goalAudioCustom.checked = true;
-                    goalCustomAudioSection.style.display = 'block';
+                    goalCustomAudioSection.classList.remove('hidden');
                     if (data.hasCustomAudio) {
                         document.getElementById('goal-audio-name').textContent = data.audioFileName || 'custom_goal_audio.mp3';
                         document.getElementById('goal-audio-size').textContent = formatFileSize(data.audioFileSize);
-                        goalAudioPreview.style.display = 'flex';
+                        goalAudioPreview.classList.remove('hidden');
                     }
                 } else {
                     goalAudioRemote.checked = true;
-                    goalCustomAudioSection.style.display = 'none';
+                    goalCustomAudioSection.classList.add('hidden');
                 }
             })
             .catch(error => console.error('Error loading goal audio settings:', error));
@@ -1511,13 +1513,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (goalAudioRemote && goalAudioCustom) {
         goalAudioRemote.addEventListener('change', function() {
             if (this.checked) {
-                goalCustomAudioSection.style.display = 'none';
+                goalCustomAudioSection.classList.add('hidden');
             }
         });
 
         goalAudioCustom.addEventListener('change', function() {
             if (this.checked) {
-                goalCustomAudioSection.style.display = 'block';
+                goalCustomAudioSection.classList.remove('hidden');
             }
         });
     }
@@ -1536,7 +1538,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('goal-audio-duration').textContent = formatDuration(duration);
                 });
                 
-                goalAudioPreview.style.display = 'flex';
+                goalAudioPreview.classList.remove('hidden');
             }
         });
     }
@@ -1563,7 +1565,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 URL.revokeObjectURL(currentGoalAudioBlob);
                 currentGoalAudioBlob = null;
             }
-            goalAudioPreview.style.display = 'none';
+            goalAudioPreview.classList.add('hidden');
             
             fetch('/api/goal-audio-settings', {
                 method: 'DELETE'
@@ -1602,7 +1604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         audioCustomRadio.checked = true;
                     }
                     if (customAudioSection) {
-                        customAudioSection.style.display = 'block';
+                        customAudioSection.classList.remove('hidden');
                     }
                     if (data.hasCustomAudio) {
                         showSavedAudioInfo(data.audioFileName, data.audioFileSize);
@@ -1612,7 +1614,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         audioRemoteRadio.checked = true;
                     }
                     if (customAudioSection) {
-                        customAudioSection.style.display = 'none';
+                        customAudioSection.classList.add('hidden');
                     }
                 }
             }
@@ -1629,13 +1631,13 @@ document.addEventListener('DOMContentLoaded', () => {
             audioSize.textContent = formatFileSize(fileSize || 0);
         }
         if (uploadZone && uploadZone.parentElement) {
-            uploadZone.parentElement.style.display = 'none';
+            uploadZone.parentElement.classList.add('hidden');
         }
         if (audioPreview) {
-            audioPreview.style.display = 'flex';
+            audioPreview.classList.remove('hidden');
         }
         if (playAudioBtn) {
-            playAudioBtn.style.display = 'none';
+            playAudioBtn.classList.add('hidden');
         }
     }
 

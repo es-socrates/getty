@@ -3,8 +3,16 @@
     <OsCard :title="t('socialMediaTitle')">
       <template #actions>
         <div class="flex gap-2" role="group" :aria-label="t('socialMediaTitle') + ' actions'">
-          <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">{{ t('socialMediaAddItem') }}</button>
-          <button class="btn" :disabled="!dirty || saving" @click="save" :aria-busy="saving ? 'true':'false'">{{ saving ? t('commonSaving') : t('socialMediaSave') }}</button>
+          <button class="btn" @click="addItem" :aria-label="t('socialMediaAddItem')">
+            {{ t('socialMediaAddItem') }}
+          </button>
+          <button
+            class="btn"
+            :disabled="!dirty || saving"
+            @click="save"
+            :aria-busy="saving ? 'true' : 'false'">
+            {{ saving ? t('commonSaving') : t('socialMediaSave') }}
+          </button>
         </div>
       </template>
 
@@ -19,17 +27,37 @@
         </div>
 
         <div v-for="(item, idx) in items" :key="idx" class="os-tr py-2">
-          <div class="os-td num">{{ idx+1 }}</div>
+          <div class="os-td num">{{ idx + 1 }}</div>
           <div class="os-td">
-            <input class="input w-full" :aria-label="t('socialMediaName') + ' ' + (idx+1)" :class="{'input-error': fieldError(idx,'name')}" v-model="item.name" @input="validateRow(idx)" :aria-invalid="!!fieldError(idx,'name')" />
-            <div v-if="fieldError(idx,'name')" class="small" style="color:#b91c1c">{{ fieldError(idx,'name') }}</div>
+            <input
+              class="input w-full"
+              :aria-label="t('socialMediaName') + ' ' + (idx + 1)"
+              :class="{ 'input-error': fieldError(idx, 'name') }"
+              v-model="item.name"
+              @input="validateRow(idx)"
+              :aria-invalid="!!fieldError(idx, 'name')" />
+            <div v-if="fieldError(idx, 'name')" class="small text-red-700">
+              {{ fieldError(idx, 'name') }}
+            </div>
           </div>
           <div class="os-td">
-            <input class="input w-full" :aria-label="t('socialMediaLink') + ' ' + (idx+1)" :class="{'input-error': fieldError(idx,'link')}" v-model="item.link" @input="validateRow(idx)" :aria-invalid="!!fieldError(idx,'link')" />
-            <div v-if="fieldError(idx,'link')" class="small" style="color:#b91c1c">{{ fieldError(idx,'link') }}</div>
+            <input
+              class="input w-full"
+              :aria-label="t('socialMediaLink') + ' ' + (idx + 1)"
+              :class="{ 'input-error': fieldError(idx, 'link') }"
+              v-model="item.link"
+              @input="validateRow(idx)"
+              :aria-invalid="!!fieldError(idx, 'link')" />
+            <div v-if="fieldError(idx, 'link')" class="small text-red-700">
+              {{ fieldError(idx, 'link') }}
+            </div>
           </div>
           <div class="os-td">
-            <select class="input w-full" v-model="item.icon" @change="onIconChange(item, idx)" :aria-label="t('socialMediaIcon') + ' ' + (idx+1)">
+            <select
+              class="input w-full"
+              v-model="item.icon"
+              @change="onIconChange(item, idx)"
+              :aria-label="t('socialMediaIcon') + ' ' + (idx + 1)">
               <option value="x">{{ t('socialMediaIconX') }}</option>
               <option value="instagram">{{ t('socialMediaIconInstagram') }}</option>
               <option value="youtube">{{ t('socialMediaIconYoutube') }}</option>
@@ -41,15 +69,24 @@
             </select>
           </div>
           <div class="os-td">
-            <div v-if="item.icon==='custom'">
-              <input type="file" accept="image/*" @change="e=>selectCustomIcon(e, item)" :aria-label="t('socialMediaCustomIcon')" />
+            <div v-if="item.icon === 'custom'">
+              <input
+                type="file"
+                accept="image/*"
+                @change="(e) => selectCustomIcon(e, item)"
+                :aria-label="t('socialMediaCustomIcon')" />
               <div v-if="item.customIcon" class="mt-1">
-                <img :src="item.customIcon" alt="custom" style="max-height:40px;object-fit:contain;" />
+                <img :src="item.customIcon" alt="custom" class="max-h-10 object-contain" />
               </div>
             </div>
           </div>
           <div class="os-td actions">
-            <button class="btn danger" @click="remove(idx)" :aria-label="t('socialMediaDelete') + ' ' + (idx+1)">{{ t('socialMediaDelete') }}</button>
+            <button
+              class="btn danger"
+              @click="remove(idx)"
+              :aria-label="t('socialMediaDelete') + ' ' + (idx + 1)">
+              {{ t('socialMediaDelete') }}
+            </button>
           </div>
         </div>
       </div>
@@ -64,14 +101,13 @@
   </section>
 </template>
 <script setup>
-
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
-import OsCard from './os/OsCard.vue'
+import OsCard from './os/OsCard.vue';
 import { isHttpUrl, MAX_CUSTOM_ICON_SIZE } from '../utils/validation';
 import { usePublicToken } from '../composables/usePublicToken';
 
@@ -85,14 +121,16 @@ const saving = ref(false);
 const pt = usePublicToken();
 const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/socialmedia`));
 
-function markDirty() { dirty.value = true; }
+function markDirty() {
+  dirty.value = true;
+}
 registerDirty(() => dirty.value);
 
 async function load() {
   try {
     const r = await axios.get('/api/socialmedia-config');
     if (r.data.success) {
-      items.value = r.data.config.map(c => ({ ...c }));
+      items.value = r.data.config.map((c) => ({ ...c }));
       dirty.value = false;
     } else {
       pushToast({ type: 'error', message: t('socialMediaLoadFailed') });
@@ -124,7 +162,7 @@ function selectCustomIcon(e, item) {
     return pushToast({ type: 'error', message: t('socialMediaCustomIconTooLarge') });
   }
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = (ev) => {
     item.customIcon = ev.target.result;
     markDirty();
   };
@@ -140,7 +178,9 @@ function validateRow(i) {
   if (it.link && !isHttpUrl(it.link)) rowErrors.value[i].link = t('socialMediaInvalidUrl');
   markDirty();
 }
-function fieldError(i, field) { return rowErrors.value[i]?.[field] || ''; }
+function fieldError(i, field) {
+  return rowErrors.value[i]?.[field] || '';
+}
 
 function mapBackendError(msg) {
   if (!msg) return t('socialMediaValidationError');
@@ -158,7 +198,7 @@ function mapBackendError(msg) {
 
 async function save() {
   items.value.forEach((_, i) => validateRow(i));
-  const hasErr = Object.values(rowErrors.value).some(r => (r.name || r.link));
+  const hasErr = Object.values(rowErrors.value).some((r) => r.name || r.link);
   if (hasErr) {
     pushToast({ type: 'error', message: t('socialMediaValidationError') });
     return;
@@ -166,12 +206,12 @@ async function save() {
   try {
     saving.value = true;
     const payload = {
-      config: items.value.map(i => ({
+      config: items.value.map((i) => ({
         name: i.name,
         icon: i.icon,
         link: i.link,
-        ...(i.icon === 'custom' && i.customIcon ? { customIcon: i.customIcon } : {})
-      }))
+        ...(i.icon === 'custom' && i.customIcon ? { customIcon: i.customIcon } : {}),
+      })),
     };
     const r = await axios.post('/api/socialmedia-config', payload);
     if (r.data.success) {
@@ -189,6 +229,8 @@ async function save() {
   }
 }
 
-onMounted(async () => { await pt.refresh(); await load(); });
-
+onMounted(async () => {
+  await pt.refresh();
+  await load();
+});
 </script>

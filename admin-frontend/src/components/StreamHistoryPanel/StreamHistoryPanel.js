@@ -420,7 +420,7 @@ function renderChart(data) {
       c.style.cursor = 'default';
       c.addEventListener('mouseenter', (e) => {
         const title = fmtDateTitle(p.date);
-        tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${(p.hours||0)} h</div>`;
+        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div>`;
         tip.style.display = 'block';
         placeTipFromMouse(e, (p.hours || 0) === 0);
       });
@@ -441,7 +441,6 @@ function renderChart(data) {
       labels.push(fmtXLabel(display[i]?.date));
     }
     if (display.length > 1 && (display.length - 1) % stride !== 0) {
-      // ensure last label
       const xLast = Math.round(axisLeft + padX + (display.length - 1) * stepX);
       positions.push(xLast);
       labels.push(fmtXLabel(display[display.length - 1]?.date));
@@ -524,7 +523,7 @@ function renderChart(data) {
   const show = (e) => {
       try {
         const title = fmtDateTitle(d.date);
-        tip.innerHTML = `<div style="font-weight:600;margin-bottom:2px;">${title}</div><div style="opacity:.9;">${v} h</div>`;
+        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${v} h</div>`;
         tip.style.display = 'block';
         placeTipFromMouse(e, v === 0);
       } catch {}

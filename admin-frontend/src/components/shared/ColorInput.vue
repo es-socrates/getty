@@ -3,7 +3,18 @@
     <div class="color-meta">
       <label :for="id" class="color-label">{{ label }}</label>
       <button type="button" class="color-copy" :aria-label="`Copy ${label}`" @click="copy">
-        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          stroke="currentColor"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
       </button>
     </div>
     <div class="color-shell">
@@ -14,17 +25,15 @@
           :id="id"
           :value="normalized"
           @input="onPick"
-          :aria-label="label"
-        />
-        <span class="swatch-ring" :style="{ background: normalized }"></span>
+          :aria-label="label" />
+        <span class="swatch-ring"></span>
       </div>
       <input
         class="hex-input"
         :value="normalized"
         maxlength="9"
         @input="onHexInput"
-        :aria-label="`${label} hex value`"
-      />
+        :aria-label="`${label} hex value`" />
     </div>
   </div>
 </template>
@@ -47,7 +56,13 @@ function normalizeHex(v) {
   let x = v.trim();
   if (!x.startsWith('#')) x = '#' + x;
   if (/^#([0-9a-fA-F]{3})$/.test(x)) {
-    x = '#' + x.slice(1).split('').map(c => c + c).join('');
+    x =
+      '#' +
+      x
+        .slice(1)
+        .split('')
+        .map((c) => c + c)
+        .join('');
   }
   if (/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(x)) return x.toLowerCase();
   return '#000000';
@@ -68,12 +83,13 @@ function onHexInput(e) {
 }
 
 async function copy() {
-  try { await navigator.clipboard.writeText(normalized.value); } catch {}
+  try {
+    await navigator.clipboard.writeText(normalized.value);
+  } catch {}
 }
 </script>
 
 <style scoped>
-
 .color-field {
   --color-size: 2.25rem;
   display: flex;
@@ -104,7 +120,7 @@ async function copy() {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   color: var(--text-secondary);
 }
 
@@ -115,7 +131,7 @@ async function copy() {
   justify-content: center;
   padding: 0.25rem;
   color: var(--text-secondary);
-  transition: color .2s, background .2s;
+  transition: color 0.2s, background 0.2s;
 }
 
 .color-copy:hover,
@@ -132,7 +148,9 @@ async function copy() {
   margin-top: 0.25rem;
 }
 
-.picker-wrapper { position: relative; }
+.picker-wrapper {
+  position: relative;
+}
 
 .color-input {
   width: var(--color-size);
@@ -143,19 +161,19 @@ async function copy() {
   background: transparent;
 }
 
-.color-input::-webkit-color-swatch-wrapper { padding: 0; }
-.color-input::-webkit-color-swatch { border: none; border-radius: 4px; }
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
 
 .swatch-ring {
   position: absolute;
   inset: 0;
   border-radius: 0.5rem;
   pointer-events: none;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset;
-}
-
-html.dark .swatch-ring {
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.07) inset, 0 0 0 1px var(--card-border);
 }
 
 .hex-input {
@@ -167,13 +185,14 @@ html.dark .swatch-ring {
   display: flex;
   align-items: center;
   font-size: 0.75rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  letter-spacing: .05em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  letter-spacing: 0.05em;
 }
 
 .hex-input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--primary-600,#ca004b);
+  box-shadow: 0 0 0 2px var(--primary-600, #ca004b);
 }
 
 @media (max-width: 640px) {
