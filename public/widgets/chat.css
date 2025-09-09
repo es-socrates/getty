@@ -41,16 +41,16 @@ body {
 }
 
 .message-avatar {
-  width: 34px;
-  height: 30px;
+  width: var(--chat-avatar-size, 32px);
+  height: var(--chat-avatar-size, 32px);
   border-radius: 50%;
   overflow: hidden;
   background: #21262d;
 }
 
 .message-avatar img {
-  width: 32px;
-  height: 32px;
+  width: var(--chat-avatar-size, 32px);
+  height: var(--chat-avatar-size, 32px);
   object-fit: cover;
 }
 
@@ -493,8 +493,8 @@ body {
   padding: 0;
 }
 .horizontal-chat .message-avatar {
-  width: 20px;
-  height: 20px;
+  width: var(--chat-avatar-size, 20px);
+  height: var(--chat-avatar-size, 20px);
   border-radius: 50%;
   overflow: hidden;
   background: #21262d;
@@ -502,8 +502,8 @@ body {
   margin-bottom: 0;
 }
 .horizontal-chat .message-avatar img {
-  width: 20px;
-  height: 20px;
+  width: var(--chat-avatar-size, 20px);
+  height: var(--chat-avatar-size, 20px);
   object-fit: cover;
 }
 .horizontal-chat .message-user-container {

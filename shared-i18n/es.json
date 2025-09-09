@@ -191,11 +191,10 @@
   "raffleCommandHint": "Puedes usar el comando con o sin ! (ej.: sorteo o !sorteo).",
   "raffleWinners": "Ganadores:",
   "sidebarliveviews": "Espectadores",
-  "raffleNotConfigured": "El sorteo no está configurado o está inactivo.",
-  "raffleActive": "El sorteo está activo",
-  "rafflePaused": "El sorteo está en pausa",
-  "raffleInactive": "El sorteo está detenido",
-  "raffleActiveTitle": "Activo",
+  "raffleNotConfigured": "El sorteo no está configurado.",
+  "raffleActive": "Activo",
+  "rafflePaused": "Pausado",
+  "raffleInactive": "Detenido",
   "liveviewsViewersLabel": "Etiqueta personalizada:",
   "invalidArweaveWalletLastTip": "La dirección de billetera (Última Propina) no es válida para la red Arweave.",
   "invalidArweaveWalletTipGoal": "La dirección de billetera (Meta de Propinas) no es válida para la red Arweave.",
@@ -498,6 +497,5 @@
   "importNameTooLong": "Nombre de tema demasiado largo omitido",
   "importNoValid": "No hay entradas válidas",
   "importFileType": "No es un archivo JSON",
-  "importFileTooLarge": "Archivo demasiado grande (máx 200KB)",
-  "importHintAltJson": "Consejo: Mantén Alt (Option) al hacer clic en Importar para pegar JSON en lugar de seleccionar un archivo."
+  "importFileTooLarge": "Archivo demasiado grande (máx 200KB)"
 }

@@ -1,4 +1,5 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
+import { confirmDialog } from '../../services/confirm';
 import { pushToast } from '../../services/toast';
 import SizeBlocksModule from './utils/sizeBlocks';
 import DiffUtilModule from './utils/diffUtil';
@@ -443,12 +444,19 @@ const defaultThemes = [
 	persistCustomThemesServer();
 	applyRuntimeSizeVariables();
 }
-	function deleteCustom() {
-	if (!isCustomSelected.value) {
+	async function deleteCustom() {
+		if (!isCustomSelected.value) {
 		pushToast({ type: 'error', message: t('chatThemeDeleteOnlyCustom') || 'Only custom themes can be deleted.' });
 		return;
 	}
-	if (!confirm(t('chatThemeDelete') || 'Delete theme?')) return;
+		const ok = await confirmDialog({
+			title: t('chatThemeDelete') || 'Delete theme?',
+			description: t('chatThemeDeleteDesc') || 'This will permanently delete the selected custom theme.',
+			confirmText: t('commonDelete') || 'Delete',
+			cancelText: t('commonCancel') || 'Cancel',
+			danger: true,
+		});
+		if (!ok) return;
 	const customIdx = selectedIdx.value - defaultThemes.length;
 	if (customIdx >= 0) {
 		const copy = customThemes.value.slice();

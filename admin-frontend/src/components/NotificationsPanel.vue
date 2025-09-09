@@ -1,10 +1,8 @@
 <template>
   <section class="admin-tab active" role="form">
     <OsCard class="mb-4" aria-describedby="gif-section-desc">
-      <p id="gif-section-desc" class="sr-only">
-        Configure animated GIF position and upload for notifications.
-      </p>
-      <h3 class="os-card-title">GIF</h3>
+      <p id="gif-section-desc" class="sr-only">{{ t('gifSectionDesc') }}</p>
+      <h3 class="os-card-title">{{ t('gifSectionTitle') }}</h3>
       <div class="form-group">
         <label class="label">{{ t('notificationGifPositionLabel') }}</label>
         <select class="input" v-model="gif.position">
@@ -59,8 +57,8 @@
       </div>
     </OsCard>
     <OsCard class="mb-4" aria-describedby="tts-section-desc">
-      <p id="tts-section-desc" class="sr-only">Configure text to speech engine settings.</p>
-      <h3 class="os-card-title">TTS</h3>
+      <p id="tts-section-desc" class="sr-only">{{ t('ttsSectionDesc') }}</p>
+      <h3 class="os-card-title">{{ t('ttsSectionTitle') }}</h3>
       <div class="form-group">
         <label class="label"
           ><input type="checkbox" class="checkbox" v-model="tts.enabled" />
@@ -92,9 +90,7 @@
       </div>
     </OsCard>
     <OsCard class="mb-4" aria-describedby="audio-section-desc">
-      <p id="audio-section-desc" class="sr-only">
-        Configure custom audio source for notifications.
-      </p>
+      <p id="audio-section-desc" class="sr-only">{{ t('audioSectionDesc') }}</p>
       <h3 class="os-card-title">{{ t('customAudioTitle') }}</h3>
       <div class="form-group">
         <label class="label" for="audio-source">{{ t('audioSourceLabel') }}</label>

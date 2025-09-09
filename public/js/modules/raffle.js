@@ -10,11 +10,40 @@ export function initRaffle() {
   let lastActiveState = null;
   let ws; let reconnectAttempts = 0; const maxReconnectAttempts = 5; const reconnectDelay = 3000;
 
+  function getI18nText(key) {
+    try {
+      if (window.languageManager && typeof window.languageManager.getText === 'function') {
+        const t = window.languageManager.getText(key);
+        if (typeof t === 'string' && t.trim().length > 0) return t;
+      }
+    } catch {}
+    const k = String(key || '')
+      .replace(/^raffle/i, '')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .trim();
+    return k || String(key || '');
+  }
+
   function renderRaffleContent() {
     const container = document.getElementById('raffleContentContainer');
     if (!container) return;
+
     if (!raffleData.winner && (!lastActiveState || !lastActiveState.enabled || (!lastActiveState.active && !lastActiveState.paused))) {
-      container.innerHTML = '<div class="text-center text-gray-400 text-lg"><span data-i18n="raffleInactive"></span></div>';
+      const participantsHTML = '<div class="text-center text-gray-400"><span data-i18n="raffleNotConfigured"></span></div>';
+      const inactiveText = getI18nText('raffleInactive');
+      container.innerHTML = `
+        <div id="raffleActiveContent">
+          <div class="raffle-header">
+            <div class="raffle-status-badge inactive" role="status" aria-live="polite">
+              <span class="dot" aria-hidden="true"></span>
+              <span data-i18n="raffleInactive">${inactiveText}</span>
+            </div>
+            <div class="participant-count">
+              <span id="participantCount">0</span> <span data-i18n="raffleParticipants">participants</span>
+            </div>
+          </div>
+          <div class="participants-list" id="participantsList">${participantsHTML}</div>
+        </div>`;
       if (window.languageManager) window.languageManager.updatePageLanguage();
       return;
     }
@@ -54,6 +83,11 @@ export function initRaffle() {
       return;
     }
     const state = lastActiveState;
+    const statusKey = (state && state.paused) ? 'rafflePaused' : 'raffleActive';
+  const statusClass = (state && state.paused)
+      ? 'raffle-status-badge paused'
+      : 'raffle-status-badge active';
+  const statusText = getI18nText(statusKey);
     const participantsList = (lastActiveState && Array.isArray(lastActiveState.participants) && lastActiveState.participants.length > 0) ? lastActiveState.participants : (Array.isArray(raffleData.participants) ? raffleData.participants : []);
     let participantsHTML = ''; let participantCount = 0;
     if (participantsList.length > 0) {
@@ -63,7 +97,7 @@ export function initRaffle() {
       <div id="raffleActiveContent">
     <div id="raffleTimer" class="text-center text-lg font-bold text-yellow-300 mb-2 hidden"></div>
         <div class="raffle-header">
-          <h2 class="raffle-title" data-i18n="raffleActiveTitle"></h2>
+          <div class="${statusClass}" role="status" aria-live="polite"><span class="dot" aria-hidden="true"></span><span data-i18n="${statusKey}">${statusText}</span></div>
           <div class="participant-count">
             <span id="participantCount">${participantCount}</span> <span data-i18n="raffleParticipants">participants</span>
           </div>

@@ -174,12 +174,7 @@
           {{ t('chatThemeCancel') || 'Cancel' }}
         </button>
       </div>
-      <p v-if="!customThemes.length" class="text-[11px] opacity-60 -mt-3 mb-3" aria-live="polite">
-        {{
-          t('importHintAltJson') ||
-          'Tip: Hold Alt (Option) while clicking Import to paste raw JSON instead of selecting a file.'
-        }}
-      </p>
+
       <div v-if="customizing" class="space-y-4">
         <div class="form-group">
           <label for="chat-theme-working-name">{{

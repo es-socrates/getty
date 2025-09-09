@@ -190,11 +190,10 @@
   "raffleCommandHint": "You can use the command with or without ! (e.g., giveaway or !giveaway).",
   "raffleWinners": "Winners:",
   "sidebarliveviews": "Viewers",
-  "raffleNotConfigured": "The draw is not configured.",
-  "raffleActive": "The draw is active",
-  "rafflePaused": "The draw is paused",
-  "raffleInactive": "The draw is stopped",
-  "raffleActiveTitle": "Active",
+  "raffleNotConfigured": "The giveaway is not configured.",
+  "raffleActive": "Active",
+  "rafflePaused": "Paused",
+  "raffleInactive": "Stopped",
   "liveviewsViewersLabel": "Custom label for viewers:",
   "invalidArweaveWalletLastTip": "The wallet address (Last Tip) is not valid for the Arweave network.",
   "invalidArweaveWalletTipGoal": "The wallet address (Tip Goal) is not valid for the Arweave network.",
@@ -498,6 +497,5 @@
   "importNoValid": "No valid entries",
   "importFileType": "Not a JSON file",
   "importFileTooLarge": "File too large (200KB max)",
-  "chatThemeSizeBlockRebuilt": "Font size block rebuilt to match sliders",
-  "importHintAltJson": "Tip: Hold Alt (Option) while clicking Import to paste raw JSON instead of selecting a file."
+  "chatThemeSizeBlockRebuilt": "Font size block rebuilt to match sliders"
 }

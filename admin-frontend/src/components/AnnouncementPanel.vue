@@ -254,6 +254,7 @@ import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
+import { confirmDialog } from '../services/confirm';
 import { isHttpUrl, withinRange, MAX_TITLE_LEN, MAX_ANNOUNCEMENT_IMAGE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
@@ -446,7 +447,15 @@ async function submitEdit() {
 }
 
 async function deleteMessage(m) {
-  if (!confirm('Delete message?')) return;
+  const ok = await confirmDialog({
+    title: t('commonDelete') + '?',
+    description:
+      t('announcementMsgDeleteConfirm') || 'This will permanently delete the announcement.',
+    confirmText: t('commonDelete') || 'Delete',
+    cancelText: t('commonCancel') || 'Cancel',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     const r = await axios.delete(`/api/announcement/message/${m.id}`);
     if (r.data.success) {
