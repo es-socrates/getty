@@ -8,16 +8,13 @@
   :root {
     color-scheme: light dark;
   }
+  html:not(.dark) .theme-light .message:not(.has-donation) .message-text-inline {
+    color: var(--text) !important;
+  }
   html:not(.dark) .chat-default:not(.theme-active) .message.has-donation .message-text-inline {
     color: #111 !important;
   }
   html:not(.dark) .chat-default .message {
-    color: #fff !important;
-  }
-  html:not(.dark) .theme-light .message:not(.has-donation) .message-text-inline {
-    color: var(--text) !important;
-  }
-  html:not(.dark) body .last-donation .notification-title {
     color: #fff !important;
   }
   html:not(.dark)
@@ -34,7 +31,7 @@
     margin: 0.25rem 0;
   }
   .raffle-embed .participant {
-    border-bottom-color: rgba(255, 255, 255, 0.08);
+    border-bottom-color: rgb(255 255 255 / 8%);
   }
   .raffle-embed .winner-name {
     letter-spacing: 0.3px;
@@ -51,6 +48,16 @@
   }
   html:not(.dark) .raffle-embed .participant {
     color: #fff !important;
+  }
+
+  .os-panel-title .icon svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentcolor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
   }
   html.dark .os-panel-title .icon svg {
     stroke: #fff;
@@ -73,21 +80,21 @@
     fill: #000;
   }
 
-  /* Skeletons */
   .skeleton {
     position: relative;
     overflow: hidden;
-    background: rgba(148, 163, 184, 0.15);
+    background: rgb(148 163 184 / 15%);
     border-radius: 6px;
   }
   .skeleton::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.25), transparent);
+    background: linear-gradient(90deg, transparent, rgb(148 163 184 / 25%), transparent);
     transform: translateX(-100%);
     animation: sk 1.2s infinite;
   }
+
   @keyframes sk {
     to {
       transform: translateX(100%);
@@ -116,6 +123,7 @@
     opacity: 0;
     animation: fi 0.28s ease-out forwards;
   }
+
   @keyframes fi {
     to {
       opacity: 1;
@@ -339,15 +347,6 @@
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-  }
-  .os-panel-title .icon svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentcolor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    fill: none;
   }
 
   html:not(.dark) body.landing .os-panel-title,
