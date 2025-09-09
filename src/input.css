@@ -49,35 +49,35 @@
     gap: 6px;
     padding: 4px 10px;
     border-radius: 6px;
-    border: 1px solid rgba(148, 163, 184, 0.28);
+    border: 1px solid rgb(148 163 184 / 28%);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.2px;
     text-transform: initial;
-    background: rgba(148, 163, 184, 0.12);
+    background: rgb(148 163 184 / 12%);
     color: #cbd5e1;
   }
   .raffle-status-badge.active {
-    background: rgba(52, 211, 153, 0.12);
-    border-color: rgba(52, 211, 153, 0.35);
+    background: rgb(52 211 153 / 12%);
+    border-color: rgb(52 211 153 / 35%);
     color: #34d399;
   }
   .raffle-status-badge.paused {
-    background: rgba(251, 191, 36, 0.12);
-    border-color: rgba(251, 191, 36, 0.35);
+    background: rgb(251 191 36 / 12%);
+    border-color: rgb(251 191 36 / 35%);
     color: #fbbf24;
   }
   .raffle-status-badge.inactive {
-    background: rgba(148, 163, 184, 0.12);
-    border-color: rgba(148, 163, 184, 0.35);
+    background: rgb(148 163 184 / 12%);
+    border-color: rgb(148 163 184 / 35%);
     color: #94a3b8;
   }
   .raffle-status-badge .dot {
     width: 6px;
     height: 6px;
     border-radius: 999px;
-    background: currentColor;
-    box-shadow: 0 0 8px currentColor;
+    background: currentcolor;
+    box-shadow: 0 0 8px currentcolor;
   }
   html:not(.dark) .raffle-embed .raffle-prize-label,
   html:not(.dark) .raffle-embed .raffle-participants-label,
