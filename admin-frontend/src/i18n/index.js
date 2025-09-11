@@ -280,5 +280,18 @@ const messages = {
   es: merge(esShared, adminExtra.es),
 };
 
-const i18n = createI18n({ legacy: false, locale: 'en', fallbackLocale: 'en', messages });
+let startingLocale = 'en';
+try {
+  const ls = (typeof localStorage !== 'undefined')
+    ? (localStorage.getItem('admin_locale') || localStorage.getItem('lang'))
+    : null;
+  if (ls && (ls === 'en' || ls === 'es')) {
+    startingLocale = ls;
+  } else if (typeof navigator !== 'undefined' && navigator.language) {
+    const nav = String(navigator.language || '').toLowerCase();
+    if (nav.startsWith('es')) startingLocale = 'es';
+  }
+} catch {}
+
+const i18n = createI18n({ legacy: false, locale: startingLocale, fallbackLocale: 'en', messages });
 export default i18n;

@@ -544,6 +544,10 @@ function handleClickOutside(e) {
 function setLocale(l) {
   locale.value = l;
   menuOpen.value = false;
+  try {
+    localStorage.setItem('admin_locale', l);
+    localStorage.setItem('lang', l);
+  } catch {}
 }
 
 function toggleSidebar() {
