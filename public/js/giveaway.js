@@ -164,9 +164,6 @@ function renderRaffleContent() {
                     <div class="giveaway-participants-label" data-i18n="raffleParticipants">Participants:</div>
                     <div class="participants-list" id="participantsList">${participantsHTML}</div>
                 </div>
-                <div class="giveaway-logo-area">
-                    <div class="giveaway-logo">G</div>
-                </div>
             </div>
             <div class="giveaway-bottom-row">
                 <div class="giveaway-participant-count-box">

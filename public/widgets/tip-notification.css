@@ -7,7 +7,7 @@
   color: white;
   padding: 0;
   border-radius: 4px;
-  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  font-family: Inter, 'Helvetica Neue', sans-serif;
   display: none;
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
@@ -31,13 +31,13 @@
   position: absolute;
   bottom: 10px;
   left: 10px;
-  font-family: 'Inter', sans-serif;
+  font-family: Inter, sans-serif;
 }
 .conn-online {
   color: #00ff7f;
 }
 .conn-offline {
-  color: #ff5555;
+  color: #f55;
 }
 
 .notification.tip-notification-widget {
@@ -55,7 +55,7 @@
 }
 
 .notification-content.error {
-  color: #ff5555;
+  color: #f55;
 }
 
 .notification-icon {
@@ -160,16 +160,16 @@
 
 .notification-message {
   font-size: 15px;
-  color: #ffffff;
+  color: #fff;
   text-overflow: ellipsis;
   margin-top: 8px;
   font-weight: 600;
-  word-wrap: break-word;
+  overflow-wrap: anywhere;
   overflow: hidden;
   -webkit-box-orient: vertical;
 }
 
-.notification-sticker {
+.notification-sticker.responsive {
   max-width: 100%;
   height: auto;
 }

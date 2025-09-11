@@ -76,6 +76,8 @@ const registerLiveviewsRoutes = require('./routes/liveviews');
 const registerStreamHistoryRoutes = require('./routes/stream-history');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
 const registerAnnouncementRoutes = require('./routes/announcement');
+const { AchievementsModule } = require('./modules/achievements');
+const registerAchievementsRoutes = require('./routes/achievements');
 const { AnnouncementModule } = require('./modules/announcement');
 const RaffleModule = require('./modules/raffle');
 
@@ -231,7 +233,13 @@ try {
         ...imgExtra
       ],
       fontSrc: [self, 'data:', 'blob:', 'https://fonts.gstatic.com'],
-      mediaSrc: [self, 'blob:', 'https://arweave.net', 'https://*.arweave.net', ...mediaExtra],
+      mediaSrc: [
+        self,
+        'blob:',
+        'https://arweave.net', 'https://*.arweave.net',
+        'https://ardrive.net', 'https://*.ardrive.net',
+        ...mediaExtra
+      ],
       connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
       frameSrc: [self]
     };
@@ -504,6 +512,9 @@ const tipWidget = new TipWidgetModule(wssBound);
 const tipGoal = new TipGoalModule(wssBound);
 const externalNotifications = new ExternalNotifications(wssBound);
 const raffle = new RaffleModule(wssBound);
+const achievements = new AchievementsModule(wssBound, { store, liveviewsCfgFile: LIVEVIEWS_CONFIG_FILE });
+
+try { global.gettyAchievementsInstance = achievements; } catch {}
 
 try { global.gettyRaffleInstance = raffle; } catch {}
 const announcementModule = new AnnouncementModule(wssBound);
@@ -670,7 +681,14 @@ if (!__hostedMode) try {
 
   if (process.env.NODE_ENV !== 'test') {
     [2000, 8000, 20000].forEach(d => setTimeout(() => { checkLiveOnce(); }, d));
-    setInterval(() => { checkLiveOnce(); }, 30000);
+
+  const CHECK_LIVE_MS = Math.max(10000, Number(process.env.CHECK_LIVE_MS || 30000));
+  setInterval(() => { checkLiveOnce(); }, CHECK_LIVE_MS);
+
+  const DEFAULT_ACH_MS = 300000; // 5 minutes
+  const envMs = Number(process.env.ACHIEVEMENTS_POLL_MS || 0) || 0;
+  const achIntervalMs = Math.max(15000, envMs || DEFAULT_ACH_MS);
+  setInterval(() => { try { achievements.pollViewersOnce(null); } catch {} }, achIntervalMs);
   }
 } catch {}
 
@@ -1243,6 +1261,7 @@ registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, {
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerTipNotificationGifRoutes(app, strictLimiter);
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
+registerAchievementsRoutes(app, achievements, strictLimiter, { store });
 
 app.post('/api/chat/test-message', limiter, async (req, res) => {
   try {
@@ -1284,6 +1303,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
 
       const adminNs = await resolveAdminNsFromReq(req) || ns;
       wss.broadcast(adminNs, { type: 'chatMessage', data: chatMsg });
+    try { achievements.onChatMessage(adminNs, chatMsg); } catch {}
     } else {
       wss.clients.forEach(client => {
         if (client.readyState === 1) {
@@ -1341,6 +1361,7 @@ app.post('/api/test-tip', limiter, async (req, res) => {
         usd: (donation.amount * 5).toFixed(2)
       });
     }
+  try { achievements.onTip(ns || null, { usd: (donation.amount * 5) }); } catch {}
   try { __recordTip({ amount: donation.amount, usd: (donation.amount * 5).toFixed(2), timestamp: Date.now(), source: 'test' }); } catch {}
     
     res.json({ ok: true, sent: donation });
@@ -1420,6 +1441,11 @@ app.get('/obs/widgets', (req, res) => {
       name: "Announcements",
       url: `${baseUrl}/widgets/announcement`,
       params: { position: "top-center", width: 600, height: 200, duration: 10 }
+    },
+    achievements: {
+      name: "Achievements",
+      url: `${baseUrl}/widgets/achievements`,
+      params: { position: "top-right", width: 380, height: 120 }
     }
   };
   
@@ -1508,6 +1534,40 @@ app.get('/widgets/announcement', (req, res, next) => {
     try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
     return res.send(html);
   } catch { return next(); }
+});
+
+app.get('/widgets/achievements', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'achievements.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+
+    if (nonce) {
+      html = html.replace(/<style(\s[^>]*)?>/gi, function (m) {
+        return m.includes('nonce=') ? m : m.replace('<style', `<style nonce="${nonce}"`);
+      });
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
+});
+
+app.get('/api/channel/avatar', async (req, res) => {
+  try {
+    const claimId = String(req.query.claimId || '').trim();
+    if (!claimId) return res.status(400).json({ error: 'missing_claimId' });
+  const out = await chatNs._fetchChannelAvatar(claimId);
+    res.json({ avatar: out.avatar || null, title: out.title || null });
+  } catch (e) {
+    res.status(500).json({ error: 'failed_to_fetch_avatar', details: e?.message });
+  }
 });
 
 app.get('/widgets/giveaway', (req, res, next) => {
@@ -1855,6 +1915,22 @@ app.get('/api/activity/export', (req, res) => {
   }
 });
 
+try {
+  app.get('/shared-i18n/:lang.json', (req, res) => {
+    try {
+      const lang = String(req.params.lang || '').toLowerCase();
+      const safe = (lang === 'es') ? 'es' : 'en';
+      const file = path.join(process.cwd(), 'shared-i18n', `${safe}.json`);
+      if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      return res.send(fs.readFileSync(file, 'utf8'));
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_load_i18n', details: e?.message });
+    }
+  });
+} catch {}
+
 app.get('/api/modules', async (req, res) => {
   const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
   const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -2042,6 +2118,14 @@ app.get('/api/modules', async (req, res) => {
         return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0 };
       } catch { return { active: false, participants: [] }; }
     })(),
+    achievements: (async () => {
+      try {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        const cfg = await achievements.getConfigEffective(ns);
+        const st = await achievements.getStatus(ns);
+        return { active: !!cfg.enabled, dnd: !!cfg.dnd, items: st.items?.length || 0 };
+      } catch { return { active: false, items: 0 }; }
+    })(),
     system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' }
   };
 
@@ -2065,6 +2149,7 @@ app.get('/api/modules', async (req, res) => {
     } catch {}
     try { if (payload.liveviews) payload.liveviews.active = false; } catch {}
     try { if (payload.raffle) delete payload.raffle; } catch {}
+    try { if (payload.achievements) payload.achievements.active = false; } catch {}
 
   payload.masked = true;
   payload.maskedReason = 'no_session';
@@ -2359,6 +2444,10 @@ app.post('/api/test-donation', express.json(), (req, res) => {
                 client.send(JSON.stringify(donationData));
             }
         });
+        try {
+          const ns = null;
+          achievements.onTip(ns, { usd: donationData.amount });
+        } catch {}
         
         res.json({
             success: true,
@@ -2604,6 +2693,25 @@ if (process.env.NODE_ENV !== 'test') {
     } catch (e) { console.error('broadcast error', e); }
   };
 
+  try {
+    wss.on('tip', async (tipData, ns) => {
+      try {
+        let payload = tipData || {};
+        const amount = Number(payload.amount || 0) || 0;
+        const hasUsd = typeof payload.usd === 'number' && !Number.isNaN(payload.usd);
+        const isUsd = !!payload.creditsIsUsd;
+        if (!hasUsd && !isUsd && amount > 0) {
+          try {
+            const rate = await getArUsdCached(false);
+            const usd = (rate && typeof rate.usd === 'number' ? rate.usd : 0) * amount;
+            if (usd > 0) payload = { ...payload, usd };
+          } catch {}
+        }
+        try { achievements.onTip(ns || null, payload); } catch {}
+      } catch {}
+    });
+  } catch {}
+
   const __allowedOrigins = new Set(
     (process.env.GETTY_ALLOW_ORIGINS || '')
       .split(',')
@@ -2625,7 +2733,7 @@ if (process.env.NODE_ENV !== 'test') {
         const cookies = parseCookieHeader(req.headers.cookie);
         nsToken = cookies['getty_public_token'] || cookies['getty_admin_token'] || '';
       }
-      const bindAndAccept = async () => {
+        const bindAndAccept = async () => {
         let effective = nsToken || '';
         try {
           if (store && effective) {

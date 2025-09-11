@@ -217,6 +217,11 @@ class ChatNsManager {
 
       this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
       try {
+        if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
+          global.gettyAchievementsInstance.onChatMessage(ns, chatMessage);
+        }
+      } catch {}
+      try {
         const s = this.sessions.get(ns);
         if (s && Array.isArray(s.history)) {
           s.history.push(chatMessage);

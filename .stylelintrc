@@ -9,6 +9,14 @@
   "rules": {
     "rule-empty-line-before": null,
     "declaration-empty-line-before": null,
-    "media-feature-range-notation": null
+    "media-feature-range-notation": null,
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "alpha-value-notation": null,
+    "keyframes-name-pattern": null,
+    "declaration-block-no-redundant-longhand-properties": [
+      true,
+      { "ignoreShorthands": ["inset", "padding"] }
+    ]
   }
 }

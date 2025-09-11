@@ -124,6 +124,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (msg.type === 'chatConfigUpdate') {
                 fetchAndApplyTheme();
                 applyChatColors();
+
+                (async () => {
+                    try {
+                        const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+                        const cfg = await res.json();
+                        if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
+                            randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
+                        }
+                    } catch {/* ignore */}
+                })();
                 return;
             }
             if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
@@ -302,15 +312,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             const initialSrc = hasCustom ? msg.avatar : DEFAULT_AVATAR_URL;
             img.src = initialSrc;
             img.alt = username;
-        if (!hasCustom) { try { const bgIdx = Math.abs(username.split('').reduce((a,c)=>c.charCodeAt(0)+((a<<5)-a),0)) % 10; avatar.classList.add(`avatar-bg-${bgIdx}`); } catch {} }
+
+            let bgIdxForThisMsg = 0;
+            try {
+                if (randomAvatarBgPerMessage) {
+                    bgIdxForThisMsg = Math.floor(Math.random() * 10);
+                } else {
+                    bgIdxForThisMsg = Math.abs(username.split('').reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0)) % 10;
+                }
+            } catch { bgIdxForThisMsg = 0; }
+
+            if (!hasCustom) {
+                try { avatar.classList.add(`avatar-bg-${bgIdxForThisMsg}`); } catch {}
+            }
+
             img.onerror = () => {
                 if (img.src !== DEFAULT_AVATAR_URL) {
                     img.onerror = null;
                     img.src = DEFAULT_AVATAR_URL;
-            try { const bgIdx = Math.abs(username.split('').reduce((a,c)=>c.charCodeAt(0)+((a<<5)-a),0)) % 10; avatar.classList.add(`avatar-bg-${bgIdx}`); } catch {}
+                    try { avatar.classList.add(`avatar-bg-${bgIdxForThisMsg}`); } catch {}
                 } else {
-            img.classList.add('avatar-img-hidden');
-            try { const bgIdx = Math.abs(username.split('').reduce((a,c)=>c.charCodeAt(0)+((a<<5)-a),0)) % 10; avatar.classList.add(`avatar-bg-${bgIdx}`); } catch {}
+                    img.classList.add('avatar-img-hidden');
+                    try { avatar.classList.add(`avatar-bg-${bgIdxForThisMsg}`); } catch {}
                 }
             };
             avatar.appendChild(img);
@@ -639,7 +662,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (serverHasTheme) return;
         const vars = (e.newValue || '').trim();
         if (!vars) return;
-        let tag = ensureStyleTag('chat-theme-size-vars');
+    let tag = ensureStyleTag('chat-theme-size-vars');
         tag.textContent = /}\s*$/.test(vars) ? vars : (vars + '}');
     });
 });

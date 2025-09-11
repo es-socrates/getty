@@ -4,10 +4,10 @@
   right: 30px;
   width: 380px;
   background: var(--lt-bg, #080c10);
-  color: var(--lt-text, #ffffff);
+  color: var(--lt-text, #fff);
   padding: 0;
   border-radius: 4px;
-  font-family: 'Inter', 'Helvetica Neue', sans-serif;
+  font-family: Inter, 'Helvetica Neue', sans-serif;
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   overflow: hidden;
@@ -43,7 +43,7 @@
   width: 58px;
   height: 58px;
   display: block;
-  color: var(--lt-icon, #ffffff);
+  color: var(--lt-icon, #fff);
   margin-top: 5px;
   transform-origin: 50% 50%;
   will-change: transform;
@@ -83,8 +83,18 @@
   bottom: 10px;
   left: 10px;
   color: #00ff7f;
-  font-family: 'Inter', sans-serif;
+  font-family: Inter, sans-serif;
   font-size: 16px;
+}
+
+.notification-icon-lasttip svg {
+  width: 58px;
+  height: 58px;
+  display: block;
+  color: var(--lt-icon, #fff);
+  margin-top: 5px;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 @keyframes coinWobble {
@@ -111,7 +121,7 @@
 
 .usd-value {
   font-size: 16px;
-  color: var(--lt-text, #ffffff);
+  color: var(--lt-text, #fff);
   margin-top: 4px;
   font-weight: 600;
 }
@@ -141,17 +151,4 @@
   justify-content: center;
   margin-right: 15px;
   margin-left: 5px;
-}
-.notification-icon-lasttip svg {
-  width: 58px;
-  height: 58px;
-  display: block;
-  color: var(--lt-icon, #ffffff);
-  margin-top: 5px;
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
-
-.notification-from-lasttip {
-  color: var(--lt-from, #817ec8);
 }

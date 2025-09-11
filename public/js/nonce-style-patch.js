@@ -4,6 +4,13 @@
     var n = (meta && (meta.nonce || meta.getAttribute('nonce'))) || (document.head && document.head.dataset && document.head.dataset.cspNonce) || '';
     if (!n) return;
 
+    try {
+      var existing = document.querySelectorAll('style:not([nonce])');
+      for (var i = 0; i < existing.length; i++) {
+        existing[i].setAttribute('nonce', n);
+      }
+    } catch {}
+
     var origCreate = document.createElement;
     document.createElement = function (name, options) {
       var el = origCreate.call(document, name, options);

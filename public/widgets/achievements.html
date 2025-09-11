@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Achievements Widget</title>
+  <link rel="stylesheet" href="/widgets/achievements.css" integrity="sha384-1JAByFax1poKJ/hvOMoxnQdpDIQX+3YDTJgCl8ysD+qAhEuWjaVTCWGF0r/+oeoH" crossorigin="anonymous">
+</head>
+<body>
+  <div id="ach-root" class="ach-root ach-pos-top-right" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="/js/modules/achievements-widget.js" integrity="sha384-UMtboZgEkYONY+93ppmGiWClZzHWSVnEXLPHxiTxhEehgR/Cq66WGycG2r1DhsnL" crossorigin="anonymous"></script>
+</body>
+<style>
+  #ach-root { position: fixed; top: 16px; right: 16px; z-index: 99999; }
+  .ach-hide { display: none; }
+  html, body { background: transparent; margin: 0; padding: 0; }
+</style>
+</html>

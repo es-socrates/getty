@@ -40,18 +40,24 @@ body {
   margin-top: 0px;
 }
 
-.message-avatar {
+#chat-container .message-avatar {
   width: var(--chat-avatar-size, 32px);
   height: var(--chat-avatar-size, 32px);
   border-radius: 50%;
   overflow: hidden;
   background: #21262d;
+  aspect-ratio: 1 / 1;
+  display: inline-block;
+  flex: 0 0 auto;
 }
 
-.message-avatar img {
+#chat-container .message-avatar img {
   width: var(--chat-avatar-size, 32px);
   height: var(--chat-avatar-size, 32px);
   object-fit: cover;
+  aspect-ratio: 1 / 1;
+  display: block;
+  max-width: 100%;
 }
 
 .message-content {
@@ -493,8 +499,10 @@ body {
   padding: 0;
 }
 .horizontal-chat .message-avatar {
-  width: var(--chat-avatar-size, 20px);
-  height: var(--chat-avatar-size, 20px);
+  width: var(--chat-avatar-size, 28px);
+  height: var(--chat-avatar-size, 28px);
+  max-width: calc(28px - 4px);
+  max-height: calc(28px - 4px);
   border-radius: 50%;
   overflow: hidden;
   background: #21262d;
@@ -502,8 +510,10 @@ body {
   margin-bottom: 0;
 }
 .horizontal-chat .message-avatar img {
-  width: var(--chat-avatar-size, 20px);
-  height: var(--chat-avatar-size, 20px);
+  width: var(--chat-avatar-size, 28px);
+  height: var(--chat-avatar-size, 28px);
+  max-width: calc(28px - 4px);
+  max-height: calc(28px - 4px);
   object-fit: cover;
 }
 .horizontal-chat .message-user-container {
@@ -597,34 +607,34 @@ body {
   color: #fff !important;
 }
 
-.message-avatar.avatar-bg-0 {
+#chat-container .message-avatar.avatar-bg-0 {
   background-color: #00bcd4;
 }
-.message-avatar.avatar-bg-1 {
+#chat-container .message-avatar.avatar-bg-1 {
   background-color: #ff9800;
 }
-.message-avatar.avatar-bg-2 {
+#chat-container .message-avatar.avatar-bg-2 {
   background-color: #8bc34a;
 }
-.message-avatar.avatar-bg-3 {
+#chat-container .message-avatar.avatar-bg-3 {
   background-color: #e91e63;
 }
-.message-avatar.avatar-bg-4 {
+#chat-container .message-avatar.avatar-bg-4 {
   background-color: #9c27b0;
 }
-.message-avatar.avatar-bg-5 {
+#chat-container .message-avatar.avatar-bg-5 {
   background-color: #3f51b5;
 }
-.message-avatar.avatar-bg-6 {
+#chat-container .message-avatar.avatar-bg-6 {
   background-color: #ff5722;
 }
-.message-avatar.avatar-bg-7 {
+#chat-container .message-avatar.avatar-bg-7 {
   background-color: #4caf50;
 }
-.message-avatar.avatar-bg-8 {
+#chat-container .message-avatar.avatar-bg-8 {
   background-color: #2196f3;
 }
-.message-avatar.avatar-bg-9 {
+#chat-container .message-avatar.avatar-bg-9 {
   background-color: #ffc107;
 }
 .message-avatar img.avatar-img-hidden {
