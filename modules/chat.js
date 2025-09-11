@@ -179,6 +179,11 @@ class ChatModule {
         this.history.shift();
       }
       this.notifyFrontend(chatMessage);
+      try {
+        if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
+          global.gettyAchievementsInstance.onChatMessage(null, chatMessage);
+        }
+      } catch {}
     }
   }
   

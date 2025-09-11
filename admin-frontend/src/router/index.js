@@ -11,6 +11,7 @@ export const routes = [
   { path: '/admin/announcement', name: 'announcement', component: () => import('../views/AnnouncementView.vue') },
   { path: '/admin/liveviews', name: 'liveviews', component: () => import('../views/LiveviewsView.vue') },
   { path: '/admin/raffle', name: 'raffle', component: () => import('../views/RaffleView.vue') },
+  { path: '/admin/achievements', name: 'achievements', component: () => import('../views/AchievementsView.vue') },
   { path: '/admin/tip-goal', name: 'tip-goal', component: () => import('../views/TipGoalView.vue') },
   { path: '/admin/last-tip', name: 'last-tip', component: () => import('../views/LastTipView.vue') },
 ];

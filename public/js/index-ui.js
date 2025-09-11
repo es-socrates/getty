@@ -127,6 +127,12 @@
         if (hasNotif) { await widgets.loadNotifications(); }
         if (hasChat) { await widgets.loadChat(); }
         if (hasRaffle) { await widgets.loadRaffle(); }
+        try {
+          const ach = document.getElementById('achievements-panel')
+            || document.getElementById('achievements-embed')
+            || document.querySelector('[data-ach-embed]');
+          if (ach) { const m = await import('/js/modules/achievements-widget.js'); if (m) {/* auto-booted module */} }
+        } catch {}
         await widgets.loadAppStatus();
       } catch (e) { /* ignore */ }
     };

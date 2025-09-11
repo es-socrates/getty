@@ -9,13 +9,13 @@ const SizeBlocks = {
       '/* AUTO_FONT_SIZES_START */',
       `:root{--chat-font-username:${u}px;--chat-font-message:${m}px;--chat-font-donation:${d}px;--chat-avatar-size:${a}px;}`,
 
-  `.message-username, .message-username.cyberpunk{font-size:${u}px !important;}`,
+  `#chat-container:not(.horizontal-chat) .message-username, #chat-container:not(.horizontal-chat) .message-username.cyberpunk{font-size:${u}px !important;}`,
 
-  `.message-text-inline{font-size:${m}px !important;}`,
+  `#chat-container:not(.horizontal-chat) .message-text-inline{font-size:${m}px !important;}`,
 
-  `.message-donation{font-size:${d}px !important;}`,
+  `#chat-container:not(.horizontal-chat) .message-donation{font-size:${d}px !important;}`,
 
-  `.message-avatar, .message-avatar img{width:${a}px !important;height:${a}px !important;}`,
+  `#chat-container:not(.horizontal-chat) .message-avatar, #chat-container:not(.horizontal-chat) .message-avatar img{width:${a}px !important;height:${a}px !important;}`,
       '/* AUTO_FONT_SIZES_END */'
     ].join('\n');
   },
