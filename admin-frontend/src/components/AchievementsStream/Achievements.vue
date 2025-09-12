@@ -33,7 +33,7 @@
         </div>
         <button
           type="button"
-          class="btn-secondary"
+          class="btn-secondary btn-compact-secondary"
           :aria-expanded="String(!settingsCollapsed)"
           aria-controls="ach-settings"
           @click="toggleSettings">
@@ -43,142 +43,303 @@
         </button>
       </div>
 
-      <div id="ach-settings" v-show="!settingsCollapsed" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="panel-list" :aria-label="t('achievementsQuickOptions')">
-            <div class="panel-list-row">
-              <div class="row-text">
-                <div class="row-title">{{ t('achievementsEnableLabel') }}</div>
-                <div class="row-desc">{{ t('achievementsEnableDesc') }}</div>
+      <div
+        id="ach-settings"
+        v-show="!settingsCollapsed"
+        class="space-y-4"
+        :data-ach-theme="cfg.theme">
+        <div class="ach-settings-layout">
+          <div class="ach-settings-col">
+            <div class="ach-group-box" :aria-label="t('achievementsGroupNotificationPrefs')">
+              <div class="ach-group-head">
+                <span class="ach-head-icon" aria-hidden="true">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M8 21h8" />
+                    <path d="M12 17v4" />
+                    <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+                    <path d="M17 9a5 5 0 0 0 5-5h-5" />
+                    <path d="M7 9a5 5 0 0 1-5-5h5" />
+                  </svg>
+                </span>
+                <span class="ach-head-title">{{ t('achievementsGroupNotificationPrefs') }}</span>
               </div>
-              <button
-                type="button"
-                class="switch"
-                :aria-pressed="String(cfg.enabled)"
-                @click="cfg.enabled = !cfg.enabled">
-                <span class="knob"></span>
-              </button>
-            </div>
-            <div class="panel-list-row">
-              <div class="row-text">
-                <div class="row-title">{{ t('achievementsDndLabel') }}</div>
-                <div class="row-desc">{{ t('achievementsDndDesc') }}</div>
-              </div>
-              <button
-                type="button"
-                class="switch"
-                :aria-pressed="String(cfg.dnd)"
-                @click="cfg.dnd = !cfg.dnd">
-                <span class="knob"></span>
-              </button>
-            </div>
-          </div>
-          <div class="field">
-            <label class="label">{{ t('achievementsClaimIdLabel') }}</label>
-            <input
-              class="input"
-              v-model="cfg.claimid"
-              :placeholder="t('achievementsClaimIdPlaceholder')" />
-          </div>
-          <div class="field">
-            <label class="label">{{ t('achievementsThemeLabel') }}</label>
-            <select class="input" v-model="cfg.theme">
-              <option value="light">{{ t('themeLight') }}</option>
-              <option value="dark">{{ t('themeDark') }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="label">{{ t('achievementsPositionLabel') }}</label>
-            <select class="input" v-model="cfg.position">
-              <option value="top-right">{{ t('positionTopRight') }}</option>
-              <option value="top-left">{{ t('positionTopLeft') }}</option>
-              <option value="bottom-right">{{ t('positionBottomRight') }}</option>
-              <option value="bottom-left">{{ t('positionBottomLeft') }}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label class="label">{{ t('achievementsHistoryLabel') }}</label>
-            <input class="input" v-model.number="cfg.historySize" type="number" min="1" max="20" />
-          </div>
-          <div class="field md:col-span-2">
-            <label class="label">{{ t('achievementsSoundLabel') }}</label>
-            <div class="audio-grid items-center">
-              <div class="flex items-center gap-3">
+
+              <div class="ach-setting-item has-inline-switch">
                 <button
                   type="button"
                   class="switch"
-                  :aria-pressed="String(cfg.sound.enabled)"
-                  @click="cfg.sound.enabled = !cfg.sound.enabled">
+                  :aria-pressed="String(cfg.enabled)"
+                  @click="cfg.enabled = !cfg.enabled">
                   <span class="knob"></span>
                 </button>
-                <span class="small opacity-80">{{ t('achievementsSoundToggleLabel') }}</span>
-              </div>
-              <div>
-                <label class="label" for="audio-source">{{
-                  t('achievementsAudioSourceFieldLabel')
-                }}</label>
-                <div class="flex items-center gap-2">
-                  <span class="small opacity-70">{{ t('achievementsAudioSourceSublabel') }}</span>
-                  <select
-                    id="audio-source"
-                    class="input select max-w-[200px]"
-                    v-model="audio.audioSource"
-                    aria-label="Audio source">
-                    <option value="remote">{{ t('achievementsAudioSourceRemoteOption') }}</option>
-                    <option value="custom">{{ t('achievementsAudioSourceCustomOption') }}</option>
-                  </select>
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsEnableLabel') }}</div>
+                  <div class="ach-setting-desc">{{ t('achievementsEnableDesc') }}</div>
                 </div>
               </div>
 
-              <div v-if="audio.audioSource === 'remote'" class="text-sm opacity-70">
-                {{ t('achievementsAudioSourceRemoteOption') }}
+              <div class="ach-setting-item has-inline-switch">
+                <button
+                  type="button"
+                  class="switch"
+                  :disabled="!cfg.enabled"
+                  :aria-pressed="String(cfg.dnd)"
+                  @click="cfg.dnd = !cfg.dnd">
+                  <span class="knob"></span>
+                </button>
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsDndLabel') }}</div>
+                  <div class="ach-setting-desc">{{ t('achievementsDndDesc') }}</div>
+                </div>
               </div>
-              <div
-                class="flex items-center gap-1"
-                role="group"
-                :aria-label="t('achievementsSoundVolumeLabel')">
-                <button
-                  type="button"
-                  class="btn-secondary"
-                  @click="stepVol(-0.05)"
-                  :disabled="cfg.sound.volume <= 0">
-                  −
-                </button>
-                <span class="vol-badge" aria-live="polite">{{ volPercent }}%</span>
-                <button
-                  type="button"
-                  class="btn-secondary"
-                  @click="stepVol(0.05)"
-                  :disabled="cfg.sound.volume >= 1">
-                  +
-                </button>
+
+              <div class="ach-setting-item is-vertical">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title flex items-center gap-2">
+                    <span>{{ t('achievementsSoundRowTitle') }}</span>
+                    <span
+                      class="badge inline-flex items-center justify-center text-[10px] tracking-wide"
+                      v-if="cfg.sound.enabled"
+                      >ON</span
+                    >
+                  </div>
+                  <div class="ach-setting-desc">{{ t('achievementsSoundRowDesc') }}</div>
+                </div>
+                <div class="ach-setting-control w-full flex-col items-stretch">
+                  <LegacyAudioControls
+                    class="w-full"
+                    compact
+                    force-stack
+                    :show-label="false"
+                    :enabled="cfg.sound.enabled"
+                    :volume="cfg.sound.volume"
+                    :audio-source="audio.audioSource"
+                    :has-custom-audio="audioState.hasCustomAudio"
+                    :audio-file-name="audioState.audioFileName"
+                    :audio-file-size="audioState.audioFileSize"
+                    :remote-url="REMOTE_ACH_SOUND_URL"
+                    @update:enabled="(v) => (cfg.sound.enabled = v)"
+                    @update:volume="(v) => (cfg.sound.volume = v)"
+                    @update:audio-source="(v) => (audio.audioSource = v)"
+                    @audio-saved="loadAll"
+                    @audio-deleted="
+                      () => {
+                        audioState.hasCustomAudio = false;
+                        loadAll();
+                      }
+                    "
+                    @toast="(p) => pushToast(p.type || 'info', p.messageKey)" />
+                </div>
               </div>
             </div>
-            <div class="mt-3" v-if="audio.audioSource === 'custom'">
-              <div class="flex items-center gap-2 flex-wrap">
-                <input
-                  ref="audioInput"
-                  type="file"
-                  accept="audio/*"
-                  class="hidden"
-                  @change="onAudioChange" />
-                <button class="btn-secondary" type="button" @click="triggerAudio">
-                  {{ t('achievementsUploadAudioBtn') }}
-                </button>
-                <button
-                  class="btn btn-danger"
-                  type="button"
-                  @click="deleteCustomAudio"
-                  :disabled="savingAudio"
-                  v-if="audioState.hasCustomAudio">
-                  {{ t('remove') }}
-                </button>
-                <span class="small" v-if="audioState.audioFileName"
-                  >{{ audioState.audioFileName }} ({{ formatSize(audioState.audioFileSize) }})</span
-                >
-                <button class="btn-save" type="button" :disabled="savingAudio" @click="saveAudio">
-                  {{ savingAudio ? t('commonSaving') : t('achievementsSaveAudioBtn') }}
-                </button>
+
+            <div class="ach-group-box" :aria-label="t('achievementsGroupChannelId')">
+              <div class="ach-group-head">
+                <span class="ach-head-icon" aria-hidden="true">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <path d="M7 8h10" />
+                    <path d="M7 12h6" />
+                    <path d="M7 16h8" />
+                  </svg>
+                </span>
+                <span class="ach-head-title">{{ t('achievementsGroupChannelId') }}</span>
+              </div>
+              <div class="ach-setting-item is-vertical">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsClaimIdLabel') }}</div>
+                  <div class="ach-setting-desc">{{ t('achievementsClaimIdPlaceholder') }}</div>
+                </div>
+                <div class="ach-setting-control w-full max-w-[680px]">
+                  <div class="claimid-row in-group">
+                    <input
+                      class="input claimid-input"
+                      v-model="cfg.claimid"
+                      :placeholder="t('achievementsClaimIdPlaceholder')"
+                      @input="debouncedAvatarRefresh" />
+                    <div class="ach-avatar-slot" v-if="cfg.claimid">
+                      <div
+                        v-if="avatarLoading"
+                        class="ach-avatar-skeleton"
+                        aria-hidden="true"
+                        :title="t('channelAvatarLoading')"></div>
+                      <div
+                        v-else
+                        class="ach-avatar-preview"
+                        :class="{ 'is-error': avatarError }"
+                        :title="avatarError ? t('channelAvatarError') : t('channelAvatar')">
+                        <template v-if="!avatarError && channelAvatarUrl">
+                          <img :src="channelAvatarUrl" alt="" @error="onAvatarError" />
+                        </template>
+                        <span v-else class="ach-avatar-fallback" aria-hidden="true">{{
+                          fallbackInitial
+                        }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ach-settings-col">
+            <div class="ach-group-box" :aria-label="t('achievementsGroupDisplay')">
+              <div class="ach-group-head">
+                <span class="ach-head-icon" aria-hidden="true">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 3v18" />
+                    <path d="M3 12h18" />
+                  </svg>
+                </span>
+                <span class="ach-head-title">{{ t('achievementsGroupDisplay') }}</span>
+              </div>
+
+              <div class="ach-setting-item">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsThemeLabel') }}</div>
+                  <div class="ach-setting-desc">{{ t('achievementsThemeLabel') }}</div>
+                </div>
+                <select class="input w-[160px]" v-model="cfg.theme">
+                  <option value="light">{{ t('themeLight') }}</option>
+                  <option value="dark">{{ t('themeDark') }}</option>
+                </select>
+              </div>
+
+              <div class="ach-setting-item">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsPositionLabel') }}</div>
+                  <div class="ach-setting-desc">{{ t('achievementsPositionLabel') }}</div>
+                </div>
+                <select class="input w-[190px]" v-model="cfg.position">
+                  <option value="top-right">{{ t('positionTopRight') }}</option>
+                  <option value="top-left">{{ t('positionTopLeft') }}</option>
+                  <option value="bottom-right">{{ t('positionBottomRight') }}</option>
+                  <option value="bottom-left">{{ t('positionBottomLeft') }}</option>
+                </select>
+              </div>
+
+              <div class="ach-setting-item">
+                <div class="ach-setting-text">
+                  <div class="ach-setting-title">{{ t('achievementsHistoryLabel') }}</div>
+                  <div class="ach-setting-desc">{{ t('achievementsHistoryLabel') }}</div>
+                </div>
+                <div class="number-field mt-[12px]" :aria-label="t('achievementsHistoryLabel')">
+                  <button
+                    type="button"
+                    class="nf-btn"
+                    :disabled="cfg.historySize <= 1"
+                    @click="decHistory"
+                    :aria-label="t('commonDecrease') || '−'">
+                    −
+                  </button>
+                  <input
+                    class="nf-input"
+                    :id="historyNumberId"
+                    type="number"
+                    min="1"
+                    max="20"
+                    step="1"
+                    inputmode="numeric"
+                    v-model.number="cfg.historySize"
+                    @input="clampHistory"
+                    @blur="clampHistory"
+                    :aria-live="'off'" />
+                  <button
+                    type="button"
+                    class="nf-btn"
+                    :disabled="cfg.historySize >= 20"
+                    @click="incHistory"
+                    :aria-label="t('commonIncrease') || '+'">
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ach-group-box" :aria-label="t('achievementsGroupPreview')">
+              <div class="ach-group-head">
+                <span class="ach-head-icon" aria-hidden="true">
+                  <!-- Eye icon -->
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </span>
+                <span class="ach-head-title">{{ t('achievementsGroupPreview') }}</span>
+              </div>
+              <div class="ach-preview">
+                <div class="ach-preview-title flex items-center justify-between">
+                  <span>{{ t('achievementsGroupPreview') }}</span>
+                  <button
+                    type="button"
+                    class="btn-secondary btn-compact-secondary px-2 py-1 text-[11px]"
+                    @click="testNotif"
+                    :disabled="saving">
+                    {{ t('achievementsTestNotificationBtn') }}
+                  </button>
+                </div>
+                <div class="ach-live-demo" :data-theme="cfg.theme">
+                  <div class="ald-item">
+                    <div class="ald-left">
+                      <div class="ald-ico" aria-hidden="true">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round">
+                          <path d="M12 17v4" />
+                          <path d="M8 21h8" />
+                          <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+                          <path d="M17 9a5 5 0 0 0 5-5h-5" />
+                          <path d="M7 9a5 5 0 0 1-5-5h5" />
+                        </svg>
+                      </div>
+                      <div class="ald-text">
+                        <div class="ald-title">{{ t('ach.def.t_first.title') }}</div>
+                        <div class="ald-desc">{{ t('ach.def.t_first.desc') }}</div>
+                      </div>
+                    </div>
+                    <div class="ald-time">{{ t('ach.widget.now') }}</div>
+                  </div>
+                </div>
+                <div class="ach-preview-hint text-[11px] opacity-70">
+                  <span>{{ t('achievementsBannerDesc') }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -186,7 +347,10 @@
 
         <div class="actions">
           <button class="btn-save" @click="save" :disabled="saving">{{ t('saveSettings') }}</button>
-          <button class="btn-secondary" @click="testNotif" :disabled="saving">
+          <button
+            class="btn-secondary btn-compact-secondary ach-test-btn"
+            @click="testNotif"
+            :disabled="saving">
             {{ t('achievementsTestNotificationBtn') }}
           </button>
         </div>
@@ -301,12 +465,24 @@
           </div>
         </div>
       </div>
+      <!-- Toasts -->
+      <div class="ach-toasts" aria-live="polite" aria-atomic="false">
+        <div
+          v-for="toast in toasts"
+          :key="toast.id"
+          class="ach-toast"
+          :class="toast.type"
+          role="status">
+          <span class="ach-toast-msg">{{ t(toast.messageKey) }}</span>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref, computed, watch } from 'vue';
+import LegacyAudioControls from '../shared/LegacyAudioControls.vue';
 import CopyField from '../shared/CopyField.vue';
 import OsCard from '../os/OsCard.vue';
 import { usePublicToken } from '../../composables/usePublicToken';
@@ -331,13 +507,20 @@ const cfg = reactive({
 });
 const status = reactive({ items: [] });
 const saving = ref(false);
+const toasts = ref([]);
+let toastCounter = 0;
 const pt = usePublicToken();
 const { t } = useI18n();
 const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/achievements`));
 const channelAvatarUrl = ref('');
-const volPercent = computed(() =>
-  Math.round(Math.max(0, Math.min(1, Number(cfg.sound.volume) || 0)) * 100)
-);
+const avatarError = ref(false);
+const avatarLoading = ref(false);
+const historyNumberId = 'ach-history-number';
+const fallbackInitial = computed(() => {
+  const id = (cfg.claimid || '').trim();
+  if (!id) return '?';
+  return id[0].toUpperCase();
+});
 
 const LS_KEY = 'ach-settings-collapsed';
 const settingsCollapsed = ref(true);
@@ -359,10 +542,8 @@ function toggleSettings() {
   writeCollapsed(settingsCollapsed.value);
 }
 
-const audioInput = ref(null);
 const audio = reactive({ audioSource: 'remote' });
 const audioState = reactive({ hasCustomAudio: false, audioFileName: '', audioFileSize: 0 });
-const savingAudio = ref(false);
 
 const REMOTE_ACH_SOUND_URL =
   'https://itkxmyqv2a2vccunpsndolfhjejajugsztsg3wewgh6lrpvhundq.ardrive.net/RNV2YhXQNVEKjXyaNyynSRIE0NLM5G3YljH8uL6no0c';
@@ -423,6 +604,7 @@ async function save() {
   try {
     await saveAchievementsConfig(cfg);
     await loadAll();
+    pushToast('success', 'toastSettingsSaved');
   } finally {
     saving.value = false;
   }
@@ -431,61 +613,15 @@ async function reset(id) {
   try {
     await resetAchievement(id);
     await loadAll();
+    pushToast('info', 'toastAchievementReset');
   } catch {}
 }
 
 async function testNotif() {
   try {
     await testAchievementsNotification();
+    pushToast('info', 'toastTestSent');
   } catch {}
-}
-
-function stepVol(delta) {
-  const v = Math.max(0, Math.min(1, (Number(cfg.sound.volume) || 0) + delta));
-  cfg.sound.volume = Math.round(v * 100) / 100;
-}
-
-function triggerAudio() {
-  audioInput.value?.click();
-}
-function onAudioChange(e) {
-  const f = e.target.files?.[0];
-  if (!f) return;
-
-  if (f.size > 1024 * 1024) {
-    return;
-  }
-  audioInput.value.file = f;
-}
-async function saveAudio() {
-  try {
-    savingAudio.value = true;
-    const fd = new FormData();
-    fd.append('audioSource', audio.audioSource);
-    const f = audioInput.value?.files?.[0];
-    if (audio.audioSource === 'custom' && f) {
-      fd.append('audioFile', f);
-    }
-    await api.post('/api/audio-settings', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    cfg.sound.url = audio.audioSource === 'custom' ? '/api/custom-audio' : REMOTE_ACH_SOUND_URL;
-    await loadAll();
-  } catch {
-  } finally {
-    savingAudio.value = false;
-  }
-}
-async function deleteCustomAudio() {
-  try {
-    savingAudio.value = true;
-    await api.delete('/api/audio-settings');
-    await loadAll();
-  } catch {
-  } finally {
-    savingAudio.value = false;
-  }
 }
 
 onMounted(loadAll);
@@ -499,12 +635,6 @@ watch(
     cfg.sound.url = src === 'custom' ? '/api/custom-audio' : REMOTE_ACH_SOUND_URL;
   }
 );
-function formatSize(bytes) {
-  if (!bytes) return '0 B';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
 
 watch(
   () => cfg.claimid,
@@ -516,6 +646,8 @@ watch(
 async function refreshChannelAvatar() {
   try {
     channelAvatarUrl.value = '';
+    avatarError.value = false;
+    avatarLoading.value = true;
     const id = (cfg.claimid || '').trim();
     if (!id) return;
     const r = await fetch(`/api/channel/avatar?claimId=${encodeURIComponent(id)}`, {
@@ -524,7 +656,47 @@ async function refreshChannelAvatar() {
     if (!r.ok) return;
     const j = await r.json();
     channelAvatarUrl.value = typeof j?.avatar === 'string' ? j.avatar : '';
-  } catch {}
+    if (!channelAvatarUrl.value) avatarError.value = true;
+  } catch {
+    avatarError.value = true;
+  } finally {
+    avatarLoading.value = false;
+  }
+}
+
+function onAvatarError() {
+  avatarError.value = true;
+  channelAvatarUrl.value = '';
+}
+
+let avatarTimer = null;
+function clampHistory() {
+  if (typeof cfg.historySize !== 'number' || isNaN(cfg.historySize)) cfg.historySize = 1;
+  if (cfg.historySize < 1) cfg.historySize = 1;
+  if (cfg.historySize > 20) cfg.historySize = 20;
+}
+function incHistory() {
+  if (cfg.historySize < 20) cfg.historySize++;
+}
+function decHistory() {
+  if (cfg.historySize > 1) cfg.historySize--;
+}
+function debouncedAvatarRefresh() {
+  if (avatarTimer) clearTimeout(avatarTimer);
+  avatarTimer = setTimeout(() => {
+    refreshChannelAvatar();
+  }, 450);
+}
+
+function pushToast(type, messageKey, timeout = 3500) {
+  const id = ++toastCounter;
+  toasts.value.push({ id, type, messageKey });
+  if (timeout > 0) {
+    setTimeout(() => dismissToast(id), timeout);
+  }
+}
+function dismissToast(id) {
+  toasts.value = toasts.value.filter((t) => t.id !== id);
 }
 </script>
 

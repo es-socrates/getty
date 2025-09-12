@@ -213,6 +213,7 @@
 .position-left .notification-gif-slot img {
   max-width: 190px;
   max-height: 132px;
+  border-radius: 4px;
 }
 
 .position-top .notification-gif-slot img,

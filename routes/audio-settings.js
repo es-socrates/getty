@@ -10,13 +10,25 @@ function loadAudioSettings(AUDIO_CONFIG_FILE) {
         audioSource: settings.audioSource || 'remote',
         hasCustomAudio: settings.hasCustomAudio || false,
         audioFileName: settings.audioFileName || null,
-        audioFileSize: settings.audioFileSize || 0
+        audioFileSize: settings.audioFileSize || 0,
+        enabled: typeof settings.enabled === 'boolean' ? settings.enabled : true,
+        volume:
+          typeof settings.volume === 'number' && settings.volume >= 0 && settings.volume <= 1
+            ? settings.volume
+            : 0.5,
       };
     }
   } catch (error) {
     console.error('Error loading audio settings:', error);
   }
-  return { audioSource: 'remote', hasCustomAudio: false, audioFileName: null, audioFileSize: 0 };
+  return {
+    audioSource: 'remote',
+    hasCustomAudio: false,
+    audioFileName: null,
+    audioFileSize: 0,
+    enabled: true,
+    volume: 0.5,
+  };
 }
 
 function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
@@ -39,7 +51,13 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       if ((requireSessionFlag || hosted) && !hasNs) {
-        return res.json({ audioSource: 'remote', hasCustomAudio: false });
+
+        return res.json({
+          audioSource: settings.audioSource || 'remote',
+          hasCustomAudio: false,
+          enabled: settings.enabled,
+          volume: settings.volume,
+        });
       }
       res.json(settings);
     } catch (error) {
@@ -62,6 +80,14 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       }
 
       const settings = { audioSource };
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
+        settings.enabled = req.body.enabled === 'true' || req.body.enabled === true ? true : false;
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body, 'volume')) {
+        const vol = parseFloat(req.body.volume);
+        if (!isNaN(vol)) settings.volume = Math.max(0, Math.min(1, vol));
+      }
       if (audioSource === 'custom' && req.file) {
         settings.hasCustomAudio = true;
         settings.audioFileName = req.file.originalname;
@@ -78,12 +104,13 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
 
       const success = saveAudioSettings(AUDIO_CONFIG_FILE, settings);
       if (success) {
+        const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: settings }));
+            client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload }));
           }
         });
-        res.json({ success: true, message: 'Audio configuration successfully saved', settings });
+        res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
       } else {
         res.status(500).json({ error: 'Error saving audio configuration' });
       }
@@ -96,6 +123,40 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         return res.status(400).json({ error: error.message });
       }
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/audio-settings', (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.status(401).json({ error: 'no_session' });
+      }
+      const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
+      if (fs.existsSync(customAudioPath)) fs.unlinkSync(customAudioPath);
+      const success = saveAudioSettings(AUDIO_CONFIG_FILE, {
+        audioSource: 'remote',
+        hasCustomAudio: false,
+        audioFileName: null,
+        audioFileSize: 0,
+      });
+      if (success) {
+        const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
+        wss.clients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(
+              JSON.stringify({ type: 'audioSettingsUpdate', data: payload })
+            );
+          }
+        });
+        return res.json({ success: true });
+      }
+      return res.status(500).json({ error: 'Error deleting audio configuration' });
+    } catch (error) {
+      console.error('Error deleting audio settings:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   });
 

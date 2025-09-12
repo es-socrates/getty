@@ -195,10 +195,12 @@ class AchievementsModule {
       { id: 'v_100break', category: 'viewers', titleKey: 'ach.def.v_100break.title', descKey: 'ach.def.v_100break.desc', target: 100, metric: 'viewersPeak' },
       { id: 'v_500break', category: 'viewers', titleKey: 'ach.def.v_500break.title', descKey: 'ach.def.v_500break.desc', target: 500, metric: 'viewersPeak' },
 
-      { id: 'c_10msg', category: 'chat', titleKey: 'ach.def.c_10msg.title', descKey: 'ach.def.c_10msg.desc', target: 10, metric: 'chatMsgsSession' },
-      { id: 'c_50msg', category: 'chat', titleKey: 'ach.def.c_50msg.title', descKey: 'ach.def.c_50msg.desc', target: 50, metric: 'chatMsgsSession' },
-      { id: 'c_5people', category: 'chat', titleKey: 'ach.def.c_5people.title', descKey: 'ach.def.c_5people.desc', target: 5, metric: 'chatActiveSenders' },
-      { id: 'c_20people', category: 'chat', titleKey: 'ach.def.c_20people.title', descKey: 'ach.def.c_20people.desc', target: 20, metric: 'chatActiveSenders' },
+      { id: 'c_100msg', category: 'chat', titleKey: 'ach.def.c_100msg.title', descKey: 'ach.def.c_100msg.desc', target: 100, metric: 'chatMsgsSession' },
+      { id: 'c_400msg', category: 'chat', titleKey: 'ach.def.c_400msg.title', descKey: 'ach.def.c_400msg.desc', target: 400, metric: 'chatMsgsSession' },
+      { id: 'c_50people', category: 'chat', titleKey: 'ach.def.c_50people.title', descKey: 'ach.def.c_50people.desc', target: 50, metric: 'chatActiveSenders' },
+      { id: 'c_200people', category: 'chat', titleKey: 'ach.def.c_200people.title', descKey: 'ach.def.c_200people.desc', target: 200, metric: 'chatActiveSenders' },
+      { id: 'c_1000msg', category: 'chat', titleKey: 'ach.def.c_1000msg.title', descKey: 'ach.def.c_1000msg.desc', target: 1000, metric: 'chatMsgsSession' },
+      { id: 'c_10000msg', category: 'chat', titleKey: 'ach.def.c_10000msg.title', descKey: 'ach.def.c_10000msg.desc', target: 10000, metric: 'chatMsgsSession' },
 
       { id: 't_first', category: 'tips', titleKey: 'ach.def.t_first.title', descKey: 'ach.def.t_first.desc', target: 1, metric: 'tipCountSession' },
       { id: 't_100usd', category: 'tips', titleKey: 'ach.def.t_100usd.title', descKey: 'ach.def.t_100usd.desc', target: 100, metric: 'tipUsdSession' },

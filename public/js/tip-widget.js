@@ -44,10 +44,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     let audioSettings = {
         audioSource: 'remote',
-        hasCustomAudio: false
+        hasCustomAudio: false,
+        enabled: true,
+        volume: 0.5
     };
 
-    function playNotificationSound() {
+    let lastAudioSettingsFetch = 0;
+    const AUDIO_SETTINGS_TTL = 10_000; // ms
+
+    async function refreshAudioSettingsIfStale(force = false) {
+        const now = Date.now();
+        if (!force && (now - lastAudioSettingsFetch) < AUDIO_SETTINGS_TTL) return;
+        try {
+            const res = await fetch('/api/audio-settings', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                audioSettings = {
+                    audioSource: data.audioSource || 'remote',
+                    hasCustomAudio: !!data.hasCustomAudio,
+                    enabled: data.enabled !== false,
+                    volume: typeof data.volume === 'number' ? Math.min(1, Math.max(0, data.volume)) : 0.5
+                };
+                lastAudioSettingsFetch = now;
+                updateDebugOverlay();
+            }
+        } catch (e) {
+            console.warn('Failed to refresh audio settings', e);
+        }
+    }
+
+    let reusableAudioEl = null;
+    function getReusableAudioElement(url) {
+        if (!reusableAudioEl) {
+            reusableAudioEl = new Audio(url);
+        } else if (reusableAudioEl.src !== new URL(url, location.origin).href) {
+            reusableAudioEl.src = url;
+        }
+        return reusableAudioEl;
+    }
+
+    function perceptualVolume(linear) {
+        const clamped = Math.min(1, Math.max(0, linear || 0));
+        return +(clamped * clamped).toFixed(4);
+    }
+
+    async function playNotificationSound() {
+        await refreshAudioSettingsIfStale();
+        if (!audioSettings.enabled) return;
         let audioUrl;
         let logMessage;
         if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
@@ -58,20 +101,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             logMessage = '🎵 Remote audio played';
         }
         try {
-            const audio = new Audio(audioUrl);
-            audio.volume = 0.9;
+            const audio = getReusableAudioElement(audioUrl);
+            audio.currentTime = 0;
+            const appliedVol = perceptualVolume(audioSettings.volume);
+            audio.volume = appliedVol;
+            updateDebugOverlay(appliedVol);
             audio.play()
-                .then(() => console.log(logMessage))
+                .then(() => console.log(logMessage, `(linear=${audioSettings.volume.toFixed(2)}, applied=${appliedVol})`))
                 .catch(err => {
                     console.error('Audio play failed:', err);
                     if (audioUrl !== REMOTE_SOUND_URL) {
-                        const fallback = new Audio(REMOTE_SOUND_URL);
-                        fallback.volume = 0.9;
+                        const fallback = getReusableAudioElement(REMOTE_SOUND_URL);
+                        fallback.currentTime = 0;
+                        const fbVol = perceptualVolume(audioSettings.volume);
+                        fallback.volume = fbVol;
+                        updateDebugOverlay(fbVol);
                         fallback.play().catch(e => console.error('Fallback audio failed:', e));
                     }
                 });
         } catch (e) {
             console.error('Audio init error:', e);
+        } finally {
+            lastAudioSettingsFetch = Date.now() - (AUDIO_SETTINGS_TTL - 2500);
         }
     }
 
@@ -107,6 +158,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (msg.type === 'audioSettingsUpdate') {
                 audioSettings = { ...audioSettings, ...msg.data };
+                if (typeof msg.data.volume === 'number') {
+                    audioSettings.volume = Math.min(1, Math.max(0, msg.data.volume));
+                }
+                if (Object.prototype.hasOwnProperty.call(msg.data,'enabled')) {
+                    audioSettings.enabled = msg.data.enabled !== false;
+                }
+                updateDebugOverlay();
             }
             
             if (msg.type === 'tipNotification') {
@@ -164,19 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadInitialTTSStatus();
 
     async function loadInitialAudioSettings() {
-        try {
-            const response = await fetch('/api/audio-settings');
-            if (response.ok) {
-                const data = await response.json();
-                audioSettings = {
-                    audioSource: data.audioSource || 'remote',
-                    hasCustomAudio: data.hasCustomAudio || false
-                };
-
-            }
-        } catch (error) {
-            console.error('Error loading initial audio settings:', error);
-        }
+        await refreshAudioSettingsIfStale(true);
     }
 
     loadInitialAudioSettings();
@@ -269,7 +315,7 @@ function speakMessage(message) {
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(stripEmojis(message));
-    utterance.volume = 0.9;
+    utterance.volume = perceptualVolume(audioSettings.volume);
     utterance.rate = 1; // Normal speed
     utterance.pitch = 0.9; // A little deeper to sound more masculine
     
@@ -340,6 +386,18 @@ function selectVoice(utterance, voices) {
         }
     }
 }
+
+    const debugAudioEnabled = new URLSearchParams(location.search).get('debugAudio') === '1';
+    let debugDiv = null;
+    function updateDebugOverlay(appliedVol) {
+        if (!debugAudioEnabled) return;
+        if (!debugDiv) {
+            debugDiv = document.createElement('div');
+            debugDiv.style.cssText = 'position:fixed;bottom:4px;left:4px;background:rgba(0,0,0,.65);color:#fff;font:12px/1.2 monospace;padding:6px 8px;z-index:9999;border:1px solid #444;border-radius:4px;';
+            document.body.appendChild(debugDiv);
+        }
+        debugDiv.textContent = `Audio linear=${(audioSettings.volume??0).toFixed(3)} applied=${(appliedVol!==undefined?appliedVol:perceptualVolume(audioSettings.volume)).toFixed(3)} enabled=${audioSettings.enabled}`;
+    }
 
 async function showDonationNotification(data) {
     const uniqueId = data.isDirectTip 
@@ -464,6 +522,8 @@ async function showDonationNotification(data) {
     }, VISIBLE_TIME);
 }
 
+// Keyframes are defined in tip-notification.css (no inline <style> injection needed).
+
     function showError(message) {
         notification.innerHTML = `
             <div class="notification-content error">
@@ -485,6 +545,7 @@ async function showDonationNotification(data) {
             statusElement.id = 'connection-status';
             document.body.appendChild(statusElement);
         }
+        // statusElement.textContent = connected ? '🟢 Connected' : '🔴 Offline';
     statusElement.className = connected ? 'conn-status conn-online' : 'conn-status conn-offline';
     }
 });

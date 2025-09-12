@@ -23,8 +23,45 @@ async function loadLang() {
 }
 function t(key, fallback) { return (__i18n && __i18n[key]) || fallback || key; }
 function nowLabel() { return t('ach.widget.now', 'Now'); }
-function playSound(url, vol = 0.5) {
-  try { if (!url) return; const a = new Audio(url); a.volume = Math.max(0, Math.min(vol, 1)); a.play().catch(()=>{}); } catch {}
+
+let sharedAudio = { audioSource: 'remote', hasCustomAudio: false, enabled: true, volume: 0.5 };
+const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
+
+async function loadSharedAudio() {
+  try {
+    const r = await fetch('/api/audio-settings', { cache: 'no-store' });
+    if (r.ok) {
+      const j = await r.json();
+      sharedAudio = {
+        audioSource: j.audioSource || 'remote',
+        hasCustomAudio: !!j.hasCustomAudio,
+        enabled: typeof j.enabled === 'boolean' ? j.enabled : true,
+        volume: typeof j.volume === 'number' && j.volume >= 0 && j.volume <= 1 ? j.volume : 0.5,
+      };
+    }
+  } catch {}
+}
+
+function resolveAchievementSound(urlFromCfg) {
+  if (sharedAudio.audioSource === 'custom' && sharedAudio.hasCustomAudio) return '/api/custom-audio';
+
+  return urlFromCfg || REMOTE_SOUND_URL;
+}
+
+function perceptual(vol) { return Math.pow(vol, 2); }
+
+function playSound(urlFromCfg, volOverride) {
+  try {
+    if (!sharedAudio.enabled) return;
+    const baseUrl = resolveAchievementSound(urlFromCfg);
+    const linear = typeof volOverride === 'number'
+      ? Math.max(0, Math.min(1, volOverride))
+      : (typeof sharedAudio.volume === 'number' ? Math.max(0, Math.min(1, sharedAudio.volume)) : 0.5);
+    const effective = perceptual(linear);
+    const a = new Audio(baseUrl);
+    a.volume = effective;
+    a.play().catch(()=>{});
+  } catch {}
 }
 
 async function getJson(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error('http '+r.status); return r.json(); }
@@ -124,6 +161,7 @@ function fadeOutAndRemoveLast() {
 async function boot() {
   await loadLang();
   try { cfg = await getJson('/api/achievements/config'); } catch {}
+  await loadSharedAudio();
   applyPosition();
 
   try {
@@ -158,6 +196,16 @@ async function boot() {
                 setTimeout(() => { try { node.remove(); } catch {} }, 260);
               }
             });
+          } catch {}
+        }
+        if (msg && msg.type === 'audioSettingsUpdate' && msg.data) {
+          try {
+            sharedAudio = {
+              audioSource: msg.data.audioSource || sharedAudio.audioSource,
+              hasCustomAudio: !!msg.data.hasCustomAudio,
+              enabled: typeof msg.data.enabled === 'boolean' ? msg.data.enabled : sharedAudio.enabled,
+              volume: typeof msg.data.volume === 'number' && msg.data.volume >= 0 && msg.data.volume <= 1 ? msg.data.volume : sharedAudio.volume,
+            };
           } catch {}
         }
       } catch {}
