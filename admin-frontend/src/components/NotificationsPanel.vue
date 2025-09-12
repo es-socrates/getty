@@ -201,6 +201,7 @@
             :audio-file-name="audioState.audioFileName"
             :audio-file-size="audioState.audioFileSize"
             force-stack
+            compact
             @update:enabled="(v) => (audioCfg.enabled = v)"
             @update:volume="(v) => (audioCfg.volume = v)"
             @update:audio-source="(v) => (audio.audioSource = v)"

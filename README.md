@@ -8,8 +8,6 @@ Complete and customizable app with tools for live streaming. Tip notifications, 
 
 ![getty](https://thumbs.odycdn.com/a3a2b6dfa1498257a7c37ea4050e217b.webp)
 
-> **The view of the dashboard in getty. The colors have also been changed in the latest version.**
-
 ## Not familiar with Odysee?
 
 Odysee is a blockchain-based media platform. We host all kinds of media such as images, articles, PDFs, audio files, etc., but we're best known for hosting videos. Odysee seeks to recapture the spirit of the early 2000s era internet. Rather than favouring corporate content such as late night talk shows, network television, and TV news, Odysee is a place for everyone, including independent creators.
@@ -32,9 +30,10 @@ Want to take your stream to the next level? With getty, managing your widgets in
 8. ❇️ Announcement: Create random messages for your viewers.
 9. #️⃣ Social media: Show your social media accounts.
 10. 💬 Live Chat: Add a chat widget to your OBS with different themes.
-11. 📈 Real-time and historical statistics of your lives in Odysee
+11. 📈 Real-time and historical statistics of your lives in Odysee.
+12. 🎉 Achievements System: Receive real-time achievement notifications.
 
-![image](https://thumbs.odycdn.com/a091ead3b388f98729ddf09ef1605eb4.webp)
+![image](https://thumbs.odycdn.com/280350ed164307082a48e00ecc59b02a.webp)
 
 ## Prerequisites to start getty
 
