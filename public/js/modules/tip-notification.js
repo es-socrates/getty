@@ -41,14 +41,67 @@ export async function initNotifications() {
   let ttsAllChat = false;
   let ttsEnabled = true;
   const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
-  let audioSettings = { audioSource: 'remote', hasCustomAudio: false };
+  let audioSettings = { audioSource: 'remote', hasCustomAudio: false, enabled: true, volume: 0.9 };
+  let __lastAudioFetch = 0;
 
-  function playNotificationSound() {
-    const useCustom = audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio;
-    const audioUrl = useCustom ? '/api/custom-audio' : REMOTE_SOUND_URL;
+  async function refreshAudioSettingsIfStale(force) {
+    const now = Date.now();
+    if (!force && (now - __lastAudioFetch) < 1500) return;
     try {
-      const audio = new Audio(audioUrl); audio.volume = 0.9;
-      audio.play().catch(() => { if (useCustom) new Audio(REMOTE_SOUND_URL).play().catch(()=>{}); });
+      const r = await fetch('/api/audio-settings?ts=' + now, { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json();
+        if (j && typeof j === 'object') {
+          audioSettings = {
+            audioSource: j.audioSource || audioSettings.audioSource || 'remote',
+            hasCustomAudio: !!j.hasCustomAudio,
+            enabled: typeof j.enabled === 'boolean' ? j.enabled : audioSettings.enabled,
+            volume: (typeof j.volume === 'number' && j.volume >= 0 && j.volume <= 1) ? j.volume : audioSettings.volume,
+          };
+        }
+      }
+    } catch {}
+    __lastAudioFetch = Date.now();
+  }
+
+  const __debugAudio = /[?&]debugAudio=1/.test(location.search);
+  let __dbgEl = null;
+  function ensureDebugOverlay() {
+    if (!__debugAudio) return null;
+    if (__dbgEl) return __dbgEl;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:6px;left:6px;z-index:999999;font:12px/1.3 monospace;padding:6px 8px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:4px;pointer-events:none;max-width:260px;white-space:pre-wrap;';
+    document.body.appendChild(el);
+    __dbgEl = el; return el;
+  }
+
+  async function playNotificationSound() {
+    try {
+      await refreshAudioSettingsIfStale(true);
+      if (!audioSettings.enabled) return;
+      const useCustom = audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio;
+      const audioUrl = useCustom ? '/api/custom-audio' : REMOTE_SOUND_URL;
+      let vol = typeof audioSettings.volume === 'number' ? Math.max(0, Math.min(1, audioSettings.volume)) : 0.9;
+      const linearVol = vol;
+      vol = Math.pow(vol, 2);
+      const audio = new Audio(audioUrl);
+      audio.volume = vol;
+
+      if (__debugAudio) {
+        const el = ensureDebugOverlay();
+        if (el) {
+          el.textContent = `audioSource=${audioSettings.audioSource}\nlinear=${linearVol.toFixed(3)} applied=${vol.toFixed(3)}\ncustom=${useCustom} ts=${new Date().toLocaleTimeString()}`;
+        }
+      }
+      audio.play().catch(() => {
+        if (useCustom) {
+          const fallback = new Audio(REMOTE_SOUND_URL);
+          fallback.volume = vol;
+          fallback.play().catch(() => {});
+        }
+      });
+
+      setTimeout(() => { refreshAudioSettingsIfStale(true); }, 400);
     } catch {}
   }
 
@@ -92,7 +145,11 @@ export async function initNotifications() {
       if (!message || !('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(stripEmojis(message));
-      utter.volume = 0.9; utter.rate = 1; utter.pitch = 0.9;
+
+      const ttsVol = (audioSettings && typeof audioSettings.volume === 'number')
+        ? Math.min(1, Math.max(0, audioSettings.volume))
+        : 0.9;
+      utter.volume = ttsVol; utter.rate = 1; utter.pitch = 0.9;
       let voices = window.speechSynthesis.getVoices();
       if (!voices || voices.length === 0) {
         window.speechSynthesis.onvoiceschanged = () => {
@@ -109,8 +166,8 @@ export async function initNotifications() {
     if (uniqueId && shownTips.has(uniqueId)) return;
     if (uniqueId) shownTips.add(uniqueId);
 
-  playNotificationSound();
-  notification.classList.add('hidden'); void notification.offsetWidth; // reflow
+  await playNotificationSound();
+  notification.classList.add('hidden'); void notification.offsetWidth;
 
     if (!(typeof data.usdAmount === 'number' && typeof data.arAmount === 'number')) {
       await updateExchangeRate();
@@ -231,11 +288,22 @@ export async function initNotifications() {
     ws.onclose = () => { showConnectionStatus(false); };
   } catch {}
 
-  // Initial config fetches
   (async () => {
     try { const r = await fetch('/api/tts-language'); if (r.ok) { const j = await r.json(); ttsLanguage = j.ttsLanguage || 'en'; } } catch {}
     try { const r = await fetch('/api/tts-setting'); if (r.ok) { const j = await r.json(); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; } } catch {}
-    try { const r = await fetch('/api/audio-settings'); if (r.ok) { const j = await r.json(); audioSettings = { audioSource: j.audioSource || 'remote', hasCustomAudio: !!j.hasCustomAudio }; } } catch {}
+    try {
+      const r = await fetch('/api/audio-settings');
+      if (r.ok) {
+        const j = await r.json();
+        audioSettings = {
+          audioSource: j.audioSource || 'remote',
+          hasCustomAudio: !!j.hasCustomAudio,
+          enabled: typeof j.enabled === 'boolean' ? j.enabled : true,
+          volume:
+            typeof j.volume === 'number' && j.volume >= 0 && j.volume <= 1 ? j.volume : 0.9,
+        };
+      }
+    } catch {}
   })();
 
   function isDemoOn() { try { return document.documentElement.getAttribute('data-demo-tips') === '1'; } catch { return false; } }

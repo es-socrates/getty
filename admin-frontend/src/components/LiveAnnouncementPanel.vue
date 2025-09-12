@@ -564,7 +564,7 @@ async function resolveFromClaimId() {
 .switch .knob {
   position: absolute;
   left: 2px;
-  top: 2px;
+  top: 1px;
   width: 18px;
   height: 18px;
   background: #fff;

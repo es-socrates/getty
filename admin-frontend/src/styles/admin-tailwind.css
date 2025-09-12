@@ -37,7 +37,7 @@
     @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-os shadow-os;
   }
   .os-subtle {
-    @apply bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-200/70 dark:border-neutral-800/80 rounded-os;
+    @apply bg-neutral-50 dark:bg-neutral-900/40 border border-neutral-200/70 dark:border-neutral-800/80 rounded-os text-sm;
   }
   .os-divider {
     @apply border-t border-neutral-200 dark:border-neutral-800;
@@ -156,6 +156,10 @@
   .btn-secondary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--bg-chat)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--card-bg)] transition-colors;
   }
+  .btn-compact-secondary {
+    @apply inline-flex items-center gap-2 rounded-lg text-sm font-medium bg-[var(--bg-chat)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--card-bg)] transition-colors;
+    padding: 6px 12px;
+  }
   .btn-ghost {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] transition-colors;
   }
@@ -163,7 +167,6 @@
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[var(--card-border)] text-[var(--text-primary)] hover:bg-[var(--bg-chat)] transition-colors;
   }
 
-  /* Light theme: force outline button hover to #111 for better contrast on Activity pagination */
   html:not(.dark) .btn-outline:hover {
     background: #111 !important;
     color: #fff !important;
