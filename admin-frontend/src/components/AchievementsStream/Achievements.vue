@@ -219,28 +219,29 @@
                 <span class="ach-head-title">{{ t('achievementsGroupDisplay') }}</span>
               </div>
 
-              <div class="ach-setting-item">
-                <div class="ach-setting-text">
+              <div class="ach-setting-item is-split-two">
+                <div class="ach-split-field">
                   <div class="ach-setting-title">{{ t('achievementsThemeLabel') }}</div>
-                  <div class="ach-setting-desc">{{ t('achievementsThemeLabel') }}</div>
+                  <select
+                    class="input w-full mt-1"
+                    v-model="cfg.theme"
+                    aria-label="{{ t('achievementsThemeLabel') }}">
+                    <option value="light">{{ t('themeLight') }}</option>
+                    <option value="dark">{{ t('themeDark') }}</option>
+                  </select>
                 </div>
-                <select class="input w-[160px]" v-model="cfg.theme">
-                  <option value="light">{{ t('themeLight') }}</option>
-                  <option value="dark">{{ t('themeDark') }}</option>
-                </select>
-              </div>
-
-              <div class="ach-setting-item">
-                <div class="ach-setting-text">
+                <div class="ach-split-field">
                   <div class="ach-setting-title">{{ t('achievementsPositionLabel') }}</div>
-                  <div class="ach-setting-desc">{{ t('achievementsPositionLabel') }}</div>
+                  <select
+                    class="input w-full mt-1"
+                    v-model="cfg.position"
+                    aria-label="{{ t('achievementsPositionLabel') }}">
+                    <option value="top-right">{{ t('positionTopRight') }}</option>
+                    <option value="top-left">{{ t('positionTopLeft') }}</option>
+                    <option value="bottom-right">{{ t('positionBottomRight') }}</option>
+                    <option value="bottom-left">{{ t('positionBottomLeft') }}</option>
+                  </select>
                 </div>
-                <select class="input w-[190px]" v-model="cfg.position">
-                  <option value="top-right">{{ t('positionTopRight') }}</option>
-                  <option value="top-left">{{ t('positionTopLeft') }}</option>
-                  <option value="bottom-right">{{ t('positionBottomRight') }}</option>
-                  <option value="bottom-left">{{ t('positionBottomLeft') }}</option>
-                </select>
               </div>
 
               <div class="ach-setting-item">

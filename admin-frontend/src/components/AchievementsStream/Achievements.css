@@ -1031,6 +1031,46 @@ html.dark .ach-toast.info {
   flex-direction: column;
   align-items: stretch;
 }
+.ach-setting-item.has-inline-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.ach-setting-item.has-inline-switch .switch {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.ach-setting-item.is-split-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: flex-start;
+}
+.ach-split-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .ach-setting-item.is-split-two {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+[data-ach-theme='dark'] .ach-setting-item.has-inline-switch {
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .ach-setting-item.has-inline-switch {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .ach-setting-item.has-inline-switch .switch {
+    margin-top: 0;
+  }
+}
 .ach-setting-text {
   flex: 1 1 auto;
   min-width: 0;

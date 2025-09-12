@@ -345,7 +345,6 @@ async function deleteCustomAudio() {
   align-items: center;
   gap: 4px;
   margin-top: 12px;
-  margin-bottom: 18px;
 }
 .vol-btn {
   min-width: 34px;
