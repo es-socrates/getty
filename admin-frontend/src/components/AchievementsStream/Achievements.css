@@ -290,6 +290,76 @@ html.dark .ach-toast.info {
   background-image: url('@/assets/spaceman2.jpg');
   color: transparent;
 }
+.ach-monogram[data-cat='time'] {
+  background-image: url('@/assets/spaceman4.jpg');
+  color: transparent;
+}
+.ach-group-label-wrapper {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  position: relative;
+}
+.ach-help-tip {
+  position: relative;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  color: var(--text-secondary, #777);
+}
+.ach-help-tip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.ach-help-icon {
+  width: 14px;
+  height: 14px;
+}
+.ach-help-bubble {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 20px;
+  min-width: 220px;
+  max-width: 300px;
+  background: var(--bg-chat);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 10;
+  transform-origin: top center;
+}
+.ach-help-tip:hover .ach-help-bubble,
+.ach-help-tip:focus .ach-help-bubble {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+.ach-group-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ach-help-tip--right .ach-help-bubble {
+  left: auto;
+  right: 0;
+  transform: translateX(0);
+}
+.ach-help-tip--right:hover .ach-help-bubble,
+.ach-help-tip--right:focus .ach-help-bubble {
+  transform: translateX(0);
+}
 .ach-txt .ach-name {
   font-weight: 600;
 }

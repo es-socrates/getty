@@ -408,6 +408,17 @@
                   <path d="M7 9a5 5 0 0 1-5-5h5" />
                 </svg>
                 <svg
+                  v-else-if="g.cat === 'time'"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l3 3" />
+                </svg>
+                <svg
                   v-else
                   viewBox="0 0 24 24"
                   fill="none"
@@ -418,9 +429,32 @@
                   <circle cx="12" cy="12" r="10" />
                 </svg>
               </span>
-              <span>{{ g.label }}</span>
+              <span class="ach-group-label-wrapper">{{ g.label }}</span>
             </span>
-            <span class="chip">{{ g.completed }}/{{ g.total }}</span>
+            <span class="ach-group-tools">
+              <span class="chip">{{ g.completed }}/{{ g.total }}</span>
+              <span
+                v-if="g.cat === 'time'"
+                class="ach-help-tip ach-help-tip--right"
+                tabindex="0"
+                role="button"
+                aria-label="info"
+                @keydown.enter.prevent="() => {}">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="ach-help-icon">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4a2 2 0 0 1 2-2h0" />
+                  <circle cx="12" cy="8" r="1" />
+                </svg>
+                <span class="ach-help-bubble">{{ t('achievementsTimeTooltip') }}</span>
+              </span>
+            </span>
           </div>
           <div class="ach-grid">
             <div v-for="it in g.items" :key="it.id" class="ach-card">
@@ -454,7 +488,10 @@
                   v-if="
                     it.category !== 'viewers' &&
                     it.id !== 't_first' &&
-                    (it.progress?.percent || 0) > 1
+                    (it.category === 'time'
+                      ? (it.id.startsWith('time_weekly_') || it.id.startsWith('time_monthly_')) &&
+                        (it.progress?.percent || 0) >= 100
+                      : (it.progress?.percent || 0) > 1)
                   "
                   class="badge-action"
                   @click="reset(it.id)"
@@ -553,6 +590,7 @@ function monogram(cat) {
   if (cat === 'viewers') return 'V';
   if (cat === 'chat') return 'C';
   if (cat === 'tips') return 'T';
+  if (cat === 'time') return 'H';
   return 'M';
 }
 
@@ -560,11 +598,12 @@ function labelFor(cat) {
   if (cat === 'viewers') return t('achievementsGroupViewers');
   if (cat === 'chat') return t('achievementsGroupChat');
   if (cat === 'tips') return t('achievementsGroupTips');
+  if (cat === 'time') return t('achievementsGroupTime');
   return t('achievementsGroupOther');
 }
 
 const grouped = computed(() => {
-  const order = ['viewers', 'chat', 'tips'];
+  const order = ['viewers', 'chat', 'time', 'tips'];
   const byCat = Object.create(null);
   for (const it of status.items || []) {
     const key = order.includes(it.category) ? it.category : 'misc';

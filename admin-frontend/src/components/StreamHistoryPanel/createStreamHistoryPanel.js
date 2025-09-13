@@ -37,10 +37,48 @@ export function createStreamHistoryPanel(t) {
   const lastSummaryData = ref([]);
   const menuOpen = ref(false);
   const overlayMenuEl = ref(null);
+  const TZ_KEY = 'streamHistory.tzOffset';
+  const tzOffsetMinutes = ref(-new Date().getTimezoneOffset());
+  const effectiveTzOffset = ref(tzOffsetMinutes.value);
+  const previousTzOffset = ref(null);
+  const tzChangeVisible = ref(false);
+  const tzDisplay = computed(() => {
+    const off = effectiveTzOffset.value;
+    const sign = off >= 0 ? '+' : '-';
+    const abs = Math.abs(off);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `UTC${sign}${hh}:${mm}`;
+  });
+  const currentPhysicalTzDisplay = computed(() => {
+    const off = tzOffsetMinutes.value;
+    const sign = off >= 0 ? '+' : '-';
+    const abs = Math.abs(off);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `UTC${sign}${hh}:${mm}`;
+  });
+  const previousTzDisplay = computed(() => {
+    if (previousTzOffset.value == null) return '';
+    const off = previousTzOffset.value;
+    const sign = off >= 0 ? '+' : '-';
+    const abs = Math.abs(off);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `UTC${sign}${hh}:${mm}`;
+  });
+
+  const tzOffsetShort = computed(() => {
+    try {
+      const val = tzDisplay.value || '';
+      return val.startsWith('UTC') ? val.slice(3) : val;
+    } catch { return ''; }
+  });
   let clickAwayHandler = null;
   let ro = null;
   let resizeTimer = null;
   let refreshDebounceTimer = null;
+  let pollTimer = null;
   const REFRESH_DEBOUNCE_MS = 150;
 
   function setScrollLock(lock) {
@@ -109,10 +147,11 @@ export function createStreamHistoryPanel(t) {
 
   async function refresh() {
     try {
-      const r = await axios.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}`);
+  const tz = effectiveTzOffset.value;
+      const r = await axios.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
       lastSummaryData.value = r?.data?.data || [];
       renderChart(lastSummaryData.value);
-      const p = await axios.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}`);
+      const p = await axios.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
       perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
       try {
         const pr = await axios.get('/api/ar-price');
@@ -230,6 +269,21 @@ export function createStreamHistoryPanel(t) {
     try { const v = localStorage.getItem(OVERLAY_KEY); if (v==='1'||v==='0') overlayCollapsed.value = (v==='1'); } catch {}
     try { const h = localStorage.getItem(EARNINGS_HIDE_KEY); if (h==='1'||h==='0') earningsHidden.value = (h==='1'); } catch {}
     await loadConfig();
+    try {
+      const stored = localStorage.getItem(TZ_KEY);
+      if (stored != null && stored !== '') {
+        const parsed = Number(stored);
+        if (Number.isFinite(parsed) && Math.abs(parsed) <= 840) {
+          effectiveTzOffset.value = parsed;
+          if (parsed !== tzOffsetMinutes.value) {
+            previousTzOffset.value = parsed;
+            tzChangeVisible.value = true;
+          }
+        }
+      } else {
+        localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value));
+      }
+    } catch {}
     await refresh();
     try {
       const el = chartEl.value;
@@ -246,7 +300,13 @@ export function createStreamHistoryPanel(t) {
         ro = { disconnect(){ try { window.removeEventListener('resize', onR); } catch {} } };
       }
     } catch {}
-    async function pollStatus() { try { const r = await axios.get('/api/stream-history/status', { timeout: 4000 }); status.value = { connected: !!r?.data?.connected, live: !!r?.data?.live }; } catch {} setTimeout(pollStatus, 10000); }
+    async function pollStatus() {
+      try {
+        const r = await axios.get('/api/stream-history/status', { timeout: 4000 });
+        status.value = { connected: !!r?.data?.connected, live: !!r?.data?.live };
+      } catch {}
+      pollTimer = setTimeout(pollStatus, 10000);
+    }
     pollStatus();
     try {
       clickAwayHandler = (evt) => { try { if (!menuOpen.value) return; const root = overlayMenuEl.value; if (root && !root.contains(evt.target)) menuOpen.value = false; } catch {} };
@@ -254,13 +314,49 @@ export function createStreamHistoryPanel(t) {
     } catch {}
   });
 
+  function acceptNewTimezone() {
+    try {
+      previousTzOffset.value = effectiveTzOffset.value;
+      effectiveTzOffset.value = tzOffsetMinutes.value; // adopt new
+      localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value));
+      tzChangeVisible.value = false;
+      scheduleRefresh(true);
+      try { pushToast({ type: 'success', message: t('streamHistoryUseNewTz') }); } catch {}
+    } catch {}
+  }
+  function keepPreviousTimezone() {
+    try {
+      tzChangeVisible.value = false;
+      localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value));
+      try { pushToast({ type: 'info', message: t('streamHistoryKeepPrevTz') }); } catch {}
+    } catch {}
+  }
+  function forceRefreshTimezone() {
+    try {
+      tzOffsetMinutes.value = -new Date().getTimezoneOffset();
+      if (tzOffsetMinutes.value !== effectiveTzOffset.value) {
+        previousTzOffset.value = effectiveTzOffset.value;
+        tzChangeVisible.value = true;
+      }
+    } catch {}
+  }
+
+  function dispose() {
+    try { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } } catch {}
+    try { if (refreshDebounceTimer) { clearTimeout(refreshDebounceTimer); refreshDebounceTimer = null; } } catch {}
+    try { if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; } } catch {}
+    try { if (ro && ro.disconnect) { ro.disconnect(); ro = null; } } catch {}
+    try { if (clickAwayHandler) { document.removeEventListener('click', clickAwayHandler, true); clickAwayHandler = null; } } catch {}
+  }
+
   return {
     chartEl, period, span, mode, filterQuick, filterQuickSpan, claimid, saving, showClearModal,
     showClaimChangeModal, clearBusy, perf, status, overlayCollapsed, totalAR, arUsd, earningsHidden,
-    menuOpen, overlayMenuEl, showBackfill, lastSummaryData, initialClaimid, showViewers,
+    menuOpen, overlayMenuEl, showBackfill, lastSummaryData, initialClaimid, showViewers, tzDisplay, tzOffsetShort,
+    tzChangeVisible, previousTzDisplay, currentPhysicalTzDisplay, acceptNewTimezone, keepPreviousTimezone, forceRefreshTimezone,
     saveConfig, refresh, onQuickFilterChange, onQuickRangeChange, clearHistory, confirmClear,
     confirmClearAfterClaimChange, downloadExport, onImport, toggleMenu, onBackfillClick,
-    onBackfillDismiss, toggleEarningsHidden, backfill, toggleShowViewers,
+    onBackfillDismiss, toggleEarningsHidden, backfill, toggleShowViewers, dispose,
     fmtHours: formatHours, fmtTotal: formatTotalHours, usdFromAr,
   };
 }

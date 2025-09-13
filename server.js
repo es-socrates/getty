@@ -573,6 +573,8 @@ if (!__hostedMode) try {
     } catch {}
   }
 
+  const CHECK_LIVE_MS = Math.max(10000, Number(process.env.CHECK_LIVE_MS || 30000));
+
   async function checkLiveOnce() {
     try {
       const shCfgPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
@@ -599,6 +601,10 @@ if (!__hostedMode) try {
       const resp = await axios.get(url, { timeout: 7000 });
       const nowLive = !!resp?.data?.data?.Live;
       const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
+
+      try {
+        achievements.onLiveStatusSample(null, nowLive, CHECK_LIVE_MS);
+      } catch {}
 
       try {
         const hist = (function load() {
@@ -682,7 +688,7 @@ if (!__hostedMode) try {
   if (process.env.NODE_ENV !== 'test') {
     [2000, 8000, 20000].forEach(d => setTimeout(() => { checkLiveOnce(); }, d));
 
-  const CHECK_LIVE_MS = Math.max(10000, Number(process.env.CHECK_LIVE_MS || 30000));
+  // moved CHECK_LIVE_MS definition above for achievements live sampling
   setInterval(() => { checkLiveOnce(); }, CHECK_LIVE_MS);
 
   const DEFAULT_ACH_MS = 300000; // 5 minutes
@@ -746,6 +752,7 @@ try {
             const resp = await axios.get(url, { timeout: 7000 });
             const nowLive = !!resp?.data?.data?.Live;
             const prev = !!lastState[ns];
+            try { achievements.onLiveStatusSample(ns, nowLive, POLL_MS); } catch {}
             lastState[ns] = nowLive;
             try { await store.redis.hset(LAST_POLL_KEY, ns, String(Date.now())); await store.redis.expire(LAST_POLL_KEY, 24 * 3600); } catch {}
             if (nowLive && !prev) {

@@ -60,22 +60,49 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
   const maxHours = Math.max(1, ...display.filter(d => d && d.hours != null).map(d => Number(d.hours || 0)));
   const maxViewers = showViewers ? Math.max(0, ...display.map(d => Number(d.avgViewers || 0))) : 0;
 
-  const fmtDate = (s) => {
+  function parseBucketDateString(str) {
+    if (typeof str !== 'string') return null;
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const da = Number(m[3]);
+    if (mo < 1 || mo > 12 || da < 1 || da > 31) return null;
+    return new Date(y, mo - 1, da, 0, 0, 0, 0);
+  }
+  function dateFromBucket(b) {
+    if (!b) return null;
+    if (Number.isFinite(b.epoch)) {
+      const d = new Date(Number(b.epoch));
+      if (!isNaN(d)) return d;
+    }
+    if (b.date) {
+      const pd = parseBucketDateString(b.date);
+      if (pd) return pd;
+      try {
+        const d = new Date(b.date);
+        if (!isNaN(d)) return d;
+      } catch {}
+    }
+    return null;
+  }
+  const fmtDate = (bucket) => {
     try {
-      const d = new Date(s);
-      if (!isNaN(d)) return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
+      const d = dateFromBucket(bucket);
+      if (d) return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
     } catch {}
-    return s || '';
+    return (bucket && bucket.date) || '';
   };
-  const fmtX = (s) => {
+  const fmtX = (bucket) => {
     try {
-      const d = new Date(s);
-      if (!isNaN(d)) {
+      const d = dateFromBucket(bucket);
+      if (d) {
         if (['day', 'week'].includes(period)) return String(d.getDate()).padStart(2, '0');
         return d.toLocaleDateString(undefined, { month: 'short' });
       }
     } catch {}
-    return (s || '').slice(0, 6);
+    const s = bucket && bucket.date ? bucket.date : '';
+    return s.slice(0, 6);
   };
 
   if (mode === 'line') {
@@ -204,7 +231,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       c.style.opacity = '0';
       c.style.transition = 'opacity 450ms ease 120ms';
       c.addEventListener('mouseenter', (e) => {
-        const title = fmtDate(p.date);
+      const title = fmtDate(p);
         tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div><div class="tip-viewers">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
         tip.style.display = 'block';
         placeTipFromMouse(e, (p.hours || 0) === 0);
@@ -223,7 +250,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
         cv.style.opacity = '0';
         cv.style.transition = 'opacity 450ms ease 180ms';
         const show = (e) => {
-          const title = fmtDate(p.date);
+          const title = fmtDate(p);
           tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div><div class="tip-viewers">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
           tip.style.display = 'block'; placeTipFromMouse(e, (p.hours || 0) === 0);
         };
@@ -241,7 +268,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       txt.setAttribute('x', String(x)); txt.setAttribute('y', String(h - Math.max(6, Math.round(24 / 3))));
       txt.setAttribute('fill', labelColor); txt.setAttribute('font-size', '10'); txt.setAttribute('text-anchor', 'middle');
-      txt.textContent = fmtX(display[i]?.date);
+      txt.textContent = fmtX(display[i]);
       svg.appendChild(txt);
     }
     el.appendChild(svg);
@@ -294,7 +321,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       txt.setAttribute('x', String(centerX)); txt.setAttribute('y', String(bottomLabelY));
       txt.setAttribute('fill', labelColor); txt.setAttribute('font-size', '10'); txt.setAttribute('text-anchor', 'middle');
-      txt.textContent = fmtX(display[i]?.date);
+      txt.textContent = fmtX(display[i]);
       gridSvg.appendChild(txt);
     }
   } catch {}
@@ -327,7 +354,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       }
       bar.appendChild(wrap);
     }
-  const show = (e) => { try { const title = fmtDate(d.date); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${v} h</div>${showViewers ? `<div class="tip-viewers">${vv} avg</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
+  const show = (e) => { try { const title = fmtDate(d); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${v} h</div>${showViewers ? `<div class="tip-viewers">${vv} avg</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
     const hide = () => { tip.style.display = 'none'; };
     bar.addEventListener('mouseenter', show);
     bar.addEventListener('mousemove', show);

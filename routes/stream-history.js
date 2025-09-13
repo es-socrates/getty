@@ -43,137 +43,143 @@ function truncateSegments(hist, maxDays = 400) {
   } catch {}
 }
 
-function splitSpanByDay(start, end) {
+function dayStartUTC(ts, tzOffsetMinutes) {
+  const offsetMs = (tzOffsetMinutes || 0) * 60000;
+  return Math.floor((ts + offsetMs) / 86400000) * 86400000 - offsetMs;
+}
+
+function splitSpanByDayTz(start, end, tzOffsetMinutes) {
   const out = [];
-  let cur = new Date(start);
-  let curDayStart = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()).getTime();
-  let curDayEnd = curDayStart + 86400000;
   let s = start;
   while (s < end) {
-    const e = Math.min(end, curDayEnd);
-    out.push({ day: curDayStart, ms: Math.max(0, e - s) });
+    const dayStart = dayStartUTC(s, tzOffsetMinutes);
+    const nextDayStart = dayStart + 86400000;
+    const e = Math.min(end, nextDayStart);
+    out.push({ day: dayStart, ms: Math.max(0, e - s) });
     s = e;
-    curDayStart = curDayEnd;
-    curDayEnd += 86400000;
   }
   return out;
 }
 
-function aggregate(hist, period = 'day', span = 30) {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const buckets = [];
+function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
+  const offset = tzOffsetMinutes || 0;
+  const nowTs = Date.now();
+  const todayStart = dayStartUTC(nowTs, offset);
   if (period === 'day') {
-    const fmtLocalYMD = (ts) => {
-      try {
-        const d = new Date(ts);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${dd}`;
-      } catch { return new Date(ts).toISOString().slice(0, 10); }
+    const buckets = [];
+    const fmtYMD = (dayStart) => {
+      const dLocal = new Date(dayStart + offset * 60000);
+      const y = dLocal.getFullYear();
+      const m = String(dLocal.getMonth() + 1).padStart(2, '0');
+      const dd = String(dLocal.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dd}`;
     };
     for (let i = span - 1; i >= 0; i--) {
       const dayStart = todayStart - i * 86400000;
-      buckets.push({ key: dayStart, label: fmtLocalYMD(dayStart), ms: 0, vsec: 0, lsec: 0 });
+      buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0 });
     }
-
-    const bmap = new Map();
-    for (const b of buckets) bmap.set(b.key, b);
+    const bmap = new Map(buckets.map(b => [b.key, b]));
     const rangeStart = buckets[0]?.key ?? todayStart;
     const rangeEnd = (buckets[buckets.length - 1]?.key ?? todayStart) + 86400000;
 
     for (const seg of hist.segments || []) {
-      const s = Number(seg.start);
-      const e = Number(seg.end || Date.now());
-      if (!isFinite(s) || !isFinite(e)) continue;
-      if (e < rangeStart || s > rangeEnd) continue;
-      for (const part of splitSpanByDay(Math.max(s, rangeStart), Math.min(e, rangeEnd))) {
-        const b = bmap.get(part.day);
-        if (b) b.ms += Math.max(0, part.ms);
+      const sRaw = Number(seg.start); const eRaw = Number(seg.end || Date.now());
+      if (!isFinite(sRaw) || !isFinite(eRaw)) continue;
+      if (eRaw < rangeStart || sRaw > rangeEnd) continue;
+      const s = Math.max(sRaw, rangeStart); const e = Math.min(eRaw, rangeEnd);
+      for (const part of splitSpanByDayTz(s, e, offset)) {
+        const b = bmap.get(part.day); if (b) b.ms += part.ms;
       }
     }
-
     try {
       const samples = Array.isArray(hist.samples) ? hist.samples : [];
       for (let i = 0; i < samples.length; i++) {
-        const cur = samples[i];
-        const next = samples[i + 1] || null;
+        const cur = samples[i]; const next = samples[i + 1] || null;
         const t0 = Math.max(rangeStart, Number(cur?.ts || 0));
         const t1 = Math.min(rangeEnd, Number(next ? next.ts : Date.now()));
         if (!(isFinite(t0) && isFinite(t1)) || t1 <= t0) continue;
         if (cur && cur.live) {
           const v = Math.max(0, Number(cur.viewers || 0));
-          for (const part of splitSpanByDay(t0, t1)) {
-            const b = bmap.get(part.day);
-            if (b) {
-              const sec = Math.max(0, part.ms / 1000);
-              b.vsec += v * sec;
-              b.lsec += sec;
+            for (const part of splitSpanByDayTz(t0, t1, offset)) {
+              const b = bmap.get(part.day);
+              if (b) {
+                const sec = Math.max(0, part.ms / 1000);
+                b.vsec += v * sec; b.lsec += sec;
+              }
             }
-          }
         }
       }
     } catch {}
     return buckets.map(b => ({
       date: b.label,
+      epoch: b.key,
+      tzOffsetMinutes: offset,
       hours: +(b.ms / 3600000).toFixed(2),
       avgViewers: b.lsec > 0 ? +(b.vsec / b.lsec).toFixed(2) : 0,
     }));
   }
 
-  const daily = aggregate(hist, 'day', span * (period === 'week' ? 7 : period === 'month' ? 30 : 365));
-  function weekKey(d) {
-    const dt = new Date(d + 'T00:00:00Z');
-    const day = (dt.getUTCDay() + 6) % 7;
-    const wkStart = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate() - day));
-    return wkStart.toISOString().slice(0, 10);
-  }
-  function monthKey(d) {
-    const dt = new Date(d + 'T00:00:00Z');
-    return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
-  }
-  function yearKey(d) {
-    const dt = new Date(d + 'T00:00:00Z');
-    return `${dt.getUTCFullYear()}`;
-  }
-  const map = new Map();
-  for (const item of daily) {
-    let key;
-    if (period === 'week') key = weekKey(item.date);
-    else if (period === 'month') key = monthKey(item.date);
-    else key = yearKey(item.date);
-    const cur = map.get(key) || { hours: 0, vsec: 0, lsec: 0 };
-    cur.hours += Number(item.hours || 0);
+  const dailySpan = span * (period === 'week' ? 7 : period === 'month' ? 30 : 365);
+  const daily = aggregate(hist, 'day', dailySpan, offset);
 
+  const map = new Map();
+  function localDateFromEpoch(epoch) { return new Date(epoch + offset * 60000); }
+  for (const item of daily) {
+    const dLocal = localDateFromEpoch(item.epoch);
+    let keyEpoch;
+    let label;
+    if (period === 'week') {
+      // Monday start (ISO) in user local time
+      const dow = (dLocal.getDay() + 6) % 7; // 0=Mon
+      const weekStartLocal = new Date(dLocal.getFullYear(), dLocal.getMonth(), dLocal.getDate() - dow).getTime();
+      keyEpoch = weekStartLocal - offset * 60000; // store UTC epoch representing that local midnight
+      const wd = new Date(weekStartLocal); // local timeline date object
+      const y = wd.getFullYear(); const m = String(wd.getMonth() + 1).padStart(2, '0'); const dd = String(wd.getDate()).padStart(2, '0');
+      label = `${y}-${m}-${dd}`; // week start label
+    } else if (period === 'month') {
+      const monthStartLocal = new Date(dLocal.getFullYear(), dLocal.getMonth(), 1).getTime();
+      keyEpoch = monthStartLocal - offset * 60000;
+      const ms = new Date(monthStartLocal);
+      const y = ms.getFullYear(); const m = String(ms.getMonth() + 1).padStart(2, '0');
+      label = `${y}-${m}`;
+    } else { // year
+      const yearStartLocal = new Date(dLocal.getFullYear(), 0, 1).getTime();
+      keyEpoch = yearStartLocal - offset * 60000;
+      const ys = new Date(yearStartLocal);
+      label = `${ys.getFullYear()}`;
+    }
+    const cur = map.get(keyEpoch) || { hours: 0, vsec: 0, lsec: 0, label, epoch: keyEpoch };
+    cur.hours += Number(item.hours || 0);
     const inferredLsec = Math.max(0, Number(item.hours || 0)) * 3600;
     if (inferredLsec > 0 && isFinite(Number(item.avgViewers || 0))) {
       cur.vsec += Number(item.avgViewers) * inferredLsec;
       cur.lsec += inferredLsec;
     }
-    map.set(key, cur);
+    map.set(keyEpoch, cur);
   }
-  const arr = Array.from(map.entries()).map(([k, agg]) => ({
-    date: k,
-    hours: +Number(agg.hours || 0).toFixed(2),
-    avgViewers: agg.lsec > 0 ? +Number(agg.vsec / agg.lsec).toFixed(2) : 0,
+  const arr = Array.from(map.values()).map(v => ({
+    date: v.label,
+    epoch: v.epoch,
+    tzOffsetMinutes: offset,
+    hours: +Number(v.hours || 0).toFixed(2),
+    avgViewers: v.lsec > 0 ? +Number(v.vsec / v.lsec).toFixed(2) : 0,
   }));
-  arr.sort((a, b) => a.date.localeCompare(b.date));
-
+  arr.sort((a, b) => a.epoch - b.epoch);
   return arr.slice(-span);
 }
 
-function rangeWindow(period = 'day', span = 30) {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0) {
+  const offset = tzOffsetMinutes || 0;
+  const nowTs = Date.now();
+  const todayStart = dayStartUTC(nowTs, offset);
   const days = period === 'day' ? span : (period === 'week' ? span * 7 : (period === 'month' ? span * 30 : span * 365));
   const start = todayStart - (days - 1) * 86400000;
   const end = todayStart + 86400000;
   return { start, end };
 }
 
-function computePerformance(hist, period = 'day', span = 30) {
-  const { start, end } = rangeWindow(period, span);
+function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
+  const { start, end } = rangeWindow(period, span, tzOffsetMinutes);
 
   let hoursStreamed = 0;
   for (const seg of hist.segments || []) {
@@ -183,7 +189,7 @@ function computePerformance(hist, period = 'day', span = 30) {
   }
   hoursStreamed = +hoursStreamed.toFixed(2);
 
-  const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000));
+  const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000), tzOffsetMinutes);
   const activeDays = daily.filter(d => (d.hours || 0) > 0).length;
 
   const samples = Array.isArray(hist.samples) ? hist.samples.filter(s => s.ts >= start && s.ts <= end) : [];
@@ -228,12 +234,13 @@ function computePerformance(hist, period = 'day', span = 30) {
     allTime: {
       totalHoursStreamed,
       highestViewers
-    }
+    },
+    tzOffsetMinutes
   };
 }
 
 function registerStreamHistoryRoutes(app, limiter, options = {}) {
-  const store = options.store || null; // reserved for future namespacing
+  const store = options.store || null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
   const DATA_DIR = path.join(process.cwd(), 'data');
@@ -377,9 +384,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       const period = (req.query?.period || 'day').toString();
       const span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
-  const hist = await loadHistoryNS(req);
-      const data = aggregate(hist, period, span);
-      return res.json({ period, span, data });
+      let tz = parseInt(req.query?.tz ?? '0', 10); if (isNaN(tz)) tz = 0; tz = Math.max(-840, Math.min(840, tz));
+      const hist = await loadHistoryNS(req);
+      const data = aggregate(hist, period, span, tz);
+      return res.json({ period, span, tzOffsetMinutes: tz, data });
     } catch (e) { return res.status(500).json({ error: 'failed_to_summarize', details: e?.message }); }
   });
 
@@ -387,9 +395,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try {
       const period = (req.query?.period || 'day').toString();
       const span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
-  const hist = await loadHistoryNS(req);
-      const perf = computePerformance(hist, period, span);
-      return res.json({ period, span, ...perf });
+      let tz = parseInt(req.query?.tz ?? '0', 10); if (isNaN(tz)) tz = 0; tz = Math.max(-840, Math.min(840, tz));
+      const hist = await loadHistoryNS(req);
+      const perf = computePerformance(hist, period, span, tz);
+      return res.json({ period, span, tzOffsetMinutes: tz, ...perf });
     } catch (e) { return res.status(500).json({ error: 'failed_to_compute_performance', details: e?.message }); }
   });
 

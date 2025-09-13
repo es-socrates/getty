@@ -248,6 +248,49 @@
     </div>
 
     <div class="mt-4">
+      <div
+        v-if="tzChangeVisible"
+        class="mb-3 p-3 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs flex flex-col gap-2">
+        <div class="font-semibold flex items-center gap-1">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{{ t('streamHistoryTzChangedTitle') }}</span>
+        </div>
+        <div>
+          {{
+            t('streamHistoryTzChangedBody', {
+              prev: previousTzDisplay || '—',
+              current: currentPhysicalTzDisplay,
+            })
+          }}
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[var(--card-border)] bg-[var(--bg-chat)] hover:opacity-100"
+            @click="acceptNewTimezone">
+            {{ t('streamHistoryUseNewTz') }} ({{ currentPhysicalTzDisplay }})
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[var(--card-border)] hover:opacity-100"
+            @click="keepPreviousTimezone">
+            {{ t('streamHistoryKeepPrevTz') }} ({{ previousTzDisplay || tzDisplay }})
+          </button>
+        </div>
+      </div>
       <div class="chart-wrap">
         <div
           class="chart-overlay"
@@ -366,6 +409,28 @@
       </div>
       <div class="text-xs opacity-80 mt-1 flex items-center gap-2">
         <span>{{ t('streamHistoryHint') }}</span>
+        <span
+          class="inline-flex items-center gap-1 text-[0.7rem] px-1.5 py-0.5 rounded bg-[var(--bg-chat)] border border-[var(--card-border)]">
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="6" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>
+            {{ t('streamHistoryTzNote') }} ({{
+              t('streamHistoryTzOffset', { offset: tzOffsetShort })
+            }})
+          </span>
+        </span>
         <button
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
@@ -570,6 +635,16 @@ const {
   confirmClearAfterClaimChange,
   showViewers,
   toggleShowViewers,
+} = state;
+
+const {
+  tzDisplay,
+  tzOffsetShort,
+  tzChangeVisible,
+  previousTzDisplay,
+  currentPhysicalTzDisplay,
+  acceptNewTimezone,
+  keepPreviousTimezone,
 } = state;
 </script>
 <style scoped src="./StreamHistoryPanel.css"></style>

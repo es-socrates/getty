@@ -145,6 +145,10 @@ class AchievementsModule {
           bag.progress.tipBiggestUsd = 0;
         } else if (m === 'viewersPeak') {
           bag.progress.viewersPeak = 0;
+        } else if (m === 'weeklyHoursLive') {
+          bag.progress.weeklyHoursLive = 0;
+        } else if (m === 'monthlyHoursLive') {
+          bag.progress.monthlyHoursLive = 0;
         } else {
           bag.progress[m] = 0;
         }
@@ -185,6 +189,49 @@ class AchievementsModule {
     } catch {}
   }
 
+  /**
+   * Record a live status sample. Should be called frequently (e.g., same cadence as stream history sampling)
+   * @param {string|null} ns namespace
+   * @param {boolean} isLive whether channel is live now
+   * @param {number} [deltaMs] optional milliseconds since previous sample (fallback 60s)
+   */
+  onLiveStatusSample(ns, isLive, deltaMs) {
+    try {
+      const bag = this._getNs(ns);
+      if (!bag.progress) bag.progress = {};
+
+      const now = Date.now();
+
+      const lastWeekStart = Number(bag.progress._weekStart || 0);
+      const lastMonthStart = Number(bag.progress._monthStart || 0);
+
+      const d = new Date(now);
+      const monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0).getTime();
+      const day = (d.getDay() + 6) % 7;
+      const weekAnchor = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day, 0, 0, 0, 0).getTime();
+
+      if (lastWeekStart !== weekAnchor) {
+        bag.progress.weeklyHoursLive = 0;
+        bag.progress._weekStart = weekAnchor;
+      }
+      if (lastMonthStart !== monthAnchor) {
+        bag.progress.monthlyHoursLive = 0;
+        bag.progress._monthStart = monthAnchor;
+      }
+
+      if (isLive) {
+        const ms = (typeof deltaMs === 'number' && deltaMs > 0 && deltaMs < 3600000) ? deltaMs : 60000; // default 1 min
+        const hours = ms / 3600000;
+        bag.progress.weeklyHoursLive = (bag.progress.weeklyHoursLive || 0) + hours;
+        bag.progress.monthlyHoursLive = (bag.progress.monthlyHoursLive || 0) + hours;
+        bag.progress.totalHoursLive = (bag.progress.totalHoursLive || 0) + hours;
+      }
+
+      this._evaluateAll(ns);
+      this._saveStateToDisk();
+    } catch {}
+  }
+
   getDefinitions() {
 
     return [
@@ -202,12 +249,19 @@ class AchievementsModule {
       { id: 'c_1000msg', category: 'chat', titleKey: 'ach.def.c_1000msg.title', descKey: 'ach.def.c_1000msg.desc', target: 1000, metric: 'chatMsgsSession' },
       { id: 'c_10000msg', category: 'chat', titleKey: 'ach.def.c_10000msg.title', descKey: 'ach.def.c_10000msg.desc', target: 10000, metric: 'chatMsgsSession' },
 
+      { id: 'time_weekly_144', category: 'time', titleKey: 'ach.def.time_weekly_144.title', descKey: 'ach.def.time_weekly_144.desc', target: 144, metric: 'weeklyHoursLive' },
+      { id: 'time_monthly_600', category: 'time', titleKey: 'ach.def.time_monthly_600.title', descKey: 'ach.def.time_monthly_600.desc', target: 600, metric: 'monthlyHoursLive' },
+      { id: 'time_total_200', category: 'time', titleKey: 'ach.def.time_total_200.title', descKey: 'ach.def.time_total_200.desc', target: 200, metric: 'totalHoursLive' },
+      { id: 'time_total_500', category: 'time', titleKey: 'ach.def.time_total_500.title', descKey: 'ach.def.time_total_500.desc', target: 500, metric: 'totalHoursLive' },
+      { id: 'time_total_1000', category: 'time', titleKey: 'ach.def.time_total_1000.title', descKey: 'ach.def.time_total_1000.desc', target: 1000, metric: 'totalHoursLive' },
+      { id: 'time_total_7000', category: 'time', titleKey: 'ach.def.time_total_7000.title', descKey: 'ach.def.time_total_7000.desc', target: 7000, metric: 'totalHoursLive' },
+
       { id: 't_first', category: 'tips', titleKey: 'ach.def.t_first.title', descKey: 'ach.def.t_first.desc', target: 1, metric: 'tipCountSession' },
       { id: 't_100usd', category: 'tips', titleKey: 'ach.def.t_100usd.title', descKey: 'ach.def.t_100usd.desc', target: 100, metric: 'tipUsdSession' },
       { id: 't_5in1', category: 'tips', titleKey: 'ach.def.t_5in1.title', descKey: 'ach.def.t_5in1.desc', target: 5, metric: 'tipCountSession' },
       { id: 't_50one', category: 'tips', titleKey: 'ach.def.t_50one.title', descKey: 'ach.def.t_50one.desc', target: 50, metric: 'tipBiggestUsd' },
-  { id: 't_1000usd', category: 'tips', titleKey: 'ach.def.t_1000usd.title', descKey: 'ach.def.t_1000usd.desc', target: 1000, metric: 'tipUsdSession' },
-  { id: 't_20000usd', category: 'tips', titleKey: 'ach.def.t_20000usd.title', descKey: 'ach.def.t_20000usd.desc', target: 20000, metric: 'tipUsdSession' },
+      { id: 't_1000usd', category: 'tips', titleKey: 'ach.def.t_1000usd.title', descKey: 'ach.def.t_1000usd.desc', target: 1000, metric: 'tipUsdSession' },
+      { id: 't_20000usd', category: 'tips', titleKey: 'ach.def.t_20000usd.title', descKey: 'ach.def.t_20000usd.desc', target: 20000, metric: 'tipUsdSession' },
     ];
   }
 
