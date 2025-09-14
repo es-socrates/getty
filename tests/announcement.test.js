@@ -60,8 +60,8 @@ describe('Announcement API', () => {
     expect(res.body.message.enabled).toBe(false);
   });
 
-  it('Validation: reject over 120 chars', async () => {
-    const long = 'x'.repeat(130);
+  it('Validation: reject over 180 chars', async () => {
+    const long = 'x'.repeat(190);
     const res = await base
       .post('/api/announcement/message')
       .field('text', long);
@@ -103,7 +103,7 @@ describe('Announcement API', () => {
     expect(res.body.message.imageUrl).toMatch(/\/uploads\/announcement\/ann-/);
   });
 
-  it('PUT /api/announcement/message/:id removeImage clears existing image', async () => {
+  it('PUT /api/announcement/message/:id/removeImage clears existing image', async () => {
 
     const imgBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AApMBgYhRPJwAAAAASUVORK5CYII=','base64');
     const create = await base

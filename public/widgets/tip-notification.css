@@ -218,10 +218,11 @@
 
 .position-top .notification-gif-slot img,
 .position-bottom .notification-gif-slot img {
-  max-width: 380px;
-  max-height: 380px;
+  max-width: 200px;
+  max-height: 200px;
   width: auto;
   height: auto;
+  border-radius: 4px;
 }
 
 .tip-wrapper .notification {
