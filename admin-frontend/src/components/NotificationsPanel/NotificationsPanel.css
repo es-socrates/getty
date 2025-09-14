@@ -264,8 +264,9 @@
 
 .gif-preview-box {
   --gif-transition: 340ms;
+  --gif-pos-shadow-strength: 42%;
   transition: flex-direction var(--gif-transition) ease, height var(--gif-transition) ease,
-    width var(--gif-transition) ease, background 300ms ease;
+    width var(--gif-transition) ease, background 300ms ease, box-shadow var(--gif-transition) ease;
 }
 .gif-preview-box .gif-media,
 .gif-preview-box .notif-demo {
@@ -281,6 +282,10 @@
 .gif-preview-box.pos-right .notif-demo {
   order: 2;
 }
+.gif-preview-box.pos-right {
+  box-shadow: 4px 0 6px -3px color-mix(in srgb, var(--accent, #553fee)
+        var(--gif-pos-shadow-strength), transparent);
+}
 .gif-preview-box.pos-left {
   flex-direction: row-reverse;
 }
@@ -289,6 +294,10 @@
 }
 .gif-preview-box.pos-left .notif-demo {
   order: 1;
+}
+.gif-preview-box.pos-left {
+  box-shadow: -4px 0 6px -3px color-mix(in srgb, var(--accent, #553fee)
+        var(--gif-pos-shadow-strength), transparent);
 }
 .gif-preview-box.pos-top,
 .gif-preview-box.pos-bottom {
@@ -409,6 +418,12 @@
   .gif-preview-box .gif-media,
   .gif-preview-box .notif-demo {
     transition: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gif-preview-box.pos-left,
+  .gif-preview-box.pos-right {
+    box-shadow: none;
   }
 }
 

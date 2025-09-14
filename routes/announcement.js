@@ -90,7 +90,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
-      const schema = z.object({ text: z.string().trim().min(1).max(120), linkUrl: z.string().url().optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
+      const schema = z.object({ text: z.string().trim().min(1).max(180), linkUrl: z.string().url().optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       let imageUrl = null;
@@ -111,7 +111,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
       const schema = z.object({
-        text: z.string().trim().min(1).max(120).optional(),
+        text: z.string().trim().min(1).max(180).optional(),
         enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
         linkUrl: z.string().url().optional().or(z.literal('')),
         removeImage: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
@@ -143,7 +143,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       }
       const existing = announcementModule.getMessage(req.params.id);
       if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
-      const schema = z.object({ text: z.string().trim().min(1).max(120).optional(), linkUrl: z.string().url().optional(), enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
+      const schema = z.object({ text: z.string().trim().min(1).max(180).optional(), linkUrl: z.string().url().optional(), enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       const patch = { ...parsed.data };

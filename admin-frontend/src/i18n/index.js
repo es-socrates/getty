@@ -134,8 +134,10 @@ const adminExtra = {
     audioSectionDesc: 'Configure custom audio source for notifications.'
   },
   es: {
+    valMax120: 'Máx 120 caracteres',
     statusTitle: 'Estadísticas',
     liveviewsTitle: 'Espectadores',
+    externalNotificationsTitle: 'Integraciones',
     liveviewsBg: 'Fondo',
     liveviewsColor: 'Color',
     liveviewsFont: 'Fuente',

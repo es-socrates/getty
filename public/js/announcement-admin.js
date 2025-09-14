@@ -97,8 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const fd = new FormData(form);
       const textEl = document.getElementById('announcement-text');
       const text = (fd.get('text')||'').toString().trim();
-  if (!text) return showAlert(t('announcementValidationRequired'),'error');
-  if (text.length > 120) return showAlert(t('announcementValidationTooLong'),'error');
+      if (!text) return showAlert(t('announcementValidationRequired'),'error');
+      if (text.length > 180) return showAlert(t('announcementValidationTooLong'),'error');
       const link = document.getElementById('announcement-link').value.trim();
       if (link) fd.set('linkUrl', link);
       if (durationInput) {
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textEl = btn.closest('li').querySelector('.ann-msg-text');
         const original = textEl ? textEl.getAttribute('title') : '';
         document.getElementById('announcement-text').value = original.replace(/&lt;/g,'<');
-  cancelEditBtn.classList.remove('hidden');
+        cancelEditBtn.classList.remove('hidden');
         const span = document.querySelector('#announcement-message-form button[type="submit"] span');
         if (span) { span.setAttribute('data-i18n','announcementEditBtn'); span.textContent = t('announcementEditBtn'); }
 
@@ -203,8 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const id = editIdInput.value;
         const text = document.getElementById('announcement-text').value.trim();
-  if (!text) return showAlert(t('announcementValidationRequired'),'error');
-  if (text.length>120) return showAlert(t('announcementValidationTooLong'),'error');
+        if (!text) return showAlert(t('announcementValidationRequired'),'error');
+        if (text.length>180) return showAlert(t('announcementValidationTooLong'),'error');
         const link = document.getElementById('announcement-link').value.trim();
         const hasNewImage = imageInput && imageInput.files && imageInput.files.length>0;
         const dVal = durationInput ? Number(durationInput.value) : NaN;
