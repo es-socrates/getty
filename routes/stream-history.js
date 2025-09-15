@@ -85,7 +85,30 @@ function compactSamples(hist, opts = {}) {
     segEnds.sort((a,b)=>a-b);
     const samples = [...hist.samples].sort((a,b)=>a.ts-b.ts);
     const before = samples.length;
-    if (before <= 3) return { before, after: before, synthetic: 0 };
+    if (before <= 3) {
+
+      let synthetic = 0;
+      if (segEnds.length) {
+        const lastSample = samples[samples.length - 1];
+
+        const lastSegEnd = segEnds[segEnds.length - 1];
+        if (lastSample && lastSample.live && typeof lastSegEnd === 'number') {
+
+          const synthPadMs = 2000;
+            const hasOfflineNear = samples.some(s => !s.live && Math.abs(s.ts - lastSegEnd) <= synthPadMs);
+            if (!hasOfflineNear) {
+              const offSample = { ts: lastSegEnd, live: false, viewers: 0, synthetic: true };
+              samples.push(offSample);
+              samples.sort((a,b)=>a.ts-b.ts);
+              hist.samples = samples;
+              synthetic = 1;
+              return { before, after: samples.length, synthetic };
+            }
+        }
+      }
+      hist.samples = samples;
+      return { before, after: samples.length, synthetic };
+    }
     const kept = [];
     let lastKept = null;
     for (let i=0;i<samples.length;i++) {
