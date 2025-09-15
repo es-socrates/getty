@@ -13,7 +13,6 @@
       </button>
     </nav>
 
-    <!-- SETTINGS TAB -->
     <div v-show="activeTab === 'settings'" class="ann-tab-panel" role="tabpanel">
       <div class="ann-card">
         <div class="ann-card-header">
