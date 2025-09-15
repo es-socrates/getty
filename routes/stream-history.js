@@ -43,6 +43,92 @@ function truncateSegments(hist, maxDays = 400) {
   } catch {}
 }
 
+function closeStaleOpenSegment(hist, nowTs = Date.now(), freshMs = 150000) {
+  try {
+    if (!hist || !Array.isArray(hist.segments)) return;
+    const lastSeg = hist.segments[hist.segments.length - 1];
+    if (!lastSeg || lastSeg.end) return; // nothing open
+    const samples = Array.isArray(hist.samples) ? hist.samples : [];
+    const lastSample = samples.length ? samples[samples.length - 1] : null;
+    const lastSampleTs = lastSample ? Number(lastSample.ts || 0) : 0;
+    if (!lastSampleTs) {
+
+      if (nowTs - lastSeg.start > 12 * 3600000) {
+        lastSeg.end = nowTs - freshMs;
+      }
+      return;
+    }
+    const age = nowTs - lastSampleTs;
+    if (age > freshMs) {
+
+      if (lastSampleTs >= lastSeg.start) lastSeg.end = lastSampleTs;
+    }
+  } catch {}
+}
+
+// Compact samples to reduce file size while preserving metrics.
+// Rules:
+//  - Always keep first & last sample.
+//  - Keep on any change of `live` state or change of viewer count (while live).
+//  - Keep if sample timestamp equals (or crosses) a segment start or end boundary.
+function compactSamples(hist, opts = {}) {
+  try {
+    if (!hist || !Array.isArray(hist.samples)) return { before: 0, after: 0, synthetic: 0 };
+    const maxIntervalMs = Math.max(60000, Math.min(12 * 3600000, Number(opts.maxIntervalMs || 10 * 60000))); // default 10 min
+    const synthPadMs = 2000;
+    const segStarts = new Set();
+    const segEnds = [];
+    for (const seg of (hist.segments || [])) {
+      if (seg && typeof seg.start === 'number') segStarts.add(seg.start);
+      if (seg && typeof seg.end === 'number') segEnds.push(seg.end);
+    }
+    segEnds.sort((a,b)=>a-b);
+    const samples = [...hist.samples].sort((a,b)=>a.ts-b.ts);
+    const before = samples.length;
+    if (before <= 3) return { before, after: before, synthetic: 0 };
+    const kept = [];
+    let lastKept = null;
+    for (let i=0;i<samples.length;i++) {
+      const cur = samples[i];
+      if (!cur || typeof cur.ts !== 'number') continue;
+      const isFirst = kept.length === 0;
+      const isLast = i === samples.length -1;
+      const mustKeepChange = !lastKept || cur.live !== lastKept.live || (cur.live && cur.viewers !== lastKept.viewers);
+      const isSegBoundary = segStarts.has(cur.ts) || segEnds.includes(cur.ts);
+      const gapExceeded = lastKept ? (cur.ts - lastKept.ts) >= maxIntervalMs : false;
+      if (isFirst || isLast || mustKeepChange || isSegBoundary || gapExceeded) {
+        kept.push(cur);
+        lastKept = cur;
+      }
+    }
+
+    let synthetic = 0;
+    function hasOfflineSampleNear(ts) {
+      return kept.some(s => Math.abs(s.ts - ts) <= synthPadMs && !s.live);
+    }
+    for (const endTs of segEnds) {
+      let lastIdx = -1;
+      for (let k=0;k<kept.length;k++) { if (kept[k].ts <= endTs) lastIdx = k; else break; }
+      if (lastIdx >=0) {
+        const lastAt = kept[lastIdx];
+        if (lastAt.live) {
+            if (!hasOfflineSampleNear(endTs)) {
+              const offSample = { ts: endTs, live: false, viewers: 0, synthetic: true };
+              kept.splice(lastIdx+1, 0, offSample);
+              synthetic++;
+            }
+        }
+      }
+    }
+
+    kept.sort((a,b)=>a.ts-b.ts);
+    hist.samples = kept;
+    return { before, after: kept.length, synthetic };
+  } catch {
+    return { before: 0, after: 0, synthetic: 0 };
+  }
+}
+
 function dayStartUTC(ts, tzOffsetMinutes) {
   const offsetMs = (tzOffsetMinutes || 0) * 60000;
   return Math.floor((ts + offsetMs) / 86400000) * 86400000 - offsetMs;
@@ -300,10 +386,14 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         const hist = j && typeof j === 'object' ? j : { segments: [], samples: [] };
         if (!Array.isArray(hist.segments)) hist.segments = [];
         if (!Array.isArray(hist.samples)) hist.samples = [];
+
+        closeStaleOpenSegment(hist);
         return hist;
       } catch { return { segments: [], samples: [] }; }
     }
-    return loadHistoryFromFile(DATA_FILE);
+    const fileHist = loadHistoryFromFile(DATA_FILE);
+    closeStaleOpenSegment(fileHist);
+    return fileHist;
   }
 
   async function saveHistoryNS(req, data) {
@@ -467,6 +557,37 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     }
   });
 
+  app.post('/api/stream-history/compact', limiter, async (req, res) => {
+    try {
+      let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
+        try {
+          const token = (req.query?.token || '').toString();
+          if (token && store) {
+            const mapped = await store.get(token, 'adminToken', null);
+            nsCheck = mapped ? mapped : token;
+          }
+        } catch {}
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+      const body = req.body || {};
+      const maxIntervalSeconds = Number(body.maxIntervalSeconds || 600); // 10 min default
+      const dryRun = !!body.dryRun;
+      const hist = await loadHistoryNS(req);
+      const beforeClone = dryRun ? (Array.isArray(hist.samples) ? hist.samples.slice() : []) : null;
+      const result = compactSamples(hist, { maxIntervalMs: maxIntervalSeconds * 1000 });
+      if (dryRun) {
+        hist.samples = beforeClone;
+        return res.json({ ok: true, dryRun: true, ...result });
+      }
+      truncateSegments(hist);
+      await saveHistoryNS(req, hist);
+      return res.json({ ok: true, dryRun: false, ...result });
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_compact', details: e?.message });
+    }
+  });
+
   app.get('/api/stream-history/export', async (req, res) => {
     try {
   const hist = await loadHistoryNS(req);
@@ -573,7 +694,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         live = (!!seg && !seg.end) || (!!lastSample && !!lastSample.live);
       } catch {}
       const reason = hasClaim ? (connected ? 'ok' : 'stale') : 'no_claimid';
-      return res.json({ connected, live, lastSampleTs: lastTs || null, reason });
+      const sampleCount = Array.isArray(hist.samples) ? hist.samples.length : 0;
+      return res.json({ connected, live, lastSampleTs: lastTs || null, reason, sampleCount });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_compute_status', details: e?.message });
     }
@@ -581,3 +703,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 }
 
 module.exports = registerStreamHistoryRoutes;
+
+if (typeof module !== 'undefined' && module?.exports) {
+  module.exports._compactSamples = compactSamples;
+}

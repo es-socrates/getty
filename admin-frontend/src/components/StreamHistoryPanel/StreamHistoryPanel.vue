@@ -24,6 +24,47 @@
       <span class="badge" :class="status.live ? 'live' : 'idle'" v-if="status.connected">
         {{ status.live ? t('liveNow') : t('notLive') }}
       </span>
+      <span
+        v-if="compactionRecommended"
+        class="badge warn"
+        :title="t('streamHistoryCompactRecommendBadgeTitle', { n: recommendedThreshold })">
+        {{ t('streamHistoryCompactRecommendBadge') }}
+      </span>
+      <span
+        class="badge samples"
+        :class="compactionRecommended ? 'warn' : ''"
+        :title="
+          t('streamHistoryDataPointsHint') +
+          '\n' +
+          t('streamHistoryDataPointsCurrent') +
+          ': ' +
+          sampleCount
+        ">
+        {{ t('streamHistoryDataPoints') }}: {{ sampleCount }}
+        <span class="hist-points-info" aria-hidden="true">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <rect x="3" y="10" width="3" height="11" rx="0.5" />
+            <rect x="9" y="6" width="3" height="15" rx="0.5" />
+            <rect x="15" y="13" width="3" height="8" rx="0.5" />
+            <path d="M3 21h18" />
+          </svg>
+        </span>
+      </span>
+      <button
+        v-if="compactionRecommended"
+        type="button"
+        class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-[0.65rem] opacity-85 hover:opacity-100"
+        @click="openCompactModal">
+        {{ t('streamHistoryCompactBtn') }}
+      </button>
     </div>
     <div class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
       <div class="form-group [grid-column:1/-1]">
@@ -178,6 +219,14 @@
             <span>{{ t('streamHistoryImport') }}</span>
             <input type="file" accept="application/json" @change="onImport" class="hidden" />
           </label>
+          <button
+            v-if="!compactionRecommended"
+            type="button"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs opacity-70 hover:opacity-100"
+            :title="t('streamHistoryCompactBtn')"
+            @click="openCompactModal">
+            {{ t('streamHistoryCompactBtn') }}
+          </button>
         </div>
       </div>
     </div>
@@ -588,6 +637,85 @@
         </div>
       </div>
     </teleport>
+
+    <teleport to="body">
+      <div
+        v-if="compactModalOpen"
+        class="modal-overlay"
+        @click.self="!compactBusy && !compactDryBusy && closeCompactModal"
+        role="dialog"
+        aria-modal="true">
+        <div class="modal-card max-w-md">
+          <div class="modal-title flex items-center gap-2">
+            <span>{{ t('streamHistoryCompactTitle') }}</span>
+            <span
+              v-if="compactionRecommended"
+              class="text-[0.65rem] px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/40"
+              >{{ t('streamHistoryCompactRecommend', { n: recommendedThreshold }) }}</span
+            >
+          </div>
+          <div class="modal-body flex flex-col gap-3 text-xs">
+            <div class="flex flex-wrap gap-2 items-center">
+              <label class="flex flex-col gap-1">
+                <span class="font-semibold">{{ t('streamHistoryCompactIntervalLabel') }}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="720"
+                  v-model.number="compactIntervalMinutes"
+                  class="input !py-1 !text-xs w-28" />
+              </label>
+              <button
+                type="button"
+                class="btn text-xs"
+                :disabled="compactDryBusy || compactBusy"
+                @click="previewCompaction">
+                <span v-if="compactDryBusy">{{ t('streamHistoryCompactDryBusy') }}</span>
+                <span v-else>{{ t('streamHistoryCompactDryRun') }}</span>
+              </button>
+              <button
+                type="button"
+                class="btn btn-danger text-xs"
+                :disabled="compactBusy || compactDryBusy"
+                @click="runCompaction">
+                <span v-if="compactBusy">{{ t('streamHistoryCompactBusy') }}</span>
+                <span v-else>{{ t('streamHistoryCompactRun') }}</span>
+              </button>
+            </div>
+            <p class="opacity-80">{{ t('streamHistoryCompactDryRunHint') }}</p>
+            <div
+              v-if="compactPreview"
+              class="preview-box border border-[var(--card-border)] rounded p-2 flex flex-col gap-1 bg-[var(--bg-chat)]">
+              <div class="flex justify-between">
+                <span>{{ t('streamHistorySamplesCurrent') }}</span
+                ><span>{{ compactPreview.before }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>{{ t('streamHistorySamplesAfter') }}</span
+                ><span>{{ compactPreview.after }}</span>
+              </div>
+              <div class="flex justify-between" v-if="compactPreview.before > compactPreview.after">
+                <span>{{ t('streamHistoryCompactSavings') }}</span
+                ><span>{{ compactionSavingsPercent }}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span>{{ t('streamHistoryCompactSynthetic') }}</span
+                ><span>{{ compactPreview.synthetic }}</span>
+              </div>
+              <div class="mt-1 text-[0.65rem] opacity-70">
+                {{ t('streamHistoryCompactConfirm') }}
+              </div>
+            </div>
+            <div v-else class="text-[0.7rem] opacity-60">{{ t('streamHistoryCompactNone') }}</div>
+            <div class="mt-2 flex justify-end gap-2">
+              <button type="button" class="btn text-xs" @click="closeCompactModal">
+                {{ t('commonClose') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </teleport>
   </OsCard>
 </template>
 
@@ -645,6 +773,19 @@ const {
   currentPhysicalTzDisplay,
   acceptNewTimezone,
   keepPreviousTimezone,
+  compactModalOpen,
+  openCompactModal,
+  closeCompactModal,
+  compactBusy,
+  compactDryBusy,
+  compactPreview,
+  previewCompaction,
+  runCompaction,
+  compactIntervalMinutes,
+  recommendedThreshold,
+  sampleCount,
+  compactionRecommended,
+  compactionSavingsPercent,
 } = state;
 </script>
 <style scoped src="./StreamHistoryPanel.css"></style>

@@ -124,6 +124,26 @@
 .badge.idle {
   opacity: 0.8;
 }
+.badge.warn {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.15);
+}
+.status-row .badge {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.status-row .badge .hist-points-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 4px;
+  opacity: 0.7;
+  transition: opacity 120ms ease;
+}
+.status-row .badge .hist-points-info:hover {
+  opacity: 1;
+}
 .chart-tip {
   z-index: 10;
 }
