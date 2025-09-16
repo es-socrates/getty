@@ -10,7 +10,6 @@
   select,
   textarea {
     border-color: var(--border-color);
-    background-color: color-mix(in srgb, var(--card-bg) 60%, transparent);
     color: var(--text-primary);
   }
   input::placeholder,
@@ -33,6 +32,62 @@
 }
 
 @layer components {
+  .icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.5rem;
+    background: #111;
+    color: #fff;
+    line-height: 1;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+  html.dark .icon-badge {
+    background: #fff;
+    color: #111;
+  }
+  .icon-badge svg {
+    stroke: currentColor;
+    color: currentColor;
+  }
+  .icon-badge--sm {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+  .icon-badge--md {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+  .icon-badge--primary {
+    background: #553fee;
+    color: #fff;
+  }
+  html.dark .icon-badge--primary {
+    background: #553fee;
+    color: #fff;
+  }
+  .icon-badge--neutral {
+    background: var(--card-border, #e4e4e7);
+    color: #111;
+  }
+  html.dark .icon-badge--neutral {
+    background: #27272a;
+    color: #fff;
+  }
+  .icon-badge--danger {
+    background: #dc2626;
+    color: #fff;
+  }
+  html.dark .icon-badge--danger {
+    background: #dc2626;
+    color: #fff;
+  }
+
   .os-surface {
     @apply bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-os shadow-os;
   }
@@ -179,6 +234,11 @@
     color: #fff !important;
   }
 
+  html:not(.dark) .btn.btn-secondary,
+  html:not(.dark) .btn.btn-compact-secondary {
+    color: var(--text-primary) !important;
+  }
+
   .btn-danger,
   .btn.danger {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white focus-visible:ring-2;
@@ -258,7 +318,7 @@
     background: color-mix(in srgb, var(--card-bg) 60%, transparent);
   }
   .input-group input {
-    @apply flex-1 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600;
+    @apply flex-1 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600;
   }
   .input-group button {
     @apply btn-primary px-4 py-2 rounded-none shadow-none border-l border-[var(--card-border)];

@@ -530,8 +530,7 @@ body {
   background: none;
   color: #fff;
   text-shadow: none;
-  padding: 0;
-  border-radius: 0;
+  border-radius: 2px;
   font-size: 14px;
 }
 .horizontal-chat .message:not(.has-donation) .message-text-inline {

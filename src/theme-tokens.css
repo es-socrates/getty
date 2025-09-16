@@ -16,6 +16,12 @@
   --chart-bg: #f9fafb;
   --chart-grid: #e5e7eb;
   --accent: #4f36ff;
+  --os-card-radius: 16px;
+  --os-card-padding: 16px;
+  --os-card-gap: 12px;
+  --os-card-title-size: 15px;
+  --os-card-title-weight: 600;
+  --os-card-title-mb: 4px;
 }
 
 .modern-card {

@@ -180,7 +180,8 @@ async function copy() {
   flex: 1;
   background: transparent;
   border: 1px solid var(--card-border);
-  padding: 0 0.5rem;
+  padding: 0 0.1rem 0 0.4rem;
+  margin: 0px 3px 3px;
   height: var(--color-size);
   display: flex;
   align-items: center;
@@ -188,6 +189,8 @@ async function copy() {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
   letter-spacing: 0.05em;
+  max-width: 144px;
+  border-radius: 4px;
 }
 
 .hex-input:focus {

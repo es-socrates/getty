@@ -35,7 +35,6 @@
           :stroke-width="strokeWidth"
           stroke-linejoin="round"
           stroke-linecap="round" />
-        <!-- Latest point highlight -->
         <template v-if="s.latestPoint">
           <circle
             :cx="s.latestPoint.x"
@@ -204,12 +203,12 @@ const normalizedSeries = computed(() => {
       latestPoint,
     };
   });
-  // defer side-effects via nextTick
+
   nextTick(() => {
     maxLenRef.value = maxLen;
     stepXRef.value = stepX;
     if (!normalizedSeries.value.length) return;
-    // Recompute a base time assuming last sample ~ now
+
     try {
       baseTimeRef.value = Date.now() - (maxLen - 1) * SAMPLE_INTERVAL_MS;
     } catch {}

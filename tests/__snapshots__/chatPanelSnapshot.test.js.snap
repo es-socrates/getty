@@ -1,0 +1,51 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ChatPanel.vue snapshot renders stable layout 1`] = `
+"<section class="admin-tab active chat-root" role="form" aria-labelledby="chat-config-heading">
+  <h2 id="chat-config-heading" class="sr-only">Chat configuration</h2>
+  <div class="chat-grid">
+    <div class="chat-col chat-col-left">
+      <div class="chat-group-box" aria-labelledby="chat-colors-heading">
+        <h3 id="chat-colors-heading" class="chat-group-title">Colors</h3>
+        <div class="form-group" aria-live="polite"><label class="label" id="chat-url-label" for="chat-url">Claim ID</label><input class="input" id="chat-url" type="text"></div>
+        <div class="chat-color-surface">
+          <h4 class="chat-subtitle">General</h4>
+          <div class="flex flex-wrap gap-2 items-end">
+            <div class="color-input">bg</div>
+            <div class="color-input">msgBg</div>
+            <div class="color-input">msgBgAlt</div>
+            <div class="color-input">border</div>
+            <div class="color-input">text</div>
+            <div class="color-input">username</div>
+            <div class="color-input">usernameBg</div>
+            <div class="color-input">donation</div>
+            <div class="color-input">donationBg</div>
+          </div>
+        </div>
+        <div class="chat-actions-row"><button type="button" class="btn">Reset</button></div>
+        <div class="chat-save-row"><button class="btn">Save</button></div>
+      </div>
+      <div class="stub-chatthemeselector">ChatThemeSelector Stub</div>
+      <div class="stub-chatthemecsspanel">ChatThemeCssPanel Stub</div>
+    </div>
+    <div class="chat-col chat-col-right">
+      <div class="chat-group-box" aria-labelledby="username-heading">
+        <h3 id="username-heading" class="chat-group-title">Username</h3>
+        <div class="mb-2"><label class="inline-flex items-center gap-2 text-sm"><input type="checkbox">Override</label></div>
+      </div>
+      <div class="chat-group-box" aria-labelledby="test-msg-heading">
+        <h3 id="test-msg-heading" class="chat-group-title">Test messages</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div class="form-group"><label class="label">Username</label><input class="input"></div>
+          <div class="form-group"><label class="label">USD</label><input class="input"></div>
+          <div class="form-group sm:col-span-2"><label class="label">Message</label><input class="input"></div>
+        </div>
+        <div class="flex gap-2 mt-2" role="group" aria-label="Test actions"><button class="btn">Send test message</button><button class="btn">Send test donation</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-8">
+    <div class="stub-chatthemebuilder">ChatThemeBuilder Stub</div>
+  </div>
+</section>"
+`;
