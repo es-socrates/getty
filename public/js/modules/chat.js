@@ -1,3 +1,5 @@
+import { formatWithMapping } from './emoji-util.js';
+
 let __chat_started = false;
 
 export async function initChat() {
@@ -46,7 +48,13 @@ export async function initChat() {
     const ws = new WebSocket(wsUrl);
     let ttsEnabled = true; let ttsAllChat = false; let ttsLanguage = 'en';
     function stripEmojis(text) {
-      if (!text) return ''; let cleaned = text.replace(/:[^:\s]+:/g, ''); cleaned = cleaned.replace(/<stkr>.*?<\/stkr>/g, ''); cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, ''); cleaned = cleaned.replace(/\s{2,}/g, ' ').trim(); return cleaned;
+      if (!text) return '';
+      let cleaned = text.replace(/:[^:\s]+:/g, '');
+      cleaned = cleaned.replace(/<stkr>.*?<\/stkr>/g, '');
+      cleaned = cleaned.replace(/<img[^>]*class=\"(?:comment-emoji|comment-sticker)[^>]*>/gi, '');
+      cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
+      cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+      return cleaned;
     }
     function selectVoice(utterance, voices) {
       if (ttsLanguage === 'en') { const english = voices.filter(v => v.lang.startsWith('en')); if (english.length) utterance.voice = english[0]; }
@@ -253,13 +261,7 @@ export async function initChat() {
         setTimeout(() => { if (!messageEl.isConnected) return; const animName = getComputedStyle(messageEl).animationName || ''; if (isHorizontal || (typeof animName === 'string' && animName.toLowerCase().includes('fadeout'))) { if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl); } }, 11000);
       }
     }
-    function formatText(text) {
-      if (!text) return ''; let formatted = escapeHtml(text);
-      formatted = formatted.replace(/<stkr>(.*?)<\/stkr>/g, (match, url) => { try { const decodedUrl = decodeURIComponent(url); if (decodedUrl.match(/^https?:\/\//i)) { return `<img src="${decodedUrl}" alt="Sticker" class="comment-sticker" loading="lazy" />`; } return match; } catch { return match; } });
-      if (Object.keys(EMOJI_MAPPING).length > 0) { for (const [code, url] of Object.entries(EMOJI_MAPPING)) { const isSticker = url.includes('/stickers/'); const className = isSticker ? 'comment-sticker' : 'comment-emoji'; const escapedCode = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); formatted = formatted.replace(new RegExp(escapedCode, 'g'), `<img src="${url}" alt="${code}" class="${className}" loading="lazy" />`); } }
-      return formatted;
-    }
-    function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML.replace(/&lt;stkr&gt;/g, '<stkr>').replace(/&lt;\/stkr&gt;/g, '</stkr>'); }
+    function formatText(text) { return formatWithMapping(text, EMOJI_MAPPING); }
     chatContainer.addEventListener('scroll', () => { isAutoScroll = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight; });
     const isHorizontal = window.location.search.includes('horizontal=1') || window.location.hash.includes('horizontal'); if (isHorizontal) { chatContainer.classList.add('horizontal-chat'); }
   function applyChatTheme(themeCSS, isLightTheme) { let styleTag = ensureStyleTag('chat-theme-style'); styleTag.textContent = themeCSS; if (chatContainer) { chatContainer.classList.add('theme-active'); chatContainer.classList.remove('chat-default'); if (isLightTheme) { chatContainer.classList.add('theme-light'); } else { chatContainer.classList.remove('theme-light'); } } }

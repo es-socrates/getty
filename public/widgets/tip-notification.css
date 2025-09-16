@@ -238,3 +238,13 @@
 .text-success {
   color: #00ff7f !important;
 }
+
+.notification-message img.comment-emoji,
+.notification-message img.comment-sticker,
+.notification-message .comment-emoji,
+.notification-message .comment-sticker {
+  max-height: 1.25rem;
+  height: 1.25rem;
+  width: auto;
+  vertical-align: middle;
+}

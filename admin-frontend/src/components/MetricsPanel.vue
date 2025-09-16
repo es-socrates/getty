@@ -251,6 +251,11 @@
           }})
         </div>
         <div class="text-xs text-neutral-400">
+          {{ t('metricsRate5m') || 'Last 5m' }}: {{ metrics.tips?.rate?.last5m?.ar ?? 0 }} AR (${{
+            metrics.tips?.rate?.last5m?.usd ?? 0
+          }}) • {{ metrics.tips?.rate?.last5m?.count ?? 0 }} {{ t('metricsTipsCount') || 'tips' }}
+        </div>
+        <div class="text-xs text-neutral-400">
           24h: {{ metrics.tips?.window?.last24h?.ar ?? 0 }} AR (${{
             metrics.tips?.window?.last24h?.usd ?? 0
           }})
@@ -373,7 +378,12 @@
               {{ t('metricsLegendViewsAvg') || 'Views avg' }}
             </button>
             <div class="hidden md:inline-block w-px h-4 bg-[var(--card-border)] mx-1"></div>
-            <div class="inline-flex gap-1" :title="t('overviewRange') || 'Range'">
+            <div
+              class="inline-flex gap-1"
+              :title="
+                t('overviewRangeHelp') ||
+                'Range: sets history window length (sampling every 10s). 5m ≈ 30 pts, 15m ≈ 90 pts, 60m ≈ 240 pts (capped).'
+              ">
               <button
                 v-for="opt in rangeOpts"
                 :key="opt.value"
@@ -394,6 +404,7 @@
         :series="seriesList"
         :width="chartWidth"
         :height="chartHeight"
+        :timestamps="histTs"
         :normalize-each="true"
         :padding="8"
         :animate="true"
@@ -413,6 +424,7 @@ import {
   hist,
   deltas,
   currentRange,
+  histTs,
   setRange,
   start as startMetrics,
 } from '../stores/metricsStore.js';
