@@ -17,7 +17,35 @@
         {{ t('streamHistoryTitle') }}
       </h3>
     </template>
-    <div class="status-row">
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-xs font-semibold opacity-80 flex items-center gap-2">
+        <span>{{ t('streamHistoryTitle') }}</span>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-[0.75rem] hover:opacity-100"
+          @click="settingsCollapsed = !settingsCollapsed">
+          <span>{{ t('settings') || 'Settings' }}</span>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            :style="
+              settingsCollapsed
+                ? 'transform:rotate(-90deg);transition:transform .2s'
+                : 'transition:transform .2s'
+            ">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="status-row" v-if="!settingsCollapsed">
       <span class="badge" :class="status.connected ? 'ok' : 'err'">
         {{ status.connected ? t('connected') : t('disconnected') }}
       </span>
@@ -66,7 +94,9 @@
         {{ t('streamHistoryCompactBtn') }}
       </button>
     </div>
-    <div class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3">
+    <div
+      class="grid [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] gap-3"
+      v-if="!settingsCollapsed">
       <div class="form-group [grid-column:1/-1]">
         <label class="label">{{ t('streamHistoryClaimId') }}</label>
         <input class="input" v-model="claimid" />
@@ -722,6 +752,7 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
 import { createStreamHistoryPanel } from './createStreamHistoryPanel.js';
+import { ref, watch } from 'vue';
 
 const { t } = useI18n();
 const state = createStreamHistoryPanel(t);
@@ -764,6 +795,22 @@ const {
   showViewers,
   toggleShowViewers,
 } = state;
+
+const SETTINGS_KEY = 'getty_stream_history_settings_panel_v1';
+const settingsCollapsed = ref(true);
+try {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+  if (saved && typeof saved.collapsed === 'boolean') settingsCollapsed.value = saved.collapsed;
+} catch {}
+watch(
+  settingsCollapsed,
+  (v) => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ collapsed: v }));
+    } catch {}
+  },
+  { immediate: false }
+);
 
 const {
   tzDisplay,

@@ -302,86 +302,95 @@
         <div class="flex items-center gap-2 flex-wrap">
           <button
             type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="visible.rpm ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
-            @click="visible.rpm = !visible.rpm">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#34d399]"></span>
-            {{ t('metricsLegendRpm') || 'RPM' }}
+            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)]"
+            @click="collapsed = !collapsed">
+            <span v-if="collapsed">{{ t('show') || 'Show' }}</span>
+            <span v-else>{{ t('hide') || 'Hide' }}</span>
           </button>
-          <button
-            type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="visible.chat ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
-            @click="visible.chat = !visible.chat">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#a78bfa]"></span>
-            {{ t('metricsLegendChat') || 'Chat' }}
-          </button>
-          <button
-            type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="
-              visible.bandwidth ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
-            "
-            @click="visible.bandwidth = !visible.bandwidth">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#f59e0b]"></span>
-            {{ t('metricsLegendBandwidth') || 'BW' }}
-          </button>
-          <button
-            type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="visible.heap ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
-            @click="visible.heap = !visible.heap">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#60a5fa]"></span>
-            {{ t('metricsLegendHeap') || 'Heap' }}
-          </button>
-          <button
-            type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="visible.tips ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
-            @click="visible.tips = !visible.tips">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#ef4444]"></span>
-            {{ t('metricsLegendTips') || 'Tips' }}
-          </button>
-          <button
-            v-if="hasLatency"
-            type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="
-              visible.latency ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
-            "
-            @click="visible.latency = !visible.latency">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#f472b6]"></span>
-            {{ t('metricsLegendLatency') || 'Latency' }}
-          </button>
-          <button
-            v-if="hasViews"
-            type="button"
-            class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-            :class="
-              visible.viewsAvg ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
-            "
-            @click="visible.viewsAvg = !visible.viewsAvg">
-            <span class="inline-block w-2 h-2 rounded-sm bg-[#e11d48]"></span>
-            {{ t('metricsLegendViewsAvg') || 'Views avg' }}
-          </button>
-
-          <div class="hidden md:inline-block w-px h-4 bg-[var(--card-border)] mx-1"></div>
-          <div class="inline-flex gap-1" :title="t('overviewRange') || 'Range'">
+          <template v-if="!collapsed">
             <button
-              v-for="opt in rangeOpts"
-              :key="opt.value"
               type="button"
-              class="text-xs px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
-              :class="
-                currentRange === opt.value ? 'bg-[var(--bg-chat)]' : 'hover:bg-[var(--bg-chat)]'
-              "
-              @click="setRange(opt.value)">
-              {{ opt.label }}
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="visible.rpm ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+              @click="visible.rpm = !visible.rpm">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#34d399]"></span>
+              {{ t('metricsLegendRpm') || 'RPM' }}
             </button>
-          </div>
+            <button
+              type="button"
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="visible.chat ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+              @click="visible.chat = !visible.chat">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#a78bfa]"></span>
+              {{ t('metricsLegendChat') || 'Chat' }}
+            </button>
+            <button
+              type="button"
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="
+                visible.bandwidth ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
+              "
+              @click="visible.bandwidth = !visible.bandwidth">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#f59e0b]"></span>
+              {{ t('metricsLegendBandwidth') || 'BW' }}
+            </button>
+            <button
+              type="button"
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="visible.heap ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+              @click="visible.heap = !visible.heap">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#60a5fa]"></span>
+              {{ t('metricsLegendHeap') || 'Heap' }}
+            </button>
+            <button
+              type="button"
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="visible.tips ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'"
+              @click="visible.tips = !visible.tips">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#ef4444]"></span>
+              {{ t('metricsLegendTips') || 'Tips' }}
+            </button>
+            <button
+              v-if="hasLatency"
+              type="button"
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="
+                visible.latency ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
+              "
+              @click="visible.latency = !visible.latency">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#f472b6]"></span>
+              {{ t('metricsLegendLatency') || 'Latency' }}
+            </button>
+            <button
+              v-if="hasViews"
+              type="button"
+              class="text-xs flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+              :class="
+                visible.viewsAvg ? 'bg-[var(--bg-chat)]' : 'opacity-60 hover:bg-[var(--bg-chat)]'
+              "
+              @click="visible.viewsAvg = !visible.viewsAvg">
+              <span class="inline-block w-2 h-2 rounded-sm bg-[#e11d48]"></span>
+              {{ t('metricsLegendViewsAvg') || 'Views avg' }}
+            </button>
+            <div class="hidden md:inline-block w-px h-4 bg-[var(--card-border)] mx-1"></div>
+            <div class="inline-flex gap-1" :title="t('overviewRange') || 'Range'">
+              <button
+                v-for="opt in rangeOpts"
+                :key="opt.value"
+                type="button"
+                class="text-xs px-2 py-0.5 rounded-os-sm border border-[var(--card-border)]"
+                :class="
+                  currentRange === opt.value ? 'bg-[var(--bg-chat)]' : 'hover:bg-[var(--bg-chat)]'
+                "
+                @click="setRange(opt.value)">
+                {{ opt.label }}
+              </button>
+            </div>
+          </template>
         </div>
       </div>
       <OsMultiLine
+        v-if="!collapsed"
         :series="seriesList"
         :width="chartWidth"
         :height="chartHeight"
@@ -512,6 +521,22 @@ const chartHeight = computed(() => {
 });
 const trendsWrap = ref(null);
 let ro = null;
+
+const TRENDS_KEY = 'getty_trends_prefs_v1';
+const collapsed = ref(true);
+try {
+  const saved = JSON.parse(localStorage.getItem(TRENDS_KEY) || 'null');
+  if (saved && typeof saved.collapsed === 'boolean') collapsed.value = saved.collapsed;
+} catch {}
+watch(
+  collapsed,
+  (v) => {
+    try {
+      localStorage.setItem(TRENDS_KEY, JSON.stringify({ collapsed: v }));
+    } catch {}
+  },
+  { immediate: false }
+);
 function updateChartWidth(el) {
   try {
     if (!el) return;

@@ -152,17 +152,134 @@
         </div>
       </div>
     </OsCard>
+
+    <OsCard class="mb-4">
+      <template #header>
+        <h3 class="os-card-title flex items-center gap-1.5">
+          <span class="icon os-icon" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M4 6h16" />
+              <path d="M4 10h10" />
+              <path d="M4 14h16" />
+              <path d="M4 18h10" />
+            </svg>
+          </span>
+          {{ t('activityLogSettingsTitle') || 'Activity Log Settings' }}
+        </h3>
+      </template>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
+          <div class="os-th text-xs flex items-center justify-between gap-2">
+            <span>{{ t('activityLogEnable') || 'Enable Activity Log' }}</span>
+            <label
+              class="checkbox-wrapper-2"
+              :title="
+                activity.enabled
+                  ? t('commonEnabled') || 'Enabled'
+                  : t('commonDisabled') || 'Disabled'
+              ">
+              <input type="checkbox" class="checkbox" v-model="activity.enabled" />
+            </label>
+          </div>
+          <div class="text-[11px] opacity-70" v-if="!activity.enabled">
+            {{ t('activityLogDisabledHint') || 'Disabled to reduce load.' }}
+          </div>
+        </div>
+        <div
+          class="p-3 os-subtle rounded-os-sm flex flex-col gap-2"
+          :class="!activity.enabled ? 'opacity-60 pointer-events-none' : ''">
+          <div class="os-th text-xs flex items-center justify-between gap-2">
+            <span>{{ t('activityLogDefaultCollapsed') || 'Default collapsed' }}</span>
+            <label
+              class="checkbox-wrapper-2"
+              :title="
+                activity.collapsed
+                  ? t('activityCollapsed') || 'Collapsed'
+                  : t('activityExpanded') || 'Expanded'
+              ">
+              <input type="checkbox" class="checkbox" v-model="activity.collapsed" />
+            </label>
+          </div>
+          <div class="text-[11px] opacity-70">
+            <span v-if="activity.collapsed">{{ t('activityCollapsed') || 'Collapsed' }}</span>
+            <span v-else>{{ t('activityExpanded') || 'Expanded' }}</span>
+          </div>
+        </div>
+        <div
+          class="p-3 os-subtle rounded-os-sm flex flex-col gap-2"
+          :class="!activity.enabled ? 'opacity-60 pointer-events-none' : ''">
+          <div class="os-th text-xs flex items-center justify-between gap-2">
+            <span>{{ t('activityLogDefaultAutoScroll') || 'Default auto-scroll' }}</span>
+            <label
+              class="checkbox-wrapper-2"
+              :title="activity.autoScrollDefault ? t('commonOn') || 'On' : t('commonOff') || 'Off'">
+              <input type="checkbox" class="checkbox" v-model="activity.autoScrollDefault" />
+            </label>
+          </div>
+          <div class="text-[11px] opacity-70">
+            <span v-if="activity.autoScrollDefault">{{ t('commonOn') || 'On' }}</span>
+            <span v-else>{{ t('commonOff') || 'Off' }}</span>
+          </div>
+        </div>
+        <div
+          class="p-3 os-subtle rounded-os-sm flex flex-col gap-2"
+          :class="!activity.enabled ? 'opacity-60 pointer-events-none' : ''">
+          <div class="os-th text-xs">{{ t('activityLogDefaultRows') || 'Default rows' }}</div>
+          <select
+            v-model.number="activity.limitDefault"
+            class="px-2 py-1 rounded-os-sm bg-[var(--bg-chat)] border border-[var(--card-border)] text-sm w-28">
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+            <option :value="200">200</option>
+          </select>
+        </div>
+      </div>
+    </OsCard>
   </section>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, reactive, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue';
 import { pushToast } from '../services/toast';
+import { useActivityLogPrefs } from '../stores/activityLogPrefs';
 
 const { t } = useI18n();
+const activityPrefs = useActivityLogPrefs();
+const activity = reactive({
+  get enabled() {
+    return activityPrefs.enabled.value;
+  },
+  set enabled(v) {
+    activityPrefs.enabled.value = !!v;
+  },
+  get collapsed() {
+    return activityPrefs.collapsed.value;
+  },
+  set collapsed(v) {
+    activityPrefs.collapsed.value = !!v;
+  },
+  get autoScrollDefault() {
+    return activityPrefs.autoScrollDefault.value;
+  },
+  set autoScrollDefault(v) {
+    activityPrefs.autoScrollDefault.value = !!v;
+  },
+  get limitDefault() {
+    return activityPrefs.limitDefault.value;
+  },
+  set limitDefault(v) {
+    if ([50, 100, 200].includes(Number(v))) activityPrefs.limitDefault.value = Number(v);
+  },
+});
 
 const regenLoading = ref(false);
 const lastPublicToken = ref('');
@@ -209,6 +326,20 @@ onMounted(() => {
     }
   } catch {}
 });
+
+watch(
+  () => activity.enabled,
+  (v, old) => {
+    try {
+      if (old === undefined) return;
+      pushToast({
+        i18nKey: v ? 'activityLogEnabledToast' : 'activityLogDisabledToast',
+        type: v ? 'success' : 'info',
+        timeout: 2500,
+      });
+    } catch {}
+  }
+);
 
 async function regeneratePublic() {
   try {

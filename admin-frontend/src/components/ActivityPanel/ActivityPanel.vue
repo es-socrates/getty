@@ -17,9 +17,15 @@
           </svg>
         </span>
         {{ t('activityLogTitle') || 'Activity Log' }}
+        <button
+          class="ml-auto px-1.5 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-[11px] opacity-80 hover:opacity-100"
+          @click="collapsed = !collapsed"
+          type="button">
+          {{ collapsed ? t('activityShow') || 'Show' : t('activityHide') || 'Hide' }}
+        </button>
       </h3>
     </template>
-    <div class="flex flex-wrap items-center gap-2 mb-2">
+    <div v-if="!collapsed" class="flex flex-wrap items-center gap-2 mb-2">
       <div class="flex items-center gap-2">
         <label class="text-sm">{{ t('activityLevelLabel') }}</label>
         <div class="relative h-full overflow-hidden rounded-full">
@@ -130,7 +136,7 @@
         {{ t('activityDownload') }}
       </button>
     </div>
-    <div class="flex flex-wrap gap-2 mb-2" v-if="chips.length">
+    <div v-if="!collapsed && chips.length" class="flex flex-wrap gap-2 mb-2">
       <span
         v-for="(chip, i) in chips"
         :key="i"
@@ -144,7 +150,11 @@
         </button>
       </span>
     </div>
-    <div ref="listRef" class="os-subtle rounded-os-sm max-h-72 overflow-auto" aria-live="polite">
+    <div
+      v-if="!collapsed"
+      ref="listRef"
+      class="os-subtle rounded-os-sm max-h-72 overflow-auto"
+      aria-live="polite">
       <div
         v-for="(it, idx) in items"
         :key="idx"
@@ -163,7 +173,7 @@
       </div>
       <div v-if="!items.length" class="p-3 text-sm text-neutral-400">{{ t('activityEmpty') }}</div>
     </div>
-    <div class="flex items-center justify-between mt-2 text-xs text-neutral-400">
+    <div v-if="!collapsed" class="flex items-center justify-between mt-2 text-xs text-neutral-400">
       <div>{{ t('activityTotal') }}: {{ total }}</div>
       <div class="flex items-center gap-2 activity-pagination">
         <button
@@ -212,6 +222,7 @@ const {
   showAll,
   copyLine,
   chips,
+  collapsed,
 } = useActivityPanel();
 </script>
 <script>

@@ -1,18 +1,21 @@
-import { ref, onMounted, watch, nextTick, computed } from 'vue';
+import { ref, onMounted, watch, nextTick, computed, onUnmounted } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import { useActivityLogPrefs } from '../../stores/activityLogPrefs';
 
 export function useActivityPanel(){
   const { t } = useI18n();
+  const { enabled, collapsed, autoScrollDefault, limitDefault } = useActivityLogPrefs();
   const items = ref([]);
   const level = ref('');
   const q = ref('');
-  const limit = ref(100);
+  const limit = ref(limitDefault.value || 50);
   const order = ref('desc');
   const offset = ref(0);
   const total = ref(0);
-  const autoScroll = ref(true);
+  const autoScroll = ref(autoScrollDefault.value);
   const listRef = ref(null);
+  let intervalId = null;
 
   function formatTs(ts){ try { return new Date(ts).toLocaleString(); } catch { return ts; } }
   function badgeClass(lvl){
@@ -21,6 +24,7 @@ export function useActivityPanel(){
     return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
   }
   async function refresh(){
+    if (!enabled.value) return;
     try {
       const r = await axios.get('/api/activity', { params: { level: level.value || undefined, q: q.value || undefined, limit: limit.value, offset: offset.value, order: order.value } });
       items.value = r.data?.items || [];
@@ -62,8 +66,23 @@ export function useActivityPanel(){
     return c;
   });
 
-  onMounted(()=>{ refresh(); const int = setInterval(refresh, 5000); window.addEventListener('beforeunload', ()=>clearInterval(int)); });
-  watch([level, limit, order, q], ()=>{ offset.value = 0; refresh(); });
+  function setupInterval(){
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    if (!enabled.value) return;
+    intervalId = setInterval(()=>{ if (!collapsed.value) refresh(); }, 5000);
+  }
 
-  return { t, items, level, q, limit, order, offset, total, autoScroll, listRef, formatTs, badgeClass, refresh, clearLog, downloadLog, prevPage, nextPage, showAll, copyLine, chips };
+  onMounted(()=>{ if (enabled.value) refresh(); setupInterval(); });
+  onUnmounted(()=>{ if (intervalId) clearInterval(intervalId); });
+  watch([level, limit, order, q], ()=>{ offset.value = 0; refresh(); });
+  watch(enabled, (v)=>{ if (v) { refresh(); } else { items.value = []; total.value = 0; } setupInterval(); });
+  watch(collapsed, (c)=>{ if (!c && enabled.value) refresh(); });
+  watch([autoScroll, limit], ()=>{
+    try {
+      autoScrollDefault.value = autoScroll.value;
+      if (limit.value !== 'all' && [50,100,200].includes(Number(limit.value))) limitDefault.value = Number(limit.value);
+    } catch {}
+  });
+
+  return { t, items, level, q, limit, order, offset, total, autoScroll, listRef, formatTs, badgeClass, refresh, clearLog, downloadLog, prevPage, nextPage, showAll, copyLine, chips, enabled, collapsed };
 }

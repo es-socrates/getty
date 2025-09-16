@@ -246,7 +246,7 @@
       </div>
     </OsCard>
     <div class="divider"></div>
-    <div class="mb-4">
+    <div class="mb-4" v-if="activityEnabled">
       <ActivityPanel />
     </div>
   </section>
@@ -258,11 +258,13 @@ import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue';
 import ActivityPanel from '../components/ActivityPanel';
+import { useActivityLogPrefs } from '../stores/activityLogPrefs';
 import MetricsPanel from '../components/MetricsPanel.vue';
 import StreamHistoryPanel from '../components/StreamHistoryPanel/StreamHistoryPanel.vue';
 import { pushToast } from '../services/toast';
 
 const { t, locale } = useI18n();
+const { enabled: activityEnabled } = useActivityLogPrefs();
 const modulesList = ref([]);
 const now = ref(new Date().toLocaleString());
 const system = ref(null);
