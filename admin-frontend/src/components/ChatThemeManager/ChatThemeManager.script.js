@@ -1,4 +1,4 @@
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch, onActivated, onDeactivated } from 'vue';
 import { confirmDialog } from '../../services/confirm';
 import { pushToast } from '../../services/toast';
 import SizeBlocksModule from './utils/sizeBlocks';
@@ -276,9 +276,31 @@ const defaultThemes = [
 			}
 		} catch { /* ignore */ }
 	} catch { /* ignore */ }
+
+	syncFontSizesFromCSS(currentCSS.value);
 	updatePreviewStyle(previewCSS.value);
 	applyRuntimeSizeVariables();
+
+	queueMicrotask(() => {
+		try {
+			const el = document.getElementById(PREVIEW_STYLE_ID);
+			if (el && el.parentNode) {
+				el.parentNode.removeChild(el);
+				document.head.appendChild(el);
+			}
+		} catch {}
+	});
 });
+
+	onActivated(() => {
+		try {
+			updatePreviewStyle(previewCSS.value);
+			applyRuntimeSizeVariables();
+		} catch { /* ignore */ }
+	});
+
+	onDeactivated(() => {
+	});
 	onUnmounted(() => {
 	try {
 		const el = document.getElementById(PREVIEW_STYLE_ID);
@@ -685,7 +707,7 @@ const defaultThemes = [
 	} catch { /* ignore */ }
 }
 
-	return {
+	const state = {
 		selectId, previewId, selectedIdx,
 		cssPanelOpen, customizing, customWorkingName, customWorkingCSS,
 		previewLight, orderMode, searchTerm,
@@ -703,4 +725,5 @@ const defaultThemes = [
 		importFileInput, triggerFileDialog, onImportFileChange,
 		openDiffModal, closeDiff, computeDiff, clearTheme, copyCSS, onVariantDuplicateToggle
 	};
+  return state;
 }

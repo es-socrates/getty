@@ -1,0 +1,122 @@
+.chat-root {
+  --chat-gap: 28px;
+}
+.chat-grid {
+  display: grid;
+  gap: var(--chat-gap);
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 980px) {
+  .chat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.chat-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--chat-gap);
+  min-width: 0;
+}
+.chat-group-box {
+  background: var(--card);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+@media (max-width: 640px) {
+  .chat-group-box {
+    padding: 16px 16px 18px;
+    gap: 10px;
+  }
+  .chat-root {
+    --chat-gap: 22px;
+  }
+}
+.chat-group-title {
+  font-weight: 600;
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+.chat-subtitle {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  opacity: 0.8;
+  margin: 0 0 8px;
+}
+.chat-color-surface {
+  background: var(--bg-card);
+  border: 1px solid var(--card-border, var(--border-color));
+  border-radius: 12px;
+  padding: 14px 14px 16px;
+  margin-bottom: 6px;
+}
+.chat-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.chat-save-row {
+  margin-top: 12px;
+}
+.chat-inline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-chat);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.1;
+  min-height: 20px;
+}
+.chat-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.chat-theme-preview-box {
+  background: var(--bg-card);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+button.btn:focus-visible,
+select.select:focus-visible,
+input.input:focus-visible,
+textarea.textarea:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.chat-inline-badge,
+.chat-status-row span,
+.chat-group-box button.btn {
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.chat-group-box:last-of-type {
+  margin-bottom: 0;
+}

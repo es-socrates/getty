@@ -126,7 +126,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Load custom emojis mapping (mirrors chat widget logic)
     let EMOJI_MAPPING = {};
     try {
         const r = await fetch(`/emojis.json?nocache=${Date.now()}`);

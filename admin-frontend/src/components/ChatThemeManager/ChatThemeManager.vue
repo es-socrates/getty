@@ -2,6 +2,21 @@
   <div class="chat-theme-manager">
     <OsCard class="mt-4" aria-labelledby="chat-theme-heading">
       <h3 id="chat-theme-heading" class="os-card-title mb-3 flex items-center gap-3">
+        <HeaderIcon>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <path
+              d="M12 3l2.09 6.26H20.5l-5.17 3.76L17.45 21 12 16.9 6.55 21l2.12-7.98L3.5 9.26h6.41L12 3z" />
+          </svg>
+        </HeaderIcon>
         <span>{{ t('chatThemeLabel') || 'Chat theme:' }}</span>
         <span v-if="recentlyUpdated" class="badge-updated">{{
           t('updatedBadge') || 'Updated'
@@ -41,6 +56,13 @@
               </option>
             </optgroup>
           </select>
+          <button
+            type="button"
+            class="btn ml-2"
+            @click="openDiffModal"
+            :disabled="allThemes.length < 2">
+            {{ t('compareThemes') || t('diffThemes') || 'Compare' }}
+          </button>
           <p class="text-[11px] opacity-70 w-full mt-1" :id="selectId + '-hint'">
             {{ t('chatThemeCustomHint') || 'Custom themes (★) are the ones you create or edit.' }}
           </p>
@@ -49,9 +71,6 @@
           </button>
           <button v-if="isCustomSelected" type="button" class="btn danger" @click="deleteCustom">
             {{ t('chatThemeDelete') || 'Delete theme' }}
-          </button>
-          <button type="button" class="btn" @click="openDiffModal" :disabled="allThemes.length < 2">
-            {{ t('diffThemes') || 'Diff' }}
           </button>
         </div>
         <div class="mt-4" :id="previewId" aria-live="polite">
@@ -95,16 +114,37 @@
       </div>
     </OsCard>
 
-    <OsCard class="mt-4" aria-labelledby="chat-theme-css-heading">
-      <details :open="cssPanelOpen" @toggle="cssPanelOpen = $event.target.open">
+    <OsCard class="mt-4" aria-labelledby="chat-theme-custom-heading">
+      <h3 id="chat-theme-custom-heading" class="os-card-title mb-3 flex items-center gap-3">
+        <HeaderIcon>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M4 14h6v6H4z" />
+            <path d="M14 4h6v6h-6z" />
+            <path d="M14 14h6v6h-6z" />
+            <path d="M4 4h6v6H4z" />
+          </svg>
+        </HeaderIcon>
+        <span>{{ t('chatThemeCustomize') || 'Custom builder:' }}</span>
+      </h3>
+
+      <details class="mb-4" :open="cssPanelOpen" @toggle="cssPanelOpen = $event.target.open">
         <summary class="cursor-pointer select-none flex items-center justify-between pr-2">
-          <h3 id="chat-theme-css-heading" class="os-card-title m-0 flex items-center gap-2 text-sm">
+          <h4 class="m-0 flex items-center gap-2 text-sm font-semibold">
             <span>{{ t('chatThemeCopyLabel') || 'Theme CSS for OBS:' }}</span>
             <span class="badge-updated !bg-indigo-600" v-if="cssPanelOpen">{{
               t('commonHide') || 'Hide'
             }}</span>
             <span class="badge-updated !bg-slate-500" v-else>{{ t('commonShow') || 'Show' }}</span>
-          </h3>
+          </h4>
           <div class="relative inline-flex items-center">
             <button
               type="button"
@@ -127,34 +167,49 @@
             :value="currentCSS"></textarea>
         </div>
       </details>
-    </OsCard>
-
-    <OsCard class="mt-4" aria-labelledby="chat-theme-custom-heading">
-      <h3 id="chat-theme-custom-heading" class="os-card-title mb-3">
-        {{ t('chatThemeCustomize') || 'Custom builder:' }}
-      </h3>
+      <div class="mb-4 h-px bg-[var(--card-border)] opacity-60"></div>
       <div class="flex flex-wrap gap-2 mb-4">
-        <button type="button" class="btn" @click="beginCustomize">
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact-secondary"
+          @click="beginCustomize">
           {{
             customizing
               ? t('chatThemeEditing') || 'Editing…'
               : t('chatThemeEdit') || 'Create/Edit theme'
           }}
         </button>
-        <button type="button" class="btn" @click="clearTheme">
+        <button type="button" class="btn btn-secondary btn-compact-secondary" @click="clearTheme">
           {{ t('chatThemeClear') || 'Clear theme' }}
         </button>
-        <button type="button" class="btn" @click="openSizeVariantModal" :disabled="creatingVariant">
-          {{ t('saveSizeVariant') || 'Save size variant' }}
-        </button>
-        <button type="button" class="btn" @click="revertSizes" :disabled="!hasSizeBlock">
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact-secondary"
+          @click="revertSizes"
+          :disabled="!hasSizeBlock">
           {{ t('revertSizes') || 'Revert sizes' }}
         </button>
-        <button type="button" class="btn" @click="openExportModal" :disabled="!customThemes.length">
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact-secondary"
+          @click="openExportModal"
+          :disabled="!customThemes.length">
           {{ t('exportThemes') || 'Export' }}
         </button>
-        <button type="button" class="btn" @click="triggerFileDialog($event)" @mousedown.prevent>
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact-secondary"
+          @click="triggerFileDialog($event)"
+          @mousedown.prevent>
           {{ t('importThemes') || 'Import' }}
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact-secondary"
+          @click="openSizeVariantModal"
+          :disabled="creatingVariant">
+          {{ t('saveSizeVariant') || 'Save size variant' }}
         </button>
         <input
           ref="importFileInput"
@@ -170,7 +225,11 @@
           :disabled="!customWorkingName || !customWorkingCSS">
           {{ t('chatThemeSave') || 'Save theme' }}
         </button>
-        <button v-if="customizing" type="button" class="btn" @click="cancelCustomize">
+        <button
+          v-if="customizing"
+          type="button"
+          class="btn btn-secondary btn-compact-secondary"
+          @click="cancelCustomize">
           {{ t('chatThemeCancel') || 'Cancel' }}
         </button>
       </div>
@@ -483,10 +542,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { createChatThemeManager } from './ChatThemeManager.script.js';
 import OsCard from '../os/OsCard.vue';
+import HeaderIcon from '../shared/HeaderIcon.vue';
 
 const { t } = useI18n();
 const state = createChatThemeManager(t);
@@ -560,13 +619,12 @@ const {
   onImportFileChange,
 } = state;
 
+import { ref } from 'vue';
 const copiedCss = ref(false);
 function handleCopyCSS() {
   copyCSS();
   copiedCss.value = true;
-  setTimeout(() => {
-    copiedCss.value = false;
-  }, 1500);
+  setTimeout(() => (copiedCss.value = false), 1500);
 }
 </script>
 <style scoped src="./ChatThemeManager.css"></style>

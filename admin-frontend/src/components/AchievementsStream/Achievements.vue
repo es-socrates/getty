@@ -1,8 +1,10 @@
 <template>
   <section class="os-card overflow-hidden flex flex-col">
     <h1 class="section-title flex items-center gap-1.5">
-      <span class="icon os-icon" aria-hidden="true">
+      <HeaderIcon>
         <svg
+          width="14"
+          height="14"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -15,7 +17,7 @@
           <path d="M17 9a5 5 0 0 0 5-5h-5" />
           <path d="M7 9a5 5 0 0 1-5-5h5" />
         </svg>
-      </span>
+      </HeaderIcon>
       <span>{{ t('achievementsTitle') }}</span>
     </h1>
 
@@ -52,10 +54,10 @@
           <div class="ach-settings-col">
             <div class="ach-group-box" :aria-label="t('achievementsGroupNotificationPrefs')">
               <div class="ach-group-head">
-                <span class="ach-head-icon" aria-hidden="true">
+                <HeaderIcon>
                   <svg
-                    width="20"
-                    height="20"
+                    width="14"
+                    height="14"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -68,7 +70,7 @@
                     <path d="M17 9a5 5 0 0 0 5-5h-5" />
                     <path d="M7 9a5 5 0 0 1-5-5h5" />
                   </svg>
-                </span>
+                </HeaderIcon>
                 <span class="ach-head-title">{{ t('achievementsGroupNotificationPrefs') }}</span>
               </div>
 
@@ -143,10 +145,10 @@
 
             <div class="ach-group-box" :aria-label="t('achievementsGroupChannelId')">
               <div class="ach-group-head">
-                <span class="ach-head-icon" aria-hidden="true">
+                <HeaderIcon>
                   <svg
-                    width="20"
-                    height="20"
+                    width="14"
+                    height="14"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -158,7 +160,7 @@
                     <path d="M7 12h6" />
                     <path d="M7 16h8" />
                   </svg>
-                </span>
+                </HeaderIcon>
                 <span class="ach-head-title">{{ t('achievementsGroupChannelId') }}</span>
               </div>
               <div class="ach-setting-item is-vertical">
@@ -201,10 +203,10 @@
           <div class="ach-settings-col">
             <div class="ach-group-box" :aria-label="t('achievementsGroupDisplay')">
               <div class="ach-group-head">
-                <span class="ach-head-icon" aria-hidden="true">
+                <HeaderIcon>
                   <svg
-                    width="20"
-                    height="20"
+                    width="14"
+                    height="14"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -215,7 +217,7 @@
                     <path d="M12 3v18" />
                     <path d="M3 12h18" />
                   </svg>
-                </span>
+                </HeaderIcon>
                 <span class="ach-head-title">{{ t('achievementsGroupDisplay') }}</span>
               </div>
 
@@ -284,11 +286,10 @@
 
             <div class="ach-group-box" :aria-label="t('achievementsGroupPreview')">
               <div class="ach-group-head">
-                <span class="ach-head-icon" aria-hidden="true">
-                  <!-- Eye icon -->
+                <HeaderIcon>
                   <svg
-                    width="20"
-                    height="20"
+                    width="14"
+                    height="14"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -298,7 +299,7 @@
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
-                </span>
+                </HeaderIcon>
                 <span class="ach-head-title">{{ t('achievementsGroupPreview') }}</span>
               </div>
               <div class="ach-preview">
@@ -523,6 +524,7 @@ import { onMounted, reactive, ref, computed, watch } from 'vue';
 import LegacyAudioControls from '../shared/LegacyAudioControls.vue';
 import CopyField from '../shared/CopyField.vue';
 import OsCard from '../os/OsCard.vue';
+import HeaderIcon from '../shared/HeaderIcon.vue';
 import { usePublicToken } from '../../composables/usePublicToken';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';

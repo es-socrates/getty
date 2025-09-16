@@ -1079,21 +1079,6 @@ html.dark .ach-toast.info {
   margin-bottom: 8px;
   border-bottom: 1px solid var(--border, var(--border-color));
 }
-.ach-head-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  background: #111;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-[data-ach-theme='dark'] .ach-head-icon {
-  background: #fff;
-  color: #111;
-}
 .ach-setting-item:last-child {
   border-bottom: none;
 }

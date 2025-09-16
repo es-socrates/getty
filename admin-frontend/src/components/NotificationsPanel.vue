@@ -3,7 +3,7 @@
     <div class="notif-groups-grid">
       <div class="notif-group-box" aria-labelledby="notif-gif-title">
         <div class="notif-group-head">
-          <span class="notif-head-icon" aria-hidden="true">
+          <HeaderIcon>
             <svg
               class="os-icon"
               viewBox="0 0 24 24"
@@ -16,7 +16,7 @@
               <circle cx="8.5" cy="8.5" r="1.5" />
               <path d="M21 15l-5-5L5 21" />
             </svg>
-          </span>
+          </HeaderIcon>
           <h3 id="notif-gif-title" class="notif-group-title">{{ t('notificationGifTitle') }}</h3>
         </div>
         <div class="notif-setting-item">
@@ -102,7 +102,7 @@
 
       <div class="notif-group-box" aria-labelledby="notif-tts-title">
         <div class="notif-group-head">
-          <span class="notif-head-icon" aria-hidden="true">
+          <HeaderIcon>
             <svg
               class="os-icon"
               viewBox="0 0 24 24"
@@ -114,7 +114,7 @@
               <path
                 d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8.5 8.5Z" />
             </svg>
-          </span>
+          </HeaderIcon>
           <h3 id="notif-tts-title" class="notif-group-title">{{ t('ttsSectionTitle') }}</h3>
         </div>
         <div class="notif-setting-item">
@@ -175,7 +175,7 @@
 
       <div class="notif-group-box" aria-labelledby="notif-audio-title">
         <div class="notif-group-head">
-          <span class="notif-head-icon" aria-hidden="true">
+          <HeaderIcon>
             <svg
               class="os-icon"
               viewBox="0 0 24 24"
@@ -189,7 +189,7 @@
               <path d="M16 8h2" />
               <path d="M16 16h2" />
             </svg>
-          </span>
+          </HeaderIcon>
           <h3 id="notif-audio-title" class="notif-group-title">{{ t('customAudioTitle') }}</h3>
         </div>
         <div class="notif-setting-item is-vertical">
@@ -223,7 +223,7 @@
 
       <div class="notif-group-box" aria-labelledby="notif-obs-title">
         <div class="notif-group-head">
-          <span class="notif-head-icon" aria-hidden="true">
+          <HeaderIcon>
             <svg
               class="os-icon"
               viewBox="0 0 24 24"
@@ -236,7 +236,7 @@
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
             </svg>
-          </span>
+          </HeaderIcon>
           <h3 id="notif-obs-title" class="notif-group-title">{{ t('obsIntegration') }}</h3>
         </div>
         <div class="notif-setting-item is-vertical">
@@ -261,6 +261,7 @@ import { MAX_GIF_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
 import { usePublicToken } from '../composables/usePublicToken';
 import LegacyAudioControls from './shared/LegacyAudioControls.vue';
+import HeaderIcon from './shared/HeaderIcon.vue';
 
 const { t } = useI18n();
 
