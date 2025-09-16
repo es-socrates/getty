@@ -126,13 +126,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function formatText(text) {
-        if (!text) return '';
+    // Load custom emojis mapping (mirrors chat widget logic)
+    let EMOJI_MAPPING = {};
+    try {
+        const r = await fetch(`/emojis.json?nocache=${Date.now()}`);
+        EMOJI_MAPPING = await r.json();
+    } catch (e) { console.warn('tip-widget: failed to load emojis', e); }
+
+    function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML
             .replace(/&lt;stkr&gt;/g, '<stkr>')
             .replace(/&lt;\/stkr&gt;/g, '</stkr>');
+    }
+    function formatText(text) {
+        if (!text) return '';
+        let formatted = escapeHtml(text);
+
+        formatted = formatted.replace(/<stkr>(.*?)<\/stkr>/g, (m, url) => {
+            try {
+                const decoded = decodeURIComponent(url);
+                if (/^https?:\/\//i.test(decoded)) {
+                    return `<img src="${decoded}" alt="Sticker" class="comment-sticker" loading="lazy" />`;
+                }
+                return m;
+            } catch { return m; }
+        });
+        if (EMOJI_MAPPING && typeof EMOJI_MAPPING === 'object') {
+            for (const [code, url] of Object.entries(EMOJI_MAPPING)) {
+                if (!code || !url) continue;
+                const escapedCode = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const isSticker = url.includes('/stickers/');
+                const cls = isSticker ? 'comment-sticker' : 'comment-emoji';
+                formatted = formatted.replace(new RegExp(escapedCode, 'g'), `<img src="${url}" alt="${code}" class="${cls}" loading="lazy" />`);
+            }
+        }
+        return formatted;
     }
 
     ws.onopen = () => {
@@ -421,7 +451,18 @@ async function showDonationNotification(data) {
         }
     }
     
-    const formattedMessage = data.message ? formatText(data.message) : '';
+    const originalMessage = data.message || '';
+    const emojiCodes = (originalMessage.match(/:[^:\s]{1,32}:/g) || []);
+    let truncated = originalMessage;
+    if (originalMessage.length > 80) {
+        if (!(emojiCodes.length >= 3 && originalMessage.length <= 160)) {
+            truncated = originalMessage.substring(0,80) + '...';
+        }
+    }
+
+    const formattedMessage = /<img[^>]+class=\"(?:comment-emoji|comment-sticker)\"/i.test(truncated)
+        ? truncated
+        : (truncated ? formatText(truncated) : '');
     const isChatTipHeuristic = !!data.isChatTip && (data.amount === undefined || data.amount === null);
     const creditsIsUsd = !!data.creditsIsUsd;
     let rawAr = 0, rawUsd = 0;
@@ -450,9 +491,9 @@ async function showDonationNotification(data) {
         : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
 
     if (ttsEnabled) {
-        const toSpeak = formattedMessage || '';
-        if ((data.isChatTip || ttsAllChat) && toSpeak) {
-            speakMessage(toSpeak);
+        const rawForTts = originalMessage || '';
+        if ((data.isChatTip || ttsAllChat) && rawForTts) {
+            speakMessage(rawForTts);
         }
     }
 
@@ -470,9 +511,7 @@ async function showDonationNotification(data) {
                 </div>
                 ${formattedMessage ? `
                 <div class="notification-message">
-                    ${formattedMessage.length > 80 
-                        ? formattedMessage.substring(0, 80) + '...' 
-                        : formattedMessage}
+                    ${formattedMessage}
                 </div>
                 ` : ''}
             </div>
@@ -521,8 +560,6 @@ async function showDonationNotification(data) {
         }, FADE_TIME);
     }, VISIBLE_TIME);
 }
-
-// Keyframes are defined in tip-notification.css (no inline <style> injection needed).
 
     function showError(message) {
         notification.innerHTML = `

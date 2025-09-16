@@ -2273,6 +2273,7 @@ app.get('/api/metrics', async (req, res) => {
     } catch {}
 
     res.json({
+      serverTime: now,
       system: {
         uptimeSeconds: Math.floor((now - __serverStartTime) / 1000),
         wsClients,

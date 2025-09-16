@@ -1,3 +1,5 @@
+import { formatWithMapping, truncateTipMessage } from './emoji-util.js';
+
 let __tn_started = false;
 let __tn_demoTimer = null;
 
@@ -105,12 +107,11 @@ export async function initNotifications() {
     } catch {}
   }
 
-  function formatText(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML.replace(/&lt;stkr&gt;/g,'<stkr>').replace(/&lt;\/stkr&gt;/g,'</stkr>');
-  }
+  let EMOJI_MAPPING = {};
+  try {
+    const r = await fetch(`/emojis.json?nocache=${Date.now()}`);
+    EMOJI_MAPPING = await r.json();
+  } catch (e) { console.warn('tip-notification: failed to load emojis', e); }
 
   async function updateExchangeRate() {
     try {
@@ -175,7 +176,9 @@ export async function initNotifications() {
       AR_TO_USD = data.usdAmount / data.arAmount;
     }
 
-    const formattedMessage = data.message ? formatText(data.message) : '';
+    const originalMessage = data.message || '';
+    const truncated = truncateTipMessage(originalMessage);
+    const formattedMessage = truncated ? formatWithMapping(truncated, EMOJI_MAPPING) : '';
     const isChatTipHeuristic = !!data.isChatTip && (data.amount === undefined || data.amount === null);
     const creditsIsUsd = !!data.creditsIsUsd;
     let rawAr = 0, rawUsd = 0;
@@ -191,8 +194,8 @@ export async function initNotifications() {
     const senderInfo = data.from ? `📦 From: ${String(data.from).slice(0,8)}...` : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
 
     if (ttsEnabled) {
-      const toSpeak = formattedMessage || '';
-      if ((data.isChatTip || ttsAllChat) && toSpeak) speakMessage(toSpeak);
+      const rawForTts = originalMessage || '';
+      if ((data.isChatTip || ttsAllChat) && rawForTts) speakMessage(rawForTts);
     }
 
     notification.innerHTML = `

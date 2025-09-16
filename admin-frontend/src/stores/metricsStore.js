@@ -3,6 +3,8 @@ import axios from 'axios';
 
 export const metrics = ref({});
 export const hist = ref({ rpm: [], heap: [], bandwidth: [], chat: [], tips: [], ws: [], latency: [], views: [] });
+
+export const histTs = ref([]);
 export const deltas = ref({ rpm: null, heap: null, bandwidth: null, chat: null, ws: null });
 
 const MAX_CAP = 240;
@@ -33,6 +35,7 @@ function trimAll(to){
       obj[k] = arr.slice(arr.length - to);
     }
   }
+  if (histTs.value.length > to) histTs.value = histTs.value.slice(histTs.value.length - to);
 }
 watch(maxPoints, (mp)=>{ trimAll(mp); });
 
@@ -54,7 +57,10 @@ async function refresh(){
   try {
     const r = await axios.get('/api/metrics');
     const m = r.data || {};
-    metrics.value = m;
+  metrics.value = m;
+
+  const ts = (typeof m.serverTime === 'number' && m.serverTime > 0) ? m.serverTime : Date.now();
+  push(histTs.value, ts);
     push(hist.value.rpm, +(m.system?.requests?.perMin ?? 0));
     push(hist.value.heap, +(m.system?.memory?.heapUsedMB ?? 0));
     const kb = (()=>{ const s=m.bandwidth?.human?.perMin||'0 KB'; const n=parseFloat(s); return isNaN(n)?0:n; })();
