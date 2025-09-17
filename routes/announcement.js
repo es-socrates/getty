@@ -23,6 +23,33 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     } catch {}
     return null;
   }
+  async function isAdminRequest(req) {
+    try {
+      const st = req?.app?.get && req.app.get('store');
+      const token = req?.ns?.admin || req?.ns?.pub || null;
+      if (!st || !token) return false;
+      const meta = await st.get(token, 'meta', null);
+      if (!meta) return false;
+
+      return (meta.role && String(meta.role).toLowerCase() === 'admin');
+    } catch { return false; }
+  }
+  function maskedDefaults() {
+
+    return {
+      messages: [],
+      cooldownSeconds: 300,
+      theme: 'horizontal',
+      bgColor: '#0e1014',
+      textColor: '#e8eef2',
+      animationMode: 'fade',
+      defaultDurationSeconds: 10,
+      staticMode: false,
+      bannerBgType: 'solid',
+      gradientFrom: '#4f36ff',
+      gradientTo: '#10d39e'
+    };
+  }
   const getLimiter = (key) => {
     if (typeof limiters === 'function') return limiters;
     if (limiters && typeof limiters[key] === 'function') return limiters[key];
@@ -48,14 +75,14 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.get('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
-      const ns = await resolveNsFromReq(req);
-      const hasNs = !!ns;
       const cfg = announcementModule.getPublicConfig();
-      if ((hostedWithRedis || requireSessionFlag) && !hasNs) {
-        const masked = { ...cfg, messages: [] };
-        return res.json({ success: true, config: masked });
+      if (hostedWithRedis || requireSessionFlag) {
+        const isAdmin = await isAdminRequest(req);
+        if (!isAdmin) {
+          return res.json({ success: true, config: maskedDefaults() });
+        }
       }
-      res.json({ success: true, config: cfg });
+      return res.json({ success: true, config: cfg });
     } catch {
       res.status(500).json({ success: false, error: 'Internal error' });
     }

@@ -40,8 +40,16 @@ function saveSettings(newSettings) {
 
 function registerTtsRoutes(app, wss, limiter, options = {}) {
   const store = options.store;
+  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedWithRedis = !!process.env.REDIS_URL;
+  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
   app.get('/api/tts-setting', async (req, res) => {
-    if (store && req.ns && (req.ns.admin || req.ns.pub)) {
+    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    if (shouldRequireSession && !hasNs) {
+      return res.json({ ttsEnabled: true, ttsAllChat: false });
+    }
+
+    if (store && hasNs) {
       const ns = req.ns.admin || req.ns.pub;
       const st = await store.get(ns, 'tts-settings', null);
       if (st && typeof st === 'object') {
@@ -53,6 +61,10 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-setting', limiter, async (req, res) => {
+    if (shouldRequireSession) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
+    }
     const bodySchema = z.object({
       ttsEnabled: z.coerce.boolean().optional(),
       ttsAllChat: z.coerce.boolean().optional()
@@ -103,7 +115,12 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.get('/api/tts-language', async (req, res) => {
-    if (store && req.ns && (req.ns.admin || req.ns.pub)) {
+    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    if (shouldRequireSession && !hasNs) {
+      return res.json({ ttsLanguage: 'en' });
+    }
+
+    if (store && hasNs) {
       const ns = req.ns.admin || req.ns.pub;
       const st = await store.get(ns, 'tts-settings', null);
       if (st && typeof st === 'object' && st.ttsLanguage) {
@@ -115,6 +132,10 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-language', limiter, async (req, res) => {
+    if (shouldRequireSession) {
+      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+      if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
+    }
     const bodySchema = z.object({ ttsLanguage: z.enum(['en', 'es']) });
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) {
