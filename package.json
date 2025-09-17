@@ -1,25 +1,26 @@
 {
   "name": "getty",
   "version": "1.1.0",
+  "packageManager": "pnpm@9.12.3",
   "description": "Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "prestart:prod": "npm run build",
+    "prestart:prod": "pnpm run build",
     "start:prod": "cross-env NODE_ENV=production node server.js",
     "dev": "npm-run-all --parallel dev-server dev-css",
     "dev-server": "nodemon --config nodemon.json",
     "admin:dev": "vite --config admin-frontend/vite.config.js",
     "admin:build": "vite build --config admin-frontend/vite.config.js",
-    "dev-css": "npx tailwindcss -i ./src/input.css -o ./public/css/output.css --watch",
+    "dev-css": "tailwindcss -i ./src/input.css -o ./public/css/output.css --watch",
     "test": "cross-env NODE_ENV=test jest --runInBand",
     "lint:css": "stylelint \"src/**/*.css\" --cache",
     "lint:css:fix": "stylelint \"src/**/*.css\" --fix --cache",
-    "build-css": "npx tailwindcss -i src/input.css -o public/css/output.css",
-    "watch-css": "npx tailwindcss -i src/input.css -o public/css/output.css --watch",
-    "minify-html": "npx html-minifier-terser src/index.html -o public/index.html --collapse-whitespace --remove-comments --minify-css false",
-    "minify-js": "npx esbuild public/js/*.js --minify --outdir=public/js/min",
-    "minify-css": "npx postcss public/css/output.css -o public/css/output.css --config postcss.config.cjs",
+    "build-css": "tailwindcss -i src/input.css -o public/css/output.css",
+    "watch-css": "tailwindcss -i src/input.css -o public/css/output.css --watch",
+    "minify-html": "html-minifier-terser src/index.html -o public/index.html --collapse-whitespace --remove-comments --minify-css false",
+    "minify-js": "esbuild public/js/*.js --minify --outdir=public/js/min",
+    "minify-css": "postcss public/css/output.css -o public/css/output.css --config postcss.config.cjs",
     "build:i18n": "node scripts/build-i18n.js",
     "build": "npm-run-all --sequential build-css minify-css build:i18n admin:build minify-html minify-js add-sri",
     "add-sri": "node scripts/add-sri.js",
@@ -29,7 +30,7 @@
     "verify:hosted": "node scripts/hosted-verify.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22 <23"
   },
   "dependencies": {
     "@untitledui/icons": "^0.0.19",

@@ -39,20 +39,38 @@ Want to take your stream to the next level? With getty, managing your widgets in
 
 ### Node.js
 
-- Use the favorite terminal on your system.
-- Install [Node.js](https://nodejs.org/) (v16 or higher (latest LTS version recommended)
-- [npm](https://www.npmjs.com/) (included with Node.js)
-- Install OBS Studio, because you're a streamer. Try it on other software if you want.
+- Use your favorite terminal.
+- Install [Node.js](https://nodejs.org/) 22.x (the project requires Node >=22 <23).
+- Enable Corepack (included with Node) so pnpm is managed automatically by the version pinned in `package.json`:
+
+```bash
+corepack enable
+node -v   # should print v22.x.x
+pnpm -v   # Corepack will provision pnpm@9.12.3
+```
+
+- Optional: install pnpm manually (if you prefer not to use Corepack):
+
+```bash
+npm i -g pnpm@9.12.3
+```
 
 ## Installation
 
-1. Clone this repository or download the files.
-2. Open the terminal in the getty folder.
-3. Run this command to install the dependencies: **npm install**
-4. Run the **npm run build** command to build the app.
-5. Then run **npm start** or **npm run start:prod**.
-6. The server will run the app with the address http://localhost:3000.
-7. Open getty in your web browser and configure your widgets in admin.
+1. Install OBS Studio, Streamlabs or any software of your choice.
+2. Clone this repository or download the files.
+3. Open the terminal in the getty folder.
+4. Optional: Copy env file and adjust values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+5. Install dependencies with pnpm (via Corepack): **pnpm install**
+6. Run the **pnpm run build** command to build the app.
+7. Then run **pnpm run start:prod**.
+8. The server will run the app with the address http://localhost:3000.
+9. Open getty in your web browser and configure your widgets in admin.
 
 **Important:** If you download an update from getty, you must repeat the installation process. In some cases, there may be new dependencies to install, so the process may need to be repeated.
 

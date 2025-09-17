@@ -2,12 +2,12 @@ name: Node CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
   pull_request:
-    branches: [ '**' ]
+    branches: ['**']
     paths-ignore:
       - '**/*.md'
       - 'LICENSE'
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [ 18.x, 20.x, 22.x ]
+        node-version: [18.x, 20.x, 22.x]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,33 +35,36 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
+          cache: 'pnpm'
 
-      - name: Use npm ci when lockfile is present
-        if: hashFiles('package-lock.json') != ''
-        run: npm ci
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
 
-      - name: Fallback to npm install when lockfile is absent
-        if: hashFiles('package-lock.json') == ''
-        run: npm install
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Lint CSS (stylelint)
         if: hashFiles('.stylelintrc*') != '' && matrix.node-version == '22.x'
-        run: npm run lint:css
+        run: pnpm run lint:css
 
       - name: Lint JS/Vue (zero warnings enforced)
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       - name: Security audit (production only)
         if: matrix.node-version == '22.x'
         continue-on-error: true
-        run: npm audit --omit=dev --audit-level=high
+        run: pnpm audit --omit=dev --audit-level=high
 
       - name: Upload built public assets (manual runs only)
         if: github.event_name == 'workflow_dispatch'
