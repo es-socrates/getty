@@ -6,7 +6,6 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "prestart:prod": "pnpm run build",
     "start:prod": "cross-env NODE_ENV=production node server.js",
     "dev": "npm-run-all --parallel dev-server dev-css",
     "dev-server": "nodemon --config nodemon.json",
