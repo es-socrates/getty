@@ -5,8 +5,11 @@ module.exports = {
     '^.+\\.vue$': ['@swc/jest', { jsc: { target: 'es2022', parser: { syntax: 'ecmascript', dynamicImport: true } } }]
   },
   moduleFileExtensions: ['js','json','vue'],
+  moduleNameMapper: {
+    '^vue-i18n$': 'vue-i18n/dist/vue-i18n.cjs.js'
+  },
   transformIgnorePatterns: [
-    '/node_modules/(?!(vue|vue-i18n)/)'
+    '/node_modules/(?!(?:\\.pnpm/[^/]+/node_modules/)?(@?vue|vue-i18n|@intlify)/)'
   ],
   testMatch: ['**/tests/**/*.test.js'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
