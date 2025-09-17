@@ -92,5 +92,10 @@
     "tailwindcss-animate": "^1.0.7",
     "vite": "^5.4.20",
     "vue": "^3.5.21"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.25.9"
+    }
   }
 }
