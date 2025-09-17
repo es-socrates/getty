@@ -316,26 +316,46 @@ app.use(async (req, res, next) => {
     const qToken = (typeof req.query?.token === 'string' && req.query.token.trim()) ? req.query.token.trim() : '';
     const incomingToken = qToken || bearerToken;
 
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    let acceptedToken = '';
     if (incomingToken) {
-      nsPub = incomingToken;
+      try {
+        if (store && hostedMode) {
+          const meta = await store.get(incomingToken, 'meta', null);
+          if (meta) {
+            acceptedToken = incomingToken;
+          }
+        } else {
+          acceptedToken = incomingToken;
+        }
+      } catch {}
+    }
+
+    if (acceptedToken) {
+      nsPub = acceptedToken;
       try {
         if (store) {
-          const adm = await store.get(incomingToken, 'adminToken', null);
+          const adm = await store.get(acceptedToken, 'adminToken', null);
           if (adm) nsAdmin = adm;
         }
       } catch {}
     } else if (!nsAdmin && nsPub && store) {
-
       try {
-        const adm = await store.get(nsPub, 'adminToken', null);
-        if (adm) nsAdmin = adm;
+        if (hostedMode) {
+          const meta = await store.get(nsPub, 'meta', null);
+          if (!meta) nsPub = null;
+        }
+        if (nsPub) {
+          const adm = await store.get(nsPub, 'adminToken', null);
+          if (adm) nsAdmin = adm;
+        }
       } catch {}
     }
 
     req.ns = { admin: nsAdmin || null, pub: nsPub || null };
 
     try {
-      if (incomingToken) {
+      if (acceptedToken) {
         const cookieOpts = {
           httpOnly: true,
           sameSite: 'Lax',
@@ -343,7 +363,7 @@ app.use(async (req, res, next) => {
           path: '/',
           maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
         };
-        res.cookie(PUBLIC_COOKIE, incomingToken, cookieOpts);
+        res.cookie(PUBLIC_COOKIE, acceptedToken, cookieOpts);
         if (nsAdmin) res.cookie(ADMIN_COOKIE, nsAdmin, cookieOpts);
       }
     } catch {}
