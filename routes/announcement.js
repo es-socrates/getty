@@ -70,12 +70,16 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       const colorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
       const schema = z.object({
         cooldownSeconds: z.coerce.number().int().positive().max(86400).optional(),
-        theme: z.enum(['vertical', 'horizontal']).optional(),
+        theme: z.literal('horizontal').optional(),
         bgColor: z.string().regex(colorRegex).optional(),
         textColor: z.string().regex(colorRegex).optional(),
         animationMode: z.enum(['fade','slide-up','slide-left','scale','random']).optional(),
         defaultDurationSeconds: z.coerce.number().int().min(1).max(60).optional(),
-        applyAllDurations: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional()
+        applyAllDurations: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
+        staticMode: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
+        bannerBgType: z.enum(['solid','gradient']).optional(),
+        gradientFrom: z.string().regex(colorRegex).optional(),
+        gradientTo: z.string().regex(colorRegex).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
@@ -90,14 +94,60 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
-      const schema = z.object({ text: z.string().trim().min(1).max(180), linkUrl: z.string().url().optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
+      const colorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+      const schema = z.object({
+        text: z.string().trim().max(90).optional(),
+        linkUrl: z.string().url().optional(),
+        durationSeconds: z.coerce.number().int().min(1).max(60).optional(),
+        title: z.string().trim().max(80).optional(),
+        subtitle1: z.string().trim().max(90).optional(),
+        subtitle2: z.string().trim().max(80).optional(),
+        subtitle3: z.string().trim().max(50).optional(),
+        titleColor: z.string().regex(colorRegex).optional(),
+        subtitle1Color: z.string().regex(colorRegex).optional(),
+        subtitle2Color: z.string().regex(colorRegex).optional(),
+        subtitle3Color: z.string().regex(colorRegex).optional(),
+        titleSize: z.coerce.number().int().min(8).max(72).optional(),
+        subtitle1Size: z.coerce.number().int().min(8).max(64).optional(),
+        subtitle2Size: z.coerce.number().int().min(8).max(64).optional(),
+        subtitle3Size: z.coerce.number().int().min(8).max(64).optional(),
+        ctaText: z.string().trim().max(40).optional(),
+        ctaTextSize: z.coerce.number().int().min(8).max(64).optional(),
+        ctaIcon: z.string().url().or(z.string().trim().max(200)).optional(),
+        ctaBgColor: z.string().regex(colorRegex).optional(),
+        textColorOverride: z.string().regex(colorRegex).optional(),
+        textSize: z.coerce.number().int().min(8).max(64).optional()
+      });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       let imageUrl = null;
       if (req.file) {
         imageUrl = '/uploads/announcement/' + req.file.filename;
       }
-  const msg = announcementModule.addMessage({ text: parsed.data.text, imageUrl, linkUrl: parsed.data.linkUrl, durationSeconds: parsed.data.durationSeconds });
+      const msg = announcementModule.addMessage({
+        text: (parsed.data.text ?? '').trim(),
+        imageUrl,
+        linkUrl: parsed.data.linkUrl,
+        durationSeconds: parsed.data.durationSeconds,
+        title: parsed.data.title,
+        subtitle1: parsed.data.subtitle1,
+        subtitle2: parsed.data.subtitle2,
+        subtitle3: parsed.data.subtitle3,
+        titleColor: parsed.data.titleColor,
+        subtitle1Color: parsed.data.subtitle1Color,
+        subtitle2Color: parsed.data.subtitle2Color,
+        subtitle3Color: parsed.data.subtitle3Color,
+        titleSize: parsed.data.titleSize,
+        subtitle1Size: parsed.data.subtitle1Size,
+        subtitle2Size: parsed.data.subtitle2Size,
+        subtitle3Size: parsed.data.subtitle3Size,
+        ctaText: parsed.data.ctaText,
+        ctaTextSize: parsed.data.ctaTextSize,
+        ctaIcon: parsed.data.ctaIcon,
+        ctaBgColor: parsed.data.ctaBgColor,
+        textColorOverride: parsed.data.textColorOverride,
+        textSize: parsed.data.textSize
+      });
       res.json({ success: true, message: msg });
     } catch {
       res.status(500).json({ success: false, error: 'Internal error' });
@@ -110,12 +160,31 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
-      const schema = z.object({
-        text: z.string().trim().min(1).max(180).optional(),
+      const colorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  const schema = z.object({
+        text: z.string().trim().max(90).optional(),
         enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
         linkUrl: z.string().url().optional().or(z.literal('')),
         removeImage: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(),
-        durationSeconds: z.coerce.number().int().min(1).max(60).optional()
+        durationSeconds: z.coerce.number().int().min(1).max(60).optional(),
+        title: z.string().trim().max(80).optional(),
+        subtitle1: z.string().trim().max(90).optional(),
+        subtitle2: z.string().trim().max(80).optional(),
+        subtitle3: z.string().trim().max(50).optional(),
+        titleColor: z.string().regex(colorRegex).optional(),
+        subtitle1Color: z.string().regex(colorRegex).optional(),
+        subtitle2Color: z.string().regex(colorRegex).optional(),
+        subtitle3Color: z.string().regex(colorRegex).optional(),
+        titleSize: z.coerce.number().int().min(8).max(72).optional(),
+        subtitle1Size: z.coerce.number().int().min(8).max(64).optional(),
+        subtitle2Size: z.coerce.number().int().min(8).max(64).optional(),
+        subtitle3Size: z.coerce.number().int().min(8).max(64).optional(),
+        ctaText: z.string().trim().max(40).optional(),
+        ctaTextSize: z.coerce.number().int().min(8).max(64).optional(),
+        ctaIcon: z.string().url().or(z.string().trim().max(200)).optional(),
+        ctaBgColor: z.string().regex(colorRegex).optional(),
+        textColorOverride: z.string().regex(colorRegex).optional(),
+        textSize: z.coerce.number().int().min(8).max(64).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
@@ -143,7 +212,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       }
       const existing = announcementModule.getMessage(req.params.id);
       if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
-      const schema = z.object({ text: z.string().trim().min(1).max(180).optional(), linkUrl: z.string().url().optional(), enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
+      const schema = z.object({ text: z.string().trim().max(90).optional(), linkUrl: z.string().url().optional(), enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       const patch = { ...parsed.data };

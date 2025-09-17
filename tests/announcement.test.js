@@ -60,8 +60,8 @@ describe('Announcement API', () => {
     expect(res.body.message.enabled).toBe(false);
   });
 
-  it('Validation: reject over 180 chars', async () => {
-    const long = 'x'.repeat(190);
+  it('Validation: reject over 90 chars', async () => {
+    const long = 'x'.repeat(95);
     const res = await base
       .post('/api/announcement/message')
       .field('text', long);

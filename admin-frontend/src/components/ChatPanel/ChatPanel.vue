@@ -70,18 +70,18 @@
           </div>
           <div class="chat-actions-row">
             <button
-              type="button"
-              class="btn btn-secondary btn-compact-secondary"
-              @click="resetColors"
-              :aria-label="t('resetColors')">
-              {{ t('resetColors') }}
-            </button>
-            <button
               class="btn"
               :disabled="saving"
               @click="save"
               :aria-busy="saving ? 'true' : 'false'">
               {{ saving ? t('commonSaving') : t('saveSettings') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-compact-secondary"
+              @click="resetColors"
+              :aria-label="t('resetColors')">
+              {{ t('resetColors') }}
             </button>
           </div>
           <div class="chat-save-row">

@@ -20,23 +20,17 @@
         </div>
         <div class="ann-grid">
           <div class="ann-form-group">
-            <label class="ann-form-label">{{ t('announcementCooldownSeconds') }}</label>
+            <label class="ann-form-label">{{
+              t('announcementCooldownLabel') || t('announcementCooldownSeconds')
+            }}</label>
             <input class="ann-input" type="number" v-model.number="cooldownMinutes" min="1" />
           </div>
           <div class="ann-form-group">
-            <label class="ann-form-label">{{ t('announcementTheme') }}</label>
-            <select class="ann-select" v-model="settings.theme">
-              <option value="vertical">{{ t('announcementThemeVertical') }}</option>
-              <option value="horizontal">{{ t('announcementThemeHorizontal') }}</option>
+            <label class="ann-form-label">{{ t('announcementBgType') }}</label>
+            <select class="ann-select" v-model="settings.bannerBgType">
+              <option value="solid">{{ t('announcementBgSolid') }}</option>
+              <option value="gradient">{{ t('announcementBgGradient') }}</option>
             </select>
-          </div>
-          <div class="ann-form-group">
-            <label class="ann-form-label">{{ t('announcementBgColor') }}</label>
-            <input class="ann-input" type="color" v-model="settings.bgColor" />
-          </div>
-          <div class="ann-form-group">
-            <label class="ann-form-label">{{ t('announcementTextColor') }}</label>
-            <input class="ann-input" type="color" v-model="settings.textColor" />
           </div>
           <div class="ann-form-group">
             <label class="ann-form-label">{{ t('announcementAnimationMode') }}</label>
@@ -53,100 +47,316 @@
             <input
               class="ann-input"
               type="number"
+              min="1"
+              max="60"
               v-model.number="settings.defaultDurationSeconds" />
           </div>
           <div class="ann-form-group">
-            <label class="ann-form-label inline-flex items-center gap-2">{{
-              t('announcementApplyAll')
-            }}</label>
-            <label class="ann-switch">
-              <input type="checkbox" v-model="settings.applyAllDurations" />
-              <span class="ann-slider"></span>
-            </label>
+            <label class="ann-form-label">{{ t('announcementTextColor') }}</label>
+            <input class="ann-input" type="color" v-model="settings.textColor" />
           </div>
-        </div>
-        <div class="flex gap-2 mt-4 flex-wrap">
-          <button class="btn" :disabled="savingSettings" @click="saveSettings">
-            {{ savingSettings ? t('commonSaving') : t('announcementSaveSettings') }}
-          </button>
-          <button class="btn" @click="clearAll('all')">{{ t('announcementClearAll') }}</button>
-          <button class="btn" @click="clearAll('test')">{{ t('announcementClearTest') }}</button>
-        </div>
-      </div>
-
-      <div class="ann-card">
-        <div class="ann-card-header">
-          <h3 class="ann-card-title">{{ t('announcementFavicon') }}</h3>
-        </div>
-        <div class="ann-grid">
           <div class="ann-form-group">
-            <label class="ann-form-label">{{ t('announcementSiteUrl') }}</label>
-            <input class="ann-input" v-model="faviconUrl" placeholder="https://example.com" />
+            <label class="ann-form-label">{{ t('announcementBgColor') }}</label>
+            <input class="ann-input" type="color" v-model="settings.bgColor" />
           </div>
-          <div class="ann-form-group flex items-end gap-2">
-            <button class="btn" type="button" @click="fetchFavicon">
-              {{ t('announcementFaviconFetch') }}
-            </button>
-            <div v-if="faviconData" class="flex items-center gap-2">
-              <img :src="faviconData" class="h-8 w-8 object-contain" />
-              <button class="btn" type="button" @click="clearFavicon">
-                {{ t('announcementFaviconNone') }}
+          <div class="ann-form-group" v-if="settings.bannerBgType === 'gradient'">
+            <label class="ann-form-label">{{ t('announcementGradFrom') }}</label>
+            <input class="ann-input" type="color" v-model="settings.gradientFrom" />
+          </div>
+          <div class="ann-form-group" v-if="settings.bannerBgType === 'gradient'">
+            <label class="ann-form-label">{{ t('announcementGradTo') }}</label>
+            <input class="ann-input" type="color" v-model="settings.gradientTo" />
+          </div>
+          <div class="ann-form-group">
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                class="switch"
+                :aria-pressed="String(settings.applyAllDurations)"
+                :aria-label="t('announcementApplyAll')"
+                @click="settings.applyAllDurations = !settings.applyAllDurations">
+                <span class="knob"></span>
               </button>
+              <span class="ann-enabled-label">{{ t('announcementApplyAll') }}</span>
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                class="switch"
+                :aria-pressed="String(settings.staticMode)"
+                :aria-label="t('announcementStaticMode')"
+                @click="settings.staticMode = !settings.staticMode">
+                <span class="knob"></span>
+              </button>
+              <span class="ann-enabled-label">{{ t('announcementStaticMode') }}</span>
             </div>
           </div>
         </div>
+        <div class="flex gap-2 mt-3">
+          <button class="btn" type="button" @click="saveSettings" :disabled="savingSettings">
+            {{ savingSettings ? t('commonUpdating') : t('saveSettings') }}
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div v-show="activeTab === 'messages'" class="ann-tab-panel" role="tabpanel">
       <div class="ann-card">
         <div class="ann-card-header">
           <h3 class="ann-card-title">{{ t('announcementAddMessage') }}</h3>
         </div>
         <form @submit.prevent="addMessage">
-          <div class="ann-form-group">
-            <label class="ann-form-label">{{ t('announcementText') }}</label>
-            <textarea
-              class="ann-textarea"
-              :class="{ 'input-error': errors.text }"
-              v-model="newMsg.text"
-              maxlength="180"
-              required />
-            <div
-              class="ann-char-count"
-              :class="{
-                warning: newMsg.text.length > 140 && newMsg.text.length <= 180,
-                danger: newMsg.text.length > 180,
-              }">
-              {{ newMsg.text.length }}/180
+          <div class="ann-section">
+            <button
+              class="ann-collapse"
+              type="button"
+              @click="sectionOpen.content = !sectionOpen.content">
+              <span class="caret" :class="{ open: sectionOpen.content }"></span>
+              {{ t('announcementSectionContent') || 'Contenido' }}
+            </button>
+            <div v-show="sectionOpen.content" class="ann-section-body">
+              <div class="ann-grid">
+                <div class="ann-form-group ann-grid-full">
+                  <label class="ann-form-label">{{ t('announcementText') }}</label>
+                  <textarea
+                    class="ann-textarea ann-textarea--compact"
+                    :class="{ 'input-error': errors.text }"
+                    v-model="newMsg.text"
+                    maxlength="90" />
+                  <div
+                    class="ann-char-count"
+                    :class="{
+                      warning: newMsg.text.length > 72 && newMsg.text.length <= 90,
+                      danger: newMsg.text.length > 90,
+                    }">
+                    {{ newMsg.text.length }}/90
+                  </div>
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementBannerTitle') }}</label>
+                  <input class="ann-input" v-model="newMsg.title" maxlength="80" />
+                  <div
+                    class="ann-char-count"
+                    :class="{
+                      warning: newMsg.title.length > 64 && newMsg.title.length <= 80,
+                      danger: newMsg.title.length > 80,
+                    }">
+                    {{ newMsg.title.length }}/80
+                  </div>
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementSubtitle1') }}</label>
+                  <input class="ann-input" v-model="newMsg.subtitle1" maxlength="90" />
+                  <div
+                    class="ann-char-count"
+                    :class="{
+                      warning: newMsg.subtitle1.length > 72 && newMsg.subtitle1.length <= 90,
+                      danger: newMsg.subtitle1.length > 90,
+                    }">
+                    {{ newMsg.subtitle1.length }}/90
+                  </div>
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementSubtitle2') }}</label>
+                  <input class="ann-input" v-model="newMsg.subtitle2" maxlength="80" />
+                  <div
+                    class="ann-char-count"
+                    :class="{
+                      warning: newMsg.subtitle2.length > 64 && newMsg.subtitle2.length <= 80,
+                      danger: newMsg.subtitle2.length > 80,
+                    }">
+                    {{ newMsg.subtitle2.length }}/80
+                  </div>
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{
+                    t('announcementSubtitle3') || 'Subtitle 3'
+                  }}</label>
+                  <input class="ann-input" v-model="newMsg.subtitle3" maxlength="50" />
+                  <div
+                    class="ann-char-count"
+                    :class="{
+                      warning: newMsg.subtitle3.length > 40 && newMsg.subtitle3.length <= 50,
+                      danger: newMsg.subtitle3.length > 50,
+                    }">
+                    {{ newMsg.subtitle3.length }}/50
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="ann-grid">
-            <div class="ann-form-group">
-              <label class="ann-form-label">{{ t('announcementLinkUrl') }}</label>
-              <input class="ann-input" v-model="newMsg.linkUrl" />
-            </div>
-            <div class="ann-form-group">
-              <label class="ann-form-label">{{ t('announcementDurationSeconds') }}</label>
-              <input class="ann-input" type="number" v-model.number="newMsg.durationSeconds" />
-            </div>
-            <div class="ann-form-group">
-              <label class="ann-form-label">{{ t('announcementImage') }}</label>
-              <div class="ann-file-wrapper">
-                <button type="button" class="ann-file-btn" @click="$el.nextElementSibling.click()">
-                  {{ t('announcementImage') }}
-                </button>
-                <input
-                  class="ann-file-input"
-                  type="file"
-                  accept="image/png,image/jpeg,image/gif"
-                  @change="onNewImage" />
-              </div>
-              <div v-if="newMsg.imageFile" class="small opacity-80 mt-1">
-                {{ newMsg.imageFile.name }}
+
+          <div class="ann-section">
+            <button
+              class="ann-collapse"
+              type="button"
+              @click="sectionOpen.style = !sectionOpen.style">
+              <span class="caret" :class="{ open: sectionOpen.style }"></span>
+              {{ t('announcementSectionStyle') || 'Estilos' }}
+            </button>
+            <div v-show="sectionOpen.style" class="ann-section-body">
+              <div class="ann-grid">
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementTextColor') }}</label>
+                  <input class="ann-input" type="color" v-model="newMsg.textColorOverride" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementTitleColor') }}</label>
+                  <input class="ann-input" type="color" v-model="newMsg.titleColor" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementSubtitle1Color') }}</label>
+                  <input class="ann-input" type="color" v-model="newMsg.subtitle1Color" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementSubtitle2Color') }}</label>
+                  <input class="ann-input" type="color" v-model="newMsg.subtitle2Color" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{
+                    t('announcementSubtitle3Color') || 'Subtitle 3 color'
+                  }}</label>
+                  <input class="ann-input" type="color" v-model="newMsg.subtitle3Color" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{
+                    t('announcementTextSize') || 'Text size'
+                  }}</label>
+                  <input
+                    class="ann-input"
+                    type="number"
+                    min="8"
+                    max="64"
+                    v-model.number="newMsg.textSize" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementTitleSize') }}</label>
+                  <input
+                    class="ann-input"
+                    type="number"
+                    min="8"
+                    max="72"
+                    v-model.number="newMsg.titleSize" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementSubtitle1Size') }}</label>
+                  <input
+                    class="ann-input"
+                    type="number"
+                    min="8"
+                    max="64"
+                    v-model.number="newMsg.subtitle1Size" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementSubtitle2Size') }}</label>
+                  <input
+                    class="ann-input"
+                    type="number"
+                    min="8"
+                    max="64"
+                    v-model.number="newMsg.subtitle2Size" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{
+                    t('announcementSubtitle3Size') || 'Subtitle 3 size'
+                  }}</label>
+                  <input
+                    class="ann-input"
+                    type="number"
+                    min="8"
+                    max="64"
+                    v-model.number="newMsg.subtitle3Size" />
+                </div>
               </div>
             </div>
           </div>
+
+          <div class="ann-section">
+            <button class="ann-collapse" type="button" @click="sectionOpen.cta = !sectionOpen.cta">
+              <span class="caret" :class="{ open: sectionOpen.cta }"></span>
+              {{ t('announcementSectionCTA') || 'CTA' }}
+            </button>
+            <div v-show="sectionOpen.cta" class="ann-section-body">
+              <div class="ann-grid">
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementCtaText') }}</label>
+                  <input class="ann-input" v-model="newMsg.ctaText" maxlength="40" />
+                  <div
+                    class="ann-char-count"
+                    :class="{
+                      warning: newMsg.ctaText.length > 32 && newMsg.ctaText.length <= 40,
+                      danger: newMsg.ctaText.length > 40,
+                    }">
+                    {{ newMsg.ctaText.length }}/40
+                  </div>
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementCtaIcon') }}</label>
+                  <input class="ann-input" v-model="newMsg.ctaIcon" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{
+                    t('announcementCtaBgColor') || 'CTA background'
+                  }}</label>
+                  <input class="ann-input" type="color" v-model="newMsg.ctaBgColor" />
+                </div>
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{
+                    t('announcementCtaTextSize') || 'CTA text size'
+                  }}</label>
+                  <input
+                    class="ann-input"
+                    type="number"
+                    min="8"
+                    max="64"
+                    v-model.number="newMsg.ctaTextSize" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ann-section">
+            <button
+              class="ann-collapse"
+              type="button"
+              @click="sectionOpen.media = !sectionOpen.media">
+              <span class="caret" :class="{ open: sectionOpen.media }"></span>
+              {{ t('announcementSectionMediaTiming') || 'Duración e Imagen' }}
+            </button>
+            <div v-show="sectionOpen.media" class="ann-section-body">
+              <div class="ann-grid">
+                <div class="ann-form-group">
+                  <label class="ann-form-label">{{ t('announcementDurationSeconds') }}</label>
+                  <input class="ann-input" type="number" v-model.number="newMsg.durationSeconds" />
+                </div>
+                <div class="ann-form-group ann-grid-full">
+                  <label class="ann-form-label sr-only">{{ t('announcementImage') }}</label>
+                  <div class="flex items-center gap-2">
+                    <input
+                      ref="newImageInputRef"
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif"
+                      :aria-label="t('announcementImage')"
+                      @change="onNewImage" />
+                    <div
+                      class="small opacity-80 truncate max-w-[220px]"
+                      :title="newMsg.imageFile ? newMsg.imageFile.name : ''">
+                      <template v-if="newMsg.imageFile">{{ newMsg.imageFile.name }}</template>
+                      <template v-else>{{ t('imageNoneSelected') }}</template>
+                    </div>
+                    <button
+                      v-if="newMsg.imageFile"
+                      type="button"
+                      class="ann-action-btn"
+                      @click="clearNewImage">
+                      {{ t('remove') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="flex gap-2 mt-3">
             <button class="btn" type="submit" :disabled="adding">
               {{ adding ? t('commonAdding') : t('announcementAddMessage') }}
@@ -157,9 +367,7 @@
 
       <div class="ann-card">
         <div class="ann-card-header">
-          <h3 class="ann-card-title">
-            {{ t('announcementSettings') }} - {{ t('announcementAddMessage') }}
-          </h3>
+          <h3 class="ann-card-title">{{ t('announcementBannerPreview') }}</h3>
           <span class="ann-badge">{{ messages.length }}</span>
         </div>
         <div v-if="!messages.length" class="ann-alert info">
@@ -168,15 +376,17 @@
         <div v-else>
           <div v-for="m in messages" :key="m.id" class="ann-message-item">
             <div class="ann-message-header">
-              <div class="ann-message-text">{{ m.text }}</div>
-              <label class="ann-action-btn">
-                <input
-                  type="checkbox"
-                  v-model="m.enabled"
-                  @change="toggleMessageEnabled(m)"
-                  aria-label="t('announcementEnabled') + ' ' + m.text" />
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  class="switch"
+                  :aria-pressed="String(m.enabled)"
+                  :aria-label="t('announcementEnabled')"
+                  @click="(m.enabled = !m.enabled), toggleMessageEnabled(m)">
+                  <span class="knob"></span>
+                </button>
                 <span class="ann-enabled-label">{{ t('announcementEnabled') }}</span>
-              </label>
+              </div>
             </div>
             <div class="ann-message-meta">
               <span v-if="m.linkUrl">{{ m.linkUrl }}</span>
@@ -184,8 +394,102 @@
                 >{{ t('announcementDurationSeconds') }}: {{ m.durationSeconds }}</span
               >
             </div>
-            <div v-if="m.imageUrl" class="mt-2">
-              <img :src="m.imageUrl" class="h-[50px] object-cover rounded" />
+            <div class="ann-preview" aria-label="Announcement preview">
+              <div class="ann-prev-root" :style="getPreviewBg(settings)">
+                <div class="ann-prev-content">
+                  <div v-if="m.imageUrl" class="ann-prev-media">
+                    <img :src="m.imageUrl" class="ann-prev-image" alt="" />
+                  </div>
+                  <div class="ann-prev-maincol">
+                    <div class="ann-prev-textblock">
+                      <div
+                        v-if="m.title"
+                        class="ann-prev-title"
+                        :style="{
+                          color: m.titleColor || undefined,
+                          fontSize:
+                            m.titleSize != null ? m.titleSize * previewScale + 'px' : undefined,
+                        }">
+                        {{ m.title }}
+                      </div>
+                      <div
+                        v-if="m.subtitle1"
+                        class="ann-prev-subtitle1"
+                        :style="{
+                          color: m.subtitle1Color || undefined,
+                          fontSize:
+                            m.subtitle1Size != null
+                              ? m.subtitle1Size * previewScale + 'px'
+                              : undefined,
+                        }">
+                        {{ m.subtitle1 }}
+                      </div>
+                      <div
+                        v-if="m.subtitle2"
+                        class="ann-prev-subtitle2"
+                        :style="{
+                          color: m.subtitle2Color || undefined,
+                          fontSize:
+                            m.subtitle2Size != null
+                              ? m.subtitle2Size * previewScale + 'px'
+                              : undefined,
+                        }">
+                        {{ m.subtitle2 }}
+                      </div>
+                      <div
+                        v-if="m.subtitle3"
+                        class="ann-prev-subtitle3"
+                        :style="{
+                          color: m.subtitle3Color || undefined,
+                          fontSize:
+                            m.subtitle3Size != null
+                              ? m.subtitle3Size * previewScale + 'px'
+                              : undefined,
+                        }">
+                        {{ m.subtitle3 }}
+                      </div>
+                    </div>
+                    <!-- eslint-disable -->
+                    <div
+                      v-if="m.text && m.text.trim().length"
+                      class="ann-prev-text"
+                      :style="{
+                        color: m.textColorOverride || settings.textColor || undefined,
+                        fontSize: m.textSize != null ? m.textSize * previewScale + 'px' : undefined,
+                      }"
+                      v-html="renderMarkdown(m.text)"></div>
+                  </div>
+                </div>
+                <div v-if="m.ctaText" class="ann-prev-side">
+                  <a
+                    v-if="m.linkUrl"
+                    class="ann-prev-cta"
+                    :href="m.linkUrl"
+                    target="_blank"
+                    rel="noopener"
+                    :style="{
+                      background: m.ctaBgColor || 'transparent',
+                      fontSize:
+                        m.ctaTextSize != null ? m.ctaTextSize * previewScale + 'px' : undefined,
+                    }">
+                    <img v-if="m.ctaIcon" class="ann-prev-cta-icon" :src="m.ctaIcon" alt="" />
+                    {{ m.ctaText }}
+                  </a>
+                  <span
+                    v-else
+                    class="ann-prev-cta"
+                    role="button"
+                    tabindex="0"
+                    :style="{
+                      background: m.ctaBgColor || 'transparent',
+                      fontSize:
+                        m.ctaTextSize != null ? m.ctaTextSize * previewScale + 'px' : undefined,
+                    }">
+                    <img v-if="m.ctaIcon" class="ann-prev-cta-icon" :src="m.ctaIcon" alt="" />
+                    {{ m.ctaText }}
+                  </span>
+                </div>
+              </div>
             </div>
             <div class="ann-message-actions">
               <button class="ann-action-btn" type="button" @click="(e) => openEdit(m, e)">
@@ -220,35 +524,224 @@
       aria-labelledby="announcement-edit-title">
       <div class="ann-modal" ref="modalRef">
         <h3 id="announcement-edit-title" class="ann-modal-title">{{ t('commonEdit') }}</h3>
-        <div class="ann-form-group">
-          <label class="ann-form-label">{{ t('announcementText') }}</label>
-          <textarea class="ann-textarea" v-model="editForm.text" maxlength="180" />
-          <div
-            class="ann-char-count"
-            :class="{
-              warning: editForm.text.length > 140 && editForm.text.length <= 180,
-              danger: editForm.text.length > 180,
-            }">
-            {{ editForm.text.length }}/180
+        <div class="ann-grid">
+          <div class="ann-form-group ann-grid-full">
+            <label class="ann-form-label">{{ t('announcementText') }}</label>
+            <textarea
+              class="ann-textarea ann-textarea--compact"
+              v-model="editForm.text"
+              maxlength="90" />
+            <div
+              class="ann-char-count"
+              :class="{
+                warning: editForm.text.length > 72 && editForm.text.length <= 90,
+                danger: editForm.text.length > 90,
+              }">
+              {{ editForm.text.length }}/90
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementTextColor') }}</label>
+            <input class="ann-input" type="color" v-model="editForm.textColorOverride" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementDurationSeconds') }}</label>
+            <input class="ann-input" type="number" v-model.number="editForm.durationSeconds" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementTextSize') || 'Text size' }}</label>
+            <input
+              class="ann-input"
+              type="number"
+              min="8"
+              max="64"
+              v-model.number="editForm.textSize" />
           </div>
         </div>
-        <div class="ann-form-group">
-          <label class="ann-form-label">{{ t('announcementLinkUrl') }}</label>
-          <input class="ann-input" v-model="editForm.linkUrl" />
+        <div class="ann-grid">
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementBannerTitle') }}</label>
+            <input class="ann-input" v-model="editForm.title" maxlength="80" />
+            <div
+              class="ann-char-count"
+              :class="{
+                warning: editForm.title.length > 64 && editForm.title.length <= 80,
+                danger: editForm.title.length > 80,
+              }">
+              {{ editForm.title.length }}/80
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle1') }}</label>
+            <input class="ann-input" v-model="editForm.subtitle1" maxlength="90" />
+            <div
+              class="ann-char-count"
+              :class="{
+                warning: editForm.subtitle1.length > 72 && editForm.subtitle1.length <= 90,
+                danger: editForm.subtitle1.length > 90,
+              }">
+              {{ editForm.subtitle1.length }}/90
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle2') }}</label>
+            <input class="ann-input" v-model="editForm.subtitle2" maxlength="80" />
+            <div
+              class="ann-char-count"
+              :class="{
+                warning: editForm.subtitle2.length > 64 && editForm.subtitle2.length <= 80,
+                danger: editForm.subtitle2.length > 80,
+              }">
+              {{ editForm.subtitle2.length }}/80
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle3') || 'Subtitle 3' }}</label>
+            <input class="ann-input" v-model="editForm.subtitle3" maxlength="50" />
+            <div
+              class="ann-char-count"
+              :class="{
+                warning: editForm.subtitle3.length > 40 && editForm.subtitle3.length <= 50,
+                danger: editForm.subtitle3.length > 50,
+              }">
+              {{ editForm.subtitle3.length }}/50
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementTitleColor') }}</label>
+            <input class="ann-input" type="color" v-model="editForm.titleColor" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle1Color') }}</label>
+            <input class="ann-input" type="color" v-model="editForm.subtitle1Color" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle2Color') }}</label>
+            <input class="ann-input" type="color" v-model="editForm.subtitle2Color" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{
+              t('announcementSubtitle3Color') || 'Subtitle 3 color'
+            }}</label>
+            <input class="ann-input" type="color" v-model="editForm.subtitle3Color" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementTitleSize') }}</label>
+            <input
+              class="ann-input"
+              type="number"
+              min="8"
+              max="72"
+              v-model.number="editForm.titleSize" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle1Size') }}</label>
+            <input
+              class="ann-input"
+              type="number"
+              min="8"
+              max="64"
+              v-model.number="editForm.subtitle1Size" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementSubtitle2Size') }}</label>
+            <input
+              class="ann-input"
+              type="number"
+              min="8"
+              max="64"
+              v-model.number="editForm.subtitle2Size" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{
+              t('announcementSubtitle3Size') || 'Subtitle 3 size'
+            }}</label>
+            <input
+              class="ann-input"
+              type="number"
+              min="8"
+              max="64"
+              v-model.number="editForm.subtitle3Size" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementCtaText') }}</label>
+            <input class="ann-input" v-model="editForm.ctaText" maxlength="40" />
+            <div
+              class="ann-char-count"
+              :class="{
+                warning: editForm.ctaText.length > 32 && editForm.ctaText.length <= 40,
+                danger: editForm.ctaText.length > 40,
+              }">
+              {{ editForm.ctaText.length }}/40
+            </div>
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{ t('announcementCtaIcon') }}</label>
+            <input class="ann-input" v-model="editForm.ctaIcon" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{
+              t('announcementCtaBgColor') || 'CTA background'
+            }}</label>
+            <input class="ann-input" type="color" v-model="editForm.ctaBgColor" />
+          </div>
+          <div class="ann-form-group">
+            <label class="ann-form-label">{{
+              t('announcementCtaTextSize') || 'CTA text size'
+            }}</label>
+            <input
+              class="ann-input"
+              type="number"
+              min="8"
+              max="64"
+              v-model.number="editForm.ctaTextSize" />
+          </div>
         </div>
-        <div class="ann-form-group">
-          <label class="ann-form-label">{{ t('announcementDurationSeconds') }}</label>
-          <input class="ann-input" type="number" v-model.number="editForm.durationSeconds" />
+        <div class="ann-form-group flex items-center gap-6">
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              class="switch"
+              :aria-pressed="String(editForm.enabled)"
+              :aria-label="t('announcementEnabled')"
+              @click="editForm.enabled = !editForm.enabled">
+              <span class="knob"></span>
+            </button>
+            <span class="ann-enabled-label">{{ t('announcementEnabled') }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              class="switch"
+              :aria-pressed="String(editForm.removeImage)"
+              :aria-label="t('announcementRemoveImage')"
+              @click="editForm.removeImage = !editForm.removeImage">
+              <span class="knob"></span>
+            </button>
+            <span class="ann-enabled-label">{{ t('announcementRemoveImage') }}</span>
+          </div>
         </div>
-        <div class="ann-form-group flex items-center gap-4">
-          <label class="inline-flex items-center gap-2 text-xs opacity-80"
-            ><input type="checkbox" v-model="editForm.enabled" />
-            {{ t('announcementEnabled') }}</label
-          >
-          <label class="inline-flex items-center gap-2 text-xs opacity-80"
-            ><input type="checkbox" v-model="editForm.removeImage" />
-            {{ t('announcementRemoveImage') }}</label
-          >
+
+        <div class="ann-form-group">
+          <label class="ann-form-label">{{ t('announcementImage') }}</label>
+          <div class="flex items-center gap-2">
+            <input
+              ref="editImageInputRef"
+              type="file"
+              accept="image/png,image/jpeg,image/gif"
+              @change="handleEditImage" />
+            <div class="small opacity-80 truncate max-w-[220px]" :title="editSelectedFileName">
+              <template v-if="editSelectedFileName">{{ editSelectedFileName }}</template>
+              <template v-else>{{ t('imageNoneSelected') }}</template>
+            </div>
+            <button
+              v-if="editSelectedFileName"
+              type="button"
+              class="ann-action-btn"
+              @click="clearEditImage">
+              {{ t('remove') }}
+            </button>
+          </div>
         </div>
         <div class="flex gap-2 mt-4">
           <button class="btn" :disabled="updating" @click="submitEdit">
@@ -262,6 +755,7 @@
 </template>
 
 <script setup>
+import { reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CopyField from '../shared/CopyField.vue';
 import { useAnnouncementPanel } from './AnnouncementPanel.js';
@@ -277,8 +771,6 @@ const {
   errors,
   editing,
   editForm,
-  faviconUrl,
-  faviconData,
   savingSettings,
   adding,
   updating,
@@ -286,9 +778,6 @@ const {
   widgetUrl,
   activeTab,
   saveSettings,
-  clearAll,
-  fetchFavicon,
-  clearFavicon,
   addMessage,
   onNewImage,
   toggleMessageEnabled,
@@ -300,9 +789,101 @@ const {
 
 const tabs = [
   { id: 'settings', label: t('settings') || t('announcementSettings') },
-  { id: 'messages', label: t('announcementAddMessage') },
   { id: 'integration', label: t('obsIntegration') },
 ];
+
+const sectionOpen = reactive({ content: true, style: false, cta: false, media: false });
+
+const previewScale = 0.65;
+
+const newImageInputRef = ref(null);
+function clearNewImage() {
+  if (newImageInputRef.value) {
+    try {
+      newImageInputRef.value.value = '';
+    } catch {}
+  }
+  if (newMsg) {
+    newMsg.imageFile = null;
+  }
+}
+
+const editImageInputRef = ref(null);
+const editSelectedFileName = ref('');
+function handleEditImage(e) {
+  const f = e?.target?.files?.[0];
+  editSelectedFileName.value = f ? f.name : '';
+
+  state.onEditImage(e);
+}
+function clearEditImage() {
+  if (editImageInputRef.value) {
+    try {
+      editImageInputRef.value.value = '';
+    } catch {}
+  }
+  editSelectedFileName.value = '';
+}
+watch(editing, (val) => {
+  if (val) {
+    editSelectedFileName.value = '';
+    if (editImageInputRef.value) {
+      try {
+        editImageInputRef.value.value = '';
+      } catch {}
+    }
+  }
+});
+
+function getPreviewBg(s) {
+  try {
+    const useGradient = s.bannerBgType === 'gradient' && s.gradientFrom && s.gradientTo;
+    const bg = useGradient
+      ? `linear-gradient(135deg, ${s.gradientFrom}, ${s.gradientTo})`
+      : s.bgColor || '#0e1014';
+    const color = s.textColor || '#ffffff';
+    return { background: bg, color };
+  } catch {
+    return {};
+  }
+}
+
+function escapeHTML(str = '') {
+  return String(str).replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      }[c] || c)
+  );
+}
+function stripDangerous(html) {
+  return html
+    .replace(/<\/(?:script|style)[^>]*>/gi, '')
+    .replace(/<(?:script|style)[^>]*>[\s\S]*?<\/(?:script|style)>/gi, '')
+    .replace(/on[a-z]+="[^"]*"/gi, '');
+}
+function renderMarkdown(text = '') {
+  let html = escapeHTML(text);
+  html = html.replace(/\*\*(.+?)\*\*/g, (_, g1) => '<strong>' + g1 + '</strong>');
+  html = html.replace(/\*(.+?)\*/g, (_, g1) => '<em>' + g1 + '</em>');
+  html = html.replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, (m, label, url) => {
+    const safeLabel = escapeHTML(label);
+    const safeUrl = url.replace(/"|'|\\/g, '');
+    return (
+      '<a href="' +
+      safeUrl +
+      '" target="_blank" rel="noopener" class="ann-link">' +
+      safeLabel +
+      '</a>'
+    );
+  });
+  return stripDangerous(html);
+}
 </script>
 
 <style scoped>

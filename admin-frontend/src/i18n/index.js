@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n';
 const adminExtra = {
   en: {
   requiredField: 'Required', invalidUrl: 'Invalid URL', invalidRange: 'Out of range', valMax120: 'Max 120 chars', valTooShort: 'Too short', valMin1: 'Min 1', valInvalid: 'Invalid', valMax1MB: 'Max 1MB', valRange1to60: '1-60',
-  audioSource: 'Audio Source', useRemoteAudio: 'Remote (Default)', useCustomAudio: 'Custom', chatUrlPlaceholder: 'https://odysee.com/$/livestream/...', socialMediaAddItem: 'Add Item', socialMediaName: 'Name', socialMediaLink: 'Link (URL)', socialMediaIcon: 'Icon', socialMediaCustomIcon: 'Custom Icon', socialMediaIconCustom: 'Custom', socialMediaIconX: 'X (Twitter)', socialMediaIconInstagram: 'Instagram', socialMediaIconYoutube: 'YouTube', socialMediaIconTelegram: 'Telegram', socialMediaIconDiscord: 'Discord', socialMediaIconOdysee: 'Odysee', socialMediaIconRumble: 'Rumble', socialMediaDelete: 'Delete', socialMediaSave: 'Save List', socialMediaLoadFailed: 'Failed to load social media config', socialMediaSaved: 'Social media config saved', socialMediaSaveFailed: 'Failed to save social media config', socialMediaValidationError: 'Validation error', socialMediaTooMany: 'Too many items (max 50)', socialMediaNameRequired: 'Name is required', socialMediaNameTooLong: 'Name is too long', socialMediaLinkRequired: 'Link is required', socialMediaLinkTooLong: 'Link is too long', socialMediaInvalidUrl: 'Invalid URL', socialMediaInvalidHttps: 'Must be a valid HTTPS URL', socialMediaCustomIconInvalid: 'Custom icon must be a data:image/* base64 URL', socialMediaCustomIconTooLarge: 'Custom icon is too large', externalNotificationsTitle: 'Integrations', externalDiscordWebhook: 'Discord Webhook URL', externalTelegramBotToken: 'Telegram Bot Token', externalTelegramChatId: 'Telegram Chat ID', externalTemplate: 'Template', externalTemplateHint: 'Available vars: {from} {amount} {usd} {message}', externalSave: 'Save Settings', externalStatusActive: 'Active', externalStatusInactive: 'Inactive', externalSaved: 'External notifications saved', externalSaveFailed: 'Failed to save external notifications', externalValidationError: 'Either Discord webhook or Telegram credentials are required', integrationsIntro: 'Customize your experience with Discord or Telegram webhook integrations. Manage webhooks to send notifications for tips or when your channel goes live.', announcementSettings: 'Settings', announcementTheme: 'Theme', announcementBgColor: 'Background Color', announcementTextColor: 'Text Color', announcementAnimationMode: 'Animation', announcementCooldownSeconds: 'Cooldown (minutes)', announcementDefaultDuration: 'Default Duration (s)', announcementApplyAll: 'Apply to all durations', announcementAddMessage: 'Add Message', announcementText: 'Text', announcementLinkUrl: 'Link URL', announcementDurationSeconds: 'Duration (s)', announcementImage: 'Image', announcementEnabled: 'Enabled', announcementSavedSettings: 'Announcement settings saved', announcementSaveSettingsFailed: 'Failed to save announcement settings', announcementMsgDeleted: 'Announcement deleted', announcementMsgDeleteFailed: 'Failed to delete announcement', announcementFaviconFetch: 'Fetch Favicon', announcementFaviconNone: 'No favicon', announcementClearAll: 'Clear All', announcementClearTest: 'Clear Test', announcementCleared: 'Announcements cleared', announcementClearFailed: 'Failed to clear announcements', announcementInvalidImageType: 'Invalid image type', announcementAnimationFade: 'Fade', announcementAnimationSlideUp: 'Slide Up', announcementAnimationSlideLeft: 'Slide Left', announcementAnimationScale: 'Scale', announcementAnimationRandom: 'Random', commonEdit: 'Edit', commonDelete: 'Delete', commonSave: 'Save', commonClose: 'Close', announcementFavicon: 'Favicon', announcementSiteUrl: 'Site URL', commonSaving: 'Saving...', commonLoading: 'Loading...', commonAdd: 'Add', commonAdding: 'Adding...', commonUpdating: 'Updating...', charsUsed: '{used}/{max}', liveviewsTitle: 'Number of viewers', liveviewsBg: 'Background', liveviewsColor: 'Color', liveviewsFont: 'Font', liveviewsSize: 'Font Size', liveviewsRemoveIcon: 'Remove Icon', liveviewsUploadIcon: 'Upload Icon', liveviewsSave: 'Save Liveviews', liveviewsSaved: 'Liveviews settings saved', liveviewsSaveFailed: 'Failed to save liveviews settings', tipGoalCustomTitleLabel: 'Custom Title', tipGoalCustomTitlePlaceholder: 'Configure tip goal 💸', tipGoalCustomTitleHint: 'Displayed above the goal progress.', chatClaimId: 'ClaimID of your livestream post', savedTipGoal: 'Tip goal saved', saveFailedTipGoal: 'Failed to save tip goal', loadFailedTipGoal: 'Failed to load tip goal', savedLastTip: 'Last tip settings saved', saveFailedLastTip: 'Failed to save last tip', loadFailedLastTip: 'Failed to load last tip', savedChat: 'Chat settings saved', saveFailedChat: 'Failed to save chat settings', loadFailedChat: 'Failed to load chat settings', urlCopied: 'URL copied to clipboard', statusTitle: 'Analytics', statusModules: 'Modules', statusSystem: 'System', statusLocale: 'Locale', statusTime: 'Time', statusAnnouncements: '{enabled}/{total} enabled', statusItems: '{n} items', statusEntries: '{n} entries', statusUptime: 'Uptime', statusWsClients: 'WS Clients', statusSeconds: '{n} s', statusMinutes: '{n} min', statusHours: '{n} h', statusDays: '{n} d', raffleWarningTitle: 'Warning:', raffleWarningChat: 'Make sure that chat is enabled so that commands are received.', raffleCommandLabel: 'Command', raffleCommandPlaceholder: '!giveaway', raffleCommandHint: 'Chat command users type to enter.', raffleLastWinner: 'Last Winner', raffleImageTooLarge: 'Image too large (max 1MB)', raffleImageUploaded: 'Image uploaded', raffleImageUploadFailed: 'Image upload failed', savedRaffleSettings: 'Raffle settings saved', saveFailedRaffleSettings: 'Failed to save raffle settings', raffleStarted: 'Raffle started', raffleStopped: 'Raffle stopped', rafflePaused: 'Raffle paused', raffleResumed: 'Raffle resumed', raffleWinnerDrawn: 'Winner drawn', raffleReset: 'Winners reset', raffleActionFailed: 'Action failed', statusRaffleWinners: 'Winners: {n}',
+  audioSource: 'Audio Source', useRemoteAudio: 'Remote (Default)', useCustomAudio: 'Custom', chatUrlPlaceholder: 'https://odysee.com/$/livestream/...', socialMediaAddItem: 'Add Item', socialMediaName: 'Name', socialMediaLink: 'Link (URL)', socialMediaIcon: 'Icon', socialMediaCustomIcon: 'Custom Icon', socialMediaIconCustom: 'Custom', socialMediaIconX: 'X (Twitter)', socialMediaIconInstagram: 'Instagram', socialMediaIconYoutube: 'YouTube', socialMediaIconTelegram: 'Telegram', socialMediaIconDiscord: 'Discord', socialMediaIconOdysee: 'Odysee', socialMediaIconRumble: 'Rumble', socialMediaDelete: 'Delete', socialMediaSave: 'Save List', socialMediaLoadFailed: 'Failed to load social media config', socialMediaSaved: 'Social media config saved', socialMediaSaveFailed: 'Failed to save social media config', socialMediaValidationError: 'Validation error', socialMediaTooMany: 'Too many items (max 50)', socialMediaNameRequired: 'Name is required', socialMediaNameTooLong: 'Name is too long', socialMediaLinkRequired: 'Link is required', socialMediaLinkTooLong: 'Link is too long', socialMediaInvalidUrl: 'Invalid URL', socialMediaInvalidHttps: 'Must be a valid HTTPS URL', socialMediaCustomIconInvalid: 'Custom icon must be a data:image/* base64 URL', socialMediaCustomIconTooLarge: 'Custom icon is too large', externalNotificationsTitle: 'Integrations', externalDiscordWebhook: 'Discord Webhook URL', externalTelegramBotToken: 'Telegram Bot Token', externalTelegramChatId: 'Telegram Chat ID', externalTemplate: 'Template', externalTemplateHint: 'Available vars: {from} {amount} {usd} {message}', externalSave: 'Save Settings', externalStatusActive: 'Active', externalStatusInactive: 'Inactive', externalSaved: 'External notifications saved', externalSaveFailed: 'Failed to save external notifications', externalValidationError: 'Either Discord webhook or Telegram credentials are required', integrationsIntro: 'Customize your experience with Discord or Telegram webhook integrations. Manage webhooks to send notifications for tips or when your channel goes live.', announcementSettings: 'Settings', announcementTheme: 'Theme', announcementBgColor: 'Background Color', announcementTextColor: 'Text Color', announcementAnimationMode: 'Animation', announcementCooldownSeconds: 'Cooldown (minutes)', announcementDefaultDuration: 'Default Duration (s)', announcementApplyAll: 'Apply to all durations', announcementAddMessage: 'Add Message', announcementText: 'Text', announcementLinkUrl: 'Link URL', announcementDurationSeconds: 'Duration (s)', announcementImage: 'Image', announcementEnabled: 'Enabled', announcementSavedSettings: 'Announcement settings saved', announcementSaveSettingsFailed: 'Failed to save announcement settings', announcementMsgDeleted: 'Announcement deleted', announcementMsgDeleteFailed: 'Failed to delete announcement', announcementClearAll: 'Clear All', announcementClearTest: 'Clear Test', announcementCleared: 'Announcements cleared', announcementClearFailed: 'Failed to clear announcements', announcementInvalidImageType: 'Invalid image type', announcementAnimationFade: 'Fade', announcementAnimationSlideUp: 'Slide Up', announcementAnimationSlideLeft: 'Slide Left', announcementAnimationScale: 'Scale', announcementAnimationRandom: 'Random', commonEdit: 'Edit', commonDelete: 'Delete', commonSave: 'Save', commonClose: 'Close', commonSaving: 'Saving...', commonLoading: 'Loading...', commonAdd: 'Add', commonAdding: 'Adding...', commonUpdating: 'Updating...', charsUsed: '{used}/{max}', liveviewsTitle: 'Number of viewers', liveviewsBg: 'Background', liveviewsColor: 'Color', liveviewsFont: 'Font', liveviewsSize: 'Font Size', liveviewsRemoveIcon: 'Remove Icon', liveviewsUploadIcon: 'Upload Icon', liveviewsSave: 'Save Settings', liveviewsSaved: 'Settings saved', liveviewsSaveFailed: 'Failed to save settings', tipGoalCustomTitleLabel: 'Custom Title', tipGoalCustomTitlePlaceholder: 'Configure tip goal 💸', tipGoalCustomTitleHint: 'Displayed above the goal progress.', chatClaimId: 'ClaimID of your livestream post', savedTipGoal: 'Tip goal saved', saveFailedTipGoal: 'Failed to save tip goal', loadFailedTipGoal: 'Failed to load tip goal', savedLastTip: 'Last tip settings saved', saveFailedLastTip: 'Failed to save last tip', loadFailedLastTip: 'Failed to load last tip', savedChat: 'Chat settings saved', saveFailedChat: 'Failed to save chat settings', loadFailedChat: 'Failed to load chat settings', urlCopied: 'URL copied to clipboard', statusTitle: 'Analytics', statusModules: 'Modules', statusSystem: 'System', statusLocale: 'Locale', statusTime: 'Time', statusAnnouncements: '{enabled}/{total} enabled', statusItems: '{n} items', statusEntries: '{n} entries', statusUptime: 'Uptime', statusWsClients: 'WS Clients', statusSeconds: '{n} s', statusMinutes: '{n} min', statusHours: '{n} h', statusDays: '{n} d', raffleWarningTitle: 'Warning:', raffleWarningChat: 'Make sure that chat is enabled so that commands are received.', raffleCommandLabel: 'Command', raffleCommandPlaceholder: '!giveaway', raffleCommandHint: 'Chat command users type to enter.', raffleLastWinner: 'Last Winner', raffleImageTooLarge: 'Image too large (max 1MB)', raffleImageUploaded: 'Image uploaded', raffleImageUploadFailed: 'Image upload failed', savedRaffleSettings: 'Raffle settings saved', saveFailedRaffleSettings: 'Failed to save raffle settings', raffleStarted: 'Raffle started', raffleStopped: 'Raffle stopped', rafflePaused: 'Raffle paused', raffleResumed: 'Raffle resumed', raffleWinnerDrawn: 'Winner drawn', raffleReset: 'Winners reset', raffleActionFailed: 'Action failed', statusRaffleWinners: 'Winners: {n}',
     raffleSettings: 'Raffle settings',
     sessionTools: 'Session tools',
     regeneratePublicToken: 'Regenerate token',
@@ -110,7 +110,7 @@ const adminExtra = {
     suggestion_social_media_message: 'Create social or platform widgets to show on screen.',
     suggestion_social_media_cta: 'Go to settings',
     suggestion_announcement_title: 'Show announcements',
-    suggestion_announcement_message: 'Create vertical or horizontal announcement widgets.',
+    suggestion_announcement_message: 'Create horizontal announcement widgets.',
     suggestion_announcement_cta: 'Go to settings',
     suggestion_integrations_title: 'Notify your lives',
     suggestion_integrations_message: 'Notify your audience when you go live on Discord or Telegram.',
@@ -131,7 +131,27 @@ const adminExtra = {
     gifSectionDesc: 'Configure animated GIF position and upload for notifications.',
     ttsSectionTitle: 'TTS',
     ttsSectionDesc: 'Configure text to speech engine settings.',
-    audioSectionDesc: 'Configure custom audio source for notifications.'
+    audioSectionDesc: 'Configure custom audio source for notifications.',
+    announcementBgType: 'Background type',
+    announcementBgSolid: 'Solid',
+    announcementBgGradient: 'Gradient',
+    announcementGradFrom: 'Gradient from',
+    announcementGradTo: 'Gradient to',
+    announcementBannerTitle: 'Title',
+    announcementSubtitle1: 'Subtitle 1',
+    announcementSubtitle2: 'Subtitle 2',
+    announcementTitleColor: 'Title color',
+    announcementSubtitle1Color: 'Subtitle 1 color',
+    announcementSubtitle2Color: 'Subtitle 2 color',
+    announcementTitleSize: 'Title size',
+    announcementSubtitle1Size: 'Subtitle 1 size',
+    announcementSubtitle2Size: 'Subtitle 2 size',
+    announcementCtaText: 'Button text',
+    announcementCtaIcon: 'Button icon',
+    announcementSectionContent: 'Content',
+    announcementSectionStyle: 'Style',
+    announcementSectionCTA: 'Button',
+    announcementSectionMediaTiming: 'Media & Timing'
   },
   es: {
     valMax120: 'Máx 120 caracteres',
@@ -144,9 +164,9 @@ const adminExtra = {
     liveviewsSize: 'Tamaño de fuente',
     liveviewsRemoveIcon: 'Quitar ícono',
     liveviewsUploadIcon: 'Subir ícono',
-    liveviewsSave: 'Guardar Liveviews',
-    liveviewsSaved: 'Configuración de liveviews guardada',
-    liveviewsSaveFailed: 'No se pudo guardar la configuración de liveviews',
+    liveviewsSave: 'Guardar configuración',
+    liveviewsSaved: 'Configuración guardada',
+    liveviewsSaveFailed: 'No se pudo guardar la configuración',
     raffleSettings: 'Configuración del sorteo',
     sessionTools: 'Herramientas de sesión',
     regeneratePublicToken: 'Regenerar token',
@@ -251,7 +271,7 @@ const adminExtra = {
     suggestion_social_media_message: 'Crea widgets de redes sociales o plataformas para mostrar en tus escenas.',
     suggestion_social_media_cta: 'Ir a configuración',
     suggestion_announcement_title: 'Muestra tus anuncios',
-    suggestion_announcement_message: 'Crea widgets de anuncios en vertical u horizontal con mensajes importantes.',
+    suggestion_announcement_message: 'Crea widgets de anuncios en formato horizontal con mensajes importantes.',
     suggestion_announcement_cta: 'Ir a configuración',
     suggestion_integrations_title: 'Notifica tus directos',
     suggestion_integrations_message: 'Notifica a tus espectadores o comunidad cuando estés en vivo en Discord o Telegram.',
@@ -272,10 +292,32 @@ const adminExtra = {
     gifSectionDesc: 'Configura la posición y carga del GIF animado para las notificaciones.',
     ttsSectionTitle: 'TTS',
     ttsSectionDesc: 'Configura el motor de texto a voz.',
-    audioSectionDesc: 'Configura un audio personalizado para las notificaciones.'
+    audioSectionDesc: 'Configura un audio personalizado para las notificaciones.',
+    announcementBgType: 'Tipo de fondo',
+    announcementBgSolid: 'Sólido',
+    announcementBgGradient: 'Degradado',
+    announcementGradFrom: 'Degradado desde',
+    announcementGradTo: 'Degradado hasta',
+    announcementBannerTitle: 'Título',
+    announcementSubtitle1: 'Subtítulo 1',
+    announcementSubtitle2: 'Subtítulo 2',
+    announcementTitleColor: 'Color del título',
+    announcementSubtitle1Color: 'Color del subtítulo 1',
+    announcementSubtitle2Color: 'Color del subtítulo 2',
+    announcementTitleSize: 'Tamaño del título',
+    announcementSubtitle1Size: 'Tamaño subtítulo 1',
+    announcementSubtitle2Size: 'Tamaño subtítulo 2',
+    announcementCtaText: 'Texto del botón',
+    announcementCtaIcon: 'Ícono del botón',
+    announcementSectionContent: 'Contenido',
+    announcementSectionStyle: 'Estilos',
+    announcementSectionCTA: 'Botón',
+    announcementSectionMediaTiming: 'Duración e Imagen'
   }
 };
 
+adminExtra.en.imageNoneSelected = 'No image selected';
+adminExtra.es.imageNoneSelected = 'Sin imagen seleccionada';
 adminExtra.en.streamHistoryTzNote = 'Times are shown in your local timezone';
 adminExtra.en.streamHistoryTzOffset = 'UTC{offset}';
 adminExtra.en.streamHistoryTzChangedTitle = 'Timezone change detected';
@@ -288,12 +330,10 @@ adminExtra.es.streamHistoryTzChangedTitle = 'Cambio de zona horaria detectado';
 adminExtra.es.streamHistoryTzChangedBody = 'Antes {prev}, ahora {current}. ¿Cuál debe usarse para los límites de día/semana/mes?';
 adminExtra.es.streamHistoryUseNewTz = 'Usar nueva zona';
 adminExtra.es.streamHistoryKeepPrevTz = 'Mantener anterior';
-
 adminExtra.en.quickToday = 'Per day';
 adminExtra.en.quickThisWeek = 'Per week';
 adminExtra.en.quickThisMonth = 'Per month';
 adminExtra.en.quickThisYear = 'Per year';
-
 adminExtra.es.quickToday = 'Por día';
 adminExtra.es.quickThisWeek = 'Por semana';
 adminExtra.es.quickThisMonth = 'Por mes';

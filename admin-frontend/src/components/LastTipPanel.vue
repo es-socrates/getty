@@ -35,7 +35,6 @@
       <div class="mt-3">
         <div class="flex justify-between items-center mb-2">
           <h3 class="os-card-title mb-0">{{ t('colorCustomizationTitle') }}</h3>
-          <button type="button" class="btn" @click="resetColors">{{ t('resetColors') }}</button>
         </div>
         <div class="flex flex-wrap gap-2">
           <ColorInput
@@ -48,6 +47,13 @@
       <div class="mt-3">
         <button class="btn" :disabled="saving" @click="save" :aria-busy="saving ? 'true' : 'false'">
           {{ saving ? t('commonSaving') : t('saveSettings') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-compact-secondary ml-2"
+          @click="resetColors"
+          :aria-label="t('resetColors')">
+          {{ t('resetColors') }}
         </button>
       </div>
     </OsCard>
