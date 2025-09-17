@@ -23,6 +23,7 @@
     "minify-css": "postcss public/css/output.css -o public/css/output.css --config postcss.config.cjs",
     "build:i18n": "node scripts/build-i18n.js",
     "build": "npm-run-all --sequential build-css minify-css build:i18n admin:build minify-html minify-js add-sri",
+    "build:render": "cross-env BUILD_LIGHT=1 npm-run-all --sequential build-css minify-css build:i18n minify-html minify-js add-sri",
     "add-sri": "node scripts/add-sri.js",
     "lint": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --cache --max-warnings=0",
     "lint:fix": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --fix --cache",
