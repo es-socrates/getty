@@ -33,6 +33,10 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, '../public/admin-dist'),
     emptyOutDir: true,
+    sourcemap: false,
+    target: 'es2020',
+    workerThreads: false,
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks: {
