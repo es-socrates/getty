@@ -90,7 +90,6 @@ const form = reactive({
     font: '#ffffff',
     border: '#00ff7f',
     amount: '#00ff7f',
-    icon: '#ffffff',
     iconBg: '#4f36ff',
     from: '#817ec8',
   },
@@ -105,7 +104,6 @@ const colorFields = [
   { key: 'font', label: 'colorFont' },
   { key: 'border', label: 'colorBorder' },
   { key: 'amount', label: 'colorAmount' },
-  { key: 'icon', label: 'colorIcon' },
   { key: 'iconBg', label: 'colorIconBg' },
   { key: 'from', label: 'colorFrom' },
 ];
@@ -118,7 +116,6 @@ function resetColors() {
     font: '#ffffff',
     border: '#00ff7f',
     amount: '#00ff7f',
-    icon: '#ffffff',
     iconBg: '#4f36ff',
     from: '#817ec8',
   };
@@ -155,7 +152,6 @@ async function load() {
       form.colors.font = data.fontColor || form.colors.font;
       form.colors.border = data.borderColor || form.colors.border;
       form.colors.amount = data.amountColor || form.colors.amount;
-      form.colors.icon = data.iconColor || form.colors.icon;
       form.colors.iconBg = data.iconBgColor || form.colors.iconBg;
       form.colors.from = data.fromColor || form.colors.from;
       original.snapshot = JSON.stringify(form);
@@ -180,7 +176,6 @@ async function save() {
       fontColor: form.colors.font,
       borderColor: form.colors.border,
       amountColor: form.colors.amount,
-      iconColor: form.colors.icon,
       iconBgColor: form.colors.iconBg,
       fromColor: form.colors.from,
       title: form.title,

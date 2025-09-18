@@ -124,18 +124,11 @@ class TipGoalModule {
             if (!this.walletAddress) {
                 try {
                     const lastTipConfigPath1 = path.join(configDir, 'last-tip-config.json');
-                    const lastTipConfigPath2 = path.join(process.cwd(), 'last-tip-config.json');
                     let lastTipWallet = '';
                     if (fs.existsSync(lastTipConfigPath1)) {
                         const lt = JSON.parse(fs.readFileSync(lastTipConfigPath1, 'utf8'));
                         if (lt && typeof lt.walletAddress === 'string' && lt.walletAddress.trim()) {
                             lastTipWallet = lt.walletAddress.trim();
-                        }
-                    }
-                    if (!lastTipWallet && fs.existsSync(lastTipConfigPath2)) {
-                        const lt2 = JSON.parse(fs.readFileSync(lastTipConfigPath2, 'utf8'));
-                        if (lt2 && typeof lt2.walletAddress === 'string' && lt2.walletAddress.trim()) {
-                            lastTipWallet = lt2.walletAddress.trim();
                         }
                     }
                     if (lastTipWallet) {
@@ -393,6 +386,7 @@ class TipGoalModule {
     }
     
     updateWalletAddress(newAddress) {
+        // Allow explicit clearing (empty string) and avoid unnecessary work if unchanged
         if (newAddress === this.walletAddress) {
             return this.getStatus();
         }
@@ -418,7 +412,7 @@ class TipGoalModule {
         this.currentTipsAR = 0;
         this.lastDonationTimestamp = null;
         this.sendGoalUpdate();
-
+        // Only check network if not in tests and we have a non-empty address
         if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
             this.checkTransactions(true);
         }

@@ -38,7 +38,7 @@
 }
 .chat-group-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
   margin: 0 0 4px;
 }
 .chat-subtitle {
@@ -119,4 +119,36 @@ textarea.textarea:focus-visible {
 
 .chat-group-box:last-of-type {
   margin-bottom: 0;
+}
+
+.chat-general-colors .color-field {
+  --color-size: 2.25rem;
+  backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  display: flex;
+  flex: 1 1 calc(40% - 0.5rem);
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 17rem;
+  min-width: 11rem;
+  padding: 2px 0 2px 10px;
+  position: relative;
+}
+
+.chat-donation-colors .color-field {
+  --color-size: 2.25rem;
+  backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  display: flex;
+  flex: 1 1 calc(45% - 0.5rem);
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 18rem;
+  min-width: 11rem;
+  padding: 2px 0 2px 10px;
+  position: relative;
 }

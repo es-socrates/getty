@@ -221,6 +221,101 @@
         </div>
       </div>
 
+      <div class="notif-group-box" aria-labelledby="notif-colors-title">
+        <div class="notif-group-head">
+          <HeaderIcon>
+            <svg
+              class="os-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M14.31 8l5.74 9.94" />
+              <path d="M9.69 8h11.48" />
+              <path d="M7.38 12l5.74-9.94" />
+              <path d="M9.69 16L3.95 6.06" />
+              <path d="M14.31 16H2.83" />
+            </svg>
+          </HeaderIcon>
+          <h3 id="notif-colors-title" class="notif-group-title">
+            {{ t('colorCustomizationTitle') }}
+          </h3>
+        </div>
+        <div class="notif-setting-item is-vertical">
+          <div class="flex flex-wrap gap-2 colors-section">
+            <ColorInput v-model="colors.bg" :label="t('colorBg')" />
+            <ColorInput v-model="colors.font" :label="t('colorFont')" />
+            <ColorInput v-model="colors.border" :label="t('colorBorder')" />
+            <ColorInput v-model="colors.amount" :label="t('colorAmount')" />
+            <ColorInput v-model="colors.from" :label="t('colorFrom')" />
+          </div>
+          <div class="notif-actions-row mt-3">
+            <button class="btn" type="button" :disabled="savingColors" @click="saveColors">
+              {{ savingColors ? t('commonSaving') : t('saveSettings') }}
+            </button>
+            <button
+              class="btn-secondary btn-compact-secondary ml-2"
+              type="button"
+              @click="resetColors">
+              {{ t('resetColors') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="notif-group-box" aria-labelledby="notif-preview-title">
+        <div class="notif-group-head">
+          <HeaderIcon>
+            <svg
+              class="os-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </HeaderIcon>
+          <h3 id="notif-preview-title" class="notif-group-title">{{ t('commonPreview') }}</h3>
+        </div>
+        <div class="notif-setting-item is-vertical">
+          <div class="tip-preview-wrapper">
+            <div
+              class="tip-preview-box"
+              :style="previewVarsStyle"
+              role="img"
+              aria-label="Tip notification preview">
+              <div class="tp-content">
+                <div class="tp-title">🎉 Tip Received. Woohoo!</div>
+                <div class="tp-amount">
+                  <span class="tp-ar-amount">0.50 AR</span>
+                  <span class="tp-usd">($2.50 USD)</span>
+                </div>
+                <div class="tp-from">📦 From: Spaceman… <span class="tp-thanks">👏</span></div>
+                <div class="tp-msg">This is a fake notification. Thanks for the stream!</div>
+              </div>
+            </div>
+          </div>
+          <div class="preview-footer">
+            <div class="small opacity-80">
+              {{ t('colorCustomizationTitle') }} → {{ t('saveSettings') }} →
+              {{ t('commonPreview') }}
+            </div>
+            <button
+              class="btn-secondary btn-compact-secondary preview-refresh-btn"
+              type="button"
+              @click="refreshPreview">
+              {{ t('refresh') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="notif-group-box" aria-labelledby="notif-obs-title">
         <div class="notif-group-head">
           <HeaderIcon>
@@ -262,6 +357,7 @@ import CopyField from './shared/CopyField.vue';
 import { usePublicToken } from '../composables/usePublicToken';
 import LegacyAudioControls from './shared/LegacyAudioControls.vue';
 import HeaderIcon from './shared/HeaderIcon.vue';
+import ColorInput from './shared/ColorInput.vue';
 
 const { t } = useI18n();
 
@@ -308,6 +404,7 @@ const errors = reactive({
 const savingGif = ref(false);
 const savingTts = ref(false);
 const savingAudio = ref(false);
+const savingColors = ref(false);
 const pt = usePublicToken();
 const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/tip-notification`));
 
@@ -319,11 +416,37 @@ const audioState = reactive({
 
 const posPulse = ref(false);
 
+const colors = reactive({
+  bg: '#080c10',
+  font: '#ffffff',
+  border: '#00ff7f',
+  amount: '#00ff7f',
+  from: '#ffffff',
+});
+let originalColors = '';
+
+const previewColors = reactive({
+  bg: '#080c10',
+  font: '#ffffff',
+  border: '#00ff7f',
+  amount: '#00ff7f',
+  from: '#ffffff',
+});
+
+const previewVarsStyle = computed(() => ({
+  '--tn-bg': previewColors.bg,
+  '--tn-text': previewColors.font,
+  '--tn-border': previewColors.border,
+  '--tn-amount': previewColors.amount,
+  '--tn-from': previewColors.from,
+}));
+
 function isDirty() {
   return (
     JSON.stringify({ p: gif.position, g: !!gif.gifPath }) !== gif.original ||
     JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language }) !== tts.original ||
-    JSON.stringify({ s: audio.audioSource, f: !!audio.fileName }) !== audio.original
+    JSON.stringify({ s: audio.audioSource, f: !!audio.fileName }) !== audio.original ||
+    (originalColors && originalColors !== JSON.stringify(colors))
   );
 }
 registerDirty(isDirty);
@@ -350,6 +473,71 @@ async function loadGif() {
     gif.position = data.position || 'right';
     gif.gifPath = data.gifPath || '';
     gif.original = JSON.stringify({ p: gif.position, g: !!gif.gifPath });
+  } catch {}
+}
+
+async function loadColors() {
+  try {
+    const { data } = await api.get('/api/tip-notification');
+    if (data && data.success) {
+      colors.bg = data.bgColor || colors.bg;
+      colors.font = data.fontColor || colors.font;
+      colors.border = data.borderColor || colors.border;
+      colors.amount = data.amountColor || colors.amount;
+      colors.from = data.fromColor || colors.from;
+      originalColors = JSON.stringify(colors);
+      previewColors.bg = colors.bg;
+      previewColors.font = colors.font;
+      previewColors.border = colors.border;
+      previewColors.amount = colors.amount;
+      previewColors.from = colors.from;
+    }
+  } catch {}
+}
+
+function resetColors() {
+  colors.bg = '#080c10';
+  colors.font = '#ffffff';
+  colors.border = '#00ff7f';
+  colors.amount = '#00ff7f';
+  colors.from = '#ffffff';
+}
+
+async function saveColors() {
+  try {
+    savingColors.value = true;
+    const payload = {
+      bgColor: colors.bg,
+      fontColor: colors.font,
+      borderColor: colors.border,
+      amountColor: colors.amount,
+      fromColor: colors.from,
+    };
+    await api.post('/api/tip-notification', payload);
+    originalColors = JSON.stringify(colors);
+    previewColors.bg = colors.bg;
+    previewColors.font = colors.font;
+    previewColors.border = colors.border;
+    previewColors.amount = colors.amount;
+    previewColors.from = colors.from;
+    pushToast({ type: 'success', message: t('savedNotifications') });
+  } catch {
+    pushToast({ type: 'error', message: t('saveFailedNotifications') });
+  } finally {
+    savingColors.value = false;
+  }
+}
+
+async function refreshPreview() {
+  try {
+    const { data } = await api.get('/api/tip-notification');
+    if (data && data.success) {
+      previewColors.bg = data.bgColor || previewColors.bg;
+      previewColors.font = data.fontColor || previewColors.font;
+      previewColors.border = data.borderColor || previewColors.border;
+      previewColors.amount = data.amountColor || previewColors.amount;
+      previewColors.from = data.fromColor || previewColors.from;
+    }
   } catch {}
 }
 
@@ -471,7 +659,7 @@ async function testRandomNotification() {
       Math.abs(lastSavedAudio.volume - audioCfg.volume) > 0.0001 ||
       lastSavedAudio.audioSource !== audio.audioSource;
     if (dirty) {
-      await persistAudioCfg(true); // silent
+      await persistAudioCfg(true);
     }
     await api.post('/api/test-donation', { amount: (Math.random() * 2 + 0.1).toFixed(3) });
   } catch {}
@@ -482,6 +670,7 @@ onMounted(async () => {
   loadGif();
   loadTts();
   loadAudio();
+  loadColors();
 });
 
 watch(

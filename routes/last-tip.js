@@ -36,7 +36,8 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         cfg = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
       }
 
-      const out = { ...cfg };
+  const out = { ...cfg };
+  try { if (out && typeof out === 'object' && 'iconColor' in out) delete out.iconColor; } catch {}
       try {
         const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
         const hasNs = !!ns;
@@ -137,14 +138,13 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         fontColor: z.string().optional(),
         borderColor: z.string().optional(),
         amountColor: z.string().optional(),
-        iconColor: z.string().optional(),
         iconBgColor: z.string().optional(),
         fromColor: z.string().optional(),
         title: z.string().max(120).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
-      const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconColor, iconBgColor, fromColor, title } = parsed.data;
+      const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconBgColor, fromColor, title } = parsed.data;
       let config = {};
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (store && ns) {
@@ -164,7 +164,6 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         fontColor: fontColor || config.fontColor || '#ffffff',
         borderColor: borderColor || config.borderColor || '#00ff7f',
         amountColor: amountColor || config.amountColor || '#00ff7f',
-        iconColor: iconColor || config.iconColor || '#ffffff',
         iconBgColor: iconBgColor || config.iconBgColor || '#4f36ff',
         fromColor: fromColor || config.fromColor || '#e9e9e9',
 

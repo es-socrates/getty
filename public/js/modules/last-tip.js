@@ -56,7 +56,6 @@ export async function initLastTip() {
         c.borderColor ? `--lt-border:${c.borderColor};` : '',
         c.fontColor ? `--lt-text:${c.fontColor};` : '',
         c.amountColor ? `--lt-amount:${c.amountColor};` : '',
-        c.iconColor ? `--lt-icon:${c.iconColor};` : '',
         c.iconBgColor ? `--lt-icon-bg:${c.iconBgColor};` : '',
         c.fromColor ? `--lt-from:${c.fromColor};` : ''
       ].filter(Boolean).join('');
@@ -102,7 +101,6 @@ export async function initLastTip() {
           fontColor: data.lastTip.fontColor,
           borderColor: data.lastTip.borderColor,
           amountColor: data.lastTip.amountColor,
-          iconColor: data.lastTip.iconColor,
           iconBgColor: data.lastTip.iconBgColor,
           fromColor: data.lastTip.fromColor
         };

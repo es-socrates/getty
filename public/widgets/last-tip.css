@@ -23,6 +23,7 @@
   font-weight: 600;
   display: flex;
   align-items: center;
+  color: var(--lt-from, var(--lt-text, #fff));
 }
 
 .notification-icon {
@@ -43,7 +44,7 @@
   width: 58px;
   height: 58px;
   display: block;
-  color: var(--lt-icon, #fff);
+  color: #fff;
   margin-top: 5px;
   transform-origin: 50% 50%;
   will-change: transform;
@@ -69,6 +70,7 @@
   font-size: 12px;
   font-weight: 600;
   margin-top: 3px;
+  color: var(--lt-from, var(--lt-text, #fff));
 }
 
 .notification-timestamp {
@@ -91,7 +93,7 @@
   width: 58px;
   height: 58px;
   display: block;
-  color: var(--lt-icon, #fff);
+  color: #fff;
   margin-top: 5px;
   transform-origin: 50% 50%;
   will-change: transform;

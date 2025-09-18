@@ -1286,3 +1286,8 @@ html.dark .ach-toast.info {
     justify-content: flex-end;
   }
 }
+
+.ach-head-title {
+  font-size: 16px;
+  font-weight: 600;
+}
