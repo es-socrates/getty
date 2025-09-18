@@ -54,8 +54,8 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         return res.json({
           audioSource: 'remote',
           hasCustomAudio: false,
-          enabled: typeof settings.enabled === 'boolean' ? settings.enabled : true,
-          volume: typeof settings.volume === 'number' ? settings.volume : 0.5,
+          enabled: true,
+          volume: 0.5,
         });
       }
       res.json(settings);
