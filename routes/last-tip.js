@@ -159,7 +159,11 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
       }
       const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof walletAddress === 'string';
-      const effectiveWallet = walletProvided ? (walletAddress || '').trim() : (config.walletAddress || '');
+      let effectiveWallet = walletProvided ? (walletAddress || '').trim() : (config.walletAddress || '');
+
+      if (walletProvided && !effectiveWallet && config.walletAddress) {
+        effectiveWallet = config.walletAddress;
+      }
   if (walletProvided && effectiveWallet && !isValidArweaveAddress(effectiveWallet)) {
         return res.status(400).json({ error: 'invalid_wallet_address' });
       }

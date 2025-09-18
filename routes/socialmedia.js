@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 
 function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, options = {}) {
   const store = options.store || null;
@@ -7,22 +8,12 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
   const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
 
-  function isTrustedIp(req) {
-    try {
-      let ip = req.ip || req.connection?.remoteAddress || '';
-      if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
-      const allow = (process.env.GETTY_ALLOW_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
-      const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-      return loopback || (allow.length > 0 && allow.includes(ip));
-    } catch { return false; }
-  }
-
   app.get('/api/socialmedia-config', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const hasNs = !!ns;
-      const trusted = isTrustedIp(req);
-      if ((hostedWithRedis || requireSessionFlag) && !hasNs && !trusted) {
+      const trustedLocalAdmin = isTrustedLocalAdmin(req);
+      const conceal = shouldMaskSensitive(req);
+      if (conceal && !trustedLocalAdmin) {
         return res.json({ success: true, config: [] });
       }
       let config = null;
@@ -45,6 +36,9 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
       if (requireAdminWrites) {
         const isAdmin = !!(req?.auth && req.auth.isAdmin);
         if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
+      if ((hostedWithRedis || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
+        return res.status(403).json({ success: false, error: 'forbidden_untrusted_context' });
       }
       const env = process.env.NODE_ENV || 'development';
       const enforceHttpsOnly = (process.env.SOCIALMEDIA_HTTPS_ONLY === 'true') || env === 'production';

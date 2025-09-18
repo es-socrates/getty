@@ -101,7 +101,6 @@ class TipGoalModule {
             title: 'Monthly tip goal 🎖️'
         };
         if (!fs.existsSync(configPath)) {
-
             if (!hostedMode) {
                 try { fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2)); } catch {}
             }
@@ -405,31 +404,26 @@ class TipGoalModule {
     }
     
     updateWalletAddress(newAddress) {
+        const incoming = (newAddress || '').trim();
 
-        if (newAddress === this.walletAddress) {
-            return this.getStatus();
-        }
-        this.walletAddress = newAddress || '';
+        if (incoming === this.walletAddress) return this.getStatus();
         const fs = require('fs');
         const path = require('path');
         const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
-        let config = {};
+        let existing = {};
         if (fs.existsSync(configPath)) {
-            try {
-                config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            } catch (e) {
-                console.error('[TipGoal] Error reading config for wallet update:', e);
-            }
+            try { existing = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
         }
-        config.walletAddress = this.walletAddress;
+        if (!incoming && existing.walletAddress) {
+            this.walletAddress = existing.walletAddress;
+            return this.getStatus();
+        }
+        this.walletAddress = incoming;
+        const merged = { ...existing, walletAddress: this.walletAddress };
         try {
             const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-            if (!hostedMode) {
-                fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-            }
-        } catch (e) {
-            console.error('[TipGoal] Error writing wallet address to config:', e);
-        }
+            if (!hostedMode) fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+        } catch (e) { console.error('[TipGoal] Error writing wallet address to config:', e); }
         this.processedTxs = new Set();
         this.currentTipsAR = 0;
         this.lastDonationTimestamp = null;

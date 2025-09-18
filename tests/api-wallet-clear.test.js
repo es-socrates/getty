@@ -26,7 +26,7 @@ describe('Wallet clear behavior', () => {
   afterAll(done => { if (server) server.close(done); else done(); });
 
   describe('Tip Goal', () => {
-    it('persists wallet then allows clearing to empty string', async () => {
+  it('persists wallet and ignores empty clear attempt (preservation policy)', async () => {
   try { if (fs.existsSync(TG_PATH)) fs.unlinkSync(TG_PATH); } catch { /* ignore error */ }
       const r1 = await agent
         .post('/api/tip-goal')
@@ -46,12 +46,12 @@ describe('Wallet clear behavior', () => {
       expect(r2.status).toBe(200);
       const afterClear = readJson(TG_PATH);
       expect(afterClear).toHaveProperty('walletAddress');
-      expect(afterClear.walletAddress).toBe('');
+      expect(afterClear.walletAddress).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
     });
   });
 
   describe('Last Tip', () => {
-    it('persists wallet then allows clearing to empty string', async () => {
+  it('persists wallet and ignores empty clear attempt (preservation policy)', async () => {
   try { if (fs.existsSync(LT_PATH)) fs.unlinkSync(LT_PATH); } catch { /* ignore error */ }
       const r1 = await agent
         .post('/api/last-tip')
@@ -69,7 +69,7 @@ describe('Wallet clear behavior', () => {
       expect(r2.status).toBe(200);
       const afterClear = readJson(LT_PATH);
       expect(afterClear).toHaveProperty('walletAddress');
-      expect(afterClear.walletAddress).toBe('');
+      expect(afterClear.walletAddress).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
     });
   });
 });

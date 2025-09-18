@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { z } = require('zod');
+const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 
 function readGifDimensions(filePath) {
   const fd = fs.openSync(filePath, 'r');
@@ -89,7 +90,12 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      const conceal = shouldMaskSensitive(req);
+      const trusted = isTrustedLocalAdmin(req);
       if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.json({ gifPath: '', position: undefined, width: 0, height: 0 });
+      }
+      if (conceal && !trusted) {
         return res.json({ gifPath: '', position: undefined, width: 0, height: 0 });
       }
       if (store && hasNs) {
@@ -122,6 +128,9 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     if (requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+    }
+    if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
+      return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }
     upload.single('gifFile')(req, res, function (err) {
       if (err) {
@@ -170,6 +179,9 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   app.delete('/api/tip-notification-gif', strictLimiter, async (req, res) => {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
     const hosted = !!process.env.REDIS_URL;
+    if (process.env.GETTY_DISABLE_GIF_DELETE === '1') {
+      return res.status(405).json({ error: 'gif_delete_disabled' });
+    }
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
     const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
     if ((requireSessionFlag || hosted) && !hasNs) {
@@ -178,6 +190,9 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     if (requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+    }
+    if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
+      return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;

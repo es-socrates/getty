@@ -1,7 +1,26 @@
 const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
-const app = require('../server');
+
+let app;
+const ORIGINAL_ENV = { ...process.env };
+
+beforeAll(() => {
+
+  process.env.REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+
+  process.env.GETTY_REQUIRE_SESSION = '1';
+  jest.resetModules();
+  app = require('../server');
+});
+
+afterAll(() => {
+  for (const k of Object.keys(process.env)) {
+    if (!(k in ORIGINAL_ENV)) delete process.env[k];
+  }
+  for (const [k, v] of Object.entries(ORIGINAL_ENV)) process.env[k] = v;
+  jest.resetModules();
+});
 
 const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');

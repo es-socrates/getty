@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
+const { shouldMaskSensitive, isTrustedLocalAdmin } = require('../lib/trust');
 
 function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
   const store = options.store;
@@ -8,16 +9,6 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
   const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
-
-  function isTrustedIp(req) {
-    try {
-      let ip = req.ip || req.connection?.remoteAddress || '';
-      if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
-      const allow = (process.env.GETTY_ALLOW_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
-      const loopback = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-      return loopback || (allow.length > 0 && allow.includes(ip));
-    } catch { return false; }
-  }
 
   app.get('/api/chat-config', async (req, res) => {
     try {
@@ -32,11 +23,9 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       }
       config.themeCSS = config.themeCSS || '';
 
-    const isHosted = !!store;
-    const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
-    const trusted = isTrustedIp(req);
-
-  if (((isHosted && !trusted) || requireSessionFlag) && !hasNs) {
+  const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
+    const conceal = shouldMaskSensitive(req);
+    if (conceal && !isTrustedLocalAdmin(req) && !hasNs) {
         const sanitized = {
           bgColor: config.bgColor || '#080c10',
           msgBgColor: config.msgBgColor || '#0a0e12',

@@ -55,7 +55,8 @@ class LastTipModule {
       borderColor: '#00ff7f',
       amountColor: '#00ff7f',
       iconBgColor: '#4f36ff',
-      fromColor: '#817ec8'
+      fromColor: '#817ec8',
+      title: 'Last Tip'
     };
     if (!fs.existsSync(lastTipConfigPath)) {
       if (!hostedMode) {
@@ -66,6 +67,14 @@ class LastTipModule {
 
     try {
       let config = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
+
+      let mutated = false;
+      for (const [k,v] of Object.entries(lastTipDefault)) {
+        if (!Object.prototype.hasOwnProperty.call(config, k)) { config[k] = v; mutated = true; }
+      }
+      if (mutated) {
+        try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(config, null, 2)); } catch {}
+      }
       if (config.walletAddress) {
         this.walletAddress = config.walletAddress;
       }
@@ -301,28 +310,25 @@ class LastTipModule {
   }
   
   updateWalletAddress(newAddress) {
-    this.walletAddress = newAddress || '';
-    this.processedTxs = new Set();
-    this.lastDonation = null;
-
     const fs = require('fs');
     const path = require('path');
     const configDir = path.join(process.cwd(), 'config');
     const configPath = path.join(configDir, 'last-tip-config.json');
-    let config = {};
+    let existing = {};
     if (fs.existsSync(configPath)) {
-      try {
-        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      } catch (e) {
-        console.error('[LastTip] Error reading config for wallet update:', e);
-      }
+      try { existing = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
     }
-    config.walletAddress = this.walletAddress;
-    try {
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-    } catch (e) {
-      console.error('[LastTip] Error writing wallet address to config:', e);
+
+    if ((!newAddress || !newAddress.trim()) && existing.walletAddress) {
+      this.walletAddress = existing.walletAddress;
+      return this.getStatus();
     }
+
+    this.walletAddress = (newAddress || '').trim();
+    this.processedTxs = new Set();
+    this.lastDonation = null;
+    const config = { ...existing, walletAddress: this.walletAddress };
+    try { fs.writeFileSync(configPath, JSON.stringify(config, null, 2)); } catch (e) { console.error('[LastTip] Error writing wallet address to config:', e); }
     if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
       this.updateLatestDonation();
     }
