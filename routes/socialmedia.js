@@ -5,6 +5,7 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
 
   function isTrustedIp(req) {
     try {
@@ -40,6 +41,10 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
       if (shouldRequireSession) {
         const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
         if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
       const env = process.env.NODE_ENV || 'development';
       const enforceHttpsOnly = (process.env.SOCIALMEDIA_HTTPS_ONLY === 'true') || env === 'production';

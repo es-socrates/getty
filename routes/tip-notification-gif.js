@@ -115,8 +115,13 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
     const hosted = !!process.env.REDIS_URL;
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
     if ((requireSessionFlag || hosted) && !hasNs) {
       return res.status(401).json({ error: 'no_session' });
+    }
+    if (requireAdminWrites) {
+      const isAdmin = !!(req?.auth && req.auth.isAdmin);
+      if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
     upload.single('gifFile')(req, res, function (err) {
       if (err) {
@@ -166,8 +171,13 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
     const hosted = !!process.env.REDIS_URL;
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
     if ((requireSessionFlag || hosted) && !hasNs) {
       return res.status(401).json({ error: 'no_session' });
+    }
+    if (requireAdminWrites) {
+      const isAdmin = !!(req?.auth && req.auth.isAdmin);
+      if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;

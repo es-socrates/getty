@@ -234,27 +234,39 @@ async function load() {
         walletEditable.value = false;
       }
 
-      const demoTitles = new Set([
-        'Monthly tip goal 🎖️',
-        'Meta mensual de propinas 🎖️',
-        'Configure tip goal 💸',
-      ]);
-      const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
-      const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
-      const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));
+      const incomingTitle = typeof data.title === 'string' ? data.title.trim() : undefined;
+      if (typeof incomingTitle === 'string') {
+        form.title = incomingTitle;
+      }
 
-      const incomingGoal = data.monthlyGoal || data.goalAmount;
-      const incomingCurrent = data.currentAmount !== undefined ? data.currentAmount : undefined;
+      const incomingGoal =
+        typeof data.monthlyGoal === 'number'
+          ? data.monthlyGoal
+          : typeof data.goalAmount === 'number'
+          ? data.goalAmount
+          : undefined;
+      if (typeof incomingGoal === 'number') {
+        form.goalAmount = incomingGoal;
+      }
 
-      form.goalAmount = isSeed ? null : incomingGoal || form.goalAmount;
-      form.startingAmount = isSeed ? null : incomingCurrent ?? form.startingAmount;
-      form.title = isSeed ? '' : incomingTitle || '';
-      form.theme = data.theme || 'classic';
-      form.colors.bg = data.bgColor || form.colors.bg;
-      form.colors.font = data.fontColor || form.colors.font;
-      form.colors.border = data.borderColor || form.colors.border;
-      form.colors.progress = data.progressColor || form.colors.progress;
-      form.audioSource = data.audioSource || 'remote';
+      const incomingCurrent =
+        typeof data.currentAmount === 'number'
+          ? data.currentAmount
+          : typeof data.startingAmount === 'number'
+          ? data.startingAmount
+          : typeof data.currentTips === 'number'
+          ? data.currentTips
+          : undefined;
+      if (typeof incomingCurrent === 'number') {
+        form.startingAmount = incomingCurrent;
+      }
+
+      if (typeof data.theme === 'string') form.theme = data.theme;
+      if (typeof data.bgColor === 'string') form.colors.bg = data.bgColor;
+      if (typeof data.fontColor === 'string') form.colors.font = data.fontColor;
+      if (typeof data.borderColor === 'string') form.colors.border = data.borderColor;
+      if (typeof data.progressColor === 'string') form.colors.progress = data.progressColor;
+      if (typeof data.audioSource === 'string') form.audioSource = data.audioSource;
       original.snapshot = JSON.stringify(form);
     }
 

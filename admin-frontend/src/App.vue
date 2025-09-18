@@ -93,6 +93,8 @@
         </div>
       </div>
     </header>
+
+    <AdminRequiredBanner />
     <div
       class="admin-layout flex flex-col md:flex-row md:items-start gap-5"
       :class="{ 'sidebar-collapsed': sidebarCollapsed }">
@@ -494,6 +496,7 @@ import ToastHost from './components/shared/ToastHost.vue';
 import SidebarSuggestion from './components/shared/SidebarSuggestion.vue';
 import OsConfirmDialog from './components/os/OsConfirmDialog.vue';
 import { confirmDialog } from './services/confirm';
+import AdminRequiredBanner from './components/shared/AdminRequiredBanner.vue';
 const logoLight =
   'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ';
 const logoDark =

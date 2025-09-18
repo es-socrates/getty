@@ -28,7 +28,7 @@
           </h3>
           <div class="form-group" aria-labelledby="chat-url-label" aria-live="polite">
             <label class="label" id="chat-url-label" for="chat-url">{{
-              t('chatClaimId') || 'Claim ID'
+              t('chatClaimId') || 'ClaimID of your livestream post'
             }}</label>
             <input
               class="input"
@@ -36,6 +36,7 @@
               :class="{ 'input-error': errors.chatUrl }"
               id="chat-url"
               v-model="form.chatUrl"
+              maxlength="40"
               type="text"
               :placeholder="claimPlaceholder" />
             <div class="flex gap-2 small justify-between mt-1">
@@ -43,7 +44,7 @@
                 errors.chatUrl || ' '
               }}</small>
               <small aria-live="polite" aria-atomic="true">{{
-                t('charsUsed', { used: form.chatUrl.length, max: 999 })
+                t('charsUsed', { used: form.chatUrl.length, max: 40 })
               }}</small>
             </div>
           </div>
