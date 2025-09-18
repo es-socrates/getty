@@ -78,8 +78,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       if ((requireSessionFlag || hosted) && !hasNs) {
-
-        return res.json({ gifPath: cfg.gifPath || '', position: undefined, width: cfg.width || 0, height: cfg.height || 0 });
+        return res.json({ gifPath: '', position: undefined, width: 0, height: 0 });
       }
       res.json(cfg);
     } catch {

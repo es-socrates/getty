@@ -56,6 +56,12 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
 
   app.get('/api/tip-notification', (req, res) => {
     try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.json({ success: true, ...DEFAULTS });
+      }
       const cfg = loadConfig();
       res.json({ success: true, ...cfg });
     } catch {

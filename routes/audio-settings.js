@@ -51,12 +51,11 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       if ((requireSessionFlag || hosted) && !hasNs) {
-
         return res.json({
-          audioSource: settings.audioSource || 'remote',
+          audioSource: 'remote',
           hasCustomAudio: false,
-          enabled: settings.enabled,
-          volume: settings.volume,
+          enabled: typeof settings.enabled === 'boolean' ? settings.enabled : true,
+          volume: typeof settings.volume === 'number' ? settings.volume : 0.5,
         });
       }
       res.json(settings);
