@@ -25,6 +25,8 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/chat/stop` [Session]
 - GET `/api/chat/status`
 - GET `/api/chat/debug`
+- GET `/api/chat-custom-themes`
+- POST `/api/chat-custom-themes` [RL][Session]
 
 ## External Notifications — `routes/external-notifications.js`
 
@@ -36,8 +38,8 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/external-notifications/live/upload` — Upload image (multipart field `image`) max 2MB 1920x1080
 - POST `/api/external-notifications/live/send` [RL] — Send real Live announcement (uses override `discordWebhook` if present in payload or draft, otherwise use global liveDiscordWebhook / Telegram live)
 - POST `/api/external-notifications/live/test` [RL] — Send test announcement (prefix `[TEST]` to the title)
-- GET `/api/external-notifications/live/og?url=` — Extracts valid OG image from an Odysee URL (filters allowed hosts)
-- GET `/api/external-notifications/live/resolve?claimId=` — Resolves claimId to an Odysee web URL
+- GET `/api/external-notifications/live/og` — Extracts valid OG image from an Odysee URL (filters allowed hosts)
+- GET `/api/external-notifications/live/resolve` — Resolves claimId to an Odysee web URL
 - GET `/api/external-notifications/live/diag` — Auto-live diagnostics (namespace, registration, overrides, claim matching)
 - POST `/api/external-notifications/live/clear-override` [RL] — Clears pointwise override (body optional `{ target: "discord"|"all" }`)
 
@@ -50,6 +52,7 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 
 - GET `/api/audio-settings`
 - POST `/api/audio-settings` (multipart: audioFile) [RL]
+- DELETE `/api/audio-settings` [RL]
 - GET `/api/custom-audio`
 
 ## Goal Audio File — `routes/goal-audio.js`
@@ -77,6 +80,11 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/tip-notification-gif` (multipart image) [RL]
 - DELETE `/api/tip-notification-gif` [RL]
 
+## Tip Notification — `routes/tip-notification.js`
+
+- GET `/api/tip-notification`
+- POST `/api/tip-notification` [RL]
+
 ## Raffle — `routes/raffle.js`
 
 - GET `/api/raffle/settings`
@@ -89,6 +97,7 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/raffle/draw`
 - POST `/api/raffle/reset`
 - POST `/api/raffle/upload-image` (multipart image)
+- POST `/api/raffle/clear-image`
 
 ## OBS — `routes/obs.js`
 
@@ -111,6 +120,7 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - GET `/api/stream-history/performance`
 - POST `/api/stream-history/backfill-current` [RL]
 - POST `/api/stream-history/clear` [RL]
+- POST `/api/stream-history/compact` [RL]
 - GET `/api/stream-history/export`
 - POST `/api/stream-history/import` [RL]
 - GET `/api/stream-history/status`
@@ -142,6 +152,7 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/activity/clear` [RL]
 - GET `/api/activity/export`
 - GET `/api/modules` — module status aggregator (sanitized)
+- GET `/api/channel/avatar` — resolve Odysee channel avatar/title by claimId
 - GET `/api/ar-price` — AR/USD price (cached)
 - GET `/api/metrics` — server metrics snapshot
 - GET `/api/status` — simple OK summary
@@ -160,6 +171,7 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - GET `/widgets/chat`
 - GET `/widgets/giveaway`
 - GET `/widgets/last-tip`
+- GET `/widgets/achievements`
 - GET `/widgets/liveviews`
 - GET `/widgets/persistent-notifications`
 - GET `/widgets/socialmedia`
@@ -169,9 +181,17 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - GET `/admin.html/`
 - GET `/admin/*`
 - GET `/admin`
+- GET `/admin/`
+
+## Shared i18n — in `server.js`
+
+- GET `/shared-i18n/:lang.json`
 
 ## Test utilities — in `server.js`
 
 - POST `/api/test-tip` [RL]
 - POST `/api/test-discord` [RL]
 - POST `/api/test-donation`
+- POST `/api/chat/test-message` [RL][Session]
+
+# Notes

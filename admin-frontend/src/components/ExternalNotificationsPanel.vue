@@ -515,8 +515,7 @@ async function saveObs() {
 }
 
 function mapError(msg) {
-  if (/Either Discord webhook/.test(msg)) return t('externalValidationError');
-  if (/Invalid payload/.test(msg)) return t('externalSaveFailed');
+  if (/Invalid payload/i.test(msg || '')) return t('externalSaveFailed');
   return t('externalSaveFailed');
 }
 

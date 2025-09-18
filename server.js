@@ -102,6 +102,7 @@ const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config
 const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
 const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
+const RAFFLE_CONFIG_FILE = path.join(process.cwd(), 'config', 'raffle-config.json');
 
 const app = express();
 const cookieParser = require('cookie-parser');
@@ -967,6 +968,10 @@ app.get('/api/session/export', async (req, res) => {
       exportObj.streamHistoryConfig = fs.existsSync(shPath) ? JSON.parse(fs.readFileSync(shPath, 'utf8')) : null;
     } catch { exportObj.streamHistoryConfig = null; }
 
+    try {
+      exportObj.raffleConfig = fs.existsSync(RAFFLE_CONFIG_FILE) ? JSON.parse(fs.readFileSync(RAFFLE_CONFIG_FILE, 'utf8')) : null;
+    } catch { exportObj.raffleConfig = null; }
+
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="getty-config-${new Date().toISOString().replace(/[:.]/g,'-')}.json"`);
     res.end(JSON.stringify(exportObj, null, 2));
@@ -1001,10 +1006,11 @@ app.post('/api/session/import', async (req, res) => {
     const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
     const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
     const incomingLiveviews = (payload && typeof payload.liveviewsConfig === 'object') ? payload.liveviewsConfig : null;
-  const incomingAnnouncement = (payload && typeof payload.announcementConfig === 'object') ? payload.announcementConfig : null;
-  const incomingStreamHistory = (payload && typeof payload.streamHistoryConfig === 'object') ? payload.streamHistoryConfig : null;
+    const incomingAnnouncement = (payload && typeof payload.announcementConfig === 'object') ? payload.announcementConfig : null;
+    const incomingStreamHistory = (payload && typeof payload.streamHistoryConfig === 'object') ? payload.streamHistoryConfig : null;
+    const incomingRaffleConfig = (payload && typeof payload.raffleConfig === 'object') ? payload.raffleConfig : null;
 
-  if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal && !incomingLiveviews && !incomingAnnouncement && !incomingStreamHistory) {
+  if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal && !incomingLiveviews && !incomingAnnouncement && !incomingStreamHistory && !incomingRaffleConfig) {
       return res.status(400).json({ error: 'no_valid_payload' });
     }
 
@@ -1163,7 +1169,21 @@ app.post('/api/session/import', async (req, res) => {
         } catch {}
       }
 
-  res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied, liveviews: !!liveviewsApplied, announcement: !!announcementApplied, streamHistory: !!streamHistoryApplied }, namespaced: useStore });
+    let raffleApplied = false;
+    if (incomingRaffleConfig && typeof incomingRaffleConfig === 'object') {
+      try {
+        let toWrite = incomingRaffleConfig;
+        if (!('default' in incomingRaffleConfig) && incomingRaffleConfig.__global__) {
+          toWrite = { default: incomingRaffleConfig.__global__, namespaces: {} };
+        }
+        if (typeof toWrite.default !== 'object') toWrite.default = {};
+        if (typeof toWrite.namespaces !== 'object') toWrite.namespaces = {};
+        fs.writeFileSync(RAFFLE_CONFIG_FILE, JSON.stringify(toWrite, null, 2));
+        raffleApplied = true;
+      } catch {}
+    }
+
+  res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied, liveviews: !!liveviewsApplied, announcement: !!announcementApplied, streamHistory: !!streamHistoryApplied, raffle: !!raffleApplied }, namespaced: useStore });
   } catch (e) {
     res.status(500).json({ error: 'failed_to_import', details: e?.message });
   }

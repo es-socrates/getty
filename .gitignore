@@ -10,7 +10,6 @@ public/min/*.js
 *.log
 language-settings.json
 tts-settings.json
-raffle-settings.json
 config/*.json
 .stylelintcache
 .eslintcache

@@ -36,28 +36,30 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!parsed.success) return res.status(400).json({ success: false, error: 'Invalid payload' });
       const { discordWebhook, telegramBotToken, telegramChatId, template, liveDiscordWebhook, liveTelegramBotToken, liveTelegramChatId } = parsed.data;
 
-  if (!discordWebhook && !(telegramBotToken && telegramChatId) && !liveDiscordWebhook && !(liveTelegramBotToken && liveTelegramChatId)) {
-        return res.status(400).json({
-          error: 'Either Discord webhook or Telegram credentials are required',
-          success: false
-        });
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let existing = {};
+      if (store && ns) {
+        try { existing = (await store.get(ns, 'external-notifications-config', null)) || {}; } catch {}
+      } else {
+        existing = {
+          template: externalNotifications.template || ''
+        };
       }
 
-  const payload = {
-        discordWebhook,
-        telegramBotToken,
-        telegramChatId,
-        template: template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"',
-        liveDiscordWebhook,
-        liveTelegramBotToken,
-        liveTelegramChatId
+      const merged = {
+        discordWebhook: typeof discordWebhook === 'string' ? discordWebhook : '',
+        telegramBotToken: typeof telegramBotToken === 'string' ? telegramBotToken : '',
+        telegramChatId: typeof telegramChatId === 'string' ? telegramChatId : '',
+        template: typeof template === 'string' ? template : (existing.template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"'),
+        liveDiscordWebhook: typeof liveDiscordWebhook === 'string' ? liveDiscordWebhook : '',
+        liveTelegramBotToken: typeof liveTelegramBotToken === 'string' ? liveTelegramBotToken : '',
+        liveTelegramChatId: typeof liveTelegramChatId === 'string' ? liveTelegramChatId : ''
       };
 
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (store && ns) {
-        await store.set(ns, 'external-notifications-config', payload);
+        await store.set(ns, 'external-notifications-config', merged);
       } else {
-        await externalNotifications.saveConfig(payload);
+        await externalNotifications.saveConfig(merged);
       }
 
       res.json({

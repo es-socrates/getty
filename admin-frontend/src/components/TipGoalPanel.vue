@@ -37,6 +37,7 @@
           :class="{ 'input-error': errors.walletAddress }"
           id="tip-goal-wallet-address"
           v-model="form.walletAddress"
+          :disabled="!walletEditable"
           type="text" />
         <small v-if="errors.walletAddress" class="small text-red-700">{{
           errors.walletAddress
@@ -192,6 +193,7 @@ const saving = ref(false);
 const hostedSupported = ref(false);
 const sessionActive = ref(false);
 const walletHiddenMsg = ref('');
+const walletEditable = ref(true);
 
 const colorFields = [
   { key: 'bg', label: 'colorBg' },
@@ -219,6 +221,7 @@ async function load() {
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
         walletHiddenMsg.value = '';
+        walletEditable.value = true;
       } else {
         if (hostedSupported.value && !sessionActive.value) {
           walletHiddenMsg.value = t('walletHiddenHostedNotice');
@@ -228,6 +231,7 @@ async function load() {
           walletHiddenMsg.value = '';
         }
         form.walletAddress = '';
+        walletEditable.value = false;
       }
 
       const demoTitles = new Set([
@@ -276,7 +280,6 @@ async function save() {
   try {
     saving.value = true;
     const payload = {
-      walletAddress: form.walletAddress,
       goalAmount: form.goalAmount,
       startingAmount: form.startingAmount,
       currentAmount: form.startingAmount,
@@ -288,6 +291,9 @@ async function save() {
       title: form.title,
       audioSource: form.audioSource,
     };
+    if (walletEditable.value) {
+      payload.walletAddress = form.walletAddress;
+    }
     let res;
     if (form.audioSource === 'custom' && audioFile.value) {
       const fd = new FormData();

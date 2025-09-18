@@ -25,6 +25,7 @@
           :class="{ 'input-error': errors.walletAddress }"
           id="wallet-address"
           v-model="form.walletAddress"
+          :disabled="!walletEditable"
           type="text" />
         <small v-if="errors.walletAddress" class="small text-red-700">{{
           errors.walletAddress
@@ -99,6 +100,7 @@ const saving = ref(false);
 const hostedSupported = ref(false);
 const sessionActive = ref(false);
 const walletHiddenMsg = ref('');
+const walletEditable = ref(true);
 const colorFields = [
   { key: 'bg', label: 'colorBg' },
   { key: 'font', label: 'colorFont' },
@@ -132,6 +134,7 @@ async function load() {
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
         walletHiddenMsg.value = '';
+        walletEditable.value = true;
       } else {
         if (hostedSupported.value && !sessionActive.value) {
           walletHiddenMsg.value = t('walletHiddenHostedNotice');
@@ -141,6 +144,7 @@ async function load() {
           walletHiddenMsg.value = '';
         }
         form.walletAddress = '';
+        walletEditable.value = false;
       }
 
       const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
@@ -171,7 +175,6 @@ async function save() {
   try {
     saving.value = true;
     const payload = {
-      walletAddress: form.walletAddress,
       bgColor: form.colors.bg,
       fontColor: form.colors.font,
       borderColor: form.colors.border,
@@ -180,6 +183,9 @@ async function save() {
       fromColor: form.colors.from,
       title: form.title,
     };
+    if (walletEditable.value) {
+      payload.walletAddress = form.walletAddress;
+    }
     await api.post('/api/last-tip', payload);
     original.snapshot = JSON.stringify(form);
     pushToast({ type: 'success', message: t('savedLastTip') });

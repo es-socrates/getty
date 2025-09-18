@@ -172,7 +172,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
       if (typeof currentUrl === 'string' && currentUrl.startsWith('/uploads/raffle/')) {
         const uploadsDir = path.resolve('./public/uploads/raffle');
-        const rel = currentUrl.replace(/^\/+/, ''); // e.g., 'uploads/raffle/filename'
+        const rel = currentUrl.replace(/^\/+/, '');
         const abs = path.resolve(path.join('./public', rel));
 
         if (abs.startsWith(uploadsDir + path.sep) || abs === uploadsDir) {
