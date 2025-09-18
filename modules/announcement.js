@@ -183,7 +183,9 @@ class AnnouncementModule {
     if (typeof this.wss?.broadcast === 'function') {
       this.wss.broadcast(ns || null, payload);
     } else {
-      this.wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(payload)); });
+      try {
+        this.wss.clients.forEach(c => { if (c && c.readyState === 1) c.send(JSON.stringify(payload)); });
+      } catch {}
     }
   }
 
@@ -192,7 +194,9 @@ class AnnouncementModule {
     if (typeof this.wss?.broadcast === 'function') {
       this.wss.broadcast(ns || null, payload);
     } else {
-      this.wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(payload)); });
+      try {
+        this.wss.clients.forEach(c => { if (c && c.readyState === 1) c.send(JSON.stringify(payload)); });
+      } catch {}
     }
   }
 
