@@ -81,7 +81,7 @@
 }
 .notif-group-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
 }
 .notif-setting-item {
   display: flex;
@@ -122,6 +122,43 @@
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 4px;
+}
+
+.tip-preview-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tip-preview-box {
+  width: 100%;
+  border-left: 6px solid var(--tn-border, #00ff7f);
+  background: var(--tn-bg, #080c10);
+  color: var(--tn-text, #ffffff);
+  border-radius: 6px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+}
+.tip-preview-box .tp-title {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tip-preview-box .tp-amount {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.tip-preview-box .tp-ar-amount {
+  color: var(--tn-amount, #00ff7f);
+  font-weight: 800;
+}
+.tip-preview-box .tp-from {
+  color: var(--tn-from, #ffffff);
+  opacity: 0.95;
+  margin-bottom: 6px;
+}
+.tip-preview-box .tp-msg {
+  opacity: 0.9;
 }
 .gif-preview-box {
   width: 100%;
@@ -199,6 +236,35 @@
   margin-top: 0;
 }
 
+.preview-footer {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.preview-refresh-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.colors-section .color-field {
+  --color-size: 2.25rem;
+  backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--card-bg) 70%, transparent);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  display: flex;
+  flex: 1 1 calc(40% - 0.5rem);
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 17rem;
+  min-width: 11rem;
+  padding: 2px 0px 2px 10px;
+  position: relative;
+}
+
 .legacy-audio .btn-danger.w-full {
   width: auto;
 }
@@ -259,10 +325,6 @@
 }
 .gif-preview-box.pos-right .notif-demo {
   order: 2;
-}
-.gif-preview-box.pos-right {
-  box-shadow: 4px 0 6px -3px color-mix(in srgb, var(--accent, #553fee)
-        var(--gif-pos-shadow-strength), transparent);
 }
 .gif-preview-box.pos-left {
   flex-direction: row-reverse;

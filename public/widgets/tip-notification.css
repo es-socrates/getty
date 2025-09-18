@@ -3,8 +3,8 @@
   bottom: 30px;
   right: 30px;
   width: 380px;
-  background: #080c10;
-  color: white;
+  background: var(--tn-bg, #080c10);
+  color: var(--tn-text, #ffffff);
   padding: 0;
   border-radius: 4px;
   font-family: Inter, 'Helvetica Neue', sans-serif;
@@ -12,7 +12,7 @@
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   overflow: hidden;
-  border-left: 8px solid #eaeaea;
+  border-left: 8px solid var(--tn-border, #00ff7f);
   transform: translateX(100%);
   animation: slideIn 0.5s forwards;
   opacity: 1;
@@ -34,24 +34,20 @@
   font-family: Inter, sans-serif;
 }
 .conn-online {
-  color: #00ff7f;
+  color: var(--tn-amount, #00ff7f);
 }
 .conn-offline {
   color: #f55;
 }
 
 .notification.tip-notification-widget {
-  border-left: 8px solid #00ff7f !important;
-}
-
-#notification.tip-notification-widget {
-  border-left: 8px solid #00ff7f !important;
+  border-left: 8px solid var(--tn-border, #00ff7f) !important;
 }
 
 .notification-content {
   padding: 10px;
   border-radius: 4px;
-  background: #080c10;
+  background: var(--tn-bg, #080c10);
 }
 
 .notification-content.error {
@@ -82,7 +78,7 @@
   font-size: 20px;
   font-weight: 800;
   margin-bottom: 5px;
-  color: #fff;
+  color: var(--tn-text, #ffffff);
 }
 
 @keyframes slideIn {
@@ -113,23 +109,18 @@
 .ar-amount {
   font-size: 22px;
   font-weight: 800;
-  color: #00ff7f;
-  text-shadow: 0 0 1px rgba(158, 180, 116, 0.47);
+  color: var(--tn-amount, #00ff7f);
+  text-shadow: 0 0 1px color-mix(in oklab, var(--tn-amount, #00ff7f) 47%, transparent);
 }
 
+#notification.tip-notification-widget .ar-amount,
 .notification.tip-notification-widget .ar-amount {
-  color: #00ff7f !important;
-  text-shadow: 0 0 1px rgba(0, 255, 127, 0.47) !important;
-}
-
-#notification.tip-notification-widget .ar-amount {
-  color: #00ff7f !important;
-  text-shadow: 0 0 1px rgba(0, 255, 127, 0.47) !important;
+  color: var(--tn-amount, #00ff7f) !important;
 }
 
 .usd-value {
   font-size: 16px;
-  color: #fff;
+  color: var(--tn-text, #ffffff);
   margin-top: 4px;
   font-weight: 600;
 }
@@ -137,7 +128,7 @@
 .notification-from {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--tn-from, #ffffff);
   display: flex;
   align-items: center;
 }
@@ -160,7 +151,7 @@
 
 .notification-message {
   font-size: 15px;
-  color: #fff;
+  color: var(--tn-text, #ffffff);
   text-overflow: ellipsis;
   margin-top: 8px;
   font-weight: 600;
@@ -236,7 +227,7 @@
 }
 
 .text-success {
-  color: #00ff7f !important;
+  color: var(--tn-amount, #00ff7f) !important;
 }
 
 .notification-message img.comment-emoji,

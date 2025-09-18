@@ -16,6 +16,48 @@ export async function initNotifications() {
   const gifSlot = document.getElementById('notification-gif');
   if (!notification) return;
 
+  const TN_DEFAULTS = {
+    bgColor: '#080c10',
+    fontColor: '#ffffff',
+    borderColor: '#00ff7f',
+    amountColor: '#00ff7f',
+    fromColor: '#ffffff',
+  };
+
+  function applyColorVars(cfg = {}) {
+    if (!window.location.pathname.includes('/widgets/')) return;
+    try {
+      const resolved = { ...TN_DEFAULTS, ...cfg };
+      notification.style.setProperty('--tn-bg', resolved.bgColor);
+      notification.style.setProperty('--tn-text', resolved.fontColor);
+      notification.style.setProperty('--tn-border', resolved.borderColor);
+      notification.style.setProperty('--tn-amount', resolved.amountColor);
+      notification.style.setProperty('--tn-from', resolved.fromColor);
+    } catch {}
+  }
+
+  async function loadColorConfig() {
+    if (!window.location.pathname.includes('/widgets/')) return;
+    try {
+      const r = await fetch('/api/tip-notification?ts=' + Date.now(), { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json();
+        const cfg = {
+          bgColor: j.bgColor,
+          fontColor: j.fontColor,
+          borderColor: j.borderColor,
+          amountColor: j.amountColor,
+          fromColor: j.fromColor,
+        };
+        applyColorVars(cfg);
+      } else {
+        applyColorVars();
+      }
+    } catch {
+      applyColorVars();
+    }
+  }
+
   let gifConfig = { gifPath: '', position: 'right' };
   async function loadGifConfig() {
     try {
@@ -32,6 +74,7 @@ export async function initNotifications() {
     } catch {}
   }
   await loadGifConfig();
+  await loadColorConfig();
 
   const isOBSWidget = window.location.pathname.includes('/widgets/');
   if (isOBSWidget) notification.classList.add('tip-notification-widget');
@@ -278,6 +321,17 @@ export async function initNotifications() {
         }
         if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) ttsLanguage = msg.data.ttsLanguage;
         if (msg.type === 'audioSettingsUpdate') audioSettings = { ...audioSettings, ...msg.data };
+        if (msg.type === 'tipNotificationConfigUpdate') {
+          if (!window.location.pathname.includes('/widgets/')) return;
+          const cfg = {
+            bgColor: msg.data?.bgColor,
+            fontColor: msg.data?.fontColor,
+            borderColor: msg.data?.borderColor,
+            amountColor: msg.data?.amountColor,
+            fromColor: msg.data?.fromColor,
+          };
+          applyColorVars(cfg);
+        }
         if (msg.type === 'tipNotification') {
           await showDonationNotification({ ...msg.data, isDirectTip: true });
         } else if (msg.type === 'chatMessage' && msg.data?.credits > 0) {

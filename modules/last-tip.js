@@ -53,7 +53,6 @@ class LastTipModule {
       fontColor: '#ffffff',
       borderColor: '#00ff7f',
       amountColor: '#00ff7f',
-      iconColor: '#ffffff',
       iconBgColor: '#4f36ff',
       fromColor: '#817ec8'
     };
@@ -82,20 +81,6 @@ class LastTipModule {
         } catch {}
       }
 
-      try {
-        const legacyPath = path.join(process.cwd(), 'last-tip-config.json');
-        if (fs.existsSync(legacyPath)) {
-          const legacy = JSON.parse(fs.readFileSync(legacyPath, 'utf8')) || {};
-          const needsMerge = !this.walletAddress || !config || typeof config !== 'object';
-          const hasLegacyData = legacy && (legacy.walletAddress || legacy.borderColor || legacy.bgColor || legacy.title);
-          if (hasLegacyData && needsMerge) {
-            const merged = { ...lastTipDefault, ...config, ...legacy };
-            try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(merged, null, 2)); } catch {}
-            if (merged.walletAddress && !this.walletAddress) this.walletAddress = merged.walletAddress;
-            console.log('[LastTip] Migrated settings from legacy last-tip-config.json into config/');
-          }
-        }
-      } catch {}
     } catch (e) {
       console.error('[LastTip] Error reading wallet address from config:', e);
     }
@@ -284,7 +269,6 @@ class LastTipModule {
         fontColor: config.fontColor,
         borderColor: config.borderColor,
         amountColor: config.amountColor,
-        iconColor: config.iconColor,
         iconBgColor: config.iconBgColor,
         fromColor: config.fromColor,
         title: config.title

@@ -25,6 +25,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     loadGifConfig();
+    const TN_DEFAULTS = { bgColor: '#080c10', fontColor: '#ffffff', borderColor: '#00ff7f', amountColor: '#00ff7f', fromColor: '#ffffff' };
+    function applyColorVars(cfg = {}) {
+        if (!notification || !window.location.pathname.includes('/widgets/')) return;
+        const c = { ...TN_DEFAULTS, ...cfg };
+        try {
+            notification.style.setProperty('--tn-bg', c.bgColor);
+            notification.style.setProperty('--tn-text', c.fontColor);
+            notification.style.setProperty('--tn-border', c.borderColor);
+            notification.style.setProperty('--tn-amount', c.amountColor);
+            notification.style.setProperty('--tn-from', c.fromColor);
+        } catch {}
+    }
+    async function loadColorConfig() {
+        if (!window.location.pathname.includes('/widgets/')) return;
+        try {
+            const r = await fetch('/api/tip-notification?ts=' + Date.now(), { cache: 'no-store' });
+            if (r.ok) {
+                const j = await r.json();
+                applyColorVars({
+                    bgColor: j.bgColor,
+                    fontColor: j.fontColor,
+                    borderColor: j.borderColor,
+                    amountColor: j.amountColor,
+                    fromColor: j.fromColor,
+                });
+            } else { applyColorVars(); }
+        } catch { applyColorVars(); }
+    }
+    await loadColorConfig();
     
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     if (isOBSWidget && notification) {
@@ -194,6 +223,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     audioSettings.enabled = msg.data.enabled !== false;
                 }
                 updateDebugOverlay();
+            }
+
+            if (msg.type === 'tipNotificationConfigUpdate') {
+                if (!window.location.pathname.includes('/widgets/')) return;
+                applyColorVars({
+                    bgColor: msg.data?.bgColor,
+                    fontColor: msg.data?.fontColor,
+                    borderColor: msg.data?.borderColor,
+                    amountColor: msg.data?.amountColor,
+                    fromColor: msg.data?.fromColor,
+                });
             }
             
             if (msg.type === 'tipNotification') {

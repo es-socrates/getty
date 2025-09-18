@@ -44,16 +44,29 @@
           <label class="label">{{ t('liveviewsSize') }}</label>
           <input class="input" v-model="form.size" />
         </div>
-      </div>
-
-      <div class="grid mt-4 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))] gap-3">
         <div class="form-group">
-          <label class="label">{{ t('liveviewsBg') }}</label
-          ><input class="input" type="color" v-model="form.bg" />
-        </div>
-        <div class="form-group">
-          <label class="label">{{ t('liveviewsColor') }}</label
-          ><input class="input" type="color" v-model="form.color" />
+          <div class="color-pair">
+            <div class="color-item">
+              <label class="label" for="liveviews-bg">{{ t('liveviewsBg') }}</label>
+              <input
+                id="liveviews-bg"
+                class="color-swatch"
+                type="color"
+                v-model="form.bg"
+                :aria-label="t('liveviewsBg')"
+                :title="t('liveviewsBg')" />
+            </div>
+            <div class="color-item">
+              <label class="label" for="liveviews-color">{{ t('liveviewsColor') }}</label>
+              <input
+                id="liveviews-color"
+                class="color-swatch"
+                type="color"
+                v-model="form.color"
+                :aria-label="t('liveviewsColor')"
+                :title="t('liveviewsColor')" />
+            </div>
+          </div>
         </div>
       </div>
       <div class="form-group mt-3">
@@ -288,5 +301,43 @@ onMounted(async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.color-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+.color-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.color-item .label {
+  margin-bottom: 0;
+  line-height: 1.62;
+}
+.color-swatch {
+  width: 100%;
+  height: var(--control-height, 36px);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  box-sizing: border-box;
+  display: block;
+}
+.color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.color-swatch::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+.color-swatch::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
 }
 </style>

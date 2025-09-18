@@ -17,7 +17,7 @@ body {
 }
 
 #goal-widget:not(.modern-theme).tip-goal-widget {
-  border-left: 8px solid #00ff7f;
+  border-left: 8px solid var(--tg-border, #00ff7f);
 }
 
 .goal-container {
@@ -57,7 +57,7 @@ body {
 }
 
 .tip-goal-widget .current-ar {
-  color: #00ff7f;
+  color: var(--tg-progress, #00ff7f);
 }
 
 .goal-ar {
@@ -355,19 +355,19 @@ body {
 }
 
 #goal-widget:not(.modern-theme).celebrating {
-  border-left: 8px solid #eaeaea;
+  border-left: 8px solid var(--tg-border, #eaeaea);
 }
 
 #goal-widget:not(.modern-theme):not(.celebrating) {
-  border-left: 8px solid #eaeaea;
+  border-left: 8px solid var(--tg-border, #eaeaea);
 }
 
 #goal-widget:not(.modern-theme).tip-goal-widget.celebrating {
-  border-left: 8px solid #00ff7f;
+  border-left: 8px solid var(--tg-border, #00ff7f);
 }
 
 #goal-widget:not(.modern-theme).tip-goal-widget:not(.celebrating) {
-  border-left: 8px solid #00ff7f;
+  border-left: 8px solid var(--tg-border, #00ff7f);
 }
 
 #goal-widget.modern-theme {

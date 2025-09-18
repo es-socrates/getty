@@ -724,7 +724,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 ['last-tip-font-color', lt.fontColor || '#ffffff'],
                 ['last-tip-border-color', lt.borderColor || '#00ff7f'],
                 ['last-tip-amount-color', lt.amountColor || '#00ff7f'],
-                ['last-tip-icon-color', lt.iconColor || '#ffffff'],
                 ['last-tip-icon-bg-color', lt.iconBgColor || '#4f36ff'],
                 ['last-tip-from-color', lt.fromColor || '#817ec8']
             ];
@@ -893,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         fontColor: document.getElementById('last-tip-font-color').value,
                         borderColor: document.getElementById('last-tip-border-color').value,
                         amountColor: document.getElementById('last-tip-amount-color').value,
-                        iconColor: document.getElementById('last-tip-icon-color').value,
+                        // iconColor removed
                         iconBgColor: document.getElementById('last-tip-icon-bg-color')?.value,
                         fromColor: document.getElementById('last-tip-from-color').value,
                         title: (document.getElementById('last-tip-title')?.value || '').trim()
@@ -1118,7 +1117,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const fontColorEl = document.getElementById('last-tip-font-color');
         const borderColorEl = document.getElementById('last-tip-border-color');
         const amountColorEl = document.getElementById('last-tip-amount-color');
-        const iconColorEl = document.getElementById('last-tip-icon-color');
         const iconBgColorEl = document.getElementById('last-tip-icon-bg-color');
         const fromColorEl = document.getElementById('last-tip-from-color');
         
@@ -1126,7 +1124,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const fontColorHexEl = document.getElementById('last-tip-font-color-hex');
         const borderColorHexEl = document.getElementById('last-tip-border-color-hex');
         const amountColorHexEl = document.getElementById('last-tip-amount-color-hex');
-        const iconColorHexEl = document.getElementById('last-tip-icon-color-hex');
         const iconBgColorHexEl = document.getElementById('last-tip-icon-bg-color-hex');
         const fromColorHexEl = document.getElementById('last-tip-from-color-hex');
         
@@ -1134,12 +1131,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fontColorEl && fontColorHexEl) fontColorHexEl.textContent = fontColorEl.value;
         if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
         if (amountColorEl && amountColorHexEl) amountColorHexEl.textContent = amountColorEl.value;
-        if (iconColorEl && iconColorHexEl) iconColorHexEl.textContent = iconColorEl.value;
         if (iconBgColorEl && iconBgColorHexEl) iconBgColorHexEl.textContent = iconBgColorEl.value;
         if (fromColorEl && fromColorHexEl) fromColorHexEl.textContent = fromColorEl.value;
     }
     
-    ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-color','last-tip-icon-bg-color','last-tip-from-color'].forEach(id => {
+    ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-bg-color','last-tip-from-color'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('input', updateLastTipColorHex);
@@ -1157,7 +1153,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('last-tip-font-color').value = '#ffffff';
             document.getElementById('last-tip-border-color').value = '#00ff7f';
             document.getElementById('last-tip-amount-color').value = '#00ff7f';
-            document.getElementById('last-tip-icon-color').value = '#ffffff';
             if (document.getElementById('last-tip-icon-bg-color')) document.getElementById('last-tip-icon-bg-color').value = '#4f36ff';
             document.getElementById('last-tip-from-color').value = '#817ec8';
             updateLastTipColorHex();

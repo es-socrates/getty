@@ -75,6 +75,7 @@ const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
 const registerStreamHistoryRoutes = require('./routes/stream-history');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
+const registerTipNotificationRoutes = require('./routes/tip-notification');
 const registerAnnouncementRoutes = require('./routes/announcement');
 const { AchievementsModule } = require('./modules/achievements');
 const registerAchievementsRoutes = require('./routes/achievements');
@@ -1034,7 +1035,7 @@ app.post('/api/session/import', async (req, res) => {
 
     let lastTipApplied = false;
     if (incomingLastTip || lastTipWallet) {
-      const allowedLT = ['walletAddress','bgColor','fontColor','borderColor','amountColor','iconColor','iconBgColor','fromColor','title'];
+  const allowedLT = ['walletAddress','bgColor','fontColor','borderColor','amountColor','iconBgColor','fromColor','title'];
       const base = incomingLastTip || {};
       if (lastTipWallet) base.walletAddress = lastTipWallet;
       const mergedLT = mergeConfigFile(LAST_TIP_CONFIG_FILE, base, allowedLT);
@@ -1529,6 +1530,9 @@ app.get('/widgets/tip-notification', (req, res, next) => {
     return res.send(html);
   } catch { return next(); }
 });
+
+try { registerTipNotificationRoutes(app, limiter, { wss }); } catch {}
+try { registerTipNotificationGifRoutes(app, limiter); } catch {}
 
 app.get('/widgets/chat', (req, res, next) => {
   try {

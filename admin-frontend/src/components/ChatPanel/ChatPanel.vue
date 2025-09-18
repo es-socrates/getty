@@ -51,7 +51,7 @@
             <h4 id="general-colors-heading" class="chat-subtitle">
               {{ t('generalColors') || 'General' }}
             </h4>
-            <div class="flex flex-wrap gap-2 items-end">
+            <div class="flex flex-wrap gap-2 items-end chat-general-colors">
               <ColorInput v-model="form.colors.bg" :label="t('colorBg')" />
               <ColorInput v-model="form.colors.msgBg" :label="t('colorMsgBg')" />
               <ColorInput v-model="form.colors.msgBgAlt" :label="t('colorMsgAltBg')" />
@@ -63,7 +63,7 @@
             <h4 id="donation-colors-heading" class="chat-subtitle">
               {{ t('donationColors') || 'Donations' }}
             </h4>
-            <div class="flex flex-wrap gap-2 items-end">
+            <div class="flex flex-wrap gap-2 items-end chat-donation-colors">
               <ColorInput v-model="form.colors.donation" :label="t('colorMsgDonation')" />
               <ColorInput v-model="form.colors.donationBg" :label="t('colorMsgDonationBg')" />
             </div>
