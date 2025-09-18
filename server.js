@@ -286,7 +286,6 @@ try {
 try {
   app.use((req, res, next) => {
     try {
-      // Prevent leaking URL tokens to third parties via the Referer header
       res.setHeader('Referrer-Policy', 'no-referrer');
       if (req.path && req.path.startsWith('/api/')) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

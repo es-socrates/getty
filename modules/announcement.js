@@ -45,18 +45,17 @@ class AnnouncementModule {
   constructor(wss, opts = {}) {
     this.wss = wss;
     this.store = opts.store || null;
-    // Global (non-namespaced) state for standalone mode
+
     this.state = loadConfig();
-    // Per-namespace states and timers for hosted mode
-    this._states = new Map(); // ns -> state
-    this._timers = new Map(); // ns -> timer
+
+    this._states = new Map();
+    this._timers = new Map();
     if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
     if (process.env.NODE_ENV !== 'test') {
       this.start();
     }
   }
 
-  // Resolve state for a given namespace; if ns is falsy, use global file-backed state
   async _getState(ns) {
     if (!ns) return this.state;
     if (this._states.has(ns)) return this._states.get(ns);
@@ -117,7 +116,7 @@ class AnnouncementModule {
     } else {
       if (this._timer) clearTimeout(this._timer);
       this._timer = null;
-      // also clear all ns timers
+
       for (const [k, t] of this._timers.entries()) { try { clearTimeout(t); } catch {} this._timers.delete(k); }
     }
   }
