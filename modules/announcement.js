@@ -42,64 +42,126 @@ function saveConfig(cfg) {
 }
 
 class AnnouncementModule {
-  constructor(wss) {
+  constructor(wss, opts = {}) {
     this.wss = wss;
+    this.store = opts.store || null;
+    // Global (non-namespaced) state for standalone mode
     this.state = loadConfig();
-    this._timer = null;
+    // Per-namespace states and timers for hosted mode
+    this._states = new Map(); // ns -> state
+    this._timers = new Map(); // ns -> timer
     if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
     if (process.env.NODE_ENV !== 'test') {
       this.start();
     }
   }
 
-  start() {
-    this.stop();
-  if (process.env.NODE_ENV === 'test') return;
-  if (!this.state.staticMode) this.scheduleNext();
+  // Resolve state for a given namespace; if ns is falsy, use global file-backed state
+  async _getState(ns) {
+    if (!ns) return this.state;
+    if (this._states.has(ns)) return this._states.get(ns);
+    let st = null;
+    if (this.store) {
+      try {
+        const j = await this.store.get(ns, 'announcement-config', null);
+        if (j && typeof j === 'object') st = this._normalizeState(j);
+      } catch {}
+    }
+    if (!st) st = this._normalizeState({});
+    this._states.set(ns, st);
+    return st;
   }
 
-  stop() {
-    if (this._timer) clearTimeout(this._timer);
-    this._timer = null;
+  _normalizeState(raw) {
+    try {
+      return {
+        messages: Array.isArray(raw.messages) ? raw.messages : [],
+        cooldownSeconds: Number(raw.cooldownSeconds) > 0 ? Number(raw.cooldownSeconds) : 300,
+        theme: 'horizontal',
+        bgColor: typeof raw.bgColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw.bgColor) ? raw.bgColor : '#0e1014',
+        textColor: typeof raw.textColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw.textColor) ? raw.textColor : '#e8eef2',
+        animationMode: ['fade','slide-up','slide-left','scale','random'].includes(raw.animationMode) ? raw.animationMode : 'fade',
+        defaultDurationSeconds: (Number(raw.defaultDurationSeconds) >=1 && Number(raw.defaultDurationSeconds) <=60) ? Number(raw.defaultDurationSeconds) : 10,
+        staticMode: raw.staticMode === true,
+        bannerBgType: (raw.bannerBgType === 'gradient' || raw.bannerBgType === 'solid') ? raw.bannerBgType : 'solid',
+        gradientFrom: (typeof raw.gradientFrom === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw.gradientFrom)) ? raw.gradientFrom : '#4f36ff',
+        gradientTo: (typeof raw.gradientTo === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw.gradientTo)) ? raw.gradientTo : '#10d39e'
+      };
+    } catch { return { messages: [], cooldownSeconds: 300, theme: 'horizontal', bgColor: '#0e1014', textColor: '#e8eef2', animationMode: 'fade', defaultDurationSeconds: 10, staticMode: false, bannerBgType: 'solid', gradientFrom: '#4f36ff', gradientTo: '#10d39e' }; }
+  }
+
+  async _saveState(ns, st) {
+    if (!ns) {
+      this.state = st;
+      saveConfig(st);
+      return true;
+    }
+    this._states.set(ns, st);
+    if (this.store) {
+      try { await this.store.set(ns, 'announcement-config', st); } catch {}
+    }
+    return true;
+  }
+
+  start(ns = null) {
+    this.stop(ns);
+    if (process.env.NODE_ENV === 'test') return;
+    this.scheduleNext(ns);
+  }
+
+  stop(ns = null) {
+    if (ns) {
+      const t = this._timers.get(ns);
+      if (t) clearTimeout(t);
+      this._timers.delete(ns);
+    } else {
+      if (this._timer) clearTimeout(this._timer);
+      this._timer = null;
+      // also clear all ns timers
+      for (const [k, t] of this._timers.entries()) { try { clearTimeout(t); } catch {} this._timers.delete(k); }
+    }
   }
 
   dispose() {
     this.stop();
   }
 
-  scheduleNext() {
-    if (!this.state.messages.length) return;
-    if (this.state.staticMode) return;
-    const cooldown = this.state.cooldownSeconds * 1000;
-    this._timer = setTimeout(() => {
-      try { this.broadcastRandomMessage(); } catch {
-        console.error('[announcement] broadcast error');
-      }
-      this.scheduleNext();
+  async scheduleNext(ns = null) {
+    const st = await this._getState(ns);
+    if (!st.messages.length) return;
+    if (st.staticMode) return;
+    const cooldown = st.cooldownSeconds * 1000;
+    const timer = setTimeout(async () => {
+      try { await this.broadcastRandomMessage(ns); } catch { console.error('[announcement] broadcast error'); }
+      this.scheduleNext(ns);
     }, cooldown);
-    if (this._timer && typeof this._timer.unref === 'function') {
-      try { this._timer.unref(); } catch {}
+    if (ns) {
+      this._timers.set(ns, timer);
+    } else {
+      this._timer = timer;
     }
+    if (timer && typeof timer.unref === 'function') { try { timer.unref(); } catch {} }
   }
 
-  broadcastRandomMessage() {
-    if (!this.state.messages.length) return;
-    const pool = this.state.messages.filter(m => m.enabled !== false);
+  async broadcastRandomMessage(ns = null) {
+    const st = await this._getState(ns);
+    if (!st.messages.length) return;
+    const pool = st.messages.filter(m => m.enabled !== false);
     if (!pool.length) return;
     const msg = pool[Math.floor(Math.random() * pool.length)];
     let duration = Number(msg.durationSeconds);
-    if (!(duration >= 1)) duration = this.state.defaultDurationSeconds || 10;
+    if (!(duration >= 1)) duration = st.defaultDurationSeconds || 10;
     if (duration > 60) duration = 60;
-    const payload = { type: 'announcement', data: { 
+    const payload = { type: 'announcement', data: {
       id: msg.id,
       text: msg.text,
       imageUrl: msg.imageUrl || null,
       linkUrl: msg.linkUrl || null,
-      theme: this.state.theme,
+      theme: st.theme,
       duration,
-      bgColor: this.state.bgColor,
-      textColor: this.state.textColor,
-      animationMode: this.state.animationMode,
+      bgColor: st.bgColor,
+      textColor: st.textColor,
+      animationMode: st.animationMode,
       title: msg.title || null,
       subtitle1: msg.subtitle1 || null,
       subtitle2: msg.subtitle2 || null,
@@ -119,23 +181,32 @@ class AnnouncementModule {
       textColorOverride: msg.textColorOverride || null,
       textSize: typeof msg.textSize === 'number' ? msg.textSize : undefined
     } };
-    this.wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(payload)); });
+    if (typeof this.wss?.broadcast === 'function') {
+      this.wss.broadcast(ns || null, payload);
+    } else {
+      this.wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(payload)); });
+    }
   }
 
-  broadcastConfig() {
-    const payload = { type: 'announcement_config', data: this.getPublicConfig() };
-    this.wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(payload)); });
+  async broadcastConfig(ns = null) {
+    const payload = { type: 'announcement_config', data: await this.getPublicConfig(ns) };
+    if (typeof this.wss?.broadcast === 'function') {
+      this.wss.broadcast(ns || null, payload);
+    } else {
+      this.wss.clients.forEach(c => { if (c.readyState === WebSocket.OPEN) c.send(JSON.stringify(payload)); });
+    }
   }
 
-  getPublicConfig() {
-    return { 
-      messages: this.state.messages.map(m => ({
+  async getPublicConfig(ns = null) {
+    const st = await this._getState(ns);
+    return {
+      messages: st.messages.map(m => ({
         id: m.id,
         text: m.text,
         imageUrl: m.imageUrl || null,
         linkUrl: m.linkUrl || null,
         enabled: m.enabled !== false,
-        durationSeconds: Number(m.durationSeconds) > 0 ? Number(m.durationSeconds) : this.state.defaultDurationSeconds || 10,
+        durationSeconds: Number(m.durationSeconds) > 0 ? Number(m.durationSeconds) : st.defaultDurationSeconds || 10,
         usesDefaultDuration: !(Number(m.durationSeconds) > 0),
         title: m.title || null,
         subtitle1: m.subtitle1 || null,
@@ -156,49 +227,47 @@ class AnnouncementModule {
         textColorOverride: m.textColorOverride || null,
         textSize: typeof m.textSize === 'number' ? m.textSize : undefined
       })),
-        cooldownSeconds: this.state.cooldownSeconds,
-        theme: this.state.theme,
-        bgColor: this.state.bgColor,
-        textColor: this.state.textColor,
-        animationMode: this.state.animationMode,
-        defaultDurationSeconds: this.state.defaultDurationSeconds || 10,
-        staticMode: !!this.state.staticMode,
-        bannerBgType: this.state.bannerBgType || 'solid',
-        gradientFrom: this.state.gradientFrom || '#4f36ff',
-        gradientTo: this.state.gradientTo || '#10d39e'
+      cooldownSeconds: st.cooldownSeconds,
+      theme: st.theme,
+      bgColor: st.bgColor,
+      textColor: st.textColor,
+      animationMode: st.animationMode,
+      defaultDurationSeconds: st.defaultDurationSeconds || 10,
+      staticMode: !!st.staticMode,
+      bannerBgType: st.bannerBgType || 'solid',
+      gradientFrom: st.gradientFrom || '#4f36ff',
+      gradientTo: st.gradientTo || '#10d39e'
     };
   }
 
-  setSettings({ cooldownSeconds, theme, bgColor, textColor, animationMode, defaultDurationSeconds, applyAllDurations, bannerBgType, gradientFrom, gradientTo, staticMode }) {
-    if (Number(cooldownSeconds) > 0) this.state.cooldownSeconds = Number(cooldownSeconds);
-    if (theme === 'horizontal') this.state.theme = 'horizontal';
-    if (typeof bgColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(bgColor)) this.state.bgColor = bgColor;
-    if (typeof textColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(textColor)) this.state.textColor = textColor;
-    if (['fade','slide-up','slide-left','scale','random'].includes(animationMode)) this.state.animationMode = animationMode;
+  async setSettings({ cooldownSeconds, theme, bgColor, textColor, animationMode, defaultDurationSeconds, applyAllDurations, bannerBgType, gradientFrom, gradientTo, staticMode }, ns = null) {
+    const st = await this._getState(ns);
+    if (Number(cooldownSeconds) > 0) st.cooldownSeconds = Number(cooldownSeconds);
+    if (theme === 'horizontal') st.theme = 'horizontal';
+    if (typeof bgColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(bgColor)) st.bgColor = bgColor;
+    if (typeof textColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(textColor)) st.textColor = textColor;
+    if (['fade','slide-up','slide-left','scale','random'].includes(animationMode)) st.animationMode = animationMode;
     if (Number(defaultDurationSeconds) >=1 && Number(defaultDurationSeconds) <=60) {
-      this.state.defaultDurationSeconds = Number(defaultDurationSeconds);
+      st.defaultDurationSeconds = Number(defaultDurationSeconds);
     }
-    if (typeof staticMode === 'boolean') this.state.staticMode = staticMode;
-    if (bannerBgType === 'solid' || bannerBgType === 'gradient') this.state.bannerBgType = bannerBgType;
-    if (typeof gradientFrom === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(gradientFrom)) this.state.gradientFrom = gradientFrom;
-    if (typeof gradientTo === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(gradientTo)) this.state.gradientTo = gradientTo;
-    if (applyAllDurations && Number(this.state.defaultDurationSeconds) >=1) {
-      this.state.messages = this.state.messages.map(m => {
-        const clone = { ...m };
-        delete clone.durationSeconds;
-        return clone;
-      });
+    if (typeof staticMode === 'boolean') st.staticMode = staticMode;
+    if (bannerBgType === 'solid' || bannerBgType === 'gradient') st.bannerBgType = bannerBgType;
+    if (typeof gradientFrom === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(gradientFrom)) st.gradientFrom = gradientFrom;
+    if (typeof gradientTo === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(gradientTo)) st.gradientTo = gradientTo;
+    if (applyAllDurations && Number(st.defaultDurationSeconds) >=1) {
+      st.messages = st.messages.map(m => { const clone = { ...m }; delete clone.durationSeconds; return clone; });
     }
-  saveConfig(this.state);
-    this.start();
-    this.broadcastConfig();
-    return this.getPublicConfig();
+    await this._saveState(ns, st);
+    this.start(ns);
+    await this.broadcastConfig(ns);
+    return this.getPublicConfig(ns);
   }
 
-  addMessage({ text, imageUrl, linkUrl, durationSeconds, title, subtitle1, subtitle2, subtitle3, titleColor, subtitle1Color, subtitle2Color, subtitle3Color, titleSize, subtitle1Size, subtitle2Size, subtitle3Size, ctaText, ctaTextSize, ctaIcon, ctaBgColor, textColorOverride, textSize }) {
+  async addMessage({ text, imageUrl, linkUrl, durationSeconds, title, subtitle1, subtitle2, subtitle3, titleColor, subtitle1Color, subtitle2Color, subtitle3Color, titleSize, subtitle1Size, subtitle2Size, subtitle3Size, ctaText, ctaTextSize, ctaIcon, ctaBgColor, textColorOverride, textSize }, ns = null) {
+    const st = await this._getState(ns);
     const dur = Number(durationSeconds);
-    const fallback = this.state.defaultDurationSeconds || 10;
-    const wasEmpty = this.state.messages.length === 0;
+    const fallback = st.defaultDurationSeconds || 10;
+    const wasEmpty = st.messages.length === 0;
     const clamp = (n, lo, hi) => {
       const x = Number(n);
       if (!Number.isFinite(x)) return undefined;
@@ -231,23 +300,24 @@ class AnnouncementModule {
       textColorOverride: textColorOverride || null,
       textSize: clamp(textSize, 8, 64)
     };
-    this.state.messages.push(message);
-    saveConfig(this.state);
-    this.broadcastConfig();
+    st.messages.push(message);
+    await this._saveState(ns, st);
+    await this.broadcastConfig(ns);
 
     if (wasEmpty) {
       try {
-        this.start();
-        this.broadcastRandomMessage();
+        this.start(ns);
+        await this.broadcastRandomMessage(ns);
       } catch { /* ignore */ }
     }
     return message;
   }
 
-  updateMessage(id, patch) {
-    const idx = this.state.messages.findIndex(m => m.id === id);
+  async updateMessage(id, patch, ns = null) {
+    const st = await this._getState(ns);
+    const idx = st.messages.findIndex(m => m.id === id);
     if (idx === -1) return null;
-    const next = { ...this.state.messages[idx], ...patch };
+    const next = { ...st.messages[idx], ...patch };
     if (patch.durationSeconds !== undefined) {
       const d = Number(patch.durationSeconds);
       if (d >= 1 && d <= 60) next.durationSeconds = d; else delete next.durationSeconds;
@@ -264,40 +334,43 @@ class AnnouncementModule {
     if (Object.prototype.hasOwnProperty.call(patch, 'subtitle3Size')) next.subtitle3Size = clamp(patch.subtitle3Size, 8, 64);
     if (Object.prototype.hasOwnProperty.call(patch, 'textSize')) next.textSize = clamp(patch.textSize, 8, 64);
     if (Object.prototype.hasOwnProperty.call(patch, 'ctaTextSize')) next.ctaTextSize = clamp(patch.ctaTextSize, 8, 64);
-    this.state.messages[idx] = next;
-    saveConfig(this.state);
-    this.broadcastConfig();
-    return this.state.messages[idx];
+    st.messages[idx] = next;
+    await this._saveState(ns, st);
+    await this.broadcastConfig(ns);
+    return st.messages[idx];
   }
 
-  removeMessage(id) {
-    const idx = this.state.messages.findIndex(m => m.id === id);
+  async removeMessage(id, ns = null) {
+    const st = await this._getState(ns);
+    const idx = st.messages.findIndex(m => m.id === id);
     if (idx === -1) return false;
-    const [removed] = this.state.messages.splice(idx, 1);
+    const [removed] = st.messages.splice(idx, 1);
     if (removed && removed.imageUrl && removed.imageUrl.startsWith('/uploads/announcement/')) {
       try { fs.unlinkSync(path.join(process.cwd(), 'public', removed.imageUrl)); } catch {}
     }
-    saveConfig(this.state);
-    this.broadcastConfig();
+    await this._saveState(ns, st);
+    await this.broadcastConfig(ns);
     return true;
   }
 
-  clearMessages(mode = 'all') {
-    const before = this.state.messages.length;
+  async clearMessages(mode = 'all', ns = null) {
+    const st = await this._getState(ns);
+    const before = st.messages.length;
     if (before === 0) return { before: 0, after: 0 };
     if (mode === 'test') {
       const testRegex = /^(Default dur|DD-|WS ping|Image test message updated|Temp img message updated)/;
-      this.state.messages = this.state.messages.filter(m => !testRegex.test(m.text));
+      st.messages = st.messages.filter(m => !testRegex.test(m.text));
     } else {
-      this.state.messages = [];
+      st.messages = [];
     }
-    saveConfig(this.state);
-    this.broadcastConfig();
-    return { before, after: this.state.messages.length };
+    await this._saveState(ns, st);
+    await this.broadcastConfig(ns);
+    return { before, after: st.messages.length };
   }
 
-  getMessage(id) {
-    return this.state.messages.find(m => m.id === id) || null;
+  async getMessage(id, ns = null) {
+    const st = await this._getState(ns);
+    return st.messages.find(m => m.id === id) || null;
   }
 }
 

@@ -48,7 +48,16 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
   }
 
   const liveviewsStorage = multer.diskStorage({
-    destination: function (_req, _file, cb) {
+    destination: function (req, _file, cb) {
+      try {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        if (ns) {
+          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+          const dir = path.join(LIVEVIEWS_UPLOADS_DIR, safe);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          return cb(null, dir);
+        }
+      } catch {}
       cb(null, LIVEVIEWS_UPLOADS_DIR);
     },
     filename: function (_req, file, cb) {
@@ -67,6 +76,10 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
 
   app.post('/config/liveviews-config.json', strictLimiter, liveviewsUpload.single('icon'), async (req, res) => {
     try {
+      if (((store && store.redis) || requireSessionFlag)) {
+        const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
       const body = req.body || {};
       const removeIcon = body.removeIcon === '1';
       const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -79,7 +92,8 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
 
       let iconUrl = '';
       if (req.file) {
-        iconUrl = '/uploads/liveviews/' + req.file.filename;
+        const nsPart = (ns && typeof ns === 'string') ? (ns.replace(/[^a-zA-Z0-9_-]/g, '_') + '/') : '';
+        iconUrl = '/uploads/liveviews/' + nsPart + req.file.filename;
       } else if (!removeIcon && prev.icon) {
         iconUrl = prev.icon;
       }

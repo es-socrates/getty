@@ -16,9 +16,27 @@ function calculateFileHash(filePath) {
 function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
   app.get('/api/goal-audio', (req, res) => {
     try {
-      const audioDir = path.join(process.cwd(), 'public/uploads/goal-audio');
-      const files = fs.readdirSync(audioDir);
-      const audioFile = files.find(file => file.startsWith('goal-audio'));
+      const baseDir = path.join(process.cwd(), 'public/uploads/goal-audio');
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (hosted && !ns) {
+        return res.status(404).json({ error: 'No audio file found' });
+      }
+      const dir = (ns && typeof ns === 'string') ? path.join(baseDir, ns.replace(/[^a-zA-Z0-9_-]/g, '_')) : baseDir;
+      const dirAlt = baseDir;
+      let audioFile = null;
+      let audioDir = dir;
+      try {
+        const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+        audioFile = files.find(file => file.startsWith('goal-audio')) || null;
+      } catch {}
+      if (!audioFile) {
+        try {
+          const files = fs.existsSync(dirAlt) ? fs.readdirSync(dirAlt) : [];
+          audioFile = files.find(file => file.startsWith('goal-audio')) || null;
+          audioDir = dirAlt;
+        } catch {}
+      }
 
       if (audioFile) {
         const filePath = path.join(audioDir, audioFile);
@@ -103,16 +121,28 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
     }
   });
 
-  app.delete('/api/goal-audio-settings', strictLimiter, (_req, res) => {
+  app.delete('/api/goal-audio-settings', strictLimiter, (req, res) => {
     try {
+      const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (hosted) {
+        const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+
       try {
-        const files = fs.readdirSync(GOAL_AUDIO_UPLOADS_DIR);
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        let target = GOAL_AUDIO_UPLOADS_DIR;
+        if (ns) {
+          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+          target = path.join(GOAL_AUDIO_UPLOADS_DIR, safe);
+        }
+        const files = fs.existsSync(target) ? fs.readdirSync(target) : [];
         files.forEach(f => {
           if (f.startsWith('goal-audio')) {
-            try { fs.unlinkSync(path.join(GOAL_AUDIO_UPLOADS_DIR, f)); } catch {}
+            try { fs.unlinkSync(path.join(target, f)); } catch {}
           }
         });
-  } catch {}
+      } catch {}
 
       const file = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
       saveGoalAudioSettings(file, {
@@ -131,11 +161,27 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
 
   app.get('/api/goal-custom-audio', (req, res) => {
     try {
-      const files = fs.readdirSync(GOAL_AUDIO_UPLOADS_DIR);
-      const audioFile = files.find(f => f.startsWith('goal-audio'));
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (hosted && !ns) {
+        return res.status(404).json({ error: 'Custom goal audio not found' });
+      }
+      const base = GOAL_AUDIO_UPLOADS_DIR;
+      const dir = (ns && typeof ns === 'string') ? path.join(base, ns.replace(/[^a-zA-Z0-9_-]/g, '_')) : base;
+      let audioFile = null;
+      let audioDir = dir;
+      try {
+        const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+        audioFile = files.find(f => f.startsWith('goal-audio')) || null;
+      } catch {}
+      if (!audioFile) {
+        const files = fs.existsSync(base) ? fs.readdirSync(base) : [];
+        audioFile = files.find(f => f.startsWith('goal-audio')) || null;
+        audioDir = base;
+      }
       if (!audioFile) return res.status(404).json({ error: 'Custom goal audio not found' });
 
-      const filePath = path.join(GOAL_AUDIO_UPLOADS_DIR, audioFile);
+      const filePath = path.join(audioDir, audioFile);
       const stats = fs.statSync(filePath);
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'no-cache');

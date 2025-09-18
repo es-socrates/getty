@@ -286,6 +286,8 @@ try {
 try {
   app.use((req, res, next) => {
     try {
+      // Prevent leaking URL tokens to third parties via the Referer header
+      res.setHeader('Referrer-Policy', 'no-referrer');
       if (req.path && req.path.startsWith('/api/')) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
@@ -367,6 +369,23 @@ app.use(async (req, res, next) => {
         };
         res.cookie(PUBLIC_COOKIE, acceptedToken, cookieOpts);
         if (nsAdmin) res.cookie(ADMIN_COOKIE, nsAdmin, cookieOpts);
+
+        const isQueryToken = !!qToken;
+        const isIdempotent = req.method === 'GET' || req.method === 'HEAD';
+        const isApi = typeof req.path === 'string' && req.path.startsWith('/api/');
+        const accept = req.accepts(['html','json','text']);
+        const isHtmlLike = accept === 'html' || accept === 'text';
+        if (isQueryToken && isIdempotent && !isApi && isHtmlLike) {
+          try {
+            const base = `${req.protocol}://${req.get('host')}`;
+            const u = new URL(req.originalUrl || '/', base);
+            u.searchParams.delete('token');
+            const cleaned = u.pathname + (u.searchParams.toString() ? `?${u.searchParams.toString()}` : '');
+            if (cleaned !== req.originalUrl) {
+              return res.redirect(302, cleaned);
+            }
+          } catch {}
+        }
       }
     } catch {}
   } catch { req.ns = { admin: null, pub: null }; }
@@ -391,7 +410,15 @@ app.use((req, res, next) => {
     return orig.call(this, chunk, encoding, cb);
   };
   try {
-    const entry = { ts: start, level: 'info', method: req.method, url: req.originalUrl, message: `${req.method} ${req.originalUrl}` };
+    const __sanitizeUrl = (u) => {
+      try {
+        const s = String(u || '');
+
+        return s.replace(/([?&]token=)[^&#]+/gi, '$1[REDACTED]');
+      } catch { return u; }
+    };
+    const __safeUrl = __sanitizeUrl(req.originalUrl);
+    const entry = { ts: start, level: 'info', method: req.method, url: __safeUrl, message: `${req.method} ${__safeUrl}` };
     __activityLog.push(entry);
     if (__activityLog.length > __MAX_ACTIVITY) __activityLog.splice(0, __activityLog.length - __MAX_ACTIVITY);
     res.on('finish', () => {
@@ -399,7 +426,7 @@ app.use((req, res, next) => {
         entry.status = res.statusCode;
         entry.durationMs = Date.now() - start;
         if (typeof entry.message === 'string') {
-          entry.message = `${req.method} ${req.originalUrl} -> ${res.statusCode} in ${entry.durationMs}ms`;
+          entry.message = `${req.method} ${__safeUrl} -> ${res.statusCode} in ${entry.durationMs}ms`;
         }
       } catch {}
     });
@@ -539,7 +566,7 @@ const achievements = new AchievementsModule(wssBound, { store, liveviewsCfgFile:
 try { global.gettyAchievementsInstance = achievements; } catch {}
 
 try { global.gettyRaffleInstance = raffle; } catch {}
-const announcementModule = new AnnouncementModule(wssBound);
+const announcementModule = new AnnouncementModule(wssBound, { store });
 const chat = new ChatModule(wssBound);
 const chatNs = new ChatNsManager(wssBound, store);
 
@@ -960,7 +987,8 @@ app.get('/api/session/export', async (req, res) => {
     } catch { exportObj.liveviewsConfig = null; }
 
     try {
-      exportObj.announcementConfig = announcementModule.getPublicConfig();
+      const ns = useStore ? (await resolveAdminNsFromReq(req)) : null;
+      exportObj.announcementConfig = await announcementModule.getPublicConfig(ns || null);
     } catch { exportObj.announcementConfig = null; }
 
     try {
@@ -1136,22 +1164,22 @@ app.post('/api/session/import', async (req, res) => {
           animationMode: incomingAnnouncement.animationMode,
           defaultDurationSeconds: incomingAnnouncement.defaultDurationSeconds
         };
-        try { announcementModule.setSettings(settingsPayload); } catch {}
+        try { await announcementModule.setSettings(settingsPayload, useStore ? adminNs : null); } catch {}
 
-        try { announcementModule.clearMessages('all'); } catch {}
+        try { await announcementModule.clearMessages('all', useStore ? adminNs : null); } catch {}
         const msgs = Array.isArray(incomingAnnouncement.messages) ? incomingAnnouncement.messages.slice(0, 200) : [];
         for (const m of msgs) {
           try {
             const text = typeof m.text === 'string' ? m.text.slice(0, 200) : '';
             if (!text) continue;
-            const message = announcementModule.addMessage({
+            const message = await announcementModule.addMessage({
               text,
               imageUrl: typeof m.imageUrl === 'string' ? m.imageUrl : null,
               linkUrl: typeof m.linkUrl === 'string' && m.linkUrl ? m.linkUrl : undefined,
               durationSeconds: typeof m.durationSeconds === 'number' ? m.durationSeconds : undefined
-            });
+            }, useStore ? adminNs : null);
             if (m && m.enabled === false) {
-              try { announcementModule.updateMessage(message.id, { enabled: false }); } catch {}
+              try { await announcementModule.updateMessage(message.id, { enabled: false }, useStore ? adminNs : null); } catch {}
             }
           } catch { /* ignore item */ }
         }
@@ -1268,19 +1296,30 @@ if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
 }
 
 const goalAudioStorage = multer.diskStorage({
-  destination: function (_req, _file, cb) {
-
+  destination: function (req, _file, cb) {
     try {
-      const files = fs.readdirSync(GOAL_AUDIO_UPLOADS_DIR);
-      files.forEach(oldFile => {
-        if (oldFile.startsWith('goal-audio')) {
-          fs.unlinkSync(path.join(GOAL_AUDIO_UPLOADS_DIR, oldFile));
-        }
-      });
-    } catch (error) {
-      console.error('Error cleaning old audio files:', error);
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let target = GOAL_AUDIO_UPLOADS_DIR;
+      if (ns) {
+        const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+        target = path.join(GOAL_AUDIO_UPLOADS_DIR, safe);
+      }
+      if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
+      try {
+        const files = fs.readdirSync(target);
+        files.forEach(oldFile => {
+          if (oldFile.startsWith('goal-audio')) {
+            fs.unlinkSync(path.join(target, oldFile));
+          }
+        });
+      } catch (error) {
+        console.error('Error cleaning old audio files:', error);
+      }
+      cb(null, target);
+    } catch (e) {
+      console.error('Error preparing goal audio upload dir:', e);
+      cb(null, GOAL_AUDIO_UPLOADS_DIR);
     }
-    cb(null, GOAL_AUDIO_UPLOADS_DIR);
   },
   filename: function (_req, file, cb) {
     const extension = path.extname(file.originalname);
@@ -1551,8 +1590,8 @@ app.get('/widgets/tip-notification', (req, res, next) => {
   } catch { return next(); }
 });
 
-try { registerTipNotificationRoutes(app, limiter, { wss }); } catch {}
-try { registerTipNotificationGifRoutes(app, limiter); } catch {}
+try { registerTipNotificationRoutes(app, limiter, { wss, store }); } catch {}
+try { registerTipNotificationGifRoutes(app, limiter, { store }); } catch {}
 
 app.get('/widgets/chat', (req, res, next) => {
   try {
@@ -1700,8 +1739,20 @@ if (!fs.existsSync(AUDIO_UPLOADS_DIR)) {
 }
 
 const audioStorage = multer.diskStorage({
-  destination: function (_req, _file, cb) {
-    cb(null, AUDIO_UPLOADS_DIR);
+  destination: function (req, _file, cb) {
+    try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const safe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
+      const target = ns ? path.join(AUDIO_UPLOADS_DIR, safe) : AUDIO_UPLOADS_DIR;
+      if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
+      try {
+        const existing = path.join(target, 'custom-notification-audio.mp3');
+        if (fs.existsSync(existing)) fs.unlinkSync(existing);
+      } catch {}
+      cb(null, target);
+    } catch {
+      cb(null, AUDIO_UPLOADS_DIR);
+    }
   },
   filename: function (_req, _file, cb) {
     const uniqueName = 'custom-notification-audio.mp3';
@@ -1752,7 +1803,7 @@ function saveAudioSettings(newSettings) {
   }
 }
 
-registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE);
+registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE, { store });
 
 try {
   app.get(['/', '/index.html'], (req, res, next) => {
@@ -2124,11 +2175,13 @@ app.get('/api/modules', async (req, res) => {
         return { ...base, ...chatColors };
       } catch { return { active: false, ...chatColors }; }
     })(),
-    announcement: (() => {
+    announcement: (async () => {
       try {
-        const cfg = announcementModule.getPublicConfig();
+        const ns = hasNs ? adminNs : null;
+        const cfg = await announcementModule.getPublicConfig(ns);
         const enabledMessages = cfg.messages.filter(m=>m.enabled).length;
-        return { active: enabledMessages > 0, totalMessages: cfg.messages.length, enabledMessages, cooldownSeconds: cfg.cooldownSeconds };
+        const base = { active: enabledMessages > 0, totalMessages: cfg.messages.length, enabledMessages, cooldownSeconds: cfg.cooldownSeconds };
+        return (requireSessionFlag || hosted) && !hasNs ? { active: false, totalMessages: 0, enabledMessages: 0 } : base;
       } catch { return { active: false, totalMessages: 0, enabledMessages: 0 }; }
     })(),
     socialmedia: (() => {

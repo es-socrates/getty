@@ -43,7 +43,7 @@ function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
   }
 }
 
-function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json') {
+function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json', { store } = {}) {
   app.get('/api/audio-settings', (req, res) => {
     try {
       const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
@@ -57,6 +57,17 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           enabled: true,
           volume: 0.5,
         });
+      }
+      if (store && hasNs) {
+        (async () => {
+          try {
+            const ns = req.ns.admin || req.ns.pub;
+            const st = await store.get(ns, 'audio-settings', null);
+            if (st && typeof st === 'object') return res.json(st);
+          } catch {}
+          return res.json(settings);
+        })();
+        return;
       }
       res.json(settings);
     } catch (error) {
@@ -73,6 +84,8 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       if ((requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
       const { audioSource } = req.body;
       if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
         return res.status(400).json({ error: 'Invalid audio source' });
@@ -95,23 +108,32 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         settings.hasCustomAudio = false;
         settings.audioFileName = null;
         settings.audioFileSize = 0;
-        const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
-        if (fs.existsSync(customAudioPath)) {
-          fs.unlinkSync(customAudioPath);
-        }
+        const targetDir = ns ? path.join(AUDIO_UPLOADS_DIR, safeNs) : AUDIO_UPLOADS_DIR;
+        const customAudioPath = path.join(targetDir, 'custom-notification-audio.mp3');
+        try { if (fs.existsSync(customAudioPath)) fs.unlinkSync(customAudioPath); } catch {}
       }
 
       const success = saveAudioSettings(AUDIO_CONFIG_FILE, settings);
-      if (success) {
-        const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
-        wss.clients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload }));
-          }
-        });
-        res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
+      if (!success) return res.status(500).json({ error: 'Error saving audio configuration' });
+
+      const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
+      if (store && ns) {
+        (async () => {
+          try { await store.set(ns, 'audio-settings', payload); } catch {}
+          try {
+            if (typeof wss.broadcast === 'function') {
+              wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
+            } else {
+              wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+            }
+          } catch {}
+          res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
+        })();
       } else {
-        res.status(500).json({ error: 'Error saving audio configuration' });
+        try {
+          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+        } catch {}
+        res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
       }
     } catch (error) {
       console.error('Error saving audio settings:', error);
@@ -133,39 +155,59 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       if ((requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
-      const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
-      if (fs.existsSync(customAudioPath)) fs.unlinkSync(customAudioPath);
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
+      const targetDir = ns ? path.join(AUDIO_UPLOADS_DIR, safeNs) : AUDIO_UPLOADS_DIR;
+      const customAudioPath = path.join(targetDir, 'custom-notification-audio.mp3');
+      try { if (fs.existsSync(customAudioPath)) fs.unlinkSync(customAudioPath); } catch {}
       const success = saveAudioSettings(AUDIO_CONFIG_FILE, {
         audioSource: 'remote',
         hasCustomAudio: false,
         audioFileName: null,
         audioFileSize: 0,
       });
-      if (success) {
-        const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
-        wss.clients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(
-              JSON.stringify({ type: 'audioSettingsUpdate', data: payload })
-            );
-          }
-        });
+      if (!success) return res.status(500).json({ error: 'Error deleting audio configuration' });
+      const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
+      if (store && ns) {
+        (async () => {
+          try { await store.set(ns, 'audio-settings', payload); } catch {}
+          try {
+            if (typeof wss.broadcast === 'function') {
+              wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
+            } else {
+              wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+            }
+          } catch {}
+          return res.json({ success: true });
+        })();
+      } else {
+        try { wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); }); } catch {}
         return res.json({ success: true });
       }
-      return res.status(500).json({ error: 'Error deleting audio configuration' });
     } catch (error) {
       console.error('Error deleting audio settings:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  app.get('/api/custom-audio', (_req, res) => {
+  app.get('/api/custom-audio', (req, res) => {
     try {
-      const customAudioPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
-      if (fs.existsSync(customAudioPath)) {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
+      const targetDir = ns ? path.join(AUDIO_UPLOADS_DIR, safeNs) : AUDIO_UPLOADS_DIR;
+      const customAudioPath = path.join(targetDir, 'custom-notification-audio.mp3');
+      const exists = fs.existsSync(customAudioPath);
+      if (!ns && (requireSessionFlag || hosted)) {
+        return res.status(404).json({ error: 'Custom audio not found' });
+      }
+      const fallBackPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
+      const finalPath = exists ? customAudioPath : (ns ? null : (fs.existsSync(fallBackPath) ? fallBackPath : null));
+      if (finalPath) {
         res.setHeader('Content-Type', 'audio/mpeg');
         res.setHeader('Cache-Control', 'no-cache');
-        res.sendFile(path.resolve(customAudioPath));
+        res.sendFile(path.resolve(finalPath));
       } else {
         res.status(404).json({ error: 'Custom audio not found' });
       }

@@ -27,7 +27,7 @@ const DEFAULTS = {
   fromColor: '#ffffff'
 };
 
-module.exports = function registerTipNotificationRoutes(app, strictLimiter, { wss } = {}) {
+module.exports = function registerTipNotificationRoutes(app, strictLimiter, { wss, store } = {}) {
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-notification-config.json');
 
   function loadConfig() {
@@ -47,6 +47,7 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
     try {
       if (!wss || !wss.clients) return;
       const payload = JSON.stringify({ type: 'tipNotificationConfigUpdate', data: cfg });
+
       wss.clients.forEach(c => {
         const open = c.readyState === (c.OPEN || 1);
         if (open) c.send(payload);
@@ -61,6 +62,20 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       if ((requireSessionFlag || hosted) && !hasNs) {
         return res.json({ success: true, ...DEFAULTS });
+      }
+      if (store && hasNs) {
+        const ns = req.ns.admin || req.ns.pub;
+        (async () => {
+          try {
+            const st = await store.get(ns, 'tip-notification-config', null);
+            const merged = { ...DEFAULTS, ...(st || {}) };
+            return res.json({ success: true, ...merged });
+          } catch {
+            const cfg = loadConfig();
+            return res.json({ success: true, ...cfg });
+          }
+        })();
+        return;
       }
       const cfg = loadConfig();
       res.json({ success: true, ...cfg });
@@ -81,9 +96,36 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid colors' });
       }
-      const saved = saveConfig(parsed.data);
-      broadcastUpdate(saved);
-      res.json({ success: true, ...saved });
+      const ns = req.ns?.admin || req.ns?.pub || null;
+      const doRespond = (data) => res.json({ success: true, ...data });
+      const doBroadcast = (data) => {
+        try {
+          if (typeof wss?.broadcast === 'function' && ns) {
+            wss.broadcast(ns, { type: 'tipNotificationConfigUpdate', data });
+          } else {
+            broadcastUpdate(data);
+          }
+        } catch {}
+      };
+      if (store && ns) {
+        (async () => {
+          try {
+            const current = await store.get(ns, 'tip-notification-config', {});
+            const merged = { ...(current || {}), ...parsed.data };
+            await store.set(ns, 'tip-notification-config', merged);
+            doBroadcast(merged);
+            doRespond(merged);
+          } catch {
+            const saved = saveConfig(parsed.data);
+            doBroadcast(saved);
+            doRespond(saved);
+          }
+        })();
+      } else {
+        const saved = saveConfig(parsed.data);
+        doBroadcast(saved);
+        doRespond(saved);
+      }
     } catch {
       res.status(500).json({ error: 'Internal server error' });
     }

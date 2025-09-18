@@ -20,24 +20,36 @@ function readGifDimensions(filePath) {
   }
 }
 
-function registerTipNotificationGifRoutes(app, strictLimiter) {
+function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-notification-config.json');
-  const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'notification-gif');
+  const BASE_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'notification-gif');
 
-  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  if (!fs.existsSync(BASE_UPLOAD_DIR)) fs.mkdirSync(BASE_UPLOAD_DIR, { recursive: true });
+
+  function nsDir(ns) {
+    if (!ns) return BASE_UPLOAD_DIR;
+    const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const dir = path.join(BASE_UPLOAD_DIR, safe);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  }
 
   const storage = multer.diskStorage({
-    destination: function (_req, _file, cb) {
+    destination: function (req, _file, cb) {
       try {
-        for (const f of fs.readdirSync(UPLOAD_DIR)) {
-          if (f.endsWith('.gif')) {
-            fs.unlinkSync(path.join(UPLOAD_DIR, f));
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        const target = nsDir(ns);
+        try {
+          for (const f of fs.readdirSync(target)) {
+            if (f.endsWith('.gif')) {
+              fs.unlinkSync(path.join(target, f));
+            }
           }
-        }
-  } catch {
-
+        } catch {}
+        cb(null, target);
+      } catch {
+        cb(null, BASE_UPLOAD_DIR);
       }
-      cb(null, UPLOAD_DIR);
     },
     filename: function (_req, file, cb) {
       cb(null, 'tip-notification.gif');
@@ -80,6 +92,19 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       if ((requireSessionFlag || hosted) && !hasNs) {
         return res.json({ gifPath: '', position: undefined, width: 0, height: 0 });
       }
+      if (store && hasNs) {
+        (async () => {
+          try {
+            const ns = req.ns.admin || req.ns.pub;
+            const st = await store.get(ns, 'tip-notification-gif', null);
+            if (st && typeof st === 'object') {
+              return res.json(st);
+            }
+          } catch {}
+          return res.json(cfg);
+        })();
+        return;
+      }
       res.json(cfg);
     } catch {
       res.status(500).json({ error: 'Error loading config' });
@@ -105,28 +130,39 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       const parsed = bodySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid position' });
       const position = parsed.data.position;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
       let config = loadConfig();
       if (req.file) {
-        const filePath = path.join(UPLOAD_DIR, req.file.filename);
+        const filePath = path.join(nsDir(ns), req.file.filename);
         let dims;
   try { dims = readGifDimensions(filePath); } catch {
           fs.unlinkSync(filePath);
           return res.status(400).json({ error: 'Invalid GIF file' });
         }
-        config.gifPath = `/uploads/notification-gif/${req.file.filename}`;
+        config.gifPath = ns ? `/uploads/notification-gif/${ns.replace(/[^a-zA-Z0-9_-]/g, '_')}/${req.file.filename}` : `/uploads/notification-gif/${req.file.filename}`;
         config.width = dims.width;
         config.height = dims.height;
       }
       config.position = position;
-      saveConfig(config);
-      res.json({ success: true, ...config });
+      if (store && ns) {
+        (async () => {
+          try {
+            await store.set(ns, 'tip-notification-gif', config);
+          } catch {}
+          saveConfig(config);
+          res.json({ success: true, ...config });
+        })();
+      } else {
+        saveConfig(config);
+        res.json({ success: true, ...config });
+      }
     } catch (_e) {
       console.error('Error saving GIF config:', _e);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  app.delete('/api/tip-notification-gif', strictLimiter, (req, res) => {
+  app.delete('/api/tip-notification-gif', strictLimiter, async (req, res) => {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
     const hosted = !!process.env.REDIS_URL;
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
@@ -134,14 +170,26 @@ function registerTipNotificationGifRoutes(app, strictLimiter) {
       return res.status(401).json({ error: 'no_session' });
     }
     try {
-      const config = loadConfig();
-      if (config.gifPath) {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let cfgToUse = loadConfig();
+      if (store && ns) {
         try {
-          const fp = path.join(process.cwd(), 'public', config.gifPath.replace(/^\/+/, ''));
+          const st = await store.get(ns, 'tip-notification-gif', null);
+          if (st && typeof st === 'object') cfgToUse = st;
+        } catch {}
+      }
+      if (cfgToUse.gifPath) {
+        try {
+          const fp = path.join(process.cwd(), 'public', cfgToUse.gifPath.replace(/^\/+/, ''));
           if (fs.existsSync(fp)) fs.unlinkSync(fp);
   } catch { /* ignore */ }
       }
       const cleared = { gifPath: '', position: 'right', width: 0, height: 0 };
+      if (store && ns) {
+        try { await store.set(ns, 'tip-notification-gif', cleared); } catch {}
+        saveConfig(cleared);
+        return res.json({ success: true, ...cleared });
+      }
       saveConfig(cleared);
       res.json({ success: true, ...cleared });
   } catch {

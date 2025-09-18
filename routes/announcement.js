@@ -58,7 +58,20 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
   const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    destination: (req, _file, cb) => {
+      try {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        let target = UPLOAD_DIR;
+        if (ns) {
+          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+          target = path.join(UPLOAD_DIR, safe);
+        }
+        if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
+        cb(null, target);
+      } catch {
+        cb(null, UPLOAD_DIR);
+      }
+    },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       cb(null, 'ann-' + Date.now() + '-' + Math.random().toString(36).slice(2) + ext);
@@ -75,7 +88,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.get('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
-      const cfg = announcementModule.getPublicConfig();
+      const ns = await resolveNsFromReq(req);
+      const cfg = await announcementModule.getPublicConfig(ns);
       if (hostedWithRedis || requireSessionFlag) {
         const isAdmin = await isAdminRequest(req);
         if (!isAdmin) {
@@ -110,7 +124,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
-      const updated = announcementModule.setSettings(parsed.data);
+      const ns = await resolveNsFromReq(req);
+      const updated = await announcementModule.setSettings(parsed.data, ns);
       res.json({ success: true, config: updated });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
@@ -149,9 +164,16 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       let imageUrl = null;
       if (req.file) {
-        imageUrl = '/uploads/announcement/' + req.file.filename;
+        const ns = await resolveNsFromReq(req);
+        if (ns) {
+          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+          imageUrl = '/uploads/announcement/' + safe + '/' + req.file.filename;
+        } else {
+          imageUrl = '/uploads/announcement/' + req.file.filename;
+        }
       }
-      const msg = announcementModule.addMessage({
+      const ns = await resolveNsFromReq(req);
+      const msg = await announcementModule.addMessage({
         text: (parsed.data.text ?? '').trim(),
         imageUrl,
         linkUrl: parsed.data.linkUrl,
@@ -174,7 +196,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         ctaBgColor: parsed.data.ctaBgColor,
         textColorOverride: parsed.data.textColorOverride,
         textSize: parsed.data.textSize
-      });
+      }, ns);
       res.json({ success: true, message: msg });
     } catch {
       res.status(500).json({ success: false, error: 'Internal error' });
@@ -215,7 +237,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
-      const existing = announcementModule.getMessage(req.params.id);
+      const ns = await resolveNsFromReq(req);
+      const existing = await announcementModule.getMessage(req.params.id, ns);
       if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
       const patch = { ...parsed.data };
       if (patch.linkUrl === '') patch.linkUrl = null;
@@ -226,7 +249,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         patch.imageUrl = null;
         delete patch.removeImage;
       }
-      const updated = announcementModule.updateMessage(req.params.id, patch);
+      const updated = await announcementModule.updateMessage(req.params.id, patch, ns);
       res.json({ success: true, message: updated });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
@@ -237,7 +260,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
-      const existing = announcementModule.getMessage(req.params.id);
+      const ns = await resolveNsFromReq(req);
+      const existing = await announcementModule.getMessage(req.params.id, ns);
       if (!existing) return res.status(404).json({ success: false, error: 'Not found' });
       const schema = z.object({ text: z.string().trim().max(90).optional(), linkUrl: z.string().url().optional(), enabled: z.union([z.boolean(), z.string()]).transform(v => v === true || v === 'true' || v === '1').optional(), durationSeconds: z.coerce.number().int().min(1).max(60).optional() });
       const parsed = schema.safeParse(req.body);
@@ -247,9 +271,14 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         if (existing.imageUrl && existing.imageUrl.startsWith('/uploads/announcement/')) {
           try { fs.unlinkSync(path.join(process.cwd(), 'public', existing.imageUrl)); } catch {}
         }
-        patch.imageUrl = '/uploads/announcement/' + req.file.filename;
+        if (ns) {
+          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
+          patch.imageUrl = '/uploads/announcement/' + safe + '/' + req.file.filename;
+        } else {
+          patch.imageUrl = '/uploads/announcement/' + req.file.filename;
+        }
       }
-      const updated = announcementModule.updateMessage(req.params.id, patch);
+      const updated = await announcementModule.updateMessage(req.params.id, patch, ns);
       res.json({ success: true, message: updated });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
@@ -260,7 +289,8 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
-      const ok = announcementModule.removeMessage(req.params.id); res.json({ success: ok });
+      const ns = await resolveNsFromReq(req);
+      const ok = await announcementModule.removeMessage(req.params.id, ns); res.json({ success: ok });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
   });
 
@@ -270,9 +300,10 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
+      const ns = await resolveNsFromReq(req);
       const mode = req.query.mode === 'test' ? 'test' : 'all';
-      const result = announcementModule.clearMessages(mode);
-      res.json({ success: true, cleared: result, mode, config: announcementModule.getPublicConfig() });
+      const result = await announcementModule.clearMessages(mode, ns);
+      res.json({ success: true, cleared: result, mode, config: await announcementModule.getPublicConfig(ns) });
     } catch (e) {
       res.status(500).json({ success: false, error: e.message });
     }
