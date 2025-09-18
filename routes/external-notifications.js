@@ -5,12 +5,17 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
 
   app.post('/api/external-notifications', limiter, async (req, res) => {
     try {
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
 
       const body = req.body || {};
@@ -144,6 +149,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
       const schema = z.object({
         title: z.string().max(150).optional(),
         description: z.string().max(200).optional(),
@@ -239,6 +248,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
       const schema = z.object({
         title: z.string().max(150).optional(),
@@ -338,6 +351,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
       const schema = z.object({
         title: z.string().max(150).optional(),
         description: z.string().max(200).optional(),
@@ -429,6 +446,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
       const multer = require('multer');
       const fs = require('fs');
@@ -602,6 +623,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.ns?.admin) || !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
       const target = (req.body && typeof req.body.target === 'string') ? req.body.target.toLowerCase() : 'discord';
       const allowed = new Set(['discord','all']);

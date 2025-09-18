@@ -321,12 +321,14 @@ app.use(async (req, res, next) => {
 
     const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
     let acceptedToken = '';
+    let presentedRole = null;
     if (incomingToken) {
       try {
         if (store && hostedMode) {
           const meta = await store.get(incomingToken, 'meta', null);
           if (meta) {
             acceptedToken = incomingToken;
+            try { presentedRole = (typeof meta.role === 'string') ? meta.role : null; } catch {}
           }
         } else {
           acceptedToken = incomingToken;
@@ -358,6 +360,16 @@ app.use(async (req, res, next) => {
     req.ns = { admin: nsAdmin || null, pub: nsPub || null };
 
     try {
+      const hasAdminCookie = !!req.cookies?.[ADMIN_COOKIE];
+      const isAdminPresented = hasAdminCookie || (presentedRole === 'admin');
+      req.auth = {
+        isAdmin: !!isAdminPresented,
+        source: incomingToken ? 'token' : (hasAdminCookie ? 'admin-cookie' : (req.cookies?.[PUBLIC_COOKIE] ? 'public-cookie' : null)),
+        tokenRole: presentedRole
+      };
+    } catch {}
+
+    try {
       if (acceptedToken) {
         const cookieOpts = {
           httpOnly: true,
@@ -367,7 +379,10 @@ app.use(async (req, res, next) => {
           maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
         };
         res.cookie(PUBLIC_COOKIE, acceptedToken, cookieOpts);
-        if (nsAdmin) res.cookie(ADMIN_COOKIE, nsAdmin, cookieOpts);
+
+        if (req.auth && req.auth.isAdmin && nsAdmin) {
+          res.cookie(ADMIN_COOKIE, nsAdmin, cookieOpts);
+        }
 
         const isQueryToken = !!qToken;
         const isIdempotent = req.method === 'GET' || req.method === 'HEAD';

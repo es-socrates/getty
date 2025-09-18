@@ -43,6 +43,7 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
   app.get('/api/tts-setting', async (req, res) => {
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
     if (shouldRequireSession && !hasNs) {
@@ -64,6 +65,10 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
     if (shouldRequireSession) {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
+    }
+    if (requireAdminWrites) {
+      const isAdmin = !!(req?.auth && req.auth.isAdmin);
+      if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
     }
     const bodySchema = z.object({
       ttsEnabled: z.coerce.boolean().optional(),
@@ -135,6 +140,10 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
     if (shouldRequireSession) {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
+    }
+    if (requireAdminWrites) {
+      const isAdmin = !!(req?.auth && req.auth.isAdmin);
+      if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
     }
     const bodySchema = z.object({ ttsLanguage: z.enum(['en', 'es']) });
     const parsed = bodySchema.safeParse(req.body);

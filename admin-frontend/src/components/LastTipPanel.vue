@@ -147,17 +147,16 @@ async function load() {
         walletEditable.value = false;
       }
 
-      const walletEmpty = !form.walletAddress || form.walletAddress.trim() === '';
-      const incomingTitle = typeof data.title === 'string' ? data.title.trim() : '';
-      const demoTitles = new Set(['Last tip received 👏', 'Configure tip goal 💸']);
-      const isSeed = walletEmpty && (!incomingTitle || demoTitles.has(incomingTitle));
-      form.title = isSeed ? '' : incomingTitle || '';
-      form.colors.bg = data.bgColor || form.colors.bg;
-      form.colors.font = data.fontColor || form.colors.font;
-      form.colors.border = data.borderColor || form.colors.border;
-      form.colors.amount = data.amountColor || form.colors.amount;
-      form.colors.iconBg = data.iconBgColor || form.colors.iconBg;
-      form.colors.from = data.fromColor || form.colors.from;
+      const incomingTitle = typeof data.title === 'string' ? data.title.trim() : undefined;
+      if (typeof incomingTitle === 'string') {
+        form.title = incomingTitle;
+      }
+      if (typeof data.bgColor === 'string') form.colors.bg = data.bgColor;
+      if (typeof data.fontColor === 'string') form.colors.font = data.fontColor;
+      if (typeof data.borderColor === 'string') form.colors.border = data.borderColor;
+      if (typeof data.amountColor === 'string') form.colors.amount = data.amountColor;
+      if (typeof data.iconBgColor === 'string') form.colors.iconBg = data.iconBgColor;
+      if (typeof data.fromColor === 'string') form.colors.from = data.fromColor;
       original.snapshot = JSON.stringify(form);
     }
   } catch (e) {

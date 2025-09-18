@@ -44,6 +44,7 @@ function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
 }
 
 function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json', { store } = {}) {
+  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
   app.get('/api/audio-settings', (req, res) => {
     try {
       const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
@@ -83,6 +84,10 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       if ((requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
@@ -154,6 +159,10 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       if ((requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
