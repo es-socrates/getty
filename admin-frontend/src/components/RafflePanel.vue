@@ -60,14 +60,36 @@
       </div>
       <div class="form-group">
         <label class="label" for="raffle-image">{{ t('rafflePrizeImageLabel') }}</label>
-        <input
-          id="raffle-image"
-          type="file"
-          accept="image/*"
-          @change="onImageSelected"
-          :aria-label="t('rafflePrizeImageLabel')" />
-        <div v-if="form.imageUrl" class="mt-2">
-          <img :src="form.imageUrl" alt="raffle" class="max-h-20 object-contain rounded" />
+        <div class="flex items-center gap-2">
+          <input
+            ref="imageInput"
+            id="raffle-image"
+            type="file"
+            accept="image/png,image/jpeg,image/gif"
+            class="sr-only"
+            @change="onImageFileChange" />
+          <button type="button" class="upload-btn" @click="openImageDialog">
+            <i class="pi pi-upload mr-2" aria-hidden="true"></i>
+            {{ t('imageChoose') || t('rafflePrizeImageLabel') }}
+          </button>
+          <span
+            v-if="selectedPrizeFilename"
+            class="file-name-label"
+            :title="selectedPrizeFilename"
+            >{{ selectedPrizeFilename }}</span
+          >
+          <button
+            v-if="displayImageUrl"
+            type="button"
+            class="icon-btn"
+            :aria-label="t('remove')"
+            :title="t('remove')"
+            @click="clearPrizeImage">
+            <i class="pi pi-trash"></i>
+          </button>
+        </div>
+        <div v-if="displayImageUrl" class="mt-2">
+          <img :src="displayImageUrl" alt="raffle" class="max-h-20 object-contain rounded" />
         </div>
       </div>
       <div class="flex flex-wrap gap-2 form-group mt-4" role="group" aria-label="Raffle actions">
@@ -183,6 +205,11 @@ let ws;
 const savingSettings = ref(false);
 const savingAction = ref(false);
 const action = ref('');
+const fileUploadKey = ref(0);
+const selectedPrizeFilename = ref('');
+const imageInput = ref(null);
+const displayImageUrl = ref('');
+const locallyClearedImage = ref(false);
 
 const pt = usePublicToken();
 const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/giveaway`));
@@ -211,6 +238,9 @@ function applyState(s) {
   form.maxWinners = s.maxWinners;
   form.enabled = s.enabled;
   participants.value = Array.isArray(s.participants) ? s.participants : [];
+  if (!locallyClearedImage.value) {
+    displayImageUrl.value = form.imageUrl || '';
+  }
 }
 
 async function load() {
@@ -222,6 +252,9 @@ async function load() {
   masked.value = !!modulesRes?.data?.masked;
   Object.assign(form, settingsRes.data);
   applyState(stateRes.data);
+  if (!locallyClearedImage.value) {
+    displayImageUrl.value = form.imageUrl || '';
+  }
 }
 
 async function saveSettings() {
@@ -238,6 +271,28 @@ async function saveSettings() {
     pushToast({ type: 'error', message: t('saveFailedRaffleSettings') });
   } finally {
     savingSettings.value = false;
+  }
+}
+
+async function clearPrizeImage() {
+  form.imageUrl = '';
+  displayImageUrl.value = '';
+  selectedPrizeFilename.value = '';
+  locallyClearedImage.value = true;
+  if (imageInput.value) imageInput.value.value = '';
+  fileUploadKey.value++;
+  try {
+    const r = await fetch('/api/raffle/clear-image', { method: 'POST' });
+    const data = await r.json().catch(() => ({}));
+    if (data && data.success) {
+      pushToast({ type: 'success', message: t('raffleImageUploaded') });
+      locallyClearedImage.value = false;
+      await load();
+    } else {
+      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+    }
+  } catch {
+    pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
   }
 }
 
@@ -296,9 +351,10 @@ async function doAction(endpoint, successKey, after) {
   }
 }
 
-async function onImageSelected(e) {
-  const file = e.target.files[0];
+async function onImageFileChange(e) {
+  const file = e?.target?.files?.[0];
   if (!file) return;
+  selectedPrizeFilename.value = file.name || '';
   if (file.size > MAX_RAFFLE_IMAGE) {
     return pushToast({ type: 'error', message: t('raffleImageTooLarge') });
   }
@@ -309,13 +365,28 @@ async function onImageSelected(e) {
     const data = await res.json();
     if (data.imageUrl) {
       form.imageUrl = data.imageUrl;
-      await saveSettings();
+      displayImageUrl.value = data.imageUrl;
+      locallyClearedImage.value = false;
+
+      if (form.prize && form.prize.trim().length > 0) {
+        await saveSettings();
+      }
       pushToast({ type: 'success', message: t('raffleImageUploaded') });
+      fileUploadKey.value++;
+
+      if (imageInput.value) imageInput.value.value = '';
     } else {
       pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
     }
   } catch {
     pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+  }
+}
+
+function openImageDialog() {
+  if (imageInput.value) {
+    imageInput.value.value = '';
+    imageInput.value.click();
   }
 }
 
@@ -325,3 +396,50 @@ onMounted(async () => {
   connectWs();
 });
 </script>
+
+<style scoped>
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+  border-radius: 4px;
+  line-height: 1;
+  box-shadow: none;
+  cursor: pointer;
+}
+.upload-btn:hover {
+  background: rgba(79, 54, 255, 0.08);
+}
+.upload-btn:focus-visible {
+  outline: 2px solid rgba(79, 54, 255, 0.35);
+  outline-offset: 1px;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #ff0149;
+  background: transparent;
+  border-radius: 2px;
+}
+.icon-btn:hover {
+  background: rgba(100, 116, 139, 0.08);
+}
+.icon-btn .pi {
+  font-size: 0.9rem;
+}
+
+.file-name-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>

@@ -316,8 +316,6 @@ const adminExtra = {
   }
 };
 
-adminExtra.en.imageNoneSelected = 'No image selected';
-adminExtra.es.imageNoneSelected = 'Sin imagen seleccionada';
 adminExtra.en.streamHistoryTzNote = 'Times are shown in your local timezone';
 adminExtra.en.streamHistoryTzOffset = 'UTC{offset}';
 adminExtra.en.streamHistoryTzChangedTitle = 'Timezone change detected';

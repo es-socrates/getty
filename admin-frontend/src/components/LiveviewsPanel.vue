@@ -59,12 +59,30 @@
       <div class="form-group mt-3">
         <label class="label">{{ t('liveviewsIcon') }}</label>
         <div class="flex gap-2 items-center">
-          <input type="file" accept="image/*" @change="selectIcon" />
-          <button v-if="form.icon" class="btn danger" @click="removeIcon">
-            {{ t('liveviewsRemoveIcon') }}
+          <input
+            ref="iconInput"
+            type="file"
+            accept="image/png,image/jpeg,image/gif"
+            class="sr-only"
+            @change="onIconFileChange" />
+          <button type="button" class="upload-btn" @click="openIconDialog">
+            <i class="pi pi-upload mr-2" aria-hidden="true"></i>
+            {{ t('liveviewsUploadIcon') || t('imageChoose') }}
           </button>
-          <div v-if="form.icon" class="ml-3">
-            <img :src="form.icon" class="h-10 object-contain" />
+          <span v-if="selectedIconFilename" class="file-name-label" :title="selectedIconFilename">{{
+            selectedIconFilename
+          }}</span>
+          <button
+            v-if="displayIcon"
+            type="button"
+            class="icon-btn"
+            :aria-label="t('liveviewsRemoveIcon')"
+            :title="t('liveviewsRemoveIcon')"
+            @click="removeIcon">
+            <i class="pi pi-trash"></i>
+          </button>
+          <div v-if="displayIcon" class="ml-3">
+            <img :src="displayIcon" class="h-10 object-contain" />
           </div>
         </div>
       </div>
@@ -114,6 +132,11 @@ const initial = ref('');
 const dirty = ref(false);
 const saving = ref(false);
 const removingIcon = ref(false);
+const fileUploadKey = ref(0);
+const selectedIconFilename = ref('');
+const iconInput = ref(null);
+const displayIcon = ref('');
+const locallyClearedIcon = ref(false);
 
 registerDirty(() => dirty.value);
 watch(
@@ -138,6 +161,7 @@ async function load() {
   try {
     const r = await axios.get('/config/liveviews-config.json');
     Object.assign(form.value, r.data);
+    if (!locallyClearedIcon.value) displayIcon.value = form.value.icon || '';
     initial.value = JSON.stringify(form.value);
     dirty.value = false;
   } catch {
@@ -158,6 +182,7 @@ async function save() {
     if (data.success) {
       pushToast({ type: 'success', message: t('liveviewsSaved') });
       Object.assign(form.value, data.config);
+      if (!locallyClearedIcon.value) displayIcon.value = form.value.icon || '';
       initial.value = JSON.stringify(form.value);
       dirty.value = false;
       removingIcon.value = false;
@@ -171,9 +196,10 @@ async function save() {
   }
 }
 
-function selectIcon(e) {
-  const file = e.target.files?.[0];
+function onIconFileChange(e) {
+  const file = e?.target?.files?.[0];
   if (!file) return;
+  selectedIconFilename.value = file.name || '';
   const fd = new FormData();
   fd.append('icon', file);
   Object.entries(form.value).forEach(([k, v]) => fd.append(k, v || ''));
@@ -182,9 +208,13 @@ function selectIcon(e) {
     .then((data) => {
       if (data.success) {
         Object.assign(form.value, data.config);
+        displayIcon.value = form.value.icon || '';
+        locallyClearedIcon.value = false;
         initial.value = JSON.stringify(form.value);
         dirty.value = false;
         pushToast({ type: 'success', message: t('liveviewsSaved') });
+        fileUploadKey.value++;
+        if (iconInput.value) iconInput.value.value = '';
       } else {
         pushToast({ type: 'error', message: t('liveviewsSaveFailed') });
       }
@@ -193,7 +223,18 @@ function selectIcon(e) {
 
 function removeIcon() {
   removingIcon.value = true;
+  selectedIconFilename.value = '';
+  displayIcon.value = '';
+  locallyClearedIcon.value = true;
+  if (iconInput.value) iconInput.value.value = '';
   save();
+}
+
+function openIconDialog() {
+  if (iconInput.value) {
+    iconInput.value.value = '';
+    iconInput.value.click();
+  }
 }
 
 onMounted(async () => {
@@ -201,3 +242,51 @@ onMounted(async () => {
   await load();
 });
 </script>
+
+<style scoped>
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+  border-radius: 4px;
+  line-height: 1;
+  box-shadow: none;
+  cursor: pointer;
+}
+.upload-btn:hover {
+  background: rgba(79, 54, 255, 0.08);
+}
+.upload-btn:focus-visible {
+  outline: 2px solid rgba(79, 54, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #ff0149;
+  background: transparent;
+  border-radius: 2px;
+}
+.icon-btn:hover {
+  background: rgba(100, 116, 139, 0.08);
+}
+.icon-btn .pi {
+  font-size: 0.9rem;
+}
+
+.file-name-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
