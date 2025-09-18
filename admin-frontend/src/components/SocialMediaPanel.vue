@@ -90,11 +90,12 @@
           </div>
         </div>
       </div>
-
-      <div class="mt-3">
+    </OsCard>
+    <OsCard class="mt-3" :title="t('obsIntegration')">
+      <div class="form-group">
         <div class="flex flex-wrap items-center gap-3">
-          <span class="label mb-0">{{ t('socialMediaWidgetUrl') }}</span>
-          <CopyField :value="widgetUrl" :aria-label="t('socialMediaWidgetUrl')" />
+          <span class="label mb-0">{{ t('socialMediaWidgetUrlLabel') }}</span>
+          <CopyField :value="widgetUrl" :aria-label="t('socialMediaWidgetUrlLabel')" />
         </div>
       </div>
     </OsCard>

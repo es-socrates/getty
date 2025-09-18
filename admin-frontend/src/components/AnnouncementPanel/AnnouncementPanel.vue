@@ -333,23 +333,29 @@
                   <label class="ann-form-label sr-only">{{ t('announcementImage') }}</label>
                   <div class="flex items-center gap-2">
                     <input
-                      ref="newImageInputRef"
+                      ref="annNewImageInput"
                       type="file"
                       accept="image/png,image/jpeg,image/gif"
-                      :aria-label="t('announcementImage')"
-                      @change="onNewImage" />
-                    <div
-                      class="small opacity-80 truncate max-w-[220px]"
-                      :title="newMsg.imageFile ? newMsg.imageFile.name : ''">
-                      <template v-if="newMsg.imageFile">{{ newMsg.imageFile.name }}</template>
-                      <template v-else>{{ t('imageNoneSelected') }}</template>
-                    </div>
+                      class="sr-only"
+                      @change="onNewImageChange" />
+                    <button type="button" class="upload-btn" @click="openAnnNewImageDialog">
+                      <i class="pi pi-upload mr-2" aria-hidden="true"></i>
+                      {{ t('imageChoose') || t('announcementImage') }}
+                    </button>
+                    <span
+                      v-if="newSelectedFileName"
+                      class="file-name-label"
+                      :title="newSelectedFileName"
+                      >{{ newSelectedFileName }}</span
+                    >
                     <button
                       v-if="newMsg.imageFile"
                       type="button"
-                      class="ann-action-btn"
+                      class="ann-icon-btn"
+                      :aria-label="t('remove')"
+                      :title="t('remove')"
                       @click="clearNewImage">
-                      {{ t('remove') }}
+                      <i class="pi pi-trash"></i>
                     </button>
                   </div>
                 </div>
@@ -397,7 +403,7 @@
             <div class="ann-preview" aria-label="Announcement preview">
               <div class="ann-prev-root" :style="getPreviewBg(settings)">
                 <div class="ann-prev-content">
-                  <div v-if="m.imageUrl" class="ann-prev-media">
+                  <div v-if="shouldShowImage(m)" class="ann-prev-media">
                     <img :src="m.imageUrl" class="ann-prev-image" alt="" />
                   </div>
                   <div class="ann-prev-maincol">
@@ -726,20 +732,31 @@
           <label class="ann-form-label">{{ t('announcementImage') }}</label>
           <div class="flex items-center gap-2">
             <input
-              ref="editImageInputRef"
+              ref="annEditImageInput"
               type="file"
               accept="image/png,image/jpeg,image/gif"
-              @change="handleEditImage" />
-            <div class="small opacity-80 truncate max-w-[220px]" :title="editSelectedFileName">
-              <template v-if="editSelectedFileName">{{ editSelectedFileName }}</template>
-              <template v-else>{{ t('imageNoneSelected') }}</template>
-            </div>
-            <button
+              class="sr-only"
+              @change="onEditImageChange" />
+            <button type="button" class="upload-btn" @click="openAnnEditImageDialog">
+              <i class="pi pi-upload mr-2" aria-hidden="true"></i>
+              {{ t('imageChoose') || t('announcementImage') }}
+            </button>
+            <span
               v-if="editSelectedFileName"
+              class="file-name-label"
+              :title="editSelectedFileName"
+              >{{ editSelectedFileName }}</span
+            >
+            <button
+              v-if="
+                (editForm && editForm.imageUrl && !editForm.removeImage) || editSelectedFileName
+              "
               type="button"
-              class="ann-action-btn"
+              class="ann-icon-btn"
+              :aria-label="t('remove')"
+              :title="t('remove')"
               @click="clearEditImage">
-              {{ t('remove') }}
+              <i class="pi pi-trash"></i>
             </button>
           </div>
         </div>
@@ -779,7 +796,6 @@ const {
   activeTab,
   saveSettings,
   addMessage,
-  onNewImage,
   toggleMessageEnabled,
   openEdit,
   deleteMessage,
@@ -793,45 +809,42 @@ const tabs = [
 ];
 
 const sectionOpen = reactive({ content: true, style: false, cta: false, media: false });
+const annNewImageInput = ref(null);
+const annEditImageInput = ref(null);
+const newSelectedFileName = ref('');
 
 const previewScale = 0.65;
 
-const newImageInputRef = ref(null);
-function clearNewImage() {
-  if (newImageInputRef.value) {
-    try {
-      newImageInputRef.value.value = '';
-    } catch {}
-  }
-  if (newMsg) {
-    newMsg.imageFile = null;
+function openAnnNewImageDialog() {
+  if (annNewImageInput.value) {
+    annNewImageInput.value.value = '';
+    annNewImageInput.value.click();
   }
 }
+function onNewImageChange(e) {
+  try {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    newSelectedFileName.value = file.name || '';
+    state.onNewImage({ target: { files: [file] } });
+  } catch {}
+}
 
-const editImageInputRef = ref(null);
 const editSelectedFileName = ref('');
-function handleEditImage(e) {
-  const f = e?.target?.files?.[0];
-  editSelectedFileName.value = f ? f.name : '';
-
-  state.onEditImage(e);
-}
 function clearEditImage() {
-  if (editImageInputRef.value) {
-    try {
-      editImageInputRef.value.value = '';
-    } catch {}
-  }
   editSelectedFileName.value = '';
+  if (annEditImageInput.value) annEditImageInput.value.value = '';
+
+  if (editForm && 'value' in editForm && editForm.value) {
+    editForm.value.removeImage = true;
+  } else if (state?.editForm && 'value' in state.editForm) {
+    state.editForm.value.removeImage = true;
+  }
 }
 watch(editing, (val) => {
   if (val) {
     editSelectedFileName.value = '';
-    if (editImageInputRef.value) {
-      try {
-        editImageInputRef.value.value = '';
-      } catch {}
-    }
+    if (annEditImageInput.value) annEditImageInput.value.value = '';
   }
 });
 
@@ -884,10 +897,93 @@ function renderMarkdown(text = '') {
   });
   return stripDangerous(html);
 }
+
+function openAnnEditImageDialog() {
+  if (annEditImageInput.value) {
+    annEditImageInput.value.value = '';
+    annEditImageInput.value.click();
+  }
+}
+function onEditImageChange(e) {
+  try {
+    const file = e?.target?.files?.[0];
+    editSelectedFileName.value = file ? file.name : '';
+    if (!file) return;
+    state.onEditImage({ target: { files: [file] } });
+  } catch {}
+}
+
+function clearNewImage() {
+  try {
+    if (newMsg && 'value' in newMsg && newMsg.value) {
+      newMsg.value.imageFile = null;
+    } else if (state?.newMsg && 'value' in state.newMsg) {
+      state.newMsg.value.imageFile = null;
+    }
+    if (annNewImageInput.value) annNewImageInput.value.value = '';
+    newSelectedFileName.value = '';
+  } catch {}
+}
+
+function shouldShowImage(m) {
+  try {
+    if (editing?.value && editForm?.value && editForm.value.id === m.id) {
+      if (editForm.value.removeImage) return false;
+    }
+    return !!m.imageUrl;
+  } catch {
+    return !!(m && m.imageUrl);
+  }
+}
 </script>
 
 <style scoped>
 .input-error {
   border-color: #b91c1c !important;
+}
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+  border-radius: 2px;
+  line-height: 1;
+  box-shadow: none;
+  cursor: pointer;
+}
+.upload-btn:hover {
+  background: rgba(79, 54, 255, 0.08);
+}
+.upload-btn:focus-visible {
+  outline: 2px solid rgba(79, 54, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.ann-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #ff0149;
+  background: transparent;
+  border-radius: 2px;
+}
+.ann-icon-btn:hover {
+  background: rgba(100, 116, 139, 0.08);
+}
+.ann-icon-btn .pi {
+  font-size: 0.9rem;
+}
+
+.file-name-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

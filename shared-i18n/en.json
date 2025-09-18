@@ -102,6 +102,7 @@
   "announcementLinkUrl": "Link URL",
   "announcementDurationSeconds": "Duration (seconds)",
   "announcementImage": "Image",
+  "imageChoose": "Choose image",
   "announcementEnabled": "Enabled",
   "liveviewsClaimId": "Channel ClaimID:",
   "liveviewsColorsTitle": "Colors",

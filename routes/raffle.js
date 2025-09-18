@@ -1,4 +1,6 @@
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const WebSocket = require('ws');
 const { z } = require('zod');
 
@@ -157,6 +159,31 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     const imageUrl = `/uploads/raffle/${req.file.filename}`;
     raffle.setImage(adminNs, imageUrl);
     res.json({ imageUrl });
+  });
+
+  app.post('/api/raffle/clear-image', (req, res) => {
+    try {
+      const adminNs = req?.ns?.admin || null;
+      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+
+      let currentUrl = '';
+      try { currentUrl = raffle.getPublicState(adminNs)?.imageUrl || ''; } catch {}
+      raffle.setImage(adminNs, '');
+
+      if (typeof currentUrl === 'string' && currentUrl.startsWith('/uploads/raffle/')) {
+        const uploadsDir = path.resolve('./public/uploads/raffle');
+        const rel = currentUrl.replace(/^\/+/, ''); // e.g., 'uploads/raffle/filename'
+        const abs = path.resolve(path.join('./public', rel));
+
+        if (abs.startsWith(uploadsDir + path.sep) || abs === uploadsDir) {
+          fs.promises.unlink(abs).catch(() => {});
+        }
+      }
+      broadcastRaffleState(wss, raffle, adminNs);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
   });
 
   async function __broadcastToNsAndPublic(sendFn, adminNs) {

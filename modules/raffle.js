@@ -3,7 +3,6 @@ const WebSocket = require('ws');
 class RaffleModule {
     constructor(wss) {
         this.wss = wss;
-        // Map<nsToken, RaffleState>
         this.sessions = new Map();
     }
 
@@ -32,7 +31,7 @@ class RaffleModule {
         s.prize = settings.prize || s.prize;
         s.maxWinners = typeof settings.maxWinners === 'number' && !isNaN(settings.maxWinners) ? settings.maxWinners : s.maxWinners;
         s.mode = settings.mode || s.mode;
-        s.imageUrl = settings.imageUrl || s.imageUrl;
+        s.imageUrl = (settings.imageUrl !== undefined) ? settings.imageUrl : s.imageUrl;
         if (settings.enabled !== undefined) s.enabled = !!settings.enabled;
         if (settings.active !== undefined) s.active = !!settings.active;
         if (settings.paused !== undefined) s.paused = !!settings.paused;
