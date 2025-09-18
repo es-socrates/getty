@@ -123,10 +123,18 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
 
   app.delete('/api/goal-audio-settings', strictLimiter, (req, res) => {
     try {
-      const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-      if (hosted) {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hostedWithRedis = !!process.env.REDIS_URL;
+      const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
+
+      if (shouldRequireSession) {
         const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
 
       try {

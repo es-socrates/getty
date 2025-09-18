@@ -39,6 +39,7 @@ class LastTipModule {
   }
 
   loadWalletAddress() {
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
     const fs = require('fs');
     const path = require('path');
     const configDir = path.join(process.cwd(), 'config');
@@ -57,14 +58,23 @@ class LastTipModule {
       fromColor: '#817ec8'
     };
     if (!fs.existsSync(lastTipConfigPath)) {
-      fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2));
-      console.log('[LastTip] last-tip-config.json created with default values');
+      if (!hostedMode) {
+        try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2)); } catch {}
+        try { console.log('[LastTip] last-tip-config.json created with default values'); } catch {}
+      }
     }
 
     try {
       let config = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
       if (config.walletAddress) {
         this.walletAddress = config.walletAddress;
+      }
+
+      if (!this.walletAddress) {
+        const envWallet = process.env.LAST_TIP_WALLET || process.env.WALLET_ADDRESS || '';
+        if (typeof envWallet === 'string' && envWallet.trim()) {
+          this.walletAddress = envWallet.trim();
+        }
       }
       if (!this.walletAddress) {
         try {
@@ -74,8 +84,10 @@ class LastTipModule {
             if (typeof tg.walletAddress === 'string' && tg.walletAddress.trim()) {
               this.walletAddress = tg.walletAddress.trim();
               const updated = { ...config, walletAddress: this.walletAddress };
-              try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(updated, null, 2)); } catch {}
-              console.log('[LastTip] Wallet address imported from tip-goal-config.json');
+              if (!hostedMode) {
+                try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(updated, null, 2)); } catch {}
+              }
+              try { console.log('[LastTip] Wallet address imported from tip-goal-config.json'); } catch {}
             }
           }
         } catch {}
@@ -88,7 +100,11 @@ class LastTipModule {
   
   init() {
     if (!this.walletAddress) {
-      console.error('❌ ERROR: walletAddress is missing in last-tip-config.json');
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      const msg = hostedMode
+        ? '[LastTip] walletAddress not set. Hosted mode will stay idle until configured via Admin UI or import.'
+        : '❌ ERROR: walletAddress is missing in last-tip-config.json';
+      try { hostedMode ? console.warn(msg) : console.error(msg); } catch {}
       return;
     }
     this.updateLatestDonation();
@@ -224,10 +240,13 @@ class LastTipModule {
     if (last) this.lastDonation = last;
 
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const dir = path.join(process.cwd(), 'config');
-      fs.writeFileSync(path.join(dir, 'last-donation-cache.json'), JSON.stringify(this.lastDonation || null, null, 2));
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (!hostedMode) {
+        const fs = require('fs');
+        const path = require('path');
+        const dir = path.join(process.cwd(), 'config');
+        fs.writeFileSync(path.join(dir, 'last-donation-cache.json'), JSON.stringify(this.lastDonation || null, null, 2));
+      }
     } catch {}
 
     return { last: this.lastDonation };

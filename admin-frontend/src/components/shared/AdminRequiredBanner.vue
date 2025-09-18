@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="visible"
-    class="admin-banner mt-[-8px] mb-4 rounded-lg border border-border bg-card/70 backdrop-blur px-4 py-3 flex items-start gap-3 text-sm"
+    class="admin-banner mb-4 rounded-lg border border-border bg-card/70 backdrop-blur px-4 py-3 flex items-start gap-3 text-sm relative z-20"
     role="status"
     aria-live="polite">
     <div class="mt-0.5 text-[var(--text-secondary)]" aria-hidden="true">
