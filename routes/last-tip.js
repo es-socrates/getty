@@ -132,6 +132,11 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   if (requireSession && !(req?.ns?.admin || req?.ns?.pub)) {
         return res.status(401).json({ error: 'no_session' });
       }
+      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+      }
       const schema = z.object({
         walletAddress: z.string().optional(),
         bgColor: z.string().optional(),

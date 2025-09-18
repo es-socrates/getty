@@ -80,6 +80,7 @@ class TipGoalModule {
     }
 
     loadWalletAddress() {
+        const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
         const fs = require('fs');
         const path = require('path');
         const configDir = path.join(process.cwd(), 'config');
@@ -100,12 +101,21 @@ class TipGoalModule {
             title: 'Monthly tip goal 🎖️'
         };
         if (!fs.existsSync(configPath)) {
-            fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2));
+
+            if (!hostedMode) {
+                try { fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2)); } catch {}
+            }
         }
         try {
             const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
             if (config.walletAddress) {
                 this.walletAddress = config.walletAddress;
+            }
+            if (!this.walletAddress) {
+                const envWallet = process.env.TIP_GOAL_WALLET || process.env.WALLET_ADDRESS || '';
+                if (typeof envWallet === 'string' && envWallet.trim()) {
+                    this.walletAddress = envWallet.trim();
+                }
             }
             if (typeof config.monthlyGoal === 'number') {
                 this.monthlyGoalAR = config.monthlyGoal;
@@ -135,7 +145,9 @@ class TipGoalModule {
                         this.walletAddress = lastTipWallet;
 
                         const updated = { ...tipGoalDefault, ...config, walletAddress: lastTipWallet };
-                        try { fs.writeFileSync(configPath, JSON.stringify(updated, null, 2)); } catch {}
+                        if (!hostedMode) {
+                            try { fs.writeFileSync(configPath, JSON.stringify(updated, null, 2)); } catch {}
+                        }
                     }
                 } catch {}
             }
@@ -146,7 +158,11 @@ class TipGoalModule {
     
     async init() {
         if (!this.walletAddress) {
-            console.error('❌ ERROR: walletAddress is missing in tip-goal-config.json');
+            const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+            const msg = hostedMode
+                ? '[TipGoal] walletAddress not set. Hosted mode will stay idle until configured via Admin UI or import.'
+                : '❌ ERROR: walletAddress is missing in tip-goal-config.json';
+            try { hostedMode ? console.warn(msg) : console.error(msg); } catch {}
             return;
         }
         
@@ -381,12 +397,15 @@ class TipGoalModule {
                 progressColor: this.progressColor,
                 title: this.title
             };
-            fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+            const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+            if (!hostedMode) {
+                fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+            }
     } catch {}
     }
     
     updateWalletAddress(newAddress) {
-        // Allow explicit clearing (empty string) and avoid unnecessary work if unchanged
+
         if (newAddress === this.walletAddress) {
             return this.getStatus();
         }
@@ -404,7 +423,10 @@ class TipGoalModule {
         }
         config.walletAddress = this.walletAddress;
         try {
-            fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+            const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+            if (!hostedMode) {
+                fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+            }
         } catch (e) {
             console.error('[TipGoal] Error writing wallet address to config:', e);
         }
@@ -412,7 +434,7 @@ class TipGoalModule {
         this.currentTipsAR = 0;
         this.lastDonationTimestamp = null;
         this.sendGoalUpdate();
-        // Only check network if not in tests and we have a non-empty address
+
         if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
             this.checkTransactions(true);
         }

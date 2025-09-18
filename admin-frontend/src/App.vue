@@ -93,8 +93,6 @@
         </div>
       </div>
     </header>
-
-    <AdminRequiredBanner />
     <div
       class="admin-layout flex flex-col md:flex-row md:items-start gap-5"
       :class="{ 'sidebar-collapsed': sidebarCollapsed }">
@@ -354,6 +352,7 @@
 
       <div class="admin-overlay md:hidden" @click="setMobileSidebar(false)"></div>
       <main class="admin-main flex-1 min-w-0" id="main" tabindex="-1" role="main">
+        <AdminRequiredBanner />
         <RouterView />
 
         <footer

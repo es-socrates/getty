@@ -86,7 +86,7 @@ class TipWidgetModule {
     }
     this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
     this.GRAPHQL_TIMEOUT = Number(process.env.TIP_WIDGET_GRAPHQL_TIMEOUT_MS || 10000);
-    this.walletAddress = getWalletAddress();
+    this.walletAddress = getWalletAddress() || process.env.WALLET_ADDRESS || '';
     this.processedTxs = new Set();
     if (process.env.NODE_ENV !== 'test') {
       this.init();
@@ -95,7 +95,12 @@ class TipWidgetModule {
   
   init() {
     if (!this.walletAddress) {
-      Logger.error('walletAddress is missing in configuration file');
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (hostedMode) {
+        Logger.warn('walletAddress not set; hosted mode will remain idle until configured');
+      } else {
+        Logger.error('walletAddress is missing in configuration file');
+      }
       return;
     }
     Logger.info('Initializing Tip Widget Module', {
