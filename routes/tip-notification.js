@@ -65,6 +65,12 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
 
   app.post('/api/tip-notification', strictLimiter, (req, res) => {
     try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        return res.status(401).json({ error: 'no_session' });
+      }
       const parsed = colorSchema.safeParse(req.body || {});
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid colors' });

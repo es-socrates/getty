@@ -1,5 +1,15 @@
 <template>
-  <section class="admin-tab active notif-root" role="form">
+  <section class="admin-tab active relative notif-root" role="form">
+    <div
+      v-if="masked"
+      class="absolute inset-0 z-10 flex items-center justify-center backdrop-blur bg-black/35">
+      <div
+        class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
+        <div class="mb-2 text-lg font-semibold">{{ t('externalSessionRequiredTitle') }}</div>
+        <p class="mb-4 text-sm">{{ t('externalSessionRequiredBody') }}</p>
+        <a href="/new-session" class="btn">{{ t('createSession') }}</a>
+      </div>
+    </div>
     <div class="notif-groups-grid">
       <div class="notif-group-box" aria-labelledby="notif-gif-title">
         <div class="notif-group-head">
@@ -75,6 +85,7 @@
               class="btn-secondary btn-compact-secondary"
               type="button"
               @click="triggerGif"
+              :disabled="!sessionActive && hostedSupported"
               :aria-busy="savingGif ? 'true' : 'false'">
               {{ t('notificationGifChooseBtn') }}
             </button>
@@ -83,13 +94,14 @@
               class="btn-danger"
               type="button"
               @click="removeGif"
+              :disabled="!sessionActive && hostedSupported"
               :aria-label="t('notificationGifRemoveBtn')">
               {{ t('notificationGifRemoveBtn') }}
             </button>
             <button
               class="btn-save"
               type="button"
-              :disabled="savingGif"
+              :disabled="savingGif || (!sessionActive && hostedSupported)"
               @click="saveGif"
               :aria-busy="savingGif ? 'true' : 'false'">
               {{ savingGif ? t('commonSaving') : t('saveSettings') }}
@@ -165,7 +177,7 @@
           <button
             class="btn-save"
             type="button"
-            :disabled="savingTts"
+            :disabled="savingTts || (!sessionActive && hostedSupported)"
             @click="saveTts"
             :aria-busy="savingTts ? 'true' : 'false'">
             {{ savingTts ? t('commonSaving') : t('saveSettings') }}
@@ -208,13 +220,18 @@
             @audio-saved="onAudioSaved"
             @audio-deleted="onAudioDeleted" />
           <div class="notif-actions-row mt-3">
-            <button class="btn-save" type="button" :disabled="savingAudio" @click="persistAudioCfg">
+            <button
+              class="btn-save"
+              type="button"
+              :disabled="savingAudio || (!sessionActive && hostedSupported)"
+              @click="persistAudioCfg">
               {{ savingAudio ? t('commonSaving') : t('saveSettings') }}
             </button>
             <button
               class="btn-secondary btn-compact-secondary"
               type="button"
-              @click="testRandomNotification">
+              @click="testRandomNotification"
+              :disabled="!sessionActive && hostedSupported">
               {{ t('achievementsTestNotificationBtn') }}
             </button>
           </div>
@@ -253,7 +270,11 @@
             <ColorInput v-model="colors.from" :label="t('colorFrom')" />
           </div>
           <div class="notif-actions-row mt-3">
-            <button class="btn" type="button" :disabled="savingColors" @click="saveColors">
+            <button
+              class="btn"
+              type="button"
+              :disabled="savingColors || (!sessionActive && hostedSupported)"
+              @click="saveColors">
               {{ savingColors ? t('commonSaving') : t('saveSettings') }}
             </button>
             <button
@@ -407,6 +428,9 @@ const savingAudio = ref(false);
 const savingColors = ref(false);
 const pt = usePublicToken();
 const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/tip-notification`));
+const hostedSupported = ref(false);
+const sessionActive = ref(false);
+const masked = computed(() => hostedSupported.value && !sessionActive.value);
 
 const audioState = reactive({
   hasCustomAudio: false,
@@ -506,6 +530,10 @@ function resetColors() {
 async function saveColors() {
   try {
     savingColors.value = true;
+    if (hostedSupported.value && !sessionActive.value) {
+      pushToast({ type: 'info', message: t('sessionRequiredToast') });
+      return;
+    }
     const payload = {
       bgColor: colors.bg,
       fontColor: colors.font,
@@ -545,6 +573,10 @@ async function saveGif() {
   if (errors.gif) return;
   try {
     savingGif.value = true;
+    if (hostedSupported.value && !sessionActive.value) {
+      pushToast({ type: 'info', message: t('sessionRequiredToast') });
+      return;
+    }
     const fd = new FormData();
     fd.append('position', gif.position);
     if (gif.file) fd.append('gifFile', gif.file);
@@ -565,6 +597,10 @@ async function saveGif() {
 
 async function removeGif() {
   try {
+    if (hostedSupported.value && !sessionActive.value) {
+      pushToast({ type: 'info', message: t('sessionRequiredToast') });
+      return;
+    }
     await api.delete('/api/tip-notification-gif');
     gif.gifPath = '';
     gif.file = null;
@@ -590,6 +626,10 @@ async function loadTts() {
 async function saveTts() {
   try {
     savingTts.value = true;
+    if (hostedSupported.value && !sessionActive.value) {
+      pushToast({ type: 'info', message: t('sessionRequiredToast') });
+      return;
+    }
     await api.post('/api/tts-setting', { ttsEnabled: tts.enabled, ttsAllChat: tts.allChat });
     await api.post('/api/tts-language', { ttsLanguage: tts.language });
     tts.original = JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language });
@@ -632,6 +672,10 @@ function onAudioDeleted() {
 async function persistAudioCfg(silent = false) {
   try {
     savingAudio.value = true;
+    if (hostedSupported.value && !sessionActive.value) {
+      if (!silent) pushToast({ type: 'info', message: t('sessionRequiredToast') });
+      return;
+    }
     const fd = new FormData();
     fd.append('audioSource', audio.audioSource);
     fd.append('enabled', String(audioCfg.enabled));
@@ -654,6 +698,10 @@ async function persistAudioCfg(silent = false) {
 
 async function testRandomNotification() {
   try {
+    if (hostedSupported.value && !sessionActive.value) {
+      pushToast({ type: 'info', message: t('sessionRequiredToast') });
+      return;
+    }
     const dirty =
       lastSavedAudio.enabled !== audioCfg.enabled ||
       Math.abs(lastSavedAudio.volume - audioCfg.volume) > 0.0001 ||
@@ -667,6 +715,9 @@ async function testRandomNotification() {
 
 onMounted(async () => {
   await pt.refresh();
+  const statusRes = await api.get('/api/session/status').catch(() => ({ data: {} }));
+  hostedSupported.value = !!statusRes?.data?.supported;
+  sessionActive.value = !!statusRes?.data?.active;
   loadGif();
   loadTts();
   loadAudio();
