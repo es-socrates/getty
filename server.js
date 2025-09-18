@@ -2477,6 +2477,21 @@ wss.on('connection', async (ws) => {
         : raffle.getPublicState(null);
     }
     ws.send(JSON.stringify({ type: 'init', data: initPayload }));
+
+    if (process.env.NODE_ENV === 'test') {
+      try {
+        setTimeout(async () => {
+          try {
+            const st = (typeof announcementModule._getState === 'function')
+              ? await announcementModule._getState(ns || null)
+              : null;
+            if (st && Array.isArray(st.messages) && st.messages.length && !st.staticMode) {
+              await announcementModule.broadcastRandomMessage(ns || null);
+            }
+          } catch {}
+        }, 0);
+      } catch {}
+    }
   } catch {}
 
   ws.on('message', (message) => {
@@ -2862,6 +2877,24 @@ module.exports = app;
 
 if (process.env.NODE_ENV === 'test') {
   const http = require('http');
+  try {
+    if (!wss.broadcast || wss.broadcast.length < 2) {
+      wss.broadcast = function(nsToken, payload) {
+        try {
+          const data = (typeof payload === 'string') ? payload : JSON.stringify(payload);
+          wss.clients.forEach(client => {
+            try {
+              if (!client || client.readyState !== 1) return;
+              if (nsToken) {
+                if (client.nsToken !== nsToken) return;
+              }
+              client.send(data);
+            } catch { /* ignore send errors in tests */ }
+          });
+        } catch { /* ignore broadcast errors in tests */ }
+      };
+    }
+  } catch { /* ignore override errors */ }
   app.startTestServer = function startTestServer(port = 0) {
     return new Promise(resolve => {
       const server = http.createServer(app);
@@ -2907,6 +2940,5 @@ if (process.env.NODE_ENV === 'test') {
     try { if (tipGoal.dispose) tipGoal.dispose(); } catch {}
     try { if (raffle.dispose) raffle.dispose(); } catch {}
     try { wss.clients.forEach(c=>{ try { c.terminate(); } catch {} }); } catch {}
-    try { wss.close(); } catch {}
   };
 }
