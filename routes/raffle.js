@@ -18,6 +18,17 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         return res.json({});
       }
       const settings = raffle.getSettings(adminNs);
+      const hosted = shouldRequireSession;
+      try {
+        const { canReadSensitive } = require('../lib/authz');
+        const allowSensitive = canReadSensitive(req);
+        if (hosted && !allowSensitive && settings && typeof settings === 'object') {
+          const clone = { ...settings };
+          if ('prize' in clone) clone.prize = undefined;
+          if ('command' in clone) clone.command = undefined;
+          return res.json(clone);
+        }
+      } catch {}
       res.json(settings);
     } catch (error) {
       console.error('Error in GET /api/raffle/settings:', error);
@@ -32,6 +43,17 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         return res.json({ active: false, paused: false, participants: [], totalWinners: 0 });
       }
       const state = raffle.getPublicState(adminNs);
+      const hosted = shouldRequireSession;
+      try {
+        const { canReadSensitive } = require('../lib/authz');
+        const allowSensitive = canReadSensitive(req);
+        if (hosted && !allowSensitive && state && typeof state === 'object') {
+          const clone = { ...state };
+          if ('prize' in clone) clone.prize = undefined;
+          if ('command' in clone) clone.command = undefined;
+          return res.json(clone);
+        }
+      } catch {}
       res.json(state);
     } catch (error) {
       console.error('Error in GET /api/raffle/state:', error);
@@ -43,6 +65,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       const schema = z.object({
         command: z.string().trim().default('!giveaway'),
         prize: z.string().trim().min(1).max(15),
@@ -83,6 +112,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       raffle.start(adminNs);
       broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
@@ -95,6 +131,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       raffle.stop(adminNs);
       broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
@@ -107,6 +150,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       raffle.pause(adminNs);
       broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
@@ -119,6 +169,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       raffle.resume(adminNs);
       broadcastRaffleState(wss, raffle, adminNs);
       res.json({ success: true });
@@ -131,6 +188,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       const winner = raffle.drawWinner(adminNs);
       broadcastRaffleWinner(wss, winner, adminNs);
       broadcastRaffleState(wss, raffle, adminNs);
@@ -144,6 +208,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       const adminNs = req?.ns?.admin || null;
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       raffle.resetWinners(adminNs);
       broadcastRaffleState(wss, raffle, adminNs, { reset: true });
       res.json({ success: true });
@@ -157,6 +228,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     if (shouldRequireSession && !adminNs) return res.status(401).json({ error: 'session_required' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const imageUrl = `/uploads/raffle/${req.file.filename}`;
+    const { canWriteConfig } = require('../lib/authz');
+    if (shouldRequireSession) {
+      const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+      if (!allowRemoteWrites && !canWriteConfig(req)) {
+        return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+      }
+    }
     raffle.setImage(adminNs, imageUrl);
     res.json({ imageUrl });
   });
@@ -168,6 +246,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
       let currentUrl = '';
       try { currentUrl = raffle.getPublicState(adminNs)?.imageUrl || ''; } catch {}
+      const { canWriteConfig } = require('../lib/authz');
+      if (shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+        }
+      }
       raffle.setImage(adminNs, '');
 
       if (typeof currentUrl === 'string' && currentUrl.startsWith('/uploads/raffle/')) {

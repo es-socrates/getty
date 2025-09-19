@@ -40,21 +40,18 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   try { if (out && typeof out === 'object' && 'iconColor' in out) delete out.iconColor; } catch {}
       try {
         const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
-        const hasNs = !!ns;
-        const hideInHosted = hosted && !hasNs;
-        if (hideInHosted && out && typeof out === 'object' && out.walletAddress) {
-          delete out.walletAddress;
-        } else if (!hosted) {
-
+        const { canReadSensitive } = require('../lib/authz');
+        const allowSensitive = canReadSensitive(req);
+        if (hosted) {
+          if (!allowSensitive && out && typeof out === 'object' && out.walletAddress) delete out.walletAddress;
+        } else {
           const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
           const isLocalIp = /^::1$|^127\.0\.0\.1$|^::ffff:127\.0\.0\.1$/i.test(remote);
           const hostHeader = req.headers.host || '';
-          const hostNameOnly = hostHeader.replace(/^\[/, '').replace(/\]$/, '').split(':')[0];
-          const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
-          const isLocal = isLocalIp || isLocalHostHeader;
-          if (!isLocal && out && typeof out === 'object' && out.walletAddress) {
-            delete out.walletAddress;
-          }
+            const hostNameOnly = hostHeader.replace(/^\[/, '').replace(/\]$/, '').split(':')[0];
+            const isLocalHostHeader = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(hostNameOnly);
+            const isLocal = isLocalIp || isLocalHostHeader;
+            if (!isLocal && out && typeof out === 'object' && out.walletAddress) delete out.walletAddress;
         }
       } catch {}
       res.json({ success: true, ...out });
@@ -136,6 +133,11 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       if (requireAdminWrites) {
         const isAdmin = !!(req?.auth && req.auth.isAdmin);
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+      }
+      const { canWriteConfig } = require('../lib/authz');
+      const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
+      if (hosted && !canWriteConfig(req)) {
+        return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
       }
       const schema = z.object({
         walletAddress: z.string().optional(),

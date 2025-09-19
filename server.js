@@ -1486,6 +1486,44 @@ registerSocialMediaRoutes(app, socialMediaModule, strictLimiter);
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, { store });
 
 registerLastTipRoutes(app, lastTip, tipWidget, { store, wss });
+
+try {
+  const { getStatus, claimOwnerToken, rotateOwnerToken, extractOwnerTokenFromReq, loadOwnerToken } = require('./lib/owner');
+  app.get('/api/owner/status', async (req, res) => {
+    try {
+      const st = await getStatus(store);
+      let isOwner = false;
+      try {
+        const candidate = extractOwnerTokenFromReq(req);
+        const existing = await loadOwnerToken(store);
+        isOwner = !!(existing.token && candidate === existing.token);
+      } catch {}
+      const out = { claimed: st.claimed, envImmutable: st.envImmutable };
+      if (st.claimed && isOwner) out.tokenPreview = st.tokenPreview;
+      if (!st.claimed) out.claimable = true;
+      return res.json(out);
+    } catch { return res.status(500).json({ error: 'owner_status_failed' }); }
+  });
+  app.post('/api/owner/claim', async (req, res) => {
+    try {
+      const existing = await loadOwnerToken(store);
+      if (existing.token) return res.status(400).json({ error: 'already_claimed' });
+      if (process.env.GETTY_OWNER_TOKEN) return res.status(400).json({ error: 'env_defined' });
+      const desired = typeof req.body?.token === 'string' ? req.body.token : null;
+      const result = await claimOwnerToken(store, desired);
+      if (!result.ok) return res.status(500).json({ error: 'claim_failed' });
+      return res.json({ success: true, token: result.token });
+    } catch (e) { return res.status(500).json({ error: 'claim_failed', details: e?.message }); }
+  });
+  app.post('/api/owner/rotate', async (req, res) => {
+    try {
+      const oldToken = typeof req.body?.oldToken === 'string' ? req.body.oldToken : '';
+      const result = await rotateOwnerToken(store, oldToken);
+      if (!result.ok) return res.status(400).json({ error: result.error || 'rotate_failed' });
+      return res.json({ success: true, token: result.token });
+    } catch (e) { return res.status(500).json({ error: 'rotate_failed', details: e?.message }); }
+  });
+} catch {}
 if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
