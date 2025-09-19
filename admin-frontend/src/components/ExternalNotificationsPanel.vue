@@ -366,7 +366,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import axios from 'axios';
+import api from '../services/api';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { isHttpUrl } from '../utils/validation';
@@ -427,8 +427,8 @@ watch(
 async function load() {
   try {
     const [modulesRes, r] = await Promise.all([
-      axios.get('/api/modules').catch(() => ({ data: {} })),
-      axios.get('/api/external-notifications'),
+      api.get('/api/modules').catch(() => ({ data: {} })),
+      api.get('/api/external-notifications'),
     ]);
     masked.value = !!modulesRes?.data?.masked;
     form.value.discordWebhook = r.data.config?.discordWebhook || '';
@@ -465,7 +465,7 @@ watch(
 
 async function loadObs() {
   try {
-    const r = await axios.get('/api/obs-ws-config');
+    const r = await api.get('/api/obs-ws-config');
     obsForm.value.ip = r.data.ip || '';
     obsForm.value.port = r.data.port || '';
     obsForm.value.password = r.data.password || '';
@@ -499,7 +499,7 @@ async function saveObs() {
   try {
     obsSaving.value = true;
     const payload = { ...obsForm.value };
-    const r = await axios.post('/api/obs-ws-config', payload);
+    const r = await api.post('/api/obs-ws-config', payload);
     if (r.data.success) {
       pushToast({ type: 'success', message: t('externalSaved') });
       obsInitial.value = JSON.stringify(obsForm.value);
@@ -567,7 +567,7 @@ async function save() {
     Object.keys(payload).forEach((k) => {
       if (payload[k] === undefined) delete payload[k];
     });
-    const r = await axios.post('/api/external-notifications', payload);
+    const r = await api.post('/api/external-notifications', payload);
     if (r.data.success) {
       pushToast({ type: 'success', message: t('externalSaved') });
       statusActive.value = !!r.data.status?.active;
@@ -575,7 +575,7 @@ async function save() {
       dirty.value = false;
 
       try {
-        const rr = await axios.get('/api/external-notifications');
+        const rr = await api.get('/api/external-notifications');
         liveHas.value.discord = !!rr.data?.config?.hasLiveDiscord;
         liveHas.value.telegram = !!rr.data?.config?.hasLiveTelegram;
       } catch {}

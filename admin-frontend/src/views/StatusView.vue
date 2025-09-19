@@ -254,7 +254,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import axios from 'axios';
+import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue';
 import ActivityPanel from '../components/ActivityPanel';
@@ -347,7 +347,7 @@ function liveUptime(m) {
 
 async function load() {
   try {
-    const r = await axios.get('/api/modules');
+    const r = await api.get('/api/modules');
     const d = r.data;
     system.value = d.system || null;
     const masked = !!d.masked;
@@ -442,7 +442,7 @@ async function load() {
       },
     ];
     try {
-      const ss = await axios.get('/api/session/status');
+      const ss = await api.get('/api/session/status');
       sessionStatus.value = {
         supported: !!ss?.data?.supported,
         active: !!ss?.data?.active,
@@ -451,7 +451,7 @@ async function load() {
 
     try {
       if (sessionStatus.value.supported && sessionStatus.value.active) {
-        const pt = await axios.get('/api/session/public-token');
+        const pt = await api.get('/api/session/public-token');
         if (pt?.data?.publicToken) lastPublicToken.value = pt.data.publicToken;
       }
     } catch {}
@@ -481,7 +481,7 @@ onUnmounted(() => {
 async function regeneratePublic() {
   try {
     regenLoading.value = true;
-    const r = await axios.post('/api/session/regenerate-public');
+    const r = await api.post('/api/session/regenerate-public');
     const tok = r?.data?.publicToken;
     if (tok) {
       lastPublicToken.value = tok;

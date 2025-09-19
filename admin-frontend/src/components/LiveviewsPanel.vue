@@ -118,7 +118,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import axios from 'axios';
+import api from '../services/api';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
@@ -172,7 +172,7 @@ function validate() {
 
 async function load() {
   try {
-    const r = await axios.get('/config/liveviews-config.json');
+    const r = await api.get('/config/liveviews-config.json');
     Object.assign(form.value, r.data);
     if (!locallyClearedIcon.value) displayIcon.value = form.value.icon || '';
     initial.value = JSON.stringify(form.value);

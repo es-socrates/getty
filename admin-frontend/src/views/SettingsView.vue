@@ -281,7 +281,7 @@
 
 <script setup>
 import { ref, onMounted, reactive, watch } from 'vue';
-import axios from 'axios';
+import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../components/os/OsCard.vue';
 import { pushToast } from '../services/toast';
@@ -336,7 +336,7 @@ let importAppliedTimer = null;
 
 async function load() {
   try {
-    const ss = await axios.get('/api/session/status');
+    const ss = await api.get('/api/session/status');
     sessionStatus.value = {
       supported: !!ss?.data?.supported,
       active: !!ss?.data?.active,
@@ -345,7 +345,7 @@ async function load() {
 
   try {
     if (sessionStatus.value.supported && sessionStatus.value.active) {
-      const pt = await axios.get('/api/session/public-token');
+      const pt = await api.get('/api/session/public-token');
       if (pt?.data?.publicToken) lastPublicToken.value = pt.data.publicToken;
     }
   } catch {}
@@ -384,7 +384,7 @@ async function regeneratePublic() {
     if (!sessionStatus.value.active && sessionStatus.value.supported) {
       try {
         regenLoading.value = true;
-        const create = await axios.get('/api/session/new?json=1');
+        const create = await api.get('/api/session/new?json=1');
         if (create?.data?.publicToken) {
           lastPublicToken.value = create.data.publicToken;
           sessionStatus.value.active = true;
@@ -401,7 +401,7 @@ async function regeneratePublic() {
       }
     }
     regenLoading.value = true;
-    const r = await axios.post('/api/session/regenerate-public');
+    const r = await api.post('/api/session/regenerate-public');
     const tok = r?.data?.publicToken;
     if (tok) {
       lastPublicToken.value = tok;
@@ -411,13 +411,13 @@ async function regeneratePublic() {
     const code = e?.response?.data?.error;
     if (code === 'no_admin_session') {
       try {
-        const create = await axios.get('/api/session/new?json=1');
+        const create = await api.get('/api/session/new?json=1');
         const tok1 = create?.data?.publicToken;
         if (tok1) {
           lastPublicToken.value = tok1;
           sessionStatus.value.active = true;
 
-          const second = await axios.post('/api/session/regenerate-public');
+          const second = await api.post('/api/session/regenerate-public');
           const tok2 = second?.data?.publicToken;
           if (tok2) lastPublicToken.value = tok2;
           pushToast({ i18nKey: 'tokenRegenerated', type: 'success', timeout: 2500 });
@@ -483,7 +483,7 @@ async function revokePublic() {
   try {
     revokeLoading.value = true;
     revokeLoadingPublic.value = true;
-    await axios.post('/api/session/revoke', { scope: 'public' });
+    await api.post('/api/session/revoke', { scope: 'public' });
     lastPublicToken.value = '';
     await load();
     pushToast({
@@ -506,7 +506,7 @@ async function revokeAll() {
   try {
     revokeLoading.value = true;
     revokeLoadingAll.value = true;
-    await axios.post('/api/session/revoke', { scope: 'all' });
+    await api.post('/api/session/revoke', { scope: 'all' });
     lastPublicToken.value = '';
     sessionStatus.value.active = false;
     pushToast({
@@ -566,7 +566,7 @@ async function onImportFile(e) {
       pushToast({ message: 'Invalid JSON', type: 'error', timeout: 2500, autoTranslate: false });
       return;
     }
-    const r = await axios.post('/api/session/import', data);
+    const r = await api.post('/api/session/import', data);
     if (r?.data?.ok) {
       const restored = r?.data?.restored || {};
       importApplied.value = {

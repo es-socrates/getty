@@ -3,14 +3,27 @@ import axios from 'axios';
 let __csrfToken = null;
 let __csrfPromise = null;
 let __lastFetchTs = 0;
-const CSRF_HEADER = (import.meta.env?.VITE_GETTY_CSRF_HEADER || 'x-csrf-token').toLowerCase();
+let __csrfDisabled = false;
+
+// eslint-disable-next-line no-undef
+const __definedCsrfHeader = (typeof __GETTY_CSRF_HEADER__ !== 'undefined' && __GETTY_CSRF_HEADER__) || '';
+const CSRF_HEADER = (__definedCsrfHeader || (globalThis.process && globalThis.process.env && globalThis.process.env.VITE_GETTY_CSRF_HEADER) || 'x-csrf-token').toLowerCase();
 const CSRF_MAX_AGE_MS = 1000 * 60 * 30;
 
 async function fetchCsrfToken(force = false) {
+  if (__csrfDisabled) return null;
   if (!force && __csrfToken && (Date.now() - __lastFetchTs) < CSRF_MAX_AGE_MS) return __csrfToken;
   if (__csrfPromise && !force) return __csrfPromise;
   __csrfPromise = fetch('/api/admin/csrf', { credentials: 'include' })
-    .then(r => (r.ok ? r.json() : Promise.reject(new Error('csrf_fetch_failed'))))
+    .then(r => {
+      if (r.ok) return r.json();
+
+      if ([401,403,404].includes(r.status)) {
+        __csrfDisabled = true;
+        return Promise.reject(new Error('csrf_disabled'));
+      }
+      return Promise.reject(new Error('csrf_fetch_failed'));
+    })
     .then(j => {
       if (j && typeof j.csrfToken === 'string') {
         __csrfToken = j.csrfToken;
@@ -20,7 +33,13 @@ async function fetchCsrfToken(force = false) {
       throw new Error('csrf_missing_token');
     })
     .catch(e => {
-      console.error('[csrf] failed to fetch token', e.message || e);
+      if (e && e.message === 'csrf_disabled') {
+        if (!shouldSuppressCsrfLogs()) {
+          try { console.warn('[csrf] disabled (no route or no admin session) – suppressing further attempts'); } catch {}
+        }
+      } else if (!shouldSuppressCsrfLogs()) {
+        console.error('[csrf] failed to fetch token', e.message || e);
+      }
       __csrfToken = null;
       return null;
     })
@@ -30,18 +49,27 @@ async function fetchCsrfToken(force = false) {
 
 const api = axios.create({ baseURL: '/' });
 
+function shouldSuppressCsrfLogs() {
+  try {
+    let env = (globalThis.process && globalThis.process.env && globalThis.process.env.NODE_ENV) || undefined;
+    // eslint-disable-next-line no-undef
+    const verboseDefined = (typeof __GETTY_VERBOSE_CSRF__ !== 'undefined' && __GETTY_VERBOSE_CSRF__);
+    const flag = (verboseDefined || (globalThis.process && globalThis.process.env && globalThis.process.env.VITE_GETTY_VERBOSE_CSRF));
+    if (flag === '1' || flag === 'true') return false;
+    return env === 'test';
+  } catch { return false; }
+}
+
 api.interceptors.request.use(async (config) => {
   try {
     const method = (config.method || 'get').toLowerCase();
     const unsafe = ['post','put','patch','delete'].includes(method);
-    if (unsafe) {
+    if (unsafe && !__csrfDisabled) {
       if (!__csrfToken) await fetchCsrfToken();
       if (__csrfToken) {
         config.headers = config.headers || {};
 
-        if (!config.headers[CSRF_HEADER] && !config.headers[CSRF_HEADER.toLowerCase()]) {
-          config.headers[CSRF_HEADER] = __csrfToken;
-        }
+        config.headers[CSRF_HEADER] = __csrfToken;
       }
     }
   } catch {
@@ -59,11 +87,25 @@ api.interceptors.response.use(
         try { window.dispatchEvent(new CustomEvent('getty:admin-required')); } catch {}
       }
       if (code === 'invalid_csrf') {
+        const originalConfig = err.config || {};
+        if (!originalConfig.__csrfRetried) {
+          __csrfToken = null;
+          await fetchCsrfToken(true);
+            originalConfig.__csrfRetried = true;
+          try {
+            return await api.request({ ...originalConfig });
+          } catch {
 
-        await fetchCsrfToken(true);
+          }
+        } else {
+          __csrfToken = null;
+          await fetchCsrfToken(true);
+        }
       }
     } catch {}
-    console.error('API error', err?.response?.data || err.message);
+    if (!shouldSuppressCsrfLogs()) {
+      console.error('API error', err?.response?.data || err.message);
+    }
     return Promise.reject(err);
   }
 );
@@ -71,5 +113,7 @@ api.interceptors.response.use(
 export function isAdminRequiredError(e) {
   try { return (e?.response?.data?.error === 'admin_required'); } catch { return false; }
 }
+
+export function isCsrfSoftDisabled() { return __csrfDisabled; }
 
 export default api;

@@ -1,5 +1,5 @@
 import { ref, onMounted, watch, nextTick, computed, onUnmounted } from 'vue';
-import axios from 'axios';
+import api from '../../services/api';
 import { useI18n } from 'vue-i18n';
 import { useActivityLogPrefs } from '../../stores/activityLogPrefs';
 
@@ -26,7 +26,7 @@ export function useActivityPanel(){
   async function refresh(){
     if (!enabled.value) return;
     try {
-      const r = await axios.get('/api/activity', { params: { level: level.value || undefined, q: q.value || undefined, limit: limit.value, offset: offset.value, order: order.value } });
+  const r = await api.get('/api/activity', { params: { level: level.value || undefined, q: q.value || undefined, limit: limit.value, offset: offset.value, order: order.value } });
       items.value = r.data?.items || [];
       total.value = r.data?.total ?? 0;
       await nextTick();
@@ -39,7 +39,7 @@ export function useActivityPanel(){
   }
 
   async function clearLog(){
-    try { await axios.post('/api/activity/clear'); offset.value = 0; await refresh(); } catch {}
+  try { await api.post('/api/activity/clear'); offset.value = 0; await refresh(); } catch {}
   }
 
   function downloadLog(){

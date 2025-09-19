@@ -1,6 +1,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted, watch, onActivated, onDeactivated } from 'vue';
 import { confirmDialog } from '../../services/confirm';
 import { pushToast } from '../../services/toast';
+import api from '../../services/api';
 import SizeBlocksModule from './utils/sizeBlocks';
 import DiffUtilModule from './utils/diffUtil';
 const { SizeBlocks } = SizeBlocksModule;
@@ -246,7 +247,7 @@ const defaultThemes = [
 			currentCSS.value = stored;
 			cssSource = 'local';
 		} else {
-			const chatConfig = await fetch('/api/chat-config').then(r => r.json()).catch(() => null);
+			const chatConfig = await api.get('/api/chat-config').then(r => r.data).catch(() => null);
 			if (chatConfig && chatConfig.themeCSS) {
 				currentCSS.value = chatConfig.themeCSS;
 				cssSource = 'server';
@@ -258,9 +259,9 @@ const defaultThemes = [
 
 		if (cssSource !== 'fallback') persistLiveThemeLocalOnly();
 		try {
-			const resp = await fetch('/api/chat-custom-themes');
-			if (resp.ok) {
-				const data = await resp.json();
+			const resp = await api.get('/api/chat-custom-themes').catch(()=>null);
+			if (resp && resp.data && Array.isArray(resp.data.themes)) {
+				const data = resp.data;
 				if (Array.isArray(data.themes)) {
 					const map = new Map(customThemes.value.map(t=>[t.name,t]));
 					for (const st of data.themes) {
@@ -377,9 +378,9 @@ const defaultThemes = [
 		persistLiveTheme();
 
 		try {
-			const chatConfig = await fetch('/api/chat-config').then(r=>r.json()).catch(()=>null);
+			const chatConfig = await api.get('/api/chat-config').then(r=>r.data).catch(()=>null);
 			if (chatConfig && chatConfig.chatUrl) {
-				await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chatUrl: chatConfig.chatUrl, themeCSS: cssWithSizes }) });
+				await api.post('/api/chat', { chatUrl: chatConfig.chatUrl, themeCSS: cssWithSizes });
 			}
 		} catch {}
 		debouncedPersistThemeCSS();
@@ -406,9 +407,9 @@ const defaultThemes = [
 		if (persistTimer) clearTimeout(persistTimer);
 		persistTimer = setTimeout(async () => {
 			try {
-				const chatConfig = await fetch('/api/chat-config').then(r=>r.json()).catch(()=>null);
+				const chatConfig = await api.get('/api/chat-config').then(r=>r.data).catch(()=>null);
 				if (chatConfig && chatConfig.chatUrl && currentCSS.value){
-					await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chatUrl: chatConfig.chatUrl, themeCSS: currentCSS.value }) });
+					await api.post('/api/chat', { chatUrl: chatConfig.chatUrl, themeCSS: currentCSS.value });
 				}
 			} catch { /* ignore */ }
 		}, 600);
@@ -671,9 +672,9 @@ const defaultThemes = [
 		currentCSS.value = '';
 		hasUserInteracted = true;
 		try { localStorage.removeItem('chatLiveThemeCSS'); } catch {}
-		const chatConfig = await fetch('/api/chat-config').then(r => r.json()).catch(() => null);
+		const chatConfig = await api.get('/api/chat-config').then(r=>r.data).catch(()=>null);
 		if (chatConfig && chatConfig.chatUrl) {
-			await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatUrl: chatConfig.chatUrl, themeCSS: '' }) });
+			await api.post('/api/chat', { chatUrl: chatConfig.chatUrl, themeCSS: '' });
 		}
 		pushToast({ type: 'success', message: t('chatThemeCleared') || 'Theme cleared' });
 	} catch {
@@ -703,7 +704,7 @@ const defaultThemes = [
 	async function persistCustomThemesServer(){
 	try {
 		const payload = customThemes.value.map(t=>({ name: t.name, css: t.css, updatedAt: t.updatedAt || Date.now() }));
-		await fetch('/api/chat-custom-themes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ themes: payload }) });
+		await api.post('/api/chat-custom-themes', { themes: payload });
 	} catch { /* ignore */ }
 }
 

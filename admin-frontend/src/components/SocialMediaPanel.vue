@@ -104,7 +104,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import axios from 'axios';
+import api from '../services/api';
 import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
@@ -129,7 +129,7 @@ registerDirty(() => dirty.value);
 
 async function load() {
   try {
-    const r = await axios.get('/api/socialmedia-config');
+    const r = await api.get('/api/socialmedia-config');
     if (r.data.success) {
       items.value = r.data.config.map((c) => ({ ...c }));
       dirty.value = false;
@@ -214,7 +214,7 @@ async function save() {
         ...(i.icon === 'custom' && i.customIcon ? { customIcon: i.customIcon } : {}),
       })),
     };
-    const r = await axios.post('/api/socialmedia-config', payload);
+    const r = await api.post('/api/socialmedia-config', payload);
     if (r.data.success) {
       pushToast({ type: 'success', message: t('socialMediaSaved') });
       dirty.value = false;

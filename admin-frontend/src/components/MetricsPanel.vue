@@ -414,7 +414,7 @@
 </template>
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import axios from 'axios';
+import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import OsCard from './os/OsCard.vue';
 import OsSparkline from './os/OsSparkline.vue';
@@ -602,12 +602,12 @@ onUnmounted(() => {
 });
 onMounted(async () => {
   try {
-    const r = await axios.get('/api/ar-price');
+    const r = await api.get('/api/ar-price');
     arPriceUsd.value = r.data?.arweave?.usd ?? null;
   } catch {}
   setInterval(async () => {
     try {
-      const r = await axios.get('/api/ar-price');
+      const r = await api.get('/api/ar-price');
       arPriceUsd.value = r.data?.arweave?.usd ?? arPriceUsd.value;
     } catch {}
   }, 60000);

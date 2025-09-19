@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
-import axios from 'axios';
+import api from '../../services/api';
 import { pushToast } from '../../services/toast';
 import { formatHours, formatTotalHours, usdFromAr } from './utils/streamHistoryUtils.js';
 import { renderStreamHistoryChart } from './utils/renderChart.js';
@@ -96,12 +96,12 @@ export function createStreamHistoryPanel(t) {
 
   onUnmounted(() => { setScrollLock(false); try { window.removeEventListener('keydown', onKeydown); } catch {}; try { if (ro && ro.disconnect) ro.disconnect(); } catch {}; try { if (clickAwayHandler) document.removeEventListener('click', clickAwayHandler, true); } catch {}; try { if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer); } catch {} });
 
-  async function loadConfig() { try { const r = await axios.get('/config/stream-history-config.json'); claimid.value = r?.data?.claimid || ''; initialClaimid.value = claimid.value; } catch {} }
+  async function loadConfig() { try { const r = await api.get('/config/stream-history-config.json'); claimid.value = r?.data?.claimid || ''; initialClaimid.value = claimid.value; } catch {} }
 
   async function saveConfig() {
     try {
       saving.value = true; const changed = (claimid.value || '') !== (initialClaimid.value || '');
-      await axios.post('/config/stream-history-config.json', { claimid: claimid.value });
+  await api.post('/config/stream-history-config.json', { claimid: claimid.value });
       try { pushToast({ type: 'success', message: t('savedStreamHistory') }); } catch {}
       if (changed) showClaimChangeModal.value = true; initialClaimid.value = claimid.value; await refresh();
     } catch (e) {
@@ -113,14 +113,14 @@ export function createStreamHistoryPanel(t) {
   async function refresh() {
     try {
       const tz = effectiveTzOffset.value;
-      const r = await axios.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
+  const r = await api.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
       lastSummaryData.value = r?.data?.data || [];
       renderChart(lastSummaryData.value);
-      const p = await axios.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
+  const p = await api.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
       perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
-      try { const pr = await axios.get('/api/ar-price'); arUsd.value = pr?.data?.arweave?.usd || arUsd.value; } catch {}
-      try { const er = await axios.get('/api/last-tip/earnings'); totalAR.value = Number(er?.data?.totalAR || 0); } catch {}
-      try { const sr = await axios.get('/api/stream-history/status'); if (sr?.data) { status.value = { connected: !!sr.data.connected, live: !!sr.data.live, sampleCount: Number(sr.data.sampleCount || 0) }; } } catch {}
+  try { const pr = await api.get('/api/ar-price'); arUsd.value = pr?.data?.arweave?.usd || arUsd.value; } catch {}
+  try { const er = await api.get('/api/last-tip/earnings'); totalAR.value = Number(er?.data?.totalAR || 0); } catch {}
+  try { const sr = await api.get('/api/stream-history/status'); if (sr?.data) { status.value = { connected: !!sr.data.connected, live: !!sr.data.live, sampleCount: Number(sr.data.sampleCount || 0) }; } } catch {}
     } catch { renderChart([]); }
   }
 
@@ -129,10 +129,38 @@ export function createStreamHistoryPanel(t) {
   function onQuickFilterChange() { try { if (['day','week','month','year'].includes(filterQuick.value)) { period.value = filterQuick.value; scheduleRefresh(); } } catch {} }
   function onQuickRangeChange() { try { const v = Number(filterQuickSpan.value || 30); if ([7,14,30,90,180,365].includes(v)) { span.value = v; scheduleRefresh(); } } catch {} }
   function clearHistory() { showClearModal.value = true; }
-  async function confirmClear() { try { clearBusy.value = true; await axios.post('/api/stream-history/clear'); await refresh(); showClearModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
-  async function confirmClearAfterClaimChange() { try { clearBusy.value = true; await axios.post('/api/stream-history/clear'); await refresh(); showClaimChangeModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
-  function downloadExport() { fetch('/api/stream-history/export', { cache: 'no-cache' }).then(r => r.ok ? r.text() : Promise.reject(new Error('export_failed'))).then(text => { const blob = new Blob([text], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const ts = new Date().toISOString().replace(/[:.]/g, '-'); a.download = `stream-history-${ts}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }).catch(() => { try { pushToast({ type: 'error', message: t('streamHistoryExportFailed') }); } catch {} }); }
-  async function onImport(e) { try { const file = e?.target?.files?.[0]; if (!file) return; const text = await file.text(); const json = JSON.parse(text); await axios.post('/api/stream-history/import', json); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryImported') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryImportFailed') }); } catch {} } finally { try { e.target.value = ''; } catch {} } }
+  async function confirmClear() { try { clearBusy.value = true; await api.post('/api/stream-history/clear'); await refresh(); showClearModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
+  async function confirmClearAfterClaimChange() { try { clearBusy.value = true; await api.post('/api/stream-history/clear'); await refresh(); showClaimChangeModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
+  async function downloadExport() {
+    try {
+      let text = '';
+      try {
+        const resp = await api.get('/api/stream-history/export', { responseType: 'text', transformResponse: [r => r] });
+        text = typeof resp?.data === 'string' ? resp.data : JSON.stringify(resp?.data || {}, null, 2);
+      } catch (e) {
+        try {
+          const r = await fetch('/api/stream-history/export', { cache: 'no-cache' });
+          if (!r.ok) throw new Error('export_failed');
+          text = await r.text();
+        } catch {
+          throw e;
+        }
+      }
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      a.download = `stream-history-${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      try { pushToast({ type: 'error', message: t('streamHistoryExportFailed') }); } catch {}
+    }
+  }
+  async function onImport(e) { try { const file = e?.target?.files?.[0]; if (!file) return; const text = await file.text(); const json = JSON.parse(text); await api.post('/api/stream-history/import', json); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryImported') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryImportFailed') }); } catch {} } finally { try { e.target.value = ''; } catch {} } }
   function toggleMenu() { menuOpen.value = !menuOpen.value; }
   function onBackfillClick(h) { menuOpen.value = false; backfill(h); }
   function onBackfillDismiss() { menuOpen.value = false; backfillDismissed.value = true; }
@@ -148,7 +176,7 @@ export function createStreamHistoryPanel(t) {
 
   function renderChart(data) { try { renderStreamHistoryChart(chartEl.value, data, { mode: mode.value, period: period.value, showViewers: !!showViewers.value, smoothWindow: 5 }); } catch {} }
   function toggleShowViewers() { showViewers.value = !showViewers.value; }
-  async function backfill(hours) { try { await axios.post('/api/stream-history/backfill-current', { hours }); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryBackfilled') }); } catch {} }
+  async function backfill(hours) { try { await api.post('/api/stream-history/backfill-current', { hours }); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryBackfilled') }); } catch {} }
     catch { try { pushToast({ type: 'error', message: t('streamHistoryBackFillFailed') }); } catch {} } }
 
   function openCompactModal() { compactModalOpen.value = true; compactPreview.value = null; }
@@ -156,7 +184,7 @@ export function createStreamHistoryPanel(t) {
   async function previewCompaction() {
     try {
       compactDryBusy.value = true; compactPreview.value = null;
-      const r = await axios.post('/api/stream-history/compact', { dryRun: true, maxIntervalSeconds: Math.max(60, Number(compactIntervalMinutes.value) * 60) });
+  const r = await api.post('/api/stream-history/compact', { dryRun: true, maxIntervalSeconds: Math.max(60, Number(compactIntervalMinutes.value) * 60) });
       if (r?.data) {
         compactPreview.value = { before: r.data.before, after: r.data.after, synthetic: r.data.synthetic };
         try { pushToast({ type: 'info', message: t('streamHistoryCompactPreviewReady') }); } catch {}
@@ -167,7 +195,7 @@ export function createStreamHistoryPanel(t) {
   async function runCompaction() {
     try {
       compactBusy.value = true;
-      const r = await axios.post('/api/stream-history/compact', { dryRun: false, maxIntervalSeconds: Math.max(60, Number(compactIntervalMinutes.value) * 60) });
+  const r = await api.post('/api/stream-history/compact', { dryRun: false, maxIntervalSeconds: Math.max(60, Number(compactIntervalMinutes.value) * 60) });
       if (r?.data) {
         try { pushToast({ type: 'success', message: t('streamHistoryCompactSuccess') }); } catch {}
         compactPreview.value = { before: r.data.before, after: r.data.after, synthetic: r.data.synthetic };
@@ -185,7 +213,7 @@ export function createStreamHistoryPanel(t) {
     await refresh();
     try { const el = chartEl.value; if (el && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(() => { try { chartEl.value?.classList.add('reflowing'); } catch {} if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { try { renderChart(lastSummaryData.value || []); } catch {} try { setTimeout(()=>chartEl.value?.classList.remove('reflowing'),120);} catch {} }, 80); }); ro.observe(el); } else { const onR = () => { if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(()=>renderChart(lastSummaryData.value||[]),120); }; window.addEventListener('resize', onR); ro = { disconnect(){ try { window.removeEventListener('resize', onR); } catch {} } }; } } catch {}
     async function pollStatus() {
-      try { const r = await axios.get('/api/stream-history/status', { timeout: 4000 }); status.value = { connected: !!r?.data?.connected, live: !!r?.data?.live, sampleCount: Number(r?.data?.sampleCount || 0) }; } catch {}
+    try { const r = await api.get('/api/stream-history/status', { timeout: 4000 }); status.value = { connected: !!r?.data?.connected, live: !!r?.data?.live, sampleCount: Number(r?.data?.sampleCount || 0) }; } catch {}
       pollTimer = setTimeout(pollStatus, 10000);
     }
     pollStatus();

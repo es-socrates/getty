@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue';
-import axios from 'axios';
+import api from '../services/api';
 
 export const metrics = ref({});
 export const hist = ref({ rpm: [], heap: [], bandwidth: [], chat: [], tips: [], ws: [], latency: [], views: [] });
@@ -55,12 +55,12 @@ function push(arr, v){ arr.push(v); if (arr.length > maxPoints.value) arr.shift(
 
 async function refresh(){
   try {
-    const r = await axios.get('/api/metrics');
+  const r = await api.get('/api/metrics');
     const m = r.data || {};
   metrics.value = m;
 
   const ts = (typeof m.serverTime === 'number' && m.serverTime > 0) ? m.serverTime : Date.now();
-  push(histTs.value, ts);
+    push(histTs.value, ts);
     push(hist.value.rpm, +(m.system?.requests?.perMin ?? 0));
     push(hist.value.heap, +(m.system?.memory?.heapUsedMB ?? 0));
     const kb = (()=>{ const s=m.bandwidth?.human?.perMin||'0 KB'; const n=parseFloat(s); return isNaN(n)?0:n; })();

@@ -1,5 +1,5 @@
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import axios from 'axios';
+import api from '../../services/api';
 import { pushToast } from '../../services/toast';
 import { confirmDialog } from '../../services/confirm';
 import { withinRange, MAX_ANNOUNCEMENT_IMAGE } from '../../utils/validation';
@@ -85,7 +85,7 @@ export function useAnnouncementPanel(t) {
 
   async function load() {
     try {
-      const r = await axios.get('/api/announcement');
+      const r = await api.get('/api/announcement');
       if (r.data && r.data.success) {
         const cfg = r.data.config?.settings || r.data.config || {};
         Object.assign(settings.value, cfg);
@@ -98,7 +98,7 @@ export function useAnnouncementPanel(t) {
     try {
       savingSettings.value = true;
       const payload = { ...settings.value };
-      const r = await axios.post('/api/announcement', payload);
+      const r = await api.post('/api/announcement', payload);
       if (r.data.success) {
         pushToast({ type: 'success', message: t('announcementSavedSettings') });
         load();
@@ -168,9 +168,9 @@ export function useAnnouncementPanel(t) {
       if (newMsg.value.ctaTextSize) fd.append('ctaTextSize', String(newMsg.value.ctaTextSize));
       if (newMsg.value.textColorOverride) fd.append('textColorOverride', newMsg.value.textColorOverride);
       if (newMsg.value.textSize) fd.append('textSize', String(newMsg.value.textSize));
-      const r = await fetch('/api/announcement/message', { method: 'POST', body: fd });
-      const data = await r.json();
-      if (data.success) {
+      const r = await api.post('/api/announcement/message', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const data = r.data;
+      if (data && data.success) {
         pushToast({ type: 'success', message: t('announcementMsgAdded') });
         newMsg.value = {
           text: '', durationSeconds: 10, imageFile: null,
@@ -191,7 +191,7 @@ export function useAnnouncementPanel(t) {
   async function toggleMessageEnabled(m) {
     const desired = !!m.enabled;
     try {
-      const r = await axios.put(`/api/announcement/message/${m.id}`, { enabled: desired });
+      const r = await api.put(`/api/announcement/message/${m.id}`, { enabled: desired });
       if (r.data?.success) {
         pushToast({ type: 'success', message: t('announcementMsgUpdated') });
       } else {
@@ -240,7 +240,7 @@ export function useAnnouncementPanel(t) {
           pushToast({ type: 'warning', message: t('announcementValidationTooLong') + ' — text not updated' });
         }
       }
-      const r = await axios.put(`/api/announcement/message/${m.id}`, payload);
+      const r = await api.put(`/api/announcement/message/${m.id}`, payload);
       if (r.data.success) {
         pushToast({ type: 'success', message: t('announcementMsgUpdated') });
       } else { pushToast({ type: 'error', message: r.data.error }); }
@@ -322,7 +322,7 @@ export function useAnnouncementPanel(t) {
           pushToast({ type: 'warning', message: t('announcementValidationTooLong') + ' — text not updated' });
         }
       }
-      const r = await axios.put(`/api/announcement/message/${editForm.value.id}`, payload);
+  const r = await api.put(`/api/announcement/message/${editForm.value.id}`, payload);
       if (r.data.success) { pushToast({ type: 'success', message: t('announcementMsgUpdated') }); editing.value = false; load(); }
       else { pushToast({ type: 'error', message: r.data.error }); }
     } catch { pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') }); }
@@ -341,9 +341,9 @@ export function useAnnouncementPanel(t) {
 
       const fd = new FormData();
       fd.append('image', f);
-      const r = await fetch(`/api/announcement/message/${editForm.value.id}/image`, { method: 'PUT', body: fd });
-      const data = await r.json();
-      if (data.success) {
+      const r = await api.put(`/api/announcement/message/${editForm.value.id}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const data = r.data;
+      if (data && data.success) {
         pushToast({ type: 'success', message: t('announcementMsgUpdated') });
         await load();
       } else {
@@ -358,7 +358,7 @@ export function useAnnouncementPanel(t) {
     const ok = await confirmDialog({ title: t('commonDelete') + '?', description: t('announcementMsgDeleteConfirm') || 'This will permanently delete the announcement.', confirmText: t('commonDelete') || 'Delete', cancelText: t('commonCancel') || 'Cancel', danger: true });
     if (!ok) return;
     try {
-      const r = await axios.delete(`/api/announcement/message/${m.id}`);
+      const r = await api.delete(`/api/announcement/message/${m.id}`);
       if (r.data.success) { pushToast({ type: 'success', message: t('announcementMsgDeleted') }); load(); }
       else { pushToast({ type: 'error', message: r.data.error || t('announcementMsgDeleteFailed') }); }
     } catch { pushToast({ type: 'error', message: t('announcementMsgDeleteFailed') }); }
@@ -366,7 +366,7 @@ export function useAnnouncementPanel(t) {
 
   async function clearAll(mode) {
     try {
-      const r = await axios.delete(`/api/announcement/messages?mode=${mode}`);
+      const r = await api.delete(`/api/announcement/messages?mode=${mode}`);
       if (r.data.success) { pushToast({ type: 'success', message: t('announcementCleared') }); load(); }
       else { pushToast({ type: 'error', message: t('announcementClearFailed') }); }
     } catch { pushToast({ type: 'error', message: t('announcementClearFailed') }); }

@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted, watch, computed, defineExpose } from 'vue';
 import { useI18n } from 'vue-i18n';
-import axios from 'axios';
+import api from '../../services/api';
 import { pushToast } from '../../services/toast';
 
 const { t } = useI18n();
@@ -74,7 +74,7 @@ onUnmounted(() => {
 
 async function loadConfig() {
   try {
-    const r = await axios.get('/config/stream-history-config.json');
+  const r = await api.get('/config/stream-history-config.json');
     claimid.value = r?.data?.claimid || '';
     initialClaimid.value = claimid.value;
   } catch {}
@@ -84,7 +84,7 @@ async function saveConfig() {
   try {
     saving.value = true;
     const changed = (claimid.value || '') !== (initialClaimid.value || '');
-    await axios.post('/config/stream-history-config.json', { claimid: claimid.value });
+  await api.post('/config/stream-history-config.json', { claimid: claimid.value });
     try { pushToast({ type: 'success', message: t('savedStreamHistory') }); } catch {}
 
     if (changed) {
@@ -102,19 +102,19 @@ async function saveConfig() {
 
 async function refresh() {
   try {
-    const r = await axios.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}`);
+  const r = await api.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}`);
     lastSummaryData.value = r?.data?.data || [];
     renderChart(lastSummaryData.value);
-    const p = await axios.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}`);
+  const p = await api.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}`);
     perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
 
     try {
-      const pr = await axios.get('/api/ar-price');
+  const pr = await api.get('/api/ar-price');
       arUsd.value = pr?.data?.arweave?.usd || arUsd.value;
     } catch {}
 
     try {
-      const er = await axios.get('/api/last-tip/earnings');
+  const er = await api.get('/api/last-tip/earnings');
       totalAR.value = Number(er?.data?.totalAR || 0);
     } catch {}
   } catch { renderChart([]); }
@@ -150,7 +150,7 @@ async function clearHistory() {
 async function confirmClear() {
   try {
     clearBusy.value = true;
-    await axios.post('/api/stream-history/clear');
+  await api.post('/api/stream-history/clear');
     await refresh();
     showClearModal.value = false;
     try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {}
@@ -162,7 +162,7 @@ async function confirmClear() {
 async function confirmClearAfterClaimChange() {
   try {
     clearBusy.value = true;
-    await axios.post('/api/stream-history/clear');
+  await api.post('/api/stream-history/clear');
     await refresh();
     showClaimChangeModal.value = false;
     try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {}
@@ -171,22 +171,34 @@ async function confirmClearAfterClaimChange() {
   } finally { clearBusy.value = false; }
 }
 
-function downloadExport() {
-  fetch('/api/stream-history/export', { cache: 'no-cache' })
-    .then(r => r.ok ? r.text() : Promise.reject(new Error('export_failed')))
-    .then(text => {
-      const blob = new Blob([text], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      a.download = `stream-history-${ts}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    })
-    .catch(() => { try { pushToast({ type: 'error', message: t('streamHistoryExportFailed') }); } catch {} });
+async function downloadExport() {
+  try {
+    let text = '';
+    try {
+      const resp = await api.get('/api/stream-history/export', { responseType: 'text', transformResponse: [r => r] });
+      text = typeof resp?.data === 'string' ? resp.data : JSON.stringify(resp?.data || {}, null, 2);
+    } catch (e) {
+      try {
+        const r = await fetch('/api/stream-history/export', { cache: 'no-cache' });
+        if (!r.ok) throw new Error('export_failed');
+        text = await r.text();
+      } catch {
+        throw e;
+      }
+    }
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `stream-history-${ts}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch {
+    try { pushToast({ type: 'error', message: t('streamHistoryExportFailed') }); } catch {}
+  }
 }
 
 async function onImport(e) {
@@ -195,7 +207,7 @@ async function onImport(e) {
     if (!file) return;
     const text = await file.text();
     const json = JSON.parse(text);
-    await axios.post('/api/stream-history/import', json);
+  await api.post('/api/stream-history/import', json);
     await refresh();
     try { pushToast({ type: 'success', message: t('streamHistoryImported') }); } catch {}
   } catch {
@@ -569,7 +581,7 @@ onMounted(async () => {
   } catch {}
   async function pollStatus() {
     try {
-      const r = await axios.get('/api/stream-history/status', { timeout: 4000 });
+    const r = await api.get('/api/stream-history/status', { timeout: 4000 });
       status.value = { connected: !!r?.data?.connected, live: !!r?.data?.live };
     } catch { /* keep previous status */ }
   setTimeout(pollStatus, 10000);
@@ -644,7 +656,7 @@ function fmtTotal(h) {
 
 async function backfill(hours) {
   try {
-    await axios.post('/api/stream-history/backfill-current', { hours });
+  await api.post('/api/stream-history/backfill-current', { hours });
     await refresh();
     try { pushToast({ type: 'success', message: t('streamHistoryBackfilled') }); } catch {}
   } catch {

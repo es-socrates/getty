@@ -167,7 +167,7 @@
 </template>
 <script setup>
 import { computed, ref, reactive, onMounted } from 'vue';
-import axios from 'axios';
+import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import { pushToast } from '../services/toast';
 import CopyField from './shared/CopyField.vue';
@@ -245,9 +245,9 @@ function applyState(s) {
 
 async function load() {
   const [modulesRes, settingsRes, stateRes] = await Promise.all([
-    axios.get('/api/modules').catch(() => ({ data: {} })),
-    axios.get('/api/raffle/settings').catch(() => ({ data: {} })),
-    axios.get('/api/raffle/state').catch(() => ({ data: {} })),
+    api.get('/api/modules').catch(() => ({ data: {} })),
+    api.get('/api/raffle/settings').catch(() => ({ data: {} })),
+    api.get('/api/raffle/state').catch(() => ({ data: {} })),
   ]);
   masked.value = !!modulesRes?.data?.masked;
   Object.assign(form, settingsRes.data);
@@ -258,13 +258,13 @@ async function load() {
 }
 
 async function saveSettings() {
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    return;
+  }
+  savingSettings.value = true;
   try {
-    if (masked.value) {
-      pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
-      return;
-    }
-    savingSettings.value = true;
-    await axios.post('/api/raffle/settings', form);
+    await api.post('/api/raffle/settings', form);
     await load();
     pushToast({ type: 'success', message: t('savedRaffleSettings') });
   } catch {
@@ -275,22 +275,19 @@ async function saveSettings() {
 }
 
 async function clearPrizeImage() {
-  form.imageUrl = '';
-  displayImageUrl.value = '';
-  selectedPrizeFilename.value = '';
-  locallyClearedImage.value = true;
-  if (imageInput.value) imageInput.value.value = '';
-  fileUploadKey.value++;
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    return;
+  }
   try {
-    const r = await fetch('/api/raffle/clear-image', { method: 'POST' });
-    const data = await r.json().catch(() => ({}));
-    if (data && data.success) {
-      pushToast({ type: 'success', message: t('raffleImageUploaded') });
-      locallyClearedImage.value = false;
-      await load();
-    } else {
-      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
-    }
+    await api.post('/api/raffle/clear-image');
+    form.imageUrl = '';
+    displayImageUrl.value = '';
+    locallyClearedImage.value = true;
+    if (imageInput.value) imageInput.value.value = '';
+    fileUploadKey.value++;
+    locallyClearedImage.value = false;
+    pushToast({ type: 'success', message: t('raffleImageCleared') || t('raffleImageUploaded') });
   } catch {
     pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
   }
@@ -314,10 +311,15 @@ async function resume() {
 }
 async function draw() {
   action.value = 'draw';
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    return;
+  }
+  savingAction.value = true;
   try {
-    savingAction.value = true;
-    const r = await axios.post('/api/raffle/draw');
-    winner.value = r.data.winner || r.data;
+    const r = await api.post('/api/raffle/draw');
+    const data = r?.data || {};
+    winner.value = data.winner || data;
     pushToast({ type: 'success', message: t('raffleWinnerDrawn') });
     await load();
   } catch {
@@ -334,13 +336,13 @@ async function reset() {
 }
 
 async function doAction(endpoint, successKey, after) {
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    return;
+  }
+  savingAction.value = true;
   try {
-    if (masked.value) {
-      pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
-      return;
-    }
-    savingAction.value = true;
-    await axios.post(endpoint);
+    await api.post(endpoint);
     await load();
     if (after) after();
     pushToast({ type: 'success', message: t(successKey) });
@@ -355,25 +357,30 @@ async function onImageFileChange(e) {
   const file = e?.target?.files?.[0];
   if (!file) return;
   selectedPrizeFilename.value = file.name || '';
-  if (file.size > MAX_RAFFLE_IMAGE) {
-    return pushToast({ type: 'error', message: t('raffleImageTooLarge') });
+  if (file.size && file.size > MAX_RAFFLE_IMAGE) {
+    pushToast({ type: 'error', message: t('raffleImageTooLarge') || 'Image too large' });
+    return;
+  }
+  if (masked.value) {
+    pushToast({ type: 'info', message: t('raffleSessionRequiredToast') });
+    return;
   }
   const fd = new FormData();
   fd.append('image', file);
   try {
-    const res = await fetch('/api/raffle/upload-image', { method: 'POST', body: fd });
-    const data = await res.json();
+    const res = await api.post('/api/raffle/upload-image', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const data = res?.data || {};
     if (data.imageUrl) {
       form.imageUrl = data.imageUrl;
       displayImageUrl.value = data.imageUrl;
       locallyClearedImage.value = false;
-
       if (form.prize && form.prize.trim().length > 0) {
         await saveSettings();
       }
       pushToast({ type: 'success', message: t('raffleImageUploaded') });
       fileUploadKey.value++;
-
       if (imageInput.value) imageInput.value.value = '';
     } else {
       pushToast({ type: 'error', message: t('raffleImageUploadFailed') });

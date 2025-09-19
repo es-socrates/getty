@@ -220,7 +220,7 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { Rocket } from 'lucide-vue-next';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import axios from 'axios';
+import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import OsCard from './os/OsCard.vue';
 import { usePublicToken } from '../composables/usePublicToken';
@@ -309,7 +309,7 @@ async function genPreview() {
   previewLoading.value = true;
   if (form.value.channelUrl) {
     try {
-      const r = await axios.get(pt.withToken('/api/external-notifications/live/og'), {
+      const r = await api.get(pt.withToken('/api/external-notifications/live/og'), {
         params: { url: form.value.channelUrl },
       });
       if (r.data && r.data.imageUrl) {
@@ -349,7 +349,7 @@ async function send() {
     Object.keys(payload).forEach((k) => {
       if (payload[k] === undefined) delete payload[k];
     });
-    const r = await axios.post(pt.withToken('/api/external-notifications/live/send'), payload);
+    const r = await api.post(pt.withToken('/api/external-notifications/live/send'), payload);
     if (r.data && r.data.success) {
       pushToast({ type: 'success', message: 'Announcement sent' });
     } else {
@@ -382,7 +382,7 @@ async function testSend() {
     Object.keys(payload).forEach((k) => {
       if (payload[k] === undefined) delete payload[k];
     });
-    const r = await axios.post(pt.withToken('/api/external-notifications/live/test'), payload);
+    const r = await api.post(pt.withToken('/api/external-notifications/live/test'), payload);
     if (r.data && r.data.success) {
       pushToast({ type: 'success', message: 'Sent (test)' });
     } else {
@@ -427,7 +427,7 @@ function loadDraft() {
 
 async function loadMask() {
   try {
-    const r = await axios.get('/api/modules');
+    const r = await api.get('/api/modules');
     masked.value = !!r?.data?.masked;
   } catch {
     masked.value = false;
@@ -436,7 +436,7 @@ async function loadMask() {
 
 async function loadTargets() {
   try {
-    const r = await axios.get('/api/external-notifications');
+    const r = await api.get('/api/external-notifications');
     const c = r?.data?.config || {};
     liveTargets.value.discord = !!c.hasLiveDiscord;
     liveTargets.value.telegram = !!c.hasLiveTelegram;
@@ -468,7 +468,7 @@ async function saveServerDraft() {
     Object.keys(payload).forEach((k) => {
       if (payload[k] === undefined) delete payload[k];
     });
-    const r = await axios.post(pt.withToken('/api/external-notifications/live/config'), payload);
+    const r = await api.post(pt.withToken('/api/external-notifications/live/config'), payload);
     if (r.data?.success) pushToast({ type: 'success', message: 'Draft saved' });
     else pushToast({ type: 'error', message: 'Failed to save draft' });
   } catch {
@@ -480,7 +480,7 @@ async function saveServerDraft() {
 
 async function loadServerDraft() {
   try {
-    const r = await axios.get(pt.withToken('/api/external-notifications/live/config'));
+    const r = await api.get(pt.withToken('/api/external-notifications/live/config'));
     const c = r.data?.config || {};
     form.value.title = c.title || '';
     form.value.description = c.description || '';
@@ -510,7 +510,7 @@ async function resolveFromClaimId() {
   if (!claimId) return;
   try {
     resolving.value = true;
-    const r = await axios.get(pt.withToken('/api/external-notifications/live/resolve'), {
+    const r = await api.get(pt.withToken('/api/external-notifications/live/resolve'), {
       params: { claimId },
     });
     const ok = !!r?.data?.ok;

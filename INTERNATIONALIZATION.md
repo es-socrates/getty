@@ -1,4 +1,4 @@
-#  Getty: Internationalization System (Unified JSON + Runtime)
+# Getty: Internationalization System (Unified JSON + Runtime)
 
 This document describes the internationalization system implemented in Getty to support multiple languages.
 
@@ -17,7 +17,8 @@ This document describes the internationalization system implemented in Getty to 
 
 - `shared-i18n/*.json` - Source locale files (authoritative translations)
 - `scripts/build-i18n.js` - Validation + runtime generator
-- `public/js/min/i18n-runtime.js` - Generated bundle for landing & widgets
+- `public/js/min/i18n-runtime.js` - Generated readable bundle for landing & widgets (versioned)
+- `public/js/min/i18n-runtime.min.js` - Minified variant (optional use)
 - `public/index.html` - Main page including runtime script
 - `/admin` (SPA) - Vue app using the same JSON (merged with admin extras)
 - `public/css/styles.css` - Legacy styles for user menu (kept for backward-compatibility; file is currently deprecated)
@@ -33,6 +34,7 @@ This document describes the internationalization system implemented in Getty to 
 ### For Users
 
 1. **Change language from the user menu:**
+
    - Click the user icon in the top right corner
    - Select the desired language from the dropdown
    - The change is applied immediately
@@ -71,6 +73,7 @@ This document describes the internationalization system implemented in Getty to 
 ### Translation Keys
 
 Keys follow a descriptive pattern:
+
 - `goToHome` - "Go to home"
 - `systemStatus` - "System Status"
 - `lastTipSettings` - "Last Tip Settings"
@@ -79,9 +82,11 @@ Keys follow a descriptive pattern:
 ## Server API
 
 ### GET /api/language
+
 Gets the current language setting.
 
 **Response:**
+
 ```json
 {
   "currentLanguage": "es",
@@ -89,17 +94,27 @@ Gets the current language setting.
 }
 ```
 
-### POST /api/language
-Changes the server language.
+### POST /api/language (Admin-only network mutation)
+
+Persists a new language on the server (writes `language-settings.json`).
+
+Important behavioral changes:
+
+- Only executed from authenticated admin pages. Public/landing pages now change language locally without sending this request.
+- When CSRF protection is enabled the client runtime fetches a token from `/api/admin/csrf` (lazy) and includes it via header `x-csrf-token` (override with env `GETTY_CSRF_HEADER` / `VITE_GETTY_CSRF_HEADER`).
+- If the POST returns 401/403 the runtime re-fetches a token once and retries.
+- Reduces attack surface and unnecessary network chatter for unauthenticated visitors.
 
 **Body:**
+
 ```json
 {
   "language": "es"
 }
 ```
 
-**Response:**
+**Success Response:**
+
 ```json
 {
   "success": true,
@@ -107,16 +122,30 @@ Changes the server language.
 }
 ```
 
-## Persistence
+**Error Examples:**
 
-- **Client:** `localStorage.getItem('getty-language')`
-- **Server:** `language-settings.json`
+```jsonc
+{ "error": "invalid_language" }
+{ "error": "session_required" }
+{ "error": "missing_csrf" }
+{ "error": "save_failed" }
+```
 
-The system keeps both storages synchronized.
+## Persistence & Sync Model
+
+| Context            | Network POST?           | Persistence                             |
+| ------------------ | ----------------------- | --------------------------------------- |
+| Public / non-admin | No                      | localStorage only                       |
+| Admin              | Yes (with CSRF/session) | localStorage + `language-settings.json` |
+
+Public pages no longer attempt server mutation; admin pages keep server + client in sync.
+
+The build script (`scripts/build-i18n.js`) now also emits a minified runtime and injects a version query `?v=<hash>` in HTML to ensure cache busting.
 
 ## CSS Styles
 
 User menu styles are defined in:
+
 - `.language-selector` - Language selector
 - `#user-menu` - Dropdown menu
 - `#user-menu-button` - Menu button
@@ -128,15 +157,28 @@ User menu styles are defined in:
 - ✅ Basic accessibility (keyboard, screen readers)
 - ✅ Fallback to English if translation is missing
 
+## Runtime Generation & Versioning
+
+`scripts/build-i18n.js` steps:
+
+1. Validate locale key parity.
+2. Compute hash (first 8 chars of SHA-256 of locales JSON).
+3. Emit `i18n-runtime.js` (readable) and `i18n-runtime.min.js` (minified best-effort).
+4. Rewrite HTML references to append `?v=<hash>`.
+
+Use the readable file while debugging; widgets can opt into the minified one.
+
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Translations do not load:**
-  - Make sure `i18n-runtime.js` is included in the HTML
-   - Check the browser console for errors
+
+- Make sure `i18n-runtime.js` is included in the HTML
+- Check the browser console for errors
 
 2. **Language does not persist:**
+
    - Check localStorage permissions
    - Ensure API routes are working
 
@@ -149,7 +191,6 @@ User menu styles are defined in:
 To debug the language system:
 
 ```javascript
-// In the browser console
 console.log(window.__i18n.current); // current lang
 console.log(window.__i18n.t('testKey')); // translation or key fallback
 ```
@@ -164,4 +205,4 @@ To add translations:
 
 ## License
 
-This internationalization system is under the same MIT license as the main project. 
+This internationalization system is under the same MIT license as the main project.

@@ -151,9 +151,7 @@ const adminExtra = {
     announcementSectionContent: 'Content',
     announcementSectionStyle: 'Style',
     announcementSectionCTA: 'Button',
-    announcementSectionMediaTiming: 'Media & Timing',
-    adminBannerTitle: 'You are in a public session. To save changes, start an admin session.',
-    adminBannerCta: 'Start admin session'
+    announcementSectionMediaTiming: 'Media & Timing'
   },
   es: {
     valMax120: 'Máx 120 caracteres',
@@ -314,9 +312,7 @@ const adminExtra = {
     announcementSectionContent: 'Contenido',
     announcementSectionStyle: 'Estilos',
     announcementSectionCTA: 'Botón',
-    announcementSectionMediaTiming: 'Duración e Imagen',
-    adminBannerTitle: 'Estás en sesión pública. Para guardar cambios, inicia una sesión de administrador.',
-    adminBannerCta: 'Iniciar sesión de administrador'
+    announcementSectionMediaTiming: 'Duración e Imagen'
   }
 };
 

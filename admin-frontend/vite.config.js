@@ -22,7 +22,9 @@ export default defineConfig({
   root: __dirname,
   base: '/admin/',
   define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion)
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    __GETTY_CSRF_HEADER__: '"' + ((globalThis.process && globalThis.process.env && globalThis.process.env.VITE_GETTY_CSRF_HEADER) || '') + '"',
+    __GETTY_VERBOSE_CSRF__: '"' + ((globalThis.process && globalThis.process.env && globalThis.process.env.VITE_GETTY_VERBOSE_CSRF) || '') + '"'
   },
   envPrefix: 'VITE_',
   resolve: {
