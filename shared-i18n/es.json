@@ -725,5 +725,22 @@
   "streamHistorySamplesFresh": "Al día",
   "streamHistoryDataPoints": "Puntos historial",
   "streamHistoryDataPointsCurrent": "Puntos actuales del historial",
-  "streamHistoryDataPointsHint": "Cantidad de puntos de tiempo guardados para graficar y calcular estadísticas. Muchos puntos pueden ralentizar un poco; puedes compactar para reducir sin perder totales."
+  "streamHistoryDataPointsHint": "Cantidad de puntos de tiempo guardados para graficar y calcular estadísticas. Muchos puntos pueden ralentizar un poco; puedes compactar para reducir sin perder totales.",
+  "sessionTools": "Herramientas de sesión",
+  "regeneratePublicToken": "Regenerar token público",
+  "tokenRegenerated": "Token público regenerado",
+  "revokePublicToken": "Revocar token público",
+  "revokeAllSession": "Revocar toda la sesión",
+  "revokePublicTokenDone": "Token público revocado",
+  "revokeAllSessionDone": "Sesión revocada",
+  "copyWidgetUrl": "Copiar URL del widget",
+  "exportPublicToken": "Exportar token público",
+  "newSession": "Nueva sesión",
+  "exportConfig": "Exportar configuración",
+  "importConfig": "Importar configuración",
+  "importedOk": "Configuración importada",
+  "externalNotificationsTitle": "Notificaciones externas",
+  "liveviewsTitle": "Espectadores",
+  "commonCopy": "Copiar",
+  "commonLoading": "Cargando..."
 }

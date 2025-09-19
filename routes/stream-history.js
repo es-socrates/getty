@@ -440,9 +440,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           }
         } catch {}
       }
-      const hosted = !!store || process.env.GETTY_REQUIRE_SESSION === '1';
+
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-      if (hosted && !hasNs) {
+      const hostedWithNamespaces = !!(store && store.redis);
+      if (hostedWithNamespaces && !hasNs) {
         return res.json({ claimid: '' });
       }
       return res.json(cfg);

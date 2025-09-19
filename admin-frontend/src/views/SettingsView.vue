@@ -29,13 +29,26 @@
       </template>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
         <div class="p-3 os-subtle rounded-os-sm flex flex-col gap-2">
-          <div class="os-th text-xs">{{ t('regeneratePublicToken') }}</div>
+          <div class="os-th text-xs">
+            {{ t('regeneratePublicToken') || 'Regenerate public token' }}
+          </div>
           <div class="flex gap-2 items-center">
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm"
               @click="regeneratePublic"
               :disabled="regenLoading || !sessionStatus.supported || !sessionStatus.active">
-              {{ regenLoading ? t('commonUpdating') : t('regeneratePublicToken') }}
+              {{
+                regenLoading
+                  ? t('commonUpdating')
+                  : t('regeneratePublicToken') || 'Regenerate public token'
+              }}
+            </button>
+            <button
+              v-if="!sessionStatus.active && sessionStatus.supported"
+              class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm"
+              @click="createSession"
+              :disabled="regenLoading">
+              {{ t('newSession') || 'New Session' }}
             </button>
             <button
               class="px-3 py-2 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-sm disabled:opacity-50"
@@ -53,6 +66,28 @@
               class="px-2 py-1 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-xs"
               @click="copyToken">
               {{ t('commonCopy') || 'Copy' }}
+            </button>
+          </div>
+          <div v-if="sessionStatus.active" class="flex flex-wrap gap-2 mt-2">
+            <button
+              class="px-2 py-1 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-xs"
+              :disabled="revokeLoading"
+              @click="revokePublic">
+              {{
+                revokeLoadingPublic ? t('commonLoading') : t('revokePublicToken') || 'Revoke Public'
+              }}
+            </button>
+            <button
+              class="px-2 py-1 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-xs"
+              :disabled="revokeLoading"
+              @click="revokeAll">
+              {{ revokeLoadingAll ? t('commonLoading') : t('revokeAllSession') || 'Revoke All' }}
+            </button>
+            <button
+              v-if="lastPublicToken"
+              class="px-2 py-1 rounded-os-sm border border-[var(--card-border)] hover:bg-[var(--bg-chat)] text-xs"
+              @click="copyWidgetUrl">
+              {{ t('copyWidgetUrl') || 'Copy Widget URL' }}
             </button>
           </div>
         </div>
@@ -284,6 +319,9 @@ const activity = reactive({
 const regenLoading = ref(false);
 const lastPublicToken = ref('');
 const sessionStatus = ref({ supported: false, active: false });
+const revokeLoading = ref(false);
+const revokeLoadingPublic = ref(false);
+const revokeLoadingAll = ref(false);
 const importing = ref(false);
 const fileInputEl = ref(null);
 const importApplied = ref({
@@ -343,6 +381,25 @@ watch(
 
 async function regeneratePublic() {
   try {
+    if (!sessionStatus.value.active && sessionStatus.value.supported) {
+      try {
+        regenLoading.value = true;
+        const create = await axios.get('/api/session/new?json=1');
+        if (create?.data?.publicToken) {
+          lastPublicToken.value = create.data.publicToken;
+          sessionStatus.value.active = true;
+          pushToast({
+            message: t('tokenRegenerated') || 'Session initialized',
+            type: 'success',
+            timeout: 2000,
+            autoTranslate: false,
+          });
+        }
+      } catch {
+      } finally {
+        regenLoading.value = false;
+      }
+    }
     regenLoading.value = true;
     const r = await axios.post('/api/session/regenerate-public');
     const tok = r?.data?.publicToken;
@@ -351,11 +408,38 @@ async function regeneratePublic() {
     }
     pushToast({ i18nKey: 'tokenRegenerated', type: 'success', timeout: 2500 });
   } catch (e) {
-    const msg = e?.response?.data?.error || 'Failed';
+    const code = e?.response?.data?.error;
+    if (code === 'no_admin_session') {
+      try {
+        const create = await axios.get('/api/session/new?json=1');
+        const tok1 = create?.data?.publicToken;
+        if (tok1) {
+          lastPublicToken.value = tok1;
+          sessionStatus.value.active = true;
+
+          const second = await axios.post('/api/session/regenerate-public');
+          const tok2 = second?.data?.publicToken;
+          if (tok2) lastPublicToken.value = tok2;
+          pushToast({ i18nKey: 'tokenRegenerated', type: 'success', timeout: 2500 });
+          return;
+        }
+      } catch (inner) {
+        const msgInner = inner?.response?.data?.error || 'session_init_failed';
+        pushToast({ message: msgInner, type: 'error', timeout: 3200, autoTranslate: false });
+        return;
+      }
+    }
+    const msg = code || 'Failed';
     pushToast({ message: msg, type: 'error', timeout: 3000, autoTranslate: false });
   } finally {
     regenLoading.value = false;
   }
+}
+
+function createSession() {
+  try {
+    window.location.href = '/api/session/new';
+  } catch {}
 }
 
 async function copyToken() {
@@ -391,6 +475,67 @@ function exportPublicToken() {
 function exportCfg() {
   try {
     window.location.href = '/api/session/export';
+  } catch {}
+}
+
+async function revokePublic() {
+  if (revokeLoading.value) return;
+  try {
+    revokeLoading.value = true;
+    revokeLoadingPublic.value = true;
+    await axios.post('/api/session/revoke', { scope: 'public' });
+    lastPublicToken.value = '';
+    await load();
+    pushToast({
+      message: t('revokePublicTokenDone') || 'Public token revoked',
+      type: 'success',
+      timeout: 2500,
+      autoTranslate: false,
+    });
+  } catch (e) {
+    const msg = e?.response?.data?.error || 'Failed';
+    pushToast({ message: msg, type: 'error', timeout: 3000, autoTranslate: false });
+  } finally {
+    revokeLoading.value = false;
+    revokeLoadingPublic.value = false;
+  }
+}
+
+async function revokeAll() {
+  if (revokeLoading.value) return;
+  try {
+    revokeLoading.value = true;
+    revokeLoadingAll.value = true;
+    await axios.post('/api/session/revoke', { scope: 'all' });
+    lastPublicToken.value = '';
+    sessionStatus.value.active = false;
+    pushToast({
+      message: t('revokeAllSessionDone') || 'Session revoked',
+      type: 'success',
+      timeout: 2500,
+      autoTranslate: false,
+    });
+  } catch (e) {
+    const msg = e?.response?.data?.error || 'Failed';
+    pushToast({ message: msg, type: 'error', timeout: 3000, autoTranslate: false });
+  } finally {
+    revokeLoading.value = false;
+    revokeLoadingAll.value = false;
+  }
+}
+
+function copyWidgetUrl() {
+  try {
+    if (!lastPublicToken.value) return;
+    const base = window.location.origin;
+    const url = `${base}/widgets/chat?token=${encodeURIComponent(lastPublicToken.value)}`;
+    navigator.clipboard.writeText(url);
+    pushToast({
+      message: t('urlCopied') || 'Copied',
+      type: 'success',
+      timeout: 2000,
+      autoTranslate: false,
+    });
   } catch {}
 }
 
