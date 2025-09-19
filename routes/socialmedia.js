@@ -38,7 +38,14 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
         if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
       if ((hostedWithRedis || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
-        return res.status(403).json({ success: false, error: 'forbidden_untrusted_context' });
+        if (process.env.GETTY_RELAX_REMOTE_ADMIN === '1') {
+          if (!req._relaxLoggedSocial) {
+            console.warn('[security] remote admin allowed for social media config (relaxed trust)');
+            req._relaxLoggedSocial = true;
+          }
+        } else {
+          return res.status(403).json({ success: false, error: 'forbidden_untrusted_context' });
+        }
       }
       const env = process.env.NODE_ENV || 'development';
       const enforceHttpsOnly = (process.env.SOCIALMEDIA_HTTPS_ONLY === 'true') || env === 'production';

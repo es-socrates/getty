@@ -130,7 +130,14 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
     if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
-      return res.status(403).json({ error: 'forbidden_untrusted_context' });
+      if (process.env.GETTY_RELAX_REMOTE_ADMIN === '1') {
+        if (!req._relaxLoggedGif) {
+          console.warn('[security] remote admin allowed for GIF upload (relaxed trust)');
+          req._relaxLoggedGif = true;
+        }
+      } else {
+        return res.status(403).json({ error: 'forbidden_untrusted_context' });
+      }
     }
     upload.single('gifFile')(req, res, function (err) {
       if (err) {
@@ -191,6 +198,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
+    // Hardening: disallow delete entirely for untrusted (remote) contexts.
     if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
       return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }

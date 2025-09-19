@@ -446,6 +446,13 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (hostedWithNamespaces && !hasNs) {
         return res.json({ claimid: '' });
       }
+      try {
+        const { canReadSensitive } = require('../lib/authz');
+        const allowSensitive = canReadSensitive(req);
+        if (hostedWithNamespaces && !allowSensitive) {
+          return res.json({ claimid: '' });
+        }
+      } catch {}
       return res.json(cfg);
     } catch { return res.json({ claimid: '' }); }
   });
@@ -456,6 +463,13 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
+      try {
+        const { canWriteConfig } = require('../lib/authz');
+        const hosted = !!(store && store.redis);
+        if ((hosted || requireSessionFlag) && !canWriteConfig(req)) {
+          return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+        }
+      } catch {}
   const body = req.body || {};
   const claimid = (typeof body.claimid === 'string') ? body.claimid : '';
   const cfg = { claimid };
