@@ -302,6 +302,39 @@ const ADMIN_COOKIE = 'getty_admin_token';
 const PUBLIC_COOKIE = 'getty_public_token';
 const SECURE_COOKIE = () => (process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production');
 
+try {
+  const rawAllowed = (process.env.GETTY_ALLOWED_ORIGINS || '').split(',').map(s=>s.trim()).filter(Boolean);
+  const allowedSet = new Set(rawAllowed);
+  if (allowedSet.size) {
+    app.use((req, res, next) => {
+      try {
+        const method = req.method || 'GET';
+        const isUnsafe = /^(POST|PUT|PATCH|DELETE)$/i.test(method);
+        const isApi = typeof req.path === 'string' && req.path.startsWith('/api/');
+        if (!isUnsafe || !isApi) return next();
+        const origin = req.headers.origin;
+        if (!origin || !allowedSet.has(origin)) {
+          return res.status(403).json({ error: 'origin_not_allowed' });
+        }
+        res.setHeader('Vary', 'Origin');
+        return next();
+      } catch { return next(); }
+    });
+
+    app.options('*', (req, res, next) => {
+      const origin = req.headers.origin;
+      if (origin && allowedSet.has(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-csrf-token');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+        return res.sendStatus(204);
+      }
+      return next();
+    });
+  }
+} catch {}
+
 app.use(async (req, res, next) => {
   try {
     let nsAdmin = req.cookies?.[ADMIN_COOKIE] || null;
@@ -406,11 +439,95 @@ app.use(async (req, res, next) => {
   next();
 });
 
+
+try {
+  const ENABLE_CSRF = process.env.GETTY_ENABLE_CSRF === '1';
+  const CSRF_HEADER = (process.env.GETTY_CSRF_HEADER || 'x-csrf-token').toLowerCase();
+  const ENABLE_ADMIN_RL = process.env.GETTY_ENABLE_ADMIN_RL === '1';
+  const crypto = require('crypto');
+  const { isTrustedLocalAdmin } = (() => {
+    try { return require('./lib/trust'); } catch { return { isTrustedLocalAdmin: () => false }; }
+  })();
+
+  const __csrfTokenByAdminNs = new Map(); // adminNs -> token
+
+  function getOrCreateCsrf(adminNs) {
+    if (!adminNs) return null;
+    let tok = __csrfTokenByAdminNs.get(adminNs);
+    if (!tok) {
+      tok = crypto.randomBytes(32).toString('base64url');
+      __csrfTokenByAdminNs.set(adminNs, tok);
+    }
+    return tok;
+  }
+
+  if (ENABLE_CSRF) {
+    app.get('/api/admin/csrf', async (req, res) => {
+      try {
+        const adminNs = await resolveAdminNsFromReq(req);
+        if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
+        const token = getOrCreateCsrf(adminNs);
+        return res.json({ csrfToken: token });
+      } catch (e) {
+        return res.status(500).json({ error: 'failed_to_generate_csrf', details: e?.message });
+      }
+    });
+  }
+
+  let adminWriteLimiter = null;
+  if (ENABLE_ADMIN_RL) {
+    const max = parseInt(process.env.GETTY_ADMIN_RL_MAX || '30', 10);
+    const windowMs = parseInt(process.env.GETTY_ADMIN_RL_WINDOW_MS || '60000', 10);
+    adminWriteLimiter = rateLimit({ windowMs, max, standardHeaders: true, legacyHeaders: false });
+  }
+
+  app.use(async (req, res, next) => {
+    try {
+      const method = req.method || 'GET';
+      const isUnsafe = /^(POST|PUT|PATCH|DELETE)$/i.test(method);
+      const isApi = typeof req.path === 'string' && req.path.startsWith('/api/');
+      if (!isApi || !isUnsafe) return next();
+
+      const adminNs = await resolveAdminNsFromReq(req);
+      if (!adminNs) return next();
+
+      if (adminWriteLimiter) {
+        return adminWriteLimiter(req, res, () => {
+          if (!ENABLE_CSRF) return next();
+          try {
+            if (isTrustedLocalAdmin && isTrustedLocalAdmin(req)) return next();
+          } catch {}
+          const presented = (req.headers[CSRF_HEADER] || '').toString();
+            const expected = getOrCreateCsrf(adminNs);
+            if (!presented || presented !== expected) {
+              return res.status(403).json({ error: 'invalid_csrf', header: CSRF_HEADER });
+            }
+          return next();
+        });
+      }
+
+      if (ENABLE_CSRF) {
+        try { if (isTrustedLocalAdmin && isTrustedLocalAdmin(req)) return next(); } catch {}
+        const presented = (req.headers[CSRF_HEADER] || '').toString();
+        const expected = getOrCreateCsrf(adminNs);
+        if (!presented || presented !== expected) {
+          return res.status(403).json({ error: 'invalid_csrf', header: CSRF_HEADER });
+        }
+      }
+      return next();
+    } catch (e) {
+      return res.status(500).json({ error: 'csrf_middleware_error', details: e?.message });
+    }
+  });
+} catch {}
+
 const __requestTimestamps = [];
 const __bytesEvents = [];
 const __activityLog = [];
 const __moduleUptime = {};
 const __MAX_ACTIVITY = 2000;
+const __auditLog = []; // {ts, adminNs, route, method, keys, ip}
+const __MAX_AUDIT = 3000;
 app.use((req, res, next) => {
   try { __requestTimestamps.push(Date.now()); if (__requestTimestamps.length > 50000) __requestTimestamps.splice(0, __requestTimestamps.length - 50000); } catch {}
   const start = Date.now();
@@ -450,6 +567,38 @@ app.use((req, res, next) => {
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60 });
 const strictLimiter = rateLimit({ windowMs: 60 * 1000, max: 20 });
+
+try {
+  const ENABLE_AUDIT = process.env.GETTY_ENABLE_AUDIT === '1';
+  if (ENABLE_AUDIT) {
+    app.use(async (req, _res, next) => {
+      try {
+        const m = req.method || 'GET';
+        const unsafe = /^(POST|PUT|PATCH|DELETE)$/i.test(m);
+        if (!unsafe) return next();
+        if (!req.path || !req.path.startsWith('/api/')) return next();
+        const adminNs = await resolveAdminNsFromReq(req);
+        if (!adminNs) return next();
+        const body = req.body && typeof req.body === 'object' ? req.body : {};
+        const keys = Object.keys(body).slice(0, 25);
+        __auditLog.push({ ts: Date.now(), adminNs, route: req.path, method: m, keys, ip: req.anonymizedIp || '' });
+        if (__auditLog.length > __MAX_AUDIT) __auditLog.splice(0, __auditLog.length - __MAX_AUDIT);
+      } catch {}
+      return next();
+    });
+    app.get('/api/admin/audit', async (req, res) => {
+      try {
+        const adminNs = await resolveAdminNsFromReq(req);
+        if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
+        const limit = Math.min(parseInt(req.query.limit,10)||200, 1000);
+        const out = __auditLog.slice(-limit).reverse();
+        res.json({ items: out, total: __auditLog.length });
+      } catch (e) {
+        res.status(500).json({ error: 'audit_read_failed', details: e?.message });
+      }
+    });
+  }
+} catch {}
 
 let wss;
 try { wss = new WebSocket.Server({ noServer: true }); }
@@ -894,6 +1043,38 @@ app.post('/api/session/regenerate-public', async (req, res) => {
     res.json({ ok: true, publicToken: newPub });
   } catch (e) {
     res.status(500).json({ error: 'failed_to_regenerate', details: e?.message });
+  }
+});
+
+app.post('/api/session/revoke', async (req, res) => {
+  try {
+    if (!store) return res.status(501).json({ error: 'namespaced_sessions_disabled' });
+    const adminNs = await resolveAdminNsFromReq(req);
+    if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
+    const scope = (req.body && typeof req.body.scope === 'string') ? req.body.scope : 'public';
+    const pub = await store.get(adminNs, 'publicToken', null);
+    if (scope === 'all') {
+      if (pub) {
+        try { await store.del(pub, 'adminToken'); } catch {}
+        try { await store.del(pub, 'meta'); } catch {}
+      }
+      try { await store.del(adminNs, 'publicToken'); } catch {}
+      try { await store.del(adminNs, 'meta'); } catch {}
+
+      res.clearCookie(ADMIN_COOKIE);
+      res.clearCookie(PUBLIC_COOKIE);
+      return res.json({ ok: true, revoked: 'all' });
+    } else {
+      if (pub) {
+        try { await store.del(pub, 'adminToken'); } catch {}
+        try { await store.del(pub, 'meta'); } catch {}
+        try { await store.set(adminNs, 'publicToken', null); } catch {}
+      }
+      res.clearCookie(PUBLIC_COOKIE);
+      return res.json({ ok: true, revoked: 'public' });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'revoke_failed', details: e?.message });
   }
 });
 
