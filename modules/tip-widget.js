@@ -29,7 +29,11 @@ class Logger {
       }
     }
     
-    console.log(logMessage);
+    if (level === 'error') {
+      try { console.error(logMessage); } catch {}
+    } else {
+      try { console.warn(logMessage); } catch {}
+    }
   }
 
   static debug(message, data = null) {
@@ -208,8 +212,8 @@ class TipWidgetModule {
           return;
       }
 
-      let clientsNotified = 0;
-      
+      // removed clientsNotified (was unused and triggered lint warning)
+
     const hosted = !!process.env.REDIS_URL;
     if (!hosted) {
     this.wss.clients.forEach(client => {
@@ -228,7 +232,6 @@ class TipWidgetModule {
           };
                     
           client.send(JSON.stringify(notification));
-          clientsNotified++;
                     
           Logger.debug('Notification sent to client', {
             notificationType: notification.type,
