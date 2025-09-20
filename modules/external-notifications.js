@@ -8,8 +8,16 @@ class ExternalNotifications {
     constructor(wss) {
         this.wss = wss;
         this.hosted = !!process.env.REDIS_URL;
-        this.configFile = path.join(process.cwd(), 'config', 'external-notifications-config.json');
+
+        const resolvedConfigDir = process.env.GETTY_CONFIG_DIR
+            ? (path.isAbsolute(process.env.GETTY_CONFIG_DIR)
+                ? process.env.GETTY_CONFIG_DIR
+                : path.join(process.cwd(), process.env.GETTY_CONFIG_DIR))
+            : path.join(process.cwd(), 'config');
+
+        this.configFile = path.join(resolvedConfigDir, 'external-notifications-config.json');
         this.legacyConfigFile = path.join(__dirname, 'external-notifications-config.json');
+        this.fallbackProcessCwdConfigFile = path.join(process.cwd(), 'config', 'external-notifications-config.json');
         this.lastTips = [];
         this.discordWebhook = process.env.DISCORD_WEBHOOK || '';
         this.telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -82,6 +90,15 @@ class ExternalNotifications {
                 } catch (e) {
                     console.error('[ExternalNotifications] Migration failed:', e.message);
                 }
+            }
+
+            if (!fs.existsSync(this.configFile) && this.fallbackProcessCwdConfigFile !== this.configFile && fs.existsSync(this.fallbackProcessCwdConfigFile)) {
+                try {
+                    const raw = fs.readFileSync(this.fallbackProcessCwdConfigFile, 'utf8');
+                    if (!fs.existsSync(path.dirname(this.configFile))) fs.mkdirSync(path.dirname(this.configFile), { recursive: true });
+                    fs.writeFileSync(this.configFile, raw);
+                    if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Adopted legacy config from default ./config directory');
+                } catch {}
             }
 
             if (fs.existsSync(this.configFile)) {
