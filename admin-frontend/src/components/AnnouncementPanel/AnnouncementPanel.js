@@ -3,7 +3,7 @@ import api from '../../services/api';
 import { pushToast } from '../../services/toast';
 import { confirmDialog } from '../../services/confirm';
 import { withinRange, MAX_ANNOUNCEMENT_IMAGE } from '../../utils/validation';
-import { usePublicToken } from '../../composables/usePublicToken';
+import { useWalletSession } from '../../composables/useWalletSession';
 
 export function useAnnouncementPanel(t) {
   const settings = ref({
@@ -79,8 +79,8 @@ export function useAnnouncementPanel(t) {
   const updating = ref(false);
   const modalRef = ref(null);
   const lastTriggerEl = ref(null);
-  const pt = usePublicToken();
-  const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/announcement`));
+  const wallet = useWalletSession();
+  const widgetUrl = computed(() => `${location.origin}/widgets/announcement`);
   const activeTab = ref('settings');
 
   async function load() {
@@ -384,7 +384,7 @@ export function useAnnouncementPanel(t) {
     if (e.key === 'Escape') closeEdit();
   }
 
-  onMounted(async () => { await pt.refresh(); load(); document.addEventListener('keydown', trapFocus); });
+  onMounted(async () => { try { await wallet.refresh(); } catch {} load(); document.addEventListener('keydown', trapFocus); });
   onBeforeUnmount(() => document.removeEventListener('keydown', trapFocus));
 
   return { settings, cooldownMinutes, messages, newMsg, errors, editing, editForm, savingSettings, adding, updating, modalRef, widgetUrl, activeTab,

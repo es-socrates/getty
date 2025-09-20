@@ -56,8 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         return colorForUsername(name);
     }
-    const token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}${token ? `/?token=${encodeURIComponent(token)}` : ''}`;
+    const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}` + window.location.host;
     const ws = new WebSocket(wsUrl);
     let ttsEnabled = true;
     let ttsAllChat = false;
@@ -127,7 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 (async () => {
                     try {
-                        const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+                        const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
                         const cfg = await res.json();
                         if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
                             randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
@@ -224,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadColors() {
         if (!isOBSWidget) return;
         try {
-            const res = await fetch(`/api/modules?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+            const res = await fetch(`/api/modules?nocache=${Date.now()}`);
             const data = await res.json();
             if (data.chat) {
                 chatColors = {
@@ -369,7 +368,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
     if (!serverHasTheme && !hasExplicitUserColors) {
-            // default CSS handles cp-N pill styling
         }
         userContainer.appendChild(usernameElement);
 
@@ -538,7 +536,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let serverHasTheme = false;
     async function fetchAndApplyTheme() {
         try {
-            const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+            const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
             const config = await res.json();
             const serverCSS = (config.themeCSS || '').trim();
             let isLightTheme = !!serverCSS && (serverCSS.includes('--text: #1f2328') || serverCSS.includes('--text: #111'));
@@ -570,8 +568,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                         }
                                     }
                                 } catch {}
-
-                // No inline resets needed; theme CSS takes precedence
 
                 updateDonationVars();
             } else {

@@ -1,10 +1,10 @@
 const WebSocket = require('ws');
 const axios = require('axios');
 const Logger = {
-    debug: (...args) => console.log('[DEBUG]', ...args),
-    info: (...args) => console.log('[INFO]', ...args),
-    warn: (...args) => console.warn('[WARN]', ...args),
-    error: (...args) => console.error('[ERROR]', ...args)
+  debug: (...args) => { if (process.env.GETTY_VERBOSE_BROADCAST === '1') console.warn('[DEBUG]', ...args); },
+  info: (...args) => console.warn('[INFO]', ...args),
+  warn: (...args) => console.warn('[WARN]', ...args),
+  error: (...args) => console.error('[ERROR]', ...args)
 };
 
 const DEFAULT_WS_TEMPLATE = 'wss://ws-na1.odysee.com/commentron?id={claimId}';
@@ -52,7 +52,7 @@ class ChatModule {
       return;
     }
 
-    console.log(`Connecting to: ${websocketUrl}`);
+  console.warn(`[Chat] Connecting to: ${websocketUrl}`);
 
     if (this.ws) {
       try {
@@ -78,7 +78,7 @@ class ChatModule {
     this.chatUrl = websocketUrl;
 
     this.ws.on('open', () => {
-      console.log('Connection established with Odysee chat');
+      console.warn('[Chat] Connection established with Odysee chat');
       this.notifyStatus(true);
       if (this._reconnectTimer) {
         clearTimeout(this._reconnectTimer);
@@ -92,7 +92,7 @@ class ChatModule {
     });
 
     this.ws.on('close', () => {
-      console.log('Connection closed, reconnecting...');
+      console.warn('[Chat] Connection closed, reconnecting...');
       this.notifyStatus(false);
       if (process.env.NODE_ENV !== 'test' && !this._reconnectTimer && this.chatUrl) {
         this._reconnectTimer = setTimeout(() => {
@@ -146,24 +146,41 @@ class ChatModule {
 
       try {
         const raffle = global.gettyRaffleInstance;
-        const ns = null;
         if (raffle && typeof raffle.getPublicState === 'function' && typeof raffle.addParticipant === 'function') {
-          const st = raffle.getPublicState(ns);
-          if (st && st.active && !st.paused && typeof st.command === 'string' && typeof chatMessage.message === 'string') {
-            const msg = (chatMessage.message || '').trim().toLowerCase();
-            const cmd = (st.command || '').trim().toLowerCase();
-            const msgNorm = msg.replace(/^!+/, '');
-            const cmdNorm = cmd.replace(/^!+/, '');
-            if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
-              const added = raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
+          const incomingMsg = (chatMessage.message || '').trim().toLowerCase();
+          const incomingNorm = incomingMsg.replace(/^!+/, '');
+          let targetNs = null;
+          let state = raffle.getPublicState(targetNs);
+
+          if (!(state && state.active && !state.paused)) {
+            try {
+              if (typeof raffle.getActiveNamespaces === 'function') {
+                const actives = raffle.getActiveNamespaces();
+                for (const nsKey of actives) {
+                  const st = raffle.getPublicState(nsKey);
+                  if (!st || !st.active || st.paused || typeof st.command !== 'string') continue;
+                  const cmdNorm = (st.command || '').trim().toLowerCase().replace(/^!+/, '');
+                  if (incomingNorm && cmdNorm && incomingNorm === cmdNorm) {
+                    targetNs = nsKey === '__global__' ? null : nsKey;
+                    state = st;
+                    break;
+                  }
+                }
+              }
+            } catch {}
+          }
+          if (state && state.active && !state.paused && typeof state.command === 'string') {
+            const cmdNorm = (state.command || '').trim().toLowerCase().replace(/^!+/, '');
+            if (incomingNorm && cmdNorm && incomingNorm === cmdNorm) {
+              const added = raffle.addParticipant(targetNs, chatMessage.username, chatMessage.userId);
               if (added) {
-                Logger.info(`[Giveaway] New participant: ${chatMessage.username}`);
+                Logger.info(`[Giveaway] New participant: ${chatMessage.username}${targetNs ? ' ns=' + targetNs.slice(0,6)+'…' : ''}`);
                 try {
                   if (this.wss && typeof this.wss.broadcast === 'function') {
-                    this.wss.broadcast(ns, { type: 'raffle_state', ...raffle.getPublicState(ns) });
+                    this.wss.broadcast(targetNs, { type: 'raffle_state', ...raffle.getPublicState(targetNs) });
                   } else if (this.wss && this.wss.clients) {
-                    const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(ns) });
-                    this.wss.clients.forEach(c => { try { if (c.readyState === 1) c.send(payload); } catch {} });
+                    const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(targetNs) });
+                    this.wss.clients.forEach(c => { try { if (c.readyState === 1 && (!targetNs || c.nsToken === targetNs)) c.send(payload); } catch {} });
                   }
                 } catch {}
               }
@@ -179,6 +196,7 @@ class ChatModule {
         this.history.shift();
       }
       this.notifyFrontend(chatMessage);
+
       try {
         if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
           global.gettyAchievementsInstance.onChatMessage(null, chatMessage);

@@ -375,7 +375,7 @@ import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
-import { usePublicToken } from '../composables/usePublicToken';
+import { useWalletSession } from '../composables/useWalletSession';
 import LegacyAudioControls from './shared/LegacyAudioControls.vue';
 import HeaderIcon from './shared/HeaderIcon.vue';
 import ColorInput from './shared/ColorInput.vue';
@@ -426,8 +426,8 @@ const savingGif = ref(false);
 const savingTts = ref(false);
 const savingAudio = ref(false);
 const savingColors = ref(false);
-const pt = usePublicToken();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/tip-notification`));
+const wallet = useWalletSession();
+const widgetUrl = computed(() => `${location.origin}/widgets/tip-notification`);
 const hostedSupported = ref(false);
 const sessionActive = ref(false);
 const masked = computed(() => hostedSupported.value && !sessionActive.value);
@@ -714,10 +714,12 @@ async function testRandomNotification() {
 }
 
 onMounted(async () => {
-  await pt.refresh();
-  const statusRes = await api.get('/api/session/status').catch(() => ({ data: {} }));
-  hostedSupported.value = !!statusRes?.data?.supported;
-  sessionActive.value = !!statusRes?.data?.active;
+  try {
+    await wallet.refresh();
+  } catch {}
+
+  hostedSupported.value = true;
+  sessionActive.value = true;
   loadGif();
   loadTts();
   loadAudio();

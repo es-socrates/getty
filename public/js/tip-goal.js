@@ -256,9 +256,7 @@
     async function loadInitialData() {
         await loadAudioSettings();
         
-    const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
-    const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
-    fetch('/api/modules' + nsQuery)
+    fetch('/api/modules')
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.json();
@@ -332,9 +330,7 @@
 
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
-    const q = cookieToken ? `/?token=${encodeURIComponent(cookieToken)}` : '';
-    ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
+    ws = new WebSocket(`${protocol}//${window.location.host}`);
 
         ws.onopen = async () => {
             setTimeout(async () => {

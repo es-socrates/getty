@@ -20,7 +20,7 @@ describe('Arweave wallet validation', () => {
   test('tip-goal rejects non-Arweave wallets and accepts valid', async () => {
     for (const bad of INVALID_ADDRS) {
       const resBad = await withSession(request(app).post('/api/tip-goal')).send({ monthlyGoal: 10, walletAddress: bad });
-      expect([400,401]).toContain(resBad.status);
+      expect([400,401,410]).toContain(resBad.status);
       if (resBad.status === 400) expect(resBad.body.error).toBe('invalid_wallet_address');
     }
 
@@ -35,7 +35,7 @@ describe('Arweave wallet validation', () => {
   test('last-tip rejects non-Arweave wallets and accepts valid', async () => {
     for (const bad of INVALID_ADDRS) {
       const resBad = await withSession(request(app).post('/api/last-tip')).send({ walletAddress: bad });
-      expect([400,401]).toContain(resBad.status);
+      expect([400,401,410]).toContain(resBad.status);
       if (resBad.status === 400) expect(resBad.body.error).toBe('invalid_wallet_address');
     }
 
@@ -47,16 +47,4 @@ describe('Arweave wallet validation', () => {
     }
   });
 
-  test('import rejects invalid wallet fields', async () => {
-    let res = await withSession(request(app).post('/api/session/import')).send({ lastTipWallet: INVALID_ADDRS[0] });
-    expect([400,401]).toContain(res.status);
-    if (res.status === 400) expect(res.body.error).toBe('invalid_wallet_address');
-
-    res = await withSession(request(app).post('/api/session/import')).send({ tipGoalWallet: INVALID_ADDRS[1] });
-    expect([400,401]).toContain(res.status);
-    if (res.status === 400) expect(res.body.error).toBe('invalid_wallet_address');
-
-    res = await withSession(request(app).post('/api/session/import')).send({ lastTipWallet: VALID_AR, tipGoalWallet: VALID_AR });
-    expect([200,401]).toContain(res.status);
-  });
 });

@@ -87,16 +87,20 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   app.get('/api/tip-notification-gif', (req, res) => {
     try {
       const cfg = loadConfig();
-      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-      const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
       const conceal = shouldMaskSensitive(req);
       const trusted = isTrustedLocalAdmin(req);
-      if ((requireSessionFlag || hosted) && !hasNs) {
-        return res.json({ gifPath: '', position: undefined, width: 0, height: 0 });
+
+      if (!hasNs) {
+        const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+        if (requireSessionFlag) {
+          return res.json({ gifPath: '', width: 0, height: 0 });
+        }
+        return res.json({ gifPath: '', position: 'right', width: 0, height: 0 });
       }
+
       if (conceal && !trusted) {
-        return res.json({ gifPath: '', position: undefined, width: 0, height: 0 });
+        return res.json({ gifPath: '', width: 0, height: 0 });
       }
       if (store && hasNs) {
         (async () => {
@@ -128,16 +132,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     if (requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
-    }
-    if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
-      if (process.env.GETTY_RELAX_REMOTE_ADMIN === '1') {
-        if (!req._relaxLoggedGif) {
-          console.warn('[security] remote admin allowed for GIF upload (relaxed trust)');
-          req._relaxLoggedGif = true;
-        }
-      } else {
-        return res.status(403).json({ error: 'forbidden_untrusted_context' });
-      }
     }
     upload.single('gifFile')(req, res, function (err) {
       if (err) {
@@ -198,7 +192,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
-    // Hardening: disallow delete entirely for untrusted (remote) contexts.
     if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
       return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }

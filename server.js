@@ -1,4 +1,6 @@
 const path = require('path');
+
+require('./lib/log-shim');
 require('dotenv').config();
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const express = require('express');
@@ -16,8 +18,7 @@ try {
 const axios = require('axios');
 const fs = require('fs');
 const multer = require('multer');
-const { z } = require('zod');
-const SETTINGS_FILE = path.join(process.cwd(), 'tts-settings.json');
+
 const OBS_WS_CONFIG_FILE = path.join(__dirname, 'config', 'obs-ws-config.json');
 
 try {
@@ -82,31 +83,29 @@ const registerAchievementsRoutes = require('./routes/achievements');
 const { AnnouncementModule } = require('./modules/announcement');
 const RaffleModule = require('./modules/raffle');
 
-const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
-function isValidArweaveAddress(addr) {
-  try {
-    if (typeof addr !== 'string') return false;
-    const s = addr.trim();
-    if (!ARWEAVE_RX.test(s)) return false;
-    const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-    const pad = b64.length % 4 === 2 ? '==' : (b64.length % 4 === 3 ? '=' : '');
-    const decoded = Buffer.from(b64 + pad, 'base64');
-    if (decoded.length !== 32) return false;
-    const roundtrip = decoded.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
-    return roundtrip === s;
-  } catch { return false; }
-}
+const __CONFIG_DIR = process.env.GETTY_CONFIG_DIR
+  ? path.isAbsolute(process.env.GETTY_CONFIG_DIR)
+    ? process.env.GETTY_CONFIG_DIR
+    : path.join(process.cwd(), process.env.GETTY_CONFIG_DIR)
+  : path.join(process.cwd(), 'config');
 
-const GOAL_AUDIO_CONFIG_FILE = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
-const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
-const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
+const GOAL_AUDIO_CONFIG_FILE = path.join(__CONFIG_DIR, 'goal-audio-settings.json');
+const TIP_GOAL_CONFIG_FILE = path.join(__CONFIG_DIR, 'tip-goal-config.json');
+const LAST_TIP_CONFIG_FILE = path.join(__CONFIG_DIR, 'last-tip-config.json');
+const CHAT_CONFIG_FILE = path.join(__CONFIG_DIR, 'chat-config.json');
+const RAFFLE_CONFIG_FILE = path.join(__CONFIG_DIR, 'raffle-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
-const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
-const RAFFLE_CONFIG_FILE = path.join(process.cwd(), 'config', 'raffle-config.json');
 
 const app = express();
 const cookieParser = require('cookie-parser');
 const { NamespacedStore } = require('./lib/store');
+
+let walletAuth = null;
+try {
+  if (process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+    walletAuth = require('./lib/wallet-auth');
+  }
+} catch {}
 
 const __LOG_LEVEL = (process.env.GETTY_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug')).toLowerCase();
 const __levelRank = { debug: 10, info: 20, warn: 30, error: 40, silent: 50 };
@@ -114,11 +113,34 @@ function __allow(level) {
   return (__levelRank[level] || 999) >= (__levelRank[__LOG_LEVEL] || 0) && __LOG_LEVEL !== 'silent';
 }
 
-if (!__allow('debug')) { try { console.debug = () => {}; } catch {} }
+const __WS_VERBOSE = process.env.GETTY_WS_DEBUG_VERBOSE === '1';
+
+function extractNamespaceFromRequest(req) {
+  try {
+    const hdr = req.headers['x-ws-ns'];
+    if (hdr && typeof hdr === 'string') return hdr.slice(0, 64);
+    const u = new URL(req.url, 'http://internal');
+    const qpNs = u.searchParams.get('ns');
+    if (qpNs) return qpNs.slice(0, 64);
+  } catch {}
+  return null;
+}
+
+if (!__allow('debug')) { /* console.debug disabled */ }
 if (__LOG_LEVEL === 'silent') {
-  try { console.info = () => {}; } catch {}
+
   try { console.warn = () => {}; } catch {}
 }
+
+try {
+  if (process.env.NODE_ENV === 'test' && process.env.GETTY_SILENCE_LEGACY_WALLET === '1') {
+    const __origErr = console.error;
+    console.error = (...args) => {
+      try { if (args.some(a => typeof a === 'string' && /wallet/i.test(a))) return; } catch {}
+      return __origErr.apply(console, args);
+    };
+  }
+} catch {}
 
 function anonymizeIp(ip) {
   try {
@@ -155,22 +177,23 @@ try {
       keepAlive: 15000,
       noDelay: true
     };
-    try { console.info('[redis] initializing client', { tls: !!redisOpts.tls, lazy: !!redisOpts.lazyConnect }); } catch {}
+  const __silenceRedis = (process.env.NODE_ENV === 'test' && process.env.GETTY_SILENCE_REDIS_TEST === '1');
+  try { if (!__silenceRedis) console.warn('[redis] initializing client', { tls: !!redisOpts.tls, lazy: !!redisOpts.lazyConnect }); } catch {}
     redisClient = new Redis(url, redisOpts);
 
     try {
       redisClient.on('error', (err) => {
-        try { console.warn('[redis] error:', err?.message || String(err)); } catch {}
+        if (__silenceRedis) return; try { console.warn('[redis] error:', err?.message || String(err)); } catch {}
       });
-      redisClient.on('end', () => { try { console.warn('[redis] connection ended'); } catch {} });
-      redisClient.on('reconnecting', (delay) => { try { console.warn('[redis] reconnecting in', delay, 'ms'); } catch {} });
-      redisClient.on('ready', () => { try { console.info('[redis] ready'); } catch {} });
-      redisClient.on('connect', () => { try { console.info('[redis] connect'); } catch {} });
+      redisClient.on('end', () => { if (__silenceRedis) return; try { console.warn('[redis] connection ended'); } catch {} });
+      redisClient.on('reconnecting', (delay) => { if (__silenceRedis) return; try { console.warn('[redis] reconnecting in', delay, 'ms'); } catch {} });
+  redisClient.on('ready', () => { if (__silenceRedis) return; try { console.warn('[redis] ready'); } catch {} });
+  redisClient.on('connect', () => { if (__silenceRedis) return; try { console.warn('[redis] connect'); } catch {} });
     } catch {}
 
     try {
       redisClient.connect().catch((e) => {
-        try { console.warn('[redis] initial connect failed:', e?.message || String(e)); } catch {}
+        if (__silenceRedis) return; try { console.warn('[redis] initial connect failed:', e?.message || String(e)); } catch {}
       });
     } catch {}
   }
@@ -264,6 +287,8 @@ try { app.set('trust proxy', 1); } catch {}
 try { app.use(express.json({ limit: '1mb' })); } catch {}
 try { app.use(express.urlencoded({ extended: true, limit: '1mb' })); } catch {}
 try { app.use(cookieParser()); } catch {}
+
+try { if (walletAuth && walletAuth.attachSessionMiddleware) walletAuth.attachSessionMiddleware(app); } catch {}
 try { app.use(compression()); } catch {}
 
 try {
@@ -369,6 +394,16 @@ app.use(async (req, res, next) => {
       } catch {}
     }
 
+    if (!acceptedToken && !nsPub) {
+      try {
+        const urlObj = new URL(req.originalUrl || req.url || '/', `${req.protocol || 'http'}://${req.headers.host || 'localhost'}`);
+        const qpNs = urlObj.searchParams.get('ns');
+        if (qpNs) {
+          nsPub = qpNs.slice(0,64);
+        }
+      } catch {}
+    }
+
     if (acceptedToken) {
       nsPub = acceptedToken;
       try {
@@ -449,7 +484,7 @@ try {
     try { return require('./lib/trust'); } catch { return { isTrustedLocalAdmin: () => false }; }
   })();
 
-  const __csrfTokenByAdminNs = new Map(); // adminNs -> token
+  const __csrfTokenByAdminNs = new Map();
 
   function getOrCreateCsrf(adminNs) {
     if (!adminNs) return null;
@@ -526,7 +561,7 @@ const __bytesEvents = [];
 const __activityLog = [];
 const __moduleUptime = {};
 const __MAX_ACTIVITY = 2000;
-const __auditLog = []; // {ts, adminNs, route, method, keys, ip}
+const __auditLog = [];
 const __MAX_AUDIT = 3000;
 app.use((req, res, next) => {
   try { __requestTimestamps.push(Date.now()); if (__requestTimestamps.length > 50000) __requestTimestamps.splice(0, __requestTimestamps.length - 50000); } catch {}
@@ -900,7 +935,6 @@ if (!__hostedMode) try {
   if (process.env.NODE_ENV !== 'test') {
     [2000, 8000, 20000].forEach(d => setTimeout(() => { checkLiveOnce(); }, d));
 
-  // moved CHECK_LIVE_MS definition above for achievements live sampling
   setInterval(() => { checkLiveOnce(); }, CHECK_LIVE_MS);
 
   const DEFAULT_ACH_MS = 300000; // 5 minutes
@@ -988,7 +1022,7 @@ try {
                 liveTelegramChatId: externalNotifications?.liveTelegramChatId || cfg.liveTelegramChatId || ''
               };
               const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
-              console.info('[auto-live] transition offline->live detected', { ns, claim, hasAny, hasDiscord: !!cfg.liveDiscordWebhook || !!payload.discordWebhook, hasTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId) });
+
               if (hasAny) {
                 try {
                   const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
@@ -1023,394 +1057,25 @@ async function resolveAdminNsFromReq(req) {
   return null;
 }
 
-app.post('/api/session/regenerate-public', async (req, res) => {
-  try {
-    const adminNs = await resolveAdminNsFromReq(req);
-    if (!store || !adminNs) return res.status(400).json({ error: 'no_admin_session' });
-    const newPub = NamespacedStore.genToken(18);
-    await store.set(adminNs, 'publicToken', newPub);
-    await store.set(newPub, 'adminToken', adminNs);
-    await store.set(newPub, 'meta', { createdAt: Date.now(), role: 'public', parent: adminNs });
-
-    const cookieOpts = {
-      httpOnly: true,
-      sameSite: 'Lax',
-      secure: SECURE_COOKIE(),
-      path: '/',
-      maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
-    };
-    res.cookie(PUBLIC_COOKIE, newPub, cookieOpts);
-    res.json({ ok: true, publicToken: newPub });
-  } catch (e) {
-    res.status(500).json({ error: 'failed_to_regenerate', details: e?.message });
-  }
-});
-
-app.post('/api/session/revoke', async (req, res) => {
-  try {
-    if (!store) return res.status(501).json({ error: 'namespaced_sessions_disabled' });
-    const adminNs = await resolveAdminNsFromReq(req);
-    if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
-    const scope = (req.body && typeof req.body.scope === 'string') ? req.body.scope : 'public';
-    const pub = await store.get(adminNs, 'publicToken', null);
-    if (scope === 'all') {
-      if (pub) {
-        try { await store.del(pub, 'adminToken'); } catch {}
-        try { await store.del(pub, 'meta'); } catch {}
-      }
-      try { await store.del(adminNs, 'publicToken'); } catch {}
-      try { await store.del(adminNs, 'meta'); } catch {}
-
-      res.clearCookie(ADMIN_COOKIE);
-      res.clearCookie(PUBLIC_COOKIE);
-      return res.json({ ok: true, revoked: 'all' });
-    } else {
-      if (pub) {
-        try { await store.del(pub, 'adminToken'); } catch {}
-        try { await store.del(pub, 'meta'); } catch {}
-        try { await store.set(adminNs, 'publicToken', null); } catch {}
-      }
-      res.clearCookie(PUBLIC_COOKIE);
-      return res.json({ ok: true, revoked: 'public' });
-    }
-  } catch (e) {
-    res.status(500).json({ error: 'revoke_failed', details: e?.message });
-  }
-});
-
-app.get('/api/session/status', async (req, res) => {
-  try {
-    const supported = !!process.env.REDIS_URL;
-    const adminNs = await resolveAdminNsFromReq(req);
-    const active = !!adminNs;
-    res.json({ supported, active });
-  } catch (e) {
-    res.status(500).json({ error: 'failed_to_check_session', details: e?.message });
-  }
-});
-
-app.get(['/new-session', '/api/session/new'], async (req, res) => {
-  try {
-    if (!store) return res.status(501).json({ error: 'namespaced_sessions_disabled' });
-
-    const existingAdmin = await resolveAdminNsFromReq(req);
-    let adminToken = existingAdmin;
-    let publicToken = null;
-
-    if (!adminToken) {
-      adminToken = NamespacedStore.genToken(24);
-      publicToken = NamespacedStore.genToken(18);
-      await store.set(adminToken, 'publicToken', publicToken);
-      await store.set(adminToken, 'meta', { createdAt: Date.now(), role: 'admin' });
-      await store.set(publicToken, 'adminToken', adminToken);
-      await store.set(publicToken, 'meta', { createdAt: Date.now(), role: 'public', parent: adminToken });
-    } else {
-      publicToken = await store.get(adminToken, 'publicToken', null);
-      if (!publicToken) {
-        publicToken = NamespacedStore.genToken(18);
-        await store.set(adminToken, 'publicToken', publicToken);
-        await store.set(publicToken, 'adminToken', adminToken);
-        await store.set(publicToken, 'meta', { createdAt: Date.now(), role: 'public', parent: adminToken });
-      }
-    }
-
-    const cookieOpts = {
-      httpOnly: true,
-      sameSite: 'Lax',
-      secure: SECURE_COOKIE(),
-      path: '/',
-      maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
-    };
-    res.cookie(ADMIN_COOKIE, adminToken, cookieOpts);
-    res.cookie(PUBLIC_COOKIE, publicToken, cookieOpts);
-
-    const wantsHtml = req.accepts(['html','json']) === 'html' && req.query.json !== '1';
-    if (wantsHtml) return res.redirect(302, '/admin');
-    res.json({ ok: true, adminToken, publicToken });
-  } catch (e) {
-    res.status(500).json({ error: 'failed_to_create_session', details: e?.message });
-  }
-});
-
-app.get('/api/session/public-token', async (req, res) => {
-  try {
-    const adminNs = await resolveAdminNsFromReq(req);
-    if (!store || !adminNs) return res.status(400).json({ error: 'no_admin_session' });
-    const pub = await store.get(adminNs, 'publicToken', null);
-    if (typeof pub !== 'string' || !pub) return res.status(404).json({ error: 'not_found' });
-    res.json({ publicToken: pub });
-  } catch (e) {
-    res.status(500).json({ error: 'failed_to_get_public', details: e?.message });
-  }
-});
-
-app.get('/api/session/export', async (req, res) => {
-  try {
-    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
-    if (shouldRequireSession) {
-      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
-      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
-    }
-    const adminNs = await resolveAdminNsFromReq(req);
-    const useStore = !!(store && adminNs);
-    const exportObj = {};
-
-    if (useStore) {
-      exportObj.ttsSettings = await store.get(adminNs, 'tts-settings', null);
-      exportObj.chatConfig = await store.get(adminNs, 'chat-config', null);
-    } else {
-      try { exportObj.ttsSettings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch { exportObj.ttsSettings = null; }
-      try { exportObj.chatConfig = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8')); } catch { exportObj.chatConfig = null; }
-    }
-
-    try { exportObj.lastTipConfig = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8')); } catch { exportObj.lastTipConfig = null; }
-    try { exportObj.tipGoalConfig = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8')); } catch { exportObj.tipGoalConfig = null; }
-    try { exportObj.socialMediaConfig = socialMediaModule.loadConfig(); } catch { exportObj.socialMediaConfig = null; }
+try {
+  const legacyRemoved = [
+    '/api/session/regenerate-public',
+    '/api/session/revoke',
+    '/api/session/status',
+    '/api/session/public-token',
+    '/api/session/export',
+    '/api/session/import',
+    '/api/session/new',
+    '/new-session'
+  ];
+  legacyRemoved.forEach(p => {
     try {
-      const extPath = path.join(process.cwd(), 'config', 'external-notifications-config.json');
-      exportObj.externalNotificationsConfig = fs.existsSync(extPath) ? JSON.parse(fs.readFileSync(extPath, 'utf8')) : null;
-    } catch { exportObj.externalNotificationsConfig = null; }
-
-    try {
-      if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-        const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-        exportObj.liveviewsConfig = getLiveviewsConfigWithDefaults(raw || {});
-      } else {
-        exportObj.liveviewsConfig = null;
-      }
-    } catch { exportObj.liveviewsConfig = null; }
-
-    try {
-      const ns = useStore ? (await resolveAdminNsFromReq(req)) : null;
-      exportObj.announcementConfig = await announcementModule.getPublicConfig(ns || null);
-    } catch { exportObj.announcementConfig = null; }
-
-    try {
-      const shPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
-      exportObj.streamHistoryConfig = fs.existsSync(shPath) ? JSON.parse(fs.readFileSync(shPath, 'utf8')) : null;
-    } catch { exportObj.streamHistoryConfig = null; }
-
-    try {
-      exportObj.raffleConfig = fs.existsSync(RAFFLE_CONFIG_FILE) ? JSON.parse(fs.readFileSync(RAFFLE_CONFIG_FILE, 'utf8')) : null;
-    } catch { exportObj.raffleConfig = null; }
-
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="getty-config-${new Date().toISOString().replace(/[:.]/g,'-')}.json"`);
-    res.end(JSON.stringify(exportObj, null, 2));
-  } catch (e) {
-    res.status(500).json({ error: 'failed_to_export', details: e?.message });
-  }
-});
-
-app.post('/api/session/import', async (req, res) => {
-  try {
-    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
-    if (shouldRequireSession) {
-      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
-      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
-    }
-    const adminNs = await resolveAdminNsFromReq(req);
-    const useStore = !!(store && adminNs);
-    const payload = req.body || {};
-    const incomingTts = (payload && typeof payload.ttsSettings === 'object') ? payload.ttsSettings : null;
-    const incomingChat = (payload && typeof payload.chatConfig === 'object') ? payload.chatConfig : null;
-    const incomingLastTip = (payload && typeof payload.lastTipConfig === 'object') ? payload.lastTipConfig : null;
-    const incomingTipGoal = (payload && typeof payload.tipGoalConfig === 'object') ? payload.tipGoalConfig : null;
-    const lastTipWallet = typeof payload.lastTipWallet === 'string' ? payload.lastTipWallet : (typeof payload.lastTipAddress === 'string' ? payload.lastTipAddress : null);
-    const tipGoalWallet = typeof payload.tipGoalWallet === 'string' ? payload.tipGoalWallet : (typeof payload.tipGoalAddress === 'string' ? payload.tipGoalAddress : null);
-    if (lastTipWallet && !isValidArweaveAddress(String(lastTipWallet).trim())) {
-      return res.status(400).json({ error: 'invalid_wallet_address', field: 'lastTipWallet' });
-    }
-    if (tipGoalWallet && !isValidArweaveAddress(String(tipGoalWallet).trim())) {
-      return res.status(400).json({ error: 'invalid_wallet_address', field: 'tipGoalWallet' });
-    }
-    const incomingSocialMedia = Array.isArray(payload?.socialMediaConfig) ? payload.socialMediaConfig : null;
-    const incomingExternal = (payload && typeof payload.externalNotificationsConfig === 'object') ? payload.externalNotificationsConfig : null;
-    const incomingLiveviews = (payload && typeof payload.liveviewsConfig === 'object') ? payload.liveviewsConfig : null;
-    const incomingAnnouncement = (payload && typeof payload.announcementConfig === 'object') ? payload.announcementConfig : null;
-    const incomingStreamHistory = (payload && typeof payload.streamHistoryConfig === 'object') ? payload.streamHistoryConfig : null;
-    const incomingRaffleConfig = (payload && typeof payload.raffleConfig === 'object') ? payload.raffleConfig : null;
-
-  if (!incomingTts && !incomingChat && !incomingLastTip && !incomingTipGoal && !lastTipWallet && !tipGoalWallet && !incomingSocialMedia && !incomingExternal && !incomingLiveviews && !incomingAnnouncement && !incomingStreamHistory && !incomingRaffleConfig) {
-      return res.status(400).json({ error: 'no_valid_payload' });
-    }
-
-    if (useStore) {
-      if (incomingTts) await store.set(adminNs, 'tts-settings', incomingTts);
-      if (incomingChat) await store.set(adminNs, 'chat-config', incomingChat);
-    } else {
-      try {
-        if (incomingTts) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(incomingTts, null, 2));
-      } catch {}
-      try {
-        if (incomingChat) fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(incomingChat, null, 2));
-      } catch {}
-    }
-
-    function mergeConfigFile(filePath, incomingObj, allowedKeys) {
-      try {
-        const current = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, 'utf8')) : {};
-        const filtered = {};
-        for (const k of allowedKeys) {
-          if (Object.prototype.hasOwnProperty.call(incomingObj, k)) filtered[k] = incomingObj[k];
-        }
-        const merged = { ...current, ...filtered };
-        fs.writeFileSync(filePath, JSON.stringify(merged, null, 2));
-        return merged;
-      } catch { return null; }
-    }
-
-    let lastTipApplied = false;
-    if (incomingLastTip || lastTipWallet) {
-  const allowedLT = ['walletAddress','bgColor','fontColor','borderColor','amountColor','iconBgColor','fromColor','title'];
-      const base = incomingLastTip || {};
-      if (lastTipWallet) base.walletAddress = lastTipWallet;
-      const mergedLT = mergeConfigFile(LAST_TIP_CONFIG_FILE, base, allowedLT);
-      if (mergedLT) {
-        try {
-          if (typeof mergedLT.walletAddress === 'string') {
-            lastTip.updateWalletAddress(mergedLT.walletAddress);
-            if (typeof tipWidget.updateWalletAddress === 'function') tipWidget.updateWalletAddress(mergedLT.walletAddress);
-          }
-          if (typeof lastTip.broadcastConfig === 'function') lastTip.broadcastConfig(mergedLT);
-          lastTipApplied = true;
-        } catch {}
-      }
-    }
-
-    let tipGoalApplied = false;
-    if (incomingTipGoal || tipGoalWallet) {
-      const allowedTG = ['walletAddress','monthlyGoal','currentAmount','theme','bgColor','fontColor','borderColor','progressColor','title'];
-      const base = incomingTipGoal || {};
-      if (tipGoalWallet) base.walletAddress = tipGoalWallet;
-      const mergedTG = mergeConfigFile(TIP_GOAL_CONFIG_FILE, base, allowedTG);
-      if (mergedTG) {
-        try {
-          if (typeof mergedTG.walletAddress === 'string') tipGoal.updateWalletAddress(mergedTG.walletAddress);
-          if (typeof mergedTG.monthlyGoal === 'number') tipGoal.monthlyGoalAR = mergedTG.monthlyGoal;
-          if (typeof mergedTG.currentAmount === 'number') tipGoal.currentTipsAR = mergedTG.currentAmount;
-          if (typeof mergedTG.theme === 'string') tipGoal.theme = mergedTG.theme;
-          if (typeof mergedTG.bgColor === 'string') tipGoal.bgColor = mergedTG.bgColor;
-          if (typeof mergedTG.fontColor === 'string') tipGoal.fontColor = mergedTG.fontColor;
-          if (typeof mergedTG.borderColor === 'string') tipGoal.borderColor = mergedTG.borderColor;
-          if (typeof mergedTG.progressColor === 'string') tipGoal.progressColor = mergedTG.progressColor;
-          if (typeof mergedTG.title === 'string') tipGoal.title = mergedTG.title;
-          tipGoal.sendGoalUpdate();
-          tipGoalApplied = true;
-        } catch {}
-      }
-    }
-
-    let socialApplied = false;
-    if (incomingSocialMedia) {
-      try {
-        const ok = Array.isArray(incomingSocialMedia) && incomingSocialMedia.length <= 50;
-        if (!ok) throw new Error('invalid_socialmedia_config');
-        socialMediaModule.saveConfig(incomingSocialMedia);
-        socialApplied = true;
-      } catch {}
-    }
-
-    let externalApplied = false;
-    if (incomingExternal && typeof incomingExternal === 'object') {
-      try {
-        const payloadExt = {
-          template: typeof incomingExternal.template === 'string' ? incomingExternal.template : undefined,
-          discordWebhook: typeof incomingExternal.discordWebhook === 'string' ? incomingExternal.discordWebhook : undefined,
-          telegramBotToken: typeof incomingExternal.telegramBotToken === 'string' ? incomingExternal.telegramBotToken : undefined,
-          telegramChatId: typeof incomingExternal.telegramChatId === 'string' ? incomingExternal.telegramChatId : undefined,
-          liveDiscordWebhook: typeof incomingExternal.liveDiscordWebhook === 'string' ? incomingExternal.liveDiscordWebhook : undefined,
-          liveTelegramBotToken: typeof incomingExternal.liveTelegramBotToken === 'string' ? incomingExternal.liveTelegramBotToken : undefined,
-          liveTelegramChatId: typeof incomingExternal.liveTelegramChatId === 'string' ? incomingExternal.liveTelegramChatId : undefined
-        };
-        await externalNotifications.saveConfig(payloadExt);
-        externalApplied = true;
-      } catch {}
-    }
-
-    let liveviewsApplied = false;
-    if (incomingLiveviews && typeof incomingLiveviews === 'object') {
-      try {
-        const allowedLV = ['bg','color','font','size','icon','claimid','viewersLabel'];
-        const mergedLV = (function mergeLV() {
-          const current = fs.existsSync(LIVEVIEWS_CONFIG_FILE) ? JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')) : {};
-          const filtered = {};
-          for (const k of allowedLV) {
-            if (Object.prototype.hasOwnProperty.call(incomingLiveviews, k)) filtered[k] = incomingLiveviews[k];
-          }
-          const full = getLiveviewsConfigWithDefaults({ ...current, ...filtered });
-          fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(full, null, 2));
-          return full;
-        })();
-        if (mergedLV) liveviewsApplied = true;
-      } catch {}
-    }
-
-    let announcementApplied = false;
-    if (incomingAnnouncement && typeof incomingAnnouncement === 'object') {
-      try {
-        const settingsPayload = {
-          cooldownSeconds: incomingAnnouncement.cooldownSeconds,
-          theme: incomingAnnouncement.theme,
-          bgColor: incomingAnnouncement.bgColor,
-          textColor: incomingAnnouncement.textColor,
-          animationMode: incomingAnnouncement.animationMode,
-          defaultDurationSeconds: incomingAnnouncement.defaultDurationSeconds
-        };
-        try { await announcementModule.setSettings(settingsPayload, useStore ? adminNs : null); } catch {}
-
-        try { await announcementModule.clearMessages('all', useStore ? adminNs : null); } catch {}
-        const msgs = Array.isArray(incomingAnnouncement.messages) ? incomingAnnouncement.messages.slice(0, 200) : [];
-        for (const m of msgs) {
-          try {
-            const text = typeof m.text === 'string' ? m.text.slice(0, 200) : '';
-            if (!text) continue;
-            const message = await announcementModule.addMessage({
-              text,
-              imageUrl: typeof m.imageUrl === 'string' ? m.imageUrl : null,
-              linkUrl: typeof m.linkUrl === 'string' && m.linkUrl ? m.linkUrl : undefined,
-              durationSeconds: typeof m.durationSeconds === 'number' ? m.durationSeconds : undefined
-            }, useStore ? adminNs : null);
-            if (m && m.enabled === false) {
-              try { await announcementModule.updateMessage(message.id, { enabled: false }, useStore ? adminNs : null); } catch {}
-            }
-          } catch { /* ignore item */ }
-        }
-        announcementApplied = true;
-      } catch {}
-    }
-
-      let streamHistoryApplied = false;
-      if (incomingStreamHistory && typeof incomingStreamHistory === 'object') {
-        try {
-          const cfg = { claimid: (typeof incomingStreamHistory.claimid === 'string') ? incomingStreamHistory.claimid : '' };
-          const shPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
-          fs.writeFileSync(shPath, JSON.stringify(cfg, null, 2));
-          streamHistoryApplied = true;
-        } catch {}
-      }
-
-    let raffleApplied = false;
-    if (incomingRaffleConfig && typeof incomingRaffleConfig === 'object') {
-      try {
-        let toWrite = incomingRaffleConfig;
-        if (!('default' in incomingRaffleConfig) && incomingRaffleConfig.__global__) {
-          toWrite = { default: incomingRaffleConfig.__global__, namespaces: {} };
-        }
-        if (typeof toWrite.default !== 'object') toWrite.default = {};
-        if (typeof toWrite.namespaces !== 'object') toWrite.namespaces = {};
-        fs.writeFileSync(RAFFLE_CONFIG_FILE, JSON.stringify(toWrite, null, 2));
-        raffleApplied = true;
-      } catch {}
-    }
-
-  res.json({ ok: true, restored: { tts: !!incomingTts, chat: !!incomingChat, lastTip: !!lastTipApplied, tipGoal: !!tipGoalApplied, socialmedia: !!socialApplied, external: !!externalApplied, liveviews: !!liveviewsApplied, announcement: !!announcementApplied, streamHistory: !!streamHistoryApplied, raffle: !!raffleApplied }, namespaced: useStore });
-  } catch (e) {
-    res.status(500).json({ error: 'failed_to_import', details: e?.message });
-  }
-});
+      app.all(p, (_req, res) => {
+        res.status(410).json({ error: 'legacy_removed', mode: 'wallet_only' });
+      });
+    } catch {}
+  });
+} catch {}
 
 registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs });
 registerStreamHistoryRoutes(app, limiter, { store, wss });
@@ -1523,6 +1188,75 @@ try {
       return res.json({ success: true, token: result.token });
     } catch (e) { return res.status(500).json({ error: 'rotate_failed', details: e?.message }); }
   });
+} catch {}
+
+try { if (walletAuth && walletAuth.registerWalletAuthRoutes) walletAuth.registerWalletAuthRoutes(app); } catch {}
+
+try {
+  if (process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+    app.post('/api/auth/wander', (req,res)=>{
+      return res.status(410).json({ error: 'deprecated_endpoint', use: '/api/auth/wander/nonce + /api/auth/wander/verify' });
+    });
+
+    const wanderWindowMs = parseInt(process.env.GETTY_WANDER_RL_WINDOW_MS || '60000', 10);
+    const wanderNonceMax = parseInt(process.env.GETTY_WANDER_RL_NONCE_MAX || '30', 10);
+    const wanderVerifyMax = parseInt(process.env.GETTY_WANDER_RL_VERIFY_MAX || '20', 10);
+    const wanderRateLimit = require('express-rate-limit');
+    const wanderNonceLimiter = wanderRateLimit({ windowMs: wanderWindowMs, max: wanderNonceMax, legacyHeaders: false, standardHeaders: true });
+    const wanderVerifyLimiter = wanderRateLimit({ windowMs: wanderWindowMs, max: wanderVerifyMax, legacyHeaders: false, standardHeaders: true });
+
+  const { issueNonce } = walletAuth;
+
+    app.post('/api/auth/wander/nonce', wanderNonceLimiter, express.json(), async (req,res)=>{
+      try {
+        if (!walletAuth) return res.status(503).json({ error: 'wallet_auth_disabled' });
+        const address = (req.body && req.body.address) ? String(req.body.address).trim() : '';
+        if (!/^[A-Za-z0-9_-]{43,64}$/.test(address)) return res.status(400).json({ error: 'invalid_address_format' });
+        const domain = process.env.GETTY_LOGIN_DOMAIN || (req.headers.host || 'localhost');
+        const { nonce, issuedAt, expiresAt, message } = issueNonce(address, { domain });
+        return res.json({ address, nonce, issuedAt, expiresAt, message, domain });
+      } catch (e) { return res.status(500).json({ error: 'wander_nonce_failed', details: e?.message }); }
+    });
+
+    const { verifyWander } = require('./lib/wander-verify');
+    app.post('/api/auth/wander/verify', wanderVerifyLimiter, express.json(), async (req,res)=>{
+      try {
+        const result = await verifyWander(req.body || {}, {
+          walletAuth,
+          reqHost: req.headers.host,
+          allowDummy: process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY === '1' && process.env.NODE_ENV === 'test',
+          loginDomain: process.env.GETTY_LOGIN_DOMAIN
+        });
+        const ttl = result.session.exp - result.session.iat;
+        res.cookie('getty_wallet_session', result.signed, {
+          httpOnly: true,
+          sameSite: 'lax',
+            secure: process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production',
+          maxAge: ttl
+        });
+        return res.json(result.response);
+      } catch (e) {
+        const code = e && e.code ? e.code : 'wander_verify_failed';
+        const http = e && e.http ? e.http : (code === 'bad_signature' ? 401 : 400);
+        return res.status(http).json({ error: code, details: e?.message && e.code !== e.message ? e.message : undefined });
+      }
+    });
+
+    app.get('/api/auth/wander/me', (req,res)=>{
+      try {
+        if (!req.walletSession) return res.status(401).json({ error: 'no_session' });
+        const s = req.walletSession;
+        return res.json({ address: s.addr, walletHash: s.walletHash, expiresAt: new Date(s.exp).toISOString(), capabilities: s.caps, mode: 'wander-bridge' });
+      } catch (e) { return res.status(500).json({ error: 'wander_me_failed', details: e?.message }); }
+    });
+
+    app.post('/api/auth/wander/logout', (req,res)=>{
+      try {
+        res.clearCookie('getty_wallet_session');
+        return res.json({ success: true });
+      } catch (e) { return res.status(500).json({ error: 'wander_logout_failed', details: e?.message }); }
+    });
+  }
 } catch {}
 if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
@@ -2007,34 +1741,6 @@ const audioUpload = multer({
   }
 });
 
-function loadAudioSettings() {
-  try {
-    if (fs.existsSync(AUDIO_CONFIG_FILE)) {
-      const settings = JSON.parse(fs.readFileSync(AUDIO_CONFIG_FILE, 'utf8'));
-      return {
-        audioSource: settings.audioSource || 'remote',
-        hasCustomAudio: settings.hasCustomAudio || false,
-        audioFileName: settings.audioFileName || null,
-        audioFileSize: settings.audioFileSize || 0
-      };
-    }
-  } catch (error) {
-    console.error('Error loading audio settings:', error);
-  }
-  return { audioSource: 'remote', hasCustomAudio: false, audioFileName: null, audioFileSize: 0 };
-}
-
-function saveAudioSettings(newSettings) {
-  try {
-    const current = loadAudioSettings();
-    const merged = { ...current, ...newSettings };
-    fs.writeFileSync(AUDIO_CONFIG_FILE, JSON.stringify(merged, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error saving audio settings:', error);
-    return false;
-  }
-}
 
 registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE, { store });
 
@@ -2184,6 +1890,63 @@ try {
   };
 } catch {}
 
+let __walletBalanceCache = new Map();
+async function __fetchWalletBalance(arAddr) {
+  try {
+    if (!arAddr || typeof arAddr !== 'string') return null;
+    const now = Date.now();
+    const cached = __walletBalanceCache.get(arAddr);
+    if (cached && (now - cached.ts) < 60000) return cached.ar;
+
+    const axios = require('axios');
+    const url = `https://arweave.net/wallet/${encodeURIComponent(arAddr)}/balance`;
+    let winston = '0';
+    try {
+      const resp = await axios.get(url, { timeout: 3000 });
+      if (resp && (typeof resp.data === 'string' || typeof resp.data === 'number')) {
+        winston = String(resp.data).trim();
+      }
+    } catch {}
+    if (!/^[0-9]+$/.test(winston)) winston = '0';
+    const ar = Number((parseInt(winston, 10) / 1e12).toFixed(6));
+    __walletBalanceCache.set(arAddr, { ts: now, ar });
+    return ar;
+  } catch { return null; }
+}
+
+async function __resolveWalletAddressForMetrics(req) {
+
+  try {
+    let addr = '';
+    let tenant = null;
+    try { tenant = require('./lib/tenant'); } catch {}
+
+    const fs = require('fs');
+    const LAST_TIP_CONFIG_FILE = require('path').join(process.cwd(), 'config', 'last-tip-config.json');
+    if (tenant && typeof tenant.tenantEnabled === 'function' && tenant.tenantEnabled(req)) {
+      try {
+        const loaded = tenant.loadConfigWithFallback(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+        if (loaded && loaded.data && typeof loaded.data.walletAddress === 'string') addr = loaded.data.walletAddress.trim();
+      } catch {}
+    }
+    if (!addr) {
+      try {
+        if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+          const raw = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+          if (raw && typeof raw.walletAddress === 'string') addr = raw.walletAddress.trim();
+        }
+      } catch {}
+    }
+    if (!addr) {
+      try { if (typeof tipWidget?.getStatus === 'function') { const s = tipWidget.getStatus(); if (s?.walletAddress) addr = String(s.walletAddress).trim(); } } catch {}
+    }
+    if (!addr) {
+      try { if (typeof tipGoal?.getStatus === 'function') { const s = tipGoal.getStatus(); if (s?.walletAddress) addr = String(s.walletAddress).trim(); } } catch {}
+    }
+    return addr || '';
+  } catch { return ''; }
+}
+
 app.get('/api/activity', (req, res) => {
   try {
     const level = typeof req.query.level === 'string' ? req.query.level : '';
@@ -2283,6 +2046,33 @@ app.get('/api/modules', async (req, res) => {
   let tipGoalColors = {};
   let lastTipColors = {};
   let chatColors = {};
+
+  const TENANT_SCAN_TTL_MS = 30_000;
+  if (!global.__gettyTenantConfigCache) global.__gettyTenantConfigCache = { files: {}, ts: 0 };
+  function hasAnyTenantFile(basename) {
+    try {
+      const cache = global.__gettyTenantConfigCache;
+      const now = Date.now();
+      if ((now - cache.ts) > TENANT_SCAN_TTL_MS) {
+        cache.files = {}; cache.ts = now;
+        const tenantRoot = path.join(process.cwd(), 'tenant');
+        if (fs.existsSync(tenantRoot)) {
+          const dirs = fs.readdirSync(tenantRoot).filter(d => !d.startsWith('.') && fs.statSync(path.join(tenantRoot, d)).isDirectory());
+          for (const d of dirs) {
+            const cfgDir = path.join(tenantRoot, d, 'config');
+            if (!fs.existsSync(cfgDir)) continue;
+            try {
+              const entries = fs.readdirSync(cfgDir);
+              for (const f of entries) {
+                cache.files[f] = true;
+              }
+            } catch {}
+          }
+        }
+      }
+      return !!cache.files[basename];
+    } catch { return false; }
+  }
   try {
     if (store && adminNs) {
       const st = await store.get(adminNs, 'chat-config', null);
@@ -2352,6 +2142,13 @@ app.get('/api/modules', async (req, res) => {
         const out = { ...base };
         if (effWallet) out.walletAddress = effWallet;
         out.active = !!(effWallet || base.active);
+        out.configured = !!effWallet;
+        if (!out.configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+
+            if (hasAnyTenantFile('tip-goal-config.json') || hasAnyTenantFile('last-tip-config.json')) {
+              out.configured = true;
+            }
+        }
         return sanitizeIfNoNs(out);
       } catch { return sanitizeIfNoNs(tipWidget.getStatus()); }
     })(),
@@ -2377,9 +2174,13 @@ app.get('/api/modules', async (req, res) => {
         const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
         if (__effTgWallet) merged.walletAddress = __effTgWallet;
         const wallet = __effTgWallet;
-
-        merged.active = !!wallet;
-        merged.initialized = !!wallet;
+        let configured = !!wallet;
+        if (!configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+          if (hasAnyTenantFile('tip-goal-config.json')) configured = true;
+        }
+        merged.active = configured;
+        merged.initialized = configured;
+        merged.configured = configured;
         if (!wallet) {
           merged.title = 'Configure tip goal 💸';
           merged.monthlyGoal = 0;
@@ -2426,10 +2227,16 @@ app.get('/api/modules', async (req, res) => {
     })(),
     externalNotifications: (() => {
       const st = externalNotifications.getStatus();
+      const hasDiscord = !!st.config?.hasDiscord;
+      const hasTelegram = !!st.config?.hasTelegram;
+      const hasLiveDiscord = !!st.config?.hasLiveDiscord;
+      const hasLiveTelegram = !!st.config?.hasLiveTelegram;
+      const configured = hasDiscord || hasTelegram || hasLiveDiscord || hasLiveTelegram || !!(st.config?.template && st.config.template !== '');
       return {
         active: !!st.active,
+        configured,
         lastTips: st.lastTips,
-        config: { hasDiscord: !!st.config?.hasDiscord, hasTelegram: !!st.config?.hasTelegram, template: st.config?.template || '' },
+        config: { hasDiscord, hasTelegram, hasLiveDiscord, hasLiveTelegram, template: st.config?.template || '' },
         lastUpdated: st.lastUpdated
       };
     })(),
@@ -2450,9 +2257,35 @@ app.get('/api/modules', async (req, res) => {
     })(),
   raffle: (async () => {
       try {
-    let __adm = adminNs;
-    const st = raffle.getPublicState(__adm);
-        return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0 };
+        let __adm = adminNs;
+        const st = raffle.getPublicState(__adm);
+        let configured = !!st.active || !!st.paused || (Array.isArray(st.participants) && st.participants.length > 0);
+
+        if (!configured) {
+          try {
+            if (fs.existsSync(RAFFLE_CONFIG_FILE)) {
+              const raw = fs.readFileSync(RAFFLE_CONFIG_FILE, 'utf8');
+              const data = JSON.parse(raw || '{}');
+              if (data && typeof data === 'object') {
+                const keys = Object.keys(data);
+                for (const k of keys) {
+                  if (k === 'default' || k === 'namespaces') continue;
+                  const cfg = data[k];
+                  if (cfg && typeof cfg === 'object') {
+                    if (cfg.enabled === true || (cfg.prize && String(cfg.prize).trim()) || (cfg.command && cfg.command !== '!giveaway')) {
+                      configured = true; break;
+                    }
+                  }
+                }
+              }
+            }
+          } catch {}
+        }
+
+        if (!configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+          if (hasAnyTenantFile('raffle-config.json')) configured = true;
+        }
+        return { active: !!st.active, paused: !!st.paused, participants: st.participants || [], totalWinners: st.totalWinners || 0, configured };
       } catch { return { active: false, participants: [] }; }
     })(),
     achievements: (async () => {
@@ -2467,29 +2300,50 @@ app.get('/api/modules', async (req, res) => {
   };
 
   if ((requireSessionFlag || hosted) && !hasNs) {
-    try { if (payload.lastTip) payload.lastTip.active = false; } catch {}
-    try { if (payload.tipWidget) payload.tipWidget.active = false; } catch {}
-    try { if (payload.tipGoal) { payload.tipGoal.active = false; if (typeof payload.tipGoal.initialized !== 'undefined') payload.tipGoal.initialized = false; } } catch {}
-    try { if (payload.chat) { payload.chat.connected = false; payload.chat.active = false; } } catch {}
-    try { if (payload.announcement) payload.announcement.active = false; } catch {}
-    try { if (payload.socialmedia) { payload.socialmedia.configured = false; payload.socialmedia.entries = 0; } } catch {}
-    try {
-      if (payload.externalNotifications) {
-        payload.externalNotifications.active = false;
-        payload.externalNotifications.lastTips = [];
-        if (payload.externalNotifications.config) {
-          payload.externalNotifications.config.hasDiscord = false;
-          payload.externalNotifications.config.hasTelegram = false;
-          payload.externalNotifications.config.template = '';
-        }
-      }
-    } catch {}
-    try { if (payload.liveviews) payload.liveviews.active = false; } catch {}
-    try { if (payload.raffle) delete payload.raffle; } catch {}
-    try { if (payload.achievements) payload.achievements.active = false; } catch {}
 
-  payload.masked = true;
-  payload.maskedReason = 'no_session';
+    const walletOnly = !requireSessionFlag;
+    if (!walletOnly) {
+      try { if (payload.lastTip) payload.lastTip.active = false; } catch {}
+      try { if (payload.tipWidget) payload.tipWidget.active = false; } catch {}
+      try { if (payload.tipGoal) { payload.tipGoal.active = false; if (typeof payload.tipGoal.initialized !== 'undefined') payload.tipGoal.initialized = false; } } catch {}
+      try { if (payload.chat) { payload.chat.connected = false; payload.chat.active = false; } } catch {}
+      try { if (payload.announcement) payload.announcement.active = false; } catch {}
+      try { if (payload.socialmedia) { payload.socialmedia.configured = false; payload.socialmedia.entries = 0; } } catch {}
+      try {
+        if (payload.externalNotifications) {
+          payload.externalNotifications.active = false;
+          payload.externalNotifications.lastTips = [];
+          if (payload.externalNotifications.config) {
+            payload.externalNotifications.config.hasDiscord = false;
+            payload.externalNotifications.config.hasTelegram = false;
+            payload.externalNotifications.config.template = '';
+          }
+        }
+      } catch {}
+      try { if (payload.liveviews) payload.liveviews.active = false; } catch {}
+      try { if (payload.raffle) delete payload.raffle; } catch {}
+      try { if (payload.achievements) payload.achievements.active = false; } catch {}
+      payload.masked = true;
+      payload.maskedReason = 'no_session';
+    } else {
+
+      try { if (payload.announcement) payload.announcement.active = false; } catch {}
+      try { if (payload.socialmedia) { payload.socialmedia.configured = false; payload.socialmedia.entries = 0; } } catch {}
+      try {
+        if (payload.externalNotifications) {
+          payload.externalNotifications.active = false;
+          payload.externalNotifications.lastTips = [];
+          if (payload.externalNotifications.config) {
+            payload.externalNotifications.config.hasDiscord = false;
+            payload.externalNotifications.config.hasTelegram = false;
+            payload.externalNotifications.config.template = '';
+          }
+        }
+      } catch {}
+
+      payload.masked = true;
+      payload.maskedReason = 'no_session_partial';
+    }
   }
 
   try {
@@ -2497,6 +2351,23 @@ app.get('/api/modules', async (req, res) => {
     for (const k of keys) {
       if (payload[k] && typeof payload[k].then === 'function') {
         payload[k] = await payload[k];
+      }
+    }
+  } catch {}
+
+  try {
+    const derive = (obj) => {
+      if (!obj || typeof obj !== 'object') return 'inactive';
+      const active = !!obj.active || !!obj.connected;
+      const configured = !!obj.configured || !!obj.initialized || !!obj.walletAddress || !!obj.participants?.length;
+      if (active) return 'active';
+      if (configured) return 'configured';
+      return 'inactive';
+    };
+    const moduleKeys = ['lastTip','tipWidget','tipGoal','chat','announcement','socialmedia','externalNotifications','liveviews','raffle','achievements'];
+    for (const mk of moduleKeys) {
+      if (payload[mk] && typeof payload[mk] === 'object') {
+        try { payload[mk].displayState = derive(payload[mk]); } catch {}
       }
     }
   } catch {}
@@ -2586,6 +2457,8 @@ app.get('/api/metrics', async (req, res) => {
   const tip1y = __tipEvents.filter(e => e.ts >= year);
   const sumAr = arr => arr.reduce((a,b)=>a+(b.ar||0),0);
   const sumUsd = arr => arr.reduce((a,b)=>a+(b.usd||0),0);
+  const totalTipsAR = +sumAr(__tipEvents).toFixed(2);
+  const totalTipsUSD = +sumUsd(__tipEvents).toFixed(2);
 
     let liveviews = { live: false, viewerCount: 0 };
     try {
@@ -2601,6 +2474,20 @@ app.get('/api/metrics', async (req, res) => {
         }
       }
     } catch {}
+
+    let walletAddr = '';
+    let walletBalanceAR = null;
+    try { walletAddr = await __resolveWalletAddressForMetrics(req); } catch {}
+    let walletBalanceUSD = null;
+    if (walletAddr) {
+      try { walletBalanceAR = await __fetchWalletBalance(walletAddr); } catch {}
+      if (walletBalanceAR != null) {
+        try {
+          const rate = (__arPriceCache && __arPriceCache.usd > 0) ? Number(__arPriceCache.usd) : 0;
+          if (rate > 0) walletBalanceUSD = +(walletBalanceAR * rate).toFixed(2);
+        } catch {}
+      }
+    }
 
     res.json({
       serverTime: now,
@@ -2641,6 +2528,9 @@ app.get('/api/metrics', async (req, res) => {
           progress: tipGoalStatus.progress || 0,
           usdValue: tipGoalStatus.usdValue ? parseFloat(tipGoalStatus.usdValue) : undefined
         },
+        total: { ar: totalTipsAR, usd: totalTipsUSD },
+        totalBalance: walletBalanceAR != null ? { ar: walletBalanceAR, usd: walletBalanceUSD } : null,
+        wallet: walletAddr ? { address: walletAddr } : null,
         rate: {
           perMin: { count: tip1m.length, ar: +sumAr(tip1m).toFixed(2), usd: +sumUsd(tip1m).toFixed(2) },
           last5m: { count: tip5m.length, ar: +sumAr(tip5m).toFixed(2), usd: +sumUsd(tip5m).toFixed(2) },
@@ -2663,10 +2553,48 @@ app.get('/api/metrics', async (req, res) => {
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 app.get('/readyz', (_req, res) => res.json({ ok: true }));
 
+try {
+  if (!global.__gettyPendingNsQueue) { global.__gettyPendingNsQueue = new Map(); }
+} catch {}
+const __pendingNsQueue = (function(){ try { return global.__gettyPendingNsQueue; } catch { return new Map(); } })();
+
 wss.on('connection', async (ws) => {
   try {
     let ns = null;
     try { ns = ws.nsToken || null; } catch {}
+
+    if (process.env.NODE_ENV === 'test' && __WS_VERBOSE) {
+      try {
+        const tokens = []; wss.clients.forEach(c=>{ try { tokens.push(c.nsToken||null); } catch {} });
+
+      } catch {}
+    }
+
+    try { if (!ws.__initTenantSent) { ws.send(JSON.stringify({ type: 'initTenant', nsToken: ws.nsToken, ts: Date.now(), phase: 'early' })); ws.__initTenantSent = true; } } catch {}
+
+    if (process.env.NODE_ENV === 'test') {
+      try {
+        const cfg = await announcementModule.getPublicConfig(ns || null);
+        ws.send(JSON.stringify({ type: 'announcement_config', data: cfg }));
+      } catch {}
+
+      try {
+        let attempts = 0;
+        const iv = setInterval(async () => {
+          attempts++;
+            try {
+              const st = await (announcementModule._getState ? announcementModule._getState(ns || null) : null);
+              if (st && st.messages && st.messages.length) {
+                await announcementModule.broadcastRandomMessage(ns || null);
+                clearInterval(iv);
+                return;
+              }
+            } catch {}
+          if (attempts > 40) { clearInterval(iv); }
+        }, 50);
+        if (iv.unref) { try { iv.unref(); } catch {} }
+      } catch {}
+    }
     const shouldRequireSession = (process.env.GETTY_REQUIRE_SESSION === '1') || !!process.env.REDIS_URL;
     let initPayload = {
       lastTip: lastTip.getLastDonation(),
@@ -2710,7 +2638,40 @@ wss.on('connection', async (ws) => {
         ? { active: false, paused: false, participants: [], totalWinners: 0 }
         : raffle.getPublicState(null);
     }
-    ws.send(JSON.stringify({ type: 'init', data: initPayload }));
+  try { ws.send(JSON.stringify({ type: 'init', data: initPayload })); ws.__initSent = true; } catch {}
+
+    if (process.env.NODE_ENV === 'test' && __WS_VERBOSE) {
+
+      setTimeout(() => { try { if (ws.readyState === 1) ws.send(JSON.stringify({ type: '_probe', nsToken: ws.nsToken })); } catch {}; }, 35);
+    }
+
+    try {
+      if (ws.nsToken) {
+        const queued = __pendingNsQueue.get(ws.nsToken);
+        if (queued && queued.length) {
+          queued.forEach(msg => { try { if (ws.readyState === 1) ws.send(msg); } catch {} });
+          __pendingNsQueue.delete(ws.nsToken);
+        }
+      }
+    } catch {}
+
+    try {
+      if (!ws.__initTenantPostSent) {
+        ws.send(JSON.stringify({ type: 'initTenant', nsToken: ws.nsToken, ts: Date.now(), phase: 'post-init' }));
+        ws.__initTenantPostSent = true;
+      }
+    } catch {}
+
+    if (process.env.NODE_ENV === 'test') {
+      setTimeout(() => {
+        try {
+          if (!ws.__initSent && ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'init', data: { lastTip: lastTip.getLastDonation(), tipGoal: tipGoal.getGoalProgress(), persistentTips: [], raffle: null, fallback: true } }));
+            ws.__initSent = true;
+          }
+        } catch {}
+      }, 50);
+    }
 
     if (process.env.NODE_ENV === 'test') {
       try {
@@ -2743,7 +2704,7 @@ wss.on('connection', async (ws) => {
 
   ws.on('close', () => {
     if (process.env.NODE_ENV !== 'test') {
-      console.log('WebSocket connection closed');
+  // console.warn('WebSocket connection closed');
     }
   });
 });
@@ -2817,6 +2778,45 @@ app.post('/api/test-donation', express.json(), (req, res) => {
         });
     }
 });
+
+try {
+  app.post('/api/test-tip', express.json(), async (req, res) => {
+    try {
+      const { amountAr, usd, from = 'TestUser', message = 'Synthetic tip event' } = req.body || {};
+      let arVal = 0; let usdVal = 0;
+
+      try {
+        const price = (typeof __arPriceCache === 'object' && __arPriceCache && __arPriceCache.usd) ? Number(__arPriceCache.usd) : 0;
+        if (typeof amountAr === 'number' && isFinite(amountAr) && amountAr > 0) {
+          arVal = amountAr; usdVal = (typeof usd === 'number' && isFinite(usd) && usd >= 0)
+            ? usd
+            : (price > 0 ? +(amountAr * price).toFixed(2) : 0);
+        } else if (typeof usd === 'number' && isFinite(usd) && usd > 0) {
+          usdVal = usd; arVal = (price > 0 ? +(usd / price).toFixed(6) : 0);
+        }
+      } catch {}
+
+      if (!(arVal > 0) && !(usdVal > 0)) { arVal = 1; usdVal = 0; }
+      const tipEvt = {
+        amount: arVal,
+        usd: usdVal,
+        from,
+        message,
+        source: 'test-tip',
+        timestamp: new Date().toISOString()
+      };
+      try { if (wss && typeof wss.emit === 'function') wss.emit('tip', tipEvt, null); } catch {}
+
+      try {
+        const frame = { type: 'tipNotification', data: { from, amount: arVal.toFixed(6), usd: usdVal, message, timestamp: tipEvt.timestamp } };
+        wss?.clients?.forEach(c=>{ try { if (c.readyState === 1) c.send(JSON.stringify(frame)); } catch {} });
+      } catch {}
+      return res.json({ success: true, tip: { ar: arVal, usd: usdVal, from, message } });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+} catch {}
 
 if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
@@ -2905,7 +2905,6 @@ async function connectOBS() {
   try {
     if (obsWsConfig.ip && obsWsConfig.port) {
       await obs.connect(`ws://${obsWsConfig.ip}:${obsWsConfig.port}`, obsWsConfig.password);
-      console.log('Connected to OBS WebSocket');
     }
   } catch (error) {
     console.error('Error connecting to OBS:', error);
@@ -2921,6 +2920,23 @@ registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOB
 try {
   const adminDist = path.join(__dirname, 'public', 'admin-dist');
   if (fs.existsSync(adminDist)) {
+    app.use('/admin', (req, res, next) => {
+      try {
+        if (process.env.GETTY_ADMIN_REQUIRE_AUTH === '1') {
+          const hasWallet = !!req.walletSession;
+          const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+          const isHtmlAccept = req.accepts(['html','json']) === 'html';
+          const wantsHtmlDoc = isHtmlAccept && (req.path === '/' || req.path === '');
+          const blockAssets = process.env.GETTY_ADMIN_BLOCK_ASSETS === '1';
+          const isAsset = /\.(js|css|map|json|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot)$/i.test(req.path);
+          if (!hasWallet && !hasNs) {
+            if (wantsHtmlDoc) return res.redirect(302, '/?admin=login');
+            if (blockAssets && isAsset) return res.status(401).json({ error: 'admin_auth_required' });
+          }
+        }
+      } catch (e) { try { console.warn('[adminGuard][warn]', e?.message); } catch {} }
+      return next();
+    });
     app.get(['/admin', '/admin/'], (req, res, next) => {
       try {
         const indexPath = path.join(adminDist, 'index.html');
@@ -2992,8 +3008,17 @@ app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
   }
 });
 
-app.use((req, res) => {
-  console.warn('404 Not Found:', { method: req.method, url: req.originalUrl });
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'test') {
+    if (req.originalUrl === '/__ws-debug' || req.originalUrl === '/__routes') {
+      return next();
+    }
+  }
+  const silenceTest404 = process.env.NODE_ENV === 'test' && process.env.GETTY_SILENCE_404_TEST === '1';
+  const isApi = typeof req.originalUrl === 'string' && req.originalUrl.startsWith('/api/');
+  if (!silenceTest404 && (isApi || __allow('warn'))) {
+    try { console.warn('404 Not Found:', { method: req.method, url: req.originalUrl }); } catch {}
+  }
   res.status(404).json({ error: 'Not Found' });
 });
 
@@ -3014,7 +3039,6 @@ if (process.env.NODE_ENV !== 'test') {
 
   const PORT = process.env.PORT || 3000;
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Liftoff! Server running on port ${PORT}`);
   });
 
   function parseCookieHeader(cookieHeader) {
@@ -3033,16 +3057,29 @@ if (process.env.NODE_ENV !== 'test') {
 
   wss.broadcast = function(nsToken, payload) {
     try {
+      if (payload === null || typeof payload === 'undefined') return;
       const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      wss.clients.forEach(client => {
-        if (client && client.readyState === 1) {
-
-          if (nsToken) {
+      if (nsToken) {
+        let delivered = 0;
+        wss.clients.forEach(client => {
+          try {
+            if (!client || client.readyState !== 1) return;
             if (client.nsToken !== nsToken) return;
-          }
-          client.send(data);
+            client.send(data);
+            delivered++;
+          } catch {}
+        });
+        if (delivered === 0) {
+          const arr = __pendingNsQueue.get(nsToken) || [];
+          arr.push(data);
+            __pendingNsQueue.set(nsToken, arr.slice(-25));
         }
-      });
+        if (process.env.NODE_ENV === 'test') {
+          // try { console.warn('[wss.broadcast]', { nsToken, delivered, queued: delivered === 0 }); } catch {}
+        }
+      } else {
+        wss.clients.forEach(client => { try { if (client && client.readyState === 1) client.send(data); } catch {} });
+      }
     } catch (e) { console.error('broadcast error', e); }
   };
 
@@ -3079,12 +3116,20 @@ if (process.env.NODE_ENV !== 'test') {
         try { socket.destroy(); } catch {}
         return;
       }
-      const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0] || 'http';
-      const url = new URL(req.url || '/', `${proto}://${req.headers.host}`);
-      let nsToken = url.searchParams.get('token') || '';
+
+  let nsToken = extractNamespaceFromRequest(req) || '';
       if (!nsToken && req.headers.cookie) {
         const cookies = parseCookieHeader(req.headers.cookie);
-        nsToken = cookies['getty_public_token'] || cookies['getty_admin_token'] || '';
+  const legacyCookie = cookies['getty_public_token'] || cookies['getty_admin_token'] || '';
+  if (!nsToken && legacyCookie) { nsToken = legacyCookie; /* tokenSource = 'cookie-public-admin'; */ }
+        try {
+          if (!nsToken && cookies['getty_wallet_session']) {
+            const { verifySessionCookie, deriveWalletHash } = require('./lib/wallet-auth');
+            const parsed = verifySessionCookie(cookies['getty_wallet_session']);
+            if (parsed && parsed.addr) nsToken = deriveWalletHash(parsed.addr);
+            if (nsToken) { /* tokenSource = 'wallet-session'; */ }
+          }
+        } catch {}
       }
         const bindAndAccept = async () => {
         let effective = nsToken || '';
@@ -3097,7 +3142,14 @@ if (process.env.NODE_ENV !== 'test') {
         } catch {}
         wss.handleUpgrade(req, socket, head, ws => {
           ws.nsToken = effective || null;
+          if (!ws.nsToken && nsToken) { ws.nsToken = nsToken; }
+
           wss.emit('connection', ws, req);
+          try {
+            if (process.env.NODE_ENV === 'test' && __WS_VERBOSE) {
+              const tokens = []; try { wss.clients.forEach(c=> tokens.push(c.nsToken)); } catch {}
+            }
+          } catch {}
         });
       };
       bindAndAccept();
@@ -3111,56 +3163,159 @@ module.exports = app;
 
 if (process.env.NODE_ENV === 'test') {
   const http = require('http');
+
+  app.ensureWsDebugRoute = function ensureWsDebugRoute() {
+    if (app.__wsDebugRouteAdded) return;
+    app.__wsDebugRouteAdded = true;
+    app.get('/__ws-debug', (_req,res)=>{
+      try {
+        const sockets = []; try { wss.clients.forEach(c=> sockets.push({ nsToken: c.nsToken || null, ready: c.readyState })); } catch {}
+        if (app.__fallbackWss) { try { app.__fallbackWss.clients.forEach(c=> sockets.push({ nsToken: c.__fallbackNs || null, ready: c.readyState })); } catch {} }
+        const queues=[]; try { __pendingNsQueue.forEach((v,k)=>queues.push({ nsToken:k, size:v.length })); } catch{}
+        res.json({ sockets, queues });
+      } catch { res.status(500).json({ error:'debug_failed' }); }
+    });
+  };
   try {
-    if (!wss.broadcast || wss.broadcast.length < 2) {
+    if (typeof wss.broadcast !== 'function') {
       wss.broadcast = function(nsToken, payload) {
         try {
-          const data = (typeof payload === 'string') ? payload : JSON.stringify(payload);
-          wss.clients.forEach(client => {
-            try {
-              if (!client || client.readyState !== 1) return;
-              if (nsToken) {
+          if (payload === null || typeof payload === 'undefined') return;
+          const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+          if (nsToken) {
+            let delivered = 0;
+            wss.clients.forEach(client => {
+              try {
+                if (!client || client.readyState !== 1) return;
                 if (client.nsToken !== nsToken) return;
-              }
-              client.send(data);
-            } catch { /* ignore send errors in tests */ }
-          });
-        } catch { /* ignore broadcast errors in tests */ }
+                client.send(data); delivered++;
+              } catch {}
+            });
+            if (delivered === 0) {
+              const arr = __pendingNsQueue.get(nsToken) || [];
+              arr.push(data);
+              __pendingNsQueue.set(nsToken, arr.slice(-25));
+            }
+          } else {
+            wss.clients.forEach(client => { try { if (client && client.readyState === 1) client.send(data); } catch {} });
+          }
+        } catch {}
       };
     }
   } catch { /* ignore override errors */ }
   app.startTestServer = function startTestServer(port = 0) {
     return new Promise(resolve => {
       const server = http.createServer(app);
-      server.on('upgrade', (req, socket, head) => {
-        try {
-          const host = req.headers.host || 'localhost';
-          const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0] || 'http';
-          let nsToken = '';
+  try { server.on('connection', (sock)=>{ /* test server connection trace removed */ try { sock.once('data', _buf=>{ /* first chunk suppressed */ }); } catch {}; }); } catch {}
+
+      function parseCookieHeader(cookieHeader) {
+        const out = {}; if (typeof cookieHeader !== 'string' || !cookieHeader) return out;
+        cookieHeader.split(';').forEach(p=>{ const idx = p.indexOf('='); if (idx>-1) { const k=p.slice(0,idx).trim(); const v=p.slice(idx+1).trim(); if(k) out[k]=decodeURIComponent(v); } });
+        return out;
+      }
+      if (!server.__upgradeHookAdded) {
+        server.__upgradeHookAdded = true;
+        server.on('upgrade', (req, socket, head) => {
           try {
-            const url = new URL(req.url || '/', `${proto}://${host}`);
-            nsToken = url.searchParams.get('token') || '';
-          } catch {}
-          if (!nsToken && req.headers.cookie) {
-            const raw = String(req.headers.cookie);
-            raw.split(';').forEach(p => {
-              const idx = p.indexOf('=');
-              if (idx > -1) {
-                const k = p.slice(0, idx).trim();
-                const v = decodeURIComponent(p.slice(idx + 1).trim());
-                if (k === 'getty_admin_token' || k === 'getty_public_token') nsToken = v;
+            try {
+              if (process.env.NODE_ENV === 'test') {
+                const hdrs = {};
+                try { Object.keys(req.headers || {}).forEach(k=>{ if(/^(host|upgrade|connection|sec-websocket-key|sec-websocket-version|cookie|sec-websocket-extensions|x-ws-ns)$/i.test(k)) hdrs[k]=req.headers[k]; }); } catch {}
               }
-            });
+            } catch {}
+
+            let nsToken = extractNamespaceFromRequest(req) || '';
+            if (!nsToken && req.headers.cookie) {
+              const cookies = parseCookieHeader(req.headers.cookie);
+              const legacyCookie = cookies['getty_public_token'] || cookies['getty_admin_token'] || '';
+              if (!nsToken && legacyCookie) { nsToken = legacyCookie; }
+              if (!nsToken && cookies['getty_wallet_session']) { try { const { verifySessionCookie, deriveWalletHash } = require('./lib/wallet-auth'); const parsed = verifySessionCookie(cookies['getty_wallet_session']); if (parsed && parsed.addr) { nsToken = deriveWalletHash(parsed.addr); } } catch {} }
+            }
+
+            const bindAndAccept = async () => {
+              let effective = nsToken || '';
+              try { if (store && effective) { const mapped = await store.get(effective, 'adminToken', null); if (mapped) effective = mapped; } } catch {}
+              wss.handleUpgrade(req, socket, head, ws => {
+                ws.nsToken = effective || null;
+                if (!ws.nsToken && nsToken) ws.nsToken = nsToken;
+
+                wss.emit('connection', ws, req);
+              });
+            };
+            bindAndAccept();
+          } catch { try { socket.destroy(); } catch {} }
+        });
+
+        try {
+          if (process.env.NODE_ENV === 'test' && !server.__upgradeProbeInterval) {
+            let upgradesObserved = 0;
+            server.on('upgrade', () => { upgradesObserved++; });
+            server.__upgradeProbeInterval = setInterval(()=>{
+              try {
+                if (upgradesObserved === 0) {
+                  // console.warn('[wss.upgrade][test][probe]', { note: 'no-upgrade-events-seen-yet', listenerCount: (server.listeners('upgrade')||[]).length, wssClients: (()=>{ try { return Array.from(wss.clients).length; } catch { return -1; } })() });
+                } else if (upgradesObserved > 0 && server.__upgradeProbeInterval) {
+                  clearInterval(server.__upgradeProbeInterval);
+                  server.__upgradeProbeInterval = null;
+                }
+              } catch {}
+            }, 250);
+            if (server.__upgradeProbeInterval && server.__upgradeProbeInterval.unref) { try { server.__upgradeProbeInterval.unref(); } catch {} }
           }
-          wss.handleUpgrade(req, socket, head, ws => {
-            ws.nsToken = nsToken || null;
-            wss.emit('connection', ws, req);
+        } catch {}
+      }
+
+      try {
+        if (!app.__fallbackWss) {
+          const fallbackWss = new WebSocket.Server({ server });
+          app.__fallbackWss = fallbackWss;
+
+          const origBroadcast = wss.broadcast || function(){};
+          wss.broadcast = function(nsToken, payload) {
+            try { origBroadcast.call(wss, nsToken, payload); } catch {}
+            try {
+              if (!fallbackWss || !fallbackWss.clients) return;
+              const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+
+              fallbackWss.clients.forEach(c=>{ try { if (c.readyState===1 && (!nsToken || c.__fallbackNs===nsToken)) { c.send(data); } } catch {} });
+
+            } catch {}
+          };
+
+          fallbackWss.on('connection', (ws, req) => {
+            try {
+              const url = new URL(req.url, 'http://localhost');
+              let nsToken = url.searchParams.get('token') || url.searchParams.get('ns') || '';
+
+              try {
+                if (!nsToken && req.headers.cookie) {
+                  const parts = req.headers.cookie.split(/;\s*/);
+                  const jar = {}; parts.forEach(p=>{ const i=p.indexOf('='); if(i>0){ jar[p.slice(0,i)]=decodeURIComponent(p.slice(i+1)); } });
+                  nsToken = jar['getty_public_token'] || jar['getty_admin_token'] || '';
+                  if (!nsToken && jar['getty_wallet_session']) {
+                    try { const { verifySessionCookie, deriveWalletHash } = require('./lib/wallet-auth'); const parsed = verifySessionCookie(jar['getty_wallet_session']); if (parsed && parsed.addr) nsToken = deriveWalletHash(parsed.addr); } catch {}
+                  }
+                }
+              } catch {}
+              ws.__fallbackNs = nsToken || null;
+              if (!ws.nsToken && nsToken) ws.nsToken = nsToken;
+
+              try { ws.send(JSON.stringify({ type: 'initTenant', nsToken: ws.__fallbackNs, ts: Date.now(), phase: 'early-fallback' })); } catch {}
+            } catch {}
           });
-        } catch {
-          try { socket.destroy(); } catch {}
         }
+      } catch {}
+      if (process.env.NODE_ENV==='test') { app.ensureWsDebugRoute(); }
+      if (!app.__routesListAdded) {
+        app.__routesListAdded = true;
+        app.get('/__routes', (_req,res)=>{
+          try { const stack = (app._router && app._router.stack) ? app._router.stack : []; const routes = stack.filter(l=>l.route && l.route.path).map(r=>({ path:r.route.path, methods:Object.keys(r.route.methods) })); res.json({ routes }); } catch (e) { res.status(500).json({ error:String(e) }); }
+        });
+        app.get('/', (_req,res)=> res.status(200).send('ok-test-root'));
+      }
+      server.listen(port, () => {
+        resolve(server);
       });
-      server.listen(port, () => resolve(server));
     });
   };
   app.getWss = () => wss;

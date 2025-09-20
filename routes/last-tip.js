@@ -21,12 +21,17 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   const store = options.store || null;
   const wss = options.wss || null;
   const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
+  const tenant = (() => { try { return require('../lib/tenant'); } catch { return null; } })();
 
   app.get('/api/last-tip', async (req, res) => {
     try {
       let cfg = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (store && ns) {
+
+      if (tenant && tenant.tenantEnabled(req)) {
+        const loaded = tenant.loadConfigWithFallback(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+        cfg = loaded.data || {};
+      } else if (store && ns) {
         cfg = await store.get(ns, 'last-tip-config', null);
       }
       if (!cfg) {
@@ -98,7 +103,9 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         } catch {}
       }
       if (!wallet && lastTip && lastTip.walletAddress) wallet = String(lastTip.walletAddress).trim();
-      if (!wallet) return res.status(400).json({ error: 'no_wallet_configured' });
+      if (!wallet) {
+        return res.json({ totalAR: 0, txCount: 0, ns: !!ns, configured: false, warning: 'no_wallet_configured' });
+      }
 
       if (!lastTip || typeof lastTip.getEnhancedTransactions !== 'function') {
         return res.status(500).json({ error: 'module_unavailable' });
@@ -154,7 +161,10 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       const { walletAddress, bgColor, fontColor, borderColor, amountColor, iconBgColor, fromColor, title } = parsed.data;
       let config = {};
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (store && ns) {
+      if (tenant && tenant.tenantEnabled(req)) {
+        const loaded = tenant.loadConfigWithFallback(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+        config = loaded.data || {};
+      } else if (store && ns) {
         const st = await store.get(ns, 'last-tip-config', null);
         if (st && typeof st === 'object') config = st;
       } else if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
@@ -181,16 +191,23 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       ...(walletProvided ? { walletAddress: effectiveWallet } : {}),
         title: (typeof title === 'string' && title.trim()) ? title.trim() : (config.title || 'Last tip received 👏')
       };
-      if (store && ns) {
+      if (tenant && tenant.tenantEnabled(req)) {
+        tenant.saveTenantAwareConfig(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json', () => newConfig);
+        try {
+          if (wss && typeof wss.broadcast === 'function') {
+            wss.broadcast(req.walletSession.walletHash, { type: 'lastTipConfig', data: newConfig });
+          }
+        } catch {}
+        return res.json({ success: true, tenant: true, ...newConfig });
+      } else if (store && ns) {
         await store.set(ns, 'last-tip-config', newConfig);
-      if (walletProvided) {
+        if (walletProvided) {
           try {
             const tg = await store.get(ns, 'tip-goal-config', null);
             const newTg = { ...(tg && typeof tg === 'object' ? tg : {}), walletAddress: effectiveWallet };
             await store.set(ns, 'tip-goal-config', newTg);
           } catch {}
         }
-
         try {
           if (wss && typeof wss.broadcast === 'function') {
             wss.broadcast(ns, { type: 'lastTipConfig', data: newConfig });

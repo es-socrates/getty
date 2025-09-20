@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const { z } = require('zod');
+const { resolveAdminNamespace } = require('../lib/namespace');
 
 function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const store = opts.store || null;
@@ -13,7 +14,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.get('/api/raffle/settings', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) {
         return res.json({});
       }
@@ -24,8 +25,8 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         const allowSensitive = canReadSensitive(req);
         if (hosted && !allowSensitive && settings && typeof settings === 'object') {
           const clone = { ...settings };
-          if ('prize' in clone) clone.prize = undefined;
-          if ('command' in clone) clone.command = undefined;
+          if ('prize' in clone) clone.prize = '';
+          if ('command' in clone) clone.command = '';
           return res.json(clone);
         }
       } catch {}
@@ -38,7 +39,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.get('/api/raffle/state', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) {
         return res.json({ active: false, paused: false, participants: [], totalWinners: 0 });
       }
@@ -49,8 +50,8 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         const allowSensitive = canReadSensitive(req);
         if (hosted && !allowSensitive && state && typeof state === 'object') {
           const clone = { ...state };
-          if ('prize' in clone) clone.prize = undefined;
-          if ('command' in clone) clone.command = undefined;
+          if ('prize' in clone) clone.prize = '';
+          if ('command' in clone) clone.command = '';
           return res.json(clone);
         }
       } catch {}
@@ -63,7 +64,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/settings', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
@@ -110,7 +111,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/start', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
@@ -129,7 +130,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/stop', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
@@ -148,7 +149,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/pause', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = req?.ns?.admin || null;
+      if (!adminNs && req.query && req.query.ns) adminNs = String(req.query.ns);
+      if (!adminNs && process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession && req.walletSession.walletHash) {
+        adminNs = req.walletSession.walletHash;
+      }
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
@@ -167,7 +172,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/resume', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
@@ -186,7 +191,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/draw', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = resolveAdminNamespace(req);
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
@@ -224,7 +229,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   });
 
   app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), (req, res) => {
-    const adminNs = req?.ns?.admin || null;
+    let adminNs = resolveAdminNamespace(req);
     if (shouldRequireSession && !adminNs) return res.status(401).json({ error: 'session_required' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const imageUrl = `/uploads/raffle/${req.file.filename}`;
@@ -241,7 +246,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
   app.post('/api/raffle/clear-image', (req, res) => {
     try {
-      const adminNs = req?.ns?.admin || null;
+      let adminNs = req?.ns?.admin || null;
+      if (!adminNs && req.query && req.query.ns) adminNs = String(req.query.ns);
+      if (!adminNs && process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession && req.walletSession.walletHash) {
+        adminNs = req.walletSession.walletHash;
+      }
       if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
 
       let currentUrl = '';
@@ -271,11 +280,15 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     }
   });
 
-  async function __broadcastToNsAndPublic(sendFn, adminNs) {
+  async function __broadcastToNsAndPublic(sendFn, adminNs, opts = {}) {
     try {
       if (!adminNs) return;
       await sendFn(adminNs);
-      if (store && typeof store.get === 'function') {
+      const { kind } = opts;
+      const multiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+      const allowPublicWinner = process.env.GETTY_RAFFLE_BROADCAST_PUBLIC === '1';
+      const shouldSendPublic = !multiTenant || kind !== 'winner' || allowPublicWinner;
+      if (shouldSendPublic && store && typeof store.get === 'function') {
         try {
           const pubToken = await store.get(adminNs, 'publicToken', null);
           if (typeof pubToken === 'string' && pubToken) await sendFn(pubToken);
@@ -303,13 +316,16 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       } catch {}
     };
     if (ns) {
-      __broadcastToNsAndPublic(doSend, ns);
+      __broadcastToNsAndPublic(doSend, ns, { kind: 'state' });
     } else {
       doSend(null);
     }
   }
 
   function broadcastRaffleWinner(wss, winner, ns) {
+    if (!ns) {
+      return;
+    }
     const doSend = async (token) => {
       try {
         const pub = (() => { try { return raffle.getPublicState(token); } catch { return {}; } })();
@@ -320,6 +336,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
           prize: pub.prize,
           imageUrl: pub.imageUrl
         };
+
         if (typeof wss.broadcast === 'function' && token) {
           wss.broadcast(token, payloadObj);
         } else {
@@ -336,7 +353,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       } catch {}
     };
     if (ns) {
-      __broadcastToNsAndPublic(doSend, ns);
+      __broadcastToNsAndPublic(doSend, ns, { kind: 'winner' });
     } else {
       doSend(null);
     }

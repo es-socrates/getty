@@ -117,3 +117,42 @@ export function isAdminRequiredError(e) {
 export function isCsrfSoftDisabled() { return __csrfDisabled; }
 
 export default api;
+
+export async function fetchJson(url, opts = {}) {
+  const { method = 'GET', body, headers = {}, raw = false } = opts;
+  const finalHeaders = { ...headers };
+  let payload = body;
+  if (body && typeof body === 'object' && !(body instanceof FormData) && !headers['Content-Type']) {
+    finalHeaders['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
+  }
+  try {
+    const unsafe = ['post','put','patch','delete'];
+    if (unsafe.includes(method.toLowerCase()) && __csrfToken) {
+      finalHeaders[CSRF_HEADER] = __csrfToken;
+    }
+  } catch { /* noop */ }
+  const res = await fetch(url, { method, body: payload, headers: finalHeaders, credentials: 'include' });
+  if (!res.ok) {
+    let bodyText = '';
+    let parsed = null;
+    try { bodyText = await res.text(); } catch {}
+    try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch { parsed = null; }
+    const errCode = parsed && (parsed.error || parsed.code);
+    if (res.status === 401) {
+      if (errCode === 'bad_signature') {
+        try { window.dispatchEvent(new CustomEvent('getty:wallet-bad-signature', { detail: { url } })); } catch {}
+      } else {
+        try { window.dispatchEvent(new CustomEvent('getty:wallet-session-stale')); } catch {}
+      }
+    } else if (errCode === 'bad_signature') {
+      try { window.dispatchEvent(new CustomEvent('getty:wallet-bad-signature', { detail: { url } })); } catch {}
+    }
+    const err = new Error(errCode || bodyText || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.code = errCode;
+    throw err;
+  }
+  if (raw) return res;
+  try { return await res.json(); } catch { return {}; }
+}

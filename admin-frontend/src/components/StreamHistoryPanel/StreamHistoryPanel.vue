@@ -504,11 +504,6 @@
             <line x1="12" y1="6" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          <span>
-            {{ t('streamHistoryTzNote') }} ({{
-              t('streamHistoryTzOffset', { offset: tzOffsetShort })
-            }})
-          </span>
         </span>
         <button
           type="button"
@@ -595,15 +590,23 @@
           </button>
         </div>
         <div class="kpi-value earnings-values" :class="earningsHidden ? 'blurred' : ''">
-          <span>{{ totalAR.toFixed(4) }}</span>
-          <span class="unit">AR</span>
-          <span class="usd"
-            >≈ ${{
-              usdFromAr(totalAR, arUsd).toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })
-            }}</span
+          <div class="line-amount">
+            <span>{{ displayedAR.toFixed(4) }}</span>
+            <span class="unit">AR</span>
+            <span v-if="displayedUSD != null" class="usd"
+              >≈ ${{
+                displayedUSD.toLocaleString('en-US', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              }}</span
+            >
+          </div>
+          <span
+            v-if="usingWalletBalance"
+            class="wallet-badge px-1 py-0.5 rounded text-[0.55rem] font-semibold tracking-wide bg-[var(--bg-chat)] border border-[var(--card-border)] opacity-80"
+            :title="t('walletBalanceLabel') || 'Wallet balance (60s cache)'"
+            >wallet</span
           >
         </div>
       </div>
@@ -752,7 +755,8 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
 import { createStreamHistoryPanel } from './createStreamHistoryPanel.js';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { metrics } from '../../stores/metricsStore.js';
 
 const { t } = useI18n();
 const state = createStreamHistoryPanel(t);
@@ -796,6 +800,36 @@ const {
   toggleShowViewers,
 } = state;
 
+const usingWalletBalance = computed(() => {
+  try {
+    return (
+      metrics.value?.tips?.totalBalance && typeof metrics.value.tips.totalBalance.ar === 'number'
+    );
+  } catch {
+    return false;
+  }
+});
+const displayedAR = computed(() => {
+  if (usingWalletBalance.value) {
+    try {
+      return Number(metrics.value.tips.totalBalance.ar || 0);
+    } catch {}
+  }
+  return Number(totalAR.value || 0);
+});
+const displayedUSD = computed(() => {
+  if (usingWalletBalance.value) {
+    try {
+      const v = metrics.value.tips.totalBalance.usd;
+      if (typeof v === 'number' && !isNaN(v)) return v;
+    } catch {}
+  }
+  try {
+    if (arUsd.value != null) return usdFromAr(totalAR.value, arUsd.value);
+  } catch {}
+  return null;
+});
+
 const SETTINGS_KEY = 'getty_stream_history_settings_panel_v1';
 const settingsCollapsed = ref(true);
 try {
@@ -814,7 +848,6 @@ watch(
 
 const {
   tzDisplay,
-  tzOffsetShort,
   tzChangeVisible,
   previousTzDisplay,
   currentPhysicalTzDisplay,

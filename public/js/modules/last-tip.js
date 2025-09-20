@@ -20,8 +20,6 @@ export async function initLastTip() {
 
   let AR_TO_USD = 0;
   const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-  const q = token ? `/?token=${encodeURIComponent(token)}` : '';
   let ws;
 
   const isOBSWidget = window.location.pathname.includes('/widgets/');
@@ -91,9 +89,7 @@ export async function initLastTip() {
   async function loadColors() {
     if (!isOBSWidget) return;
     try {
-      const cookieToken = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-      const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
-      const res = await fetch('/api/modules' + nsQuery);
+  const res = await fetch('/api/modules');
       const data = await res.json();
       if (data.lastTip) {
         lastTipColors = {
@@ -154,11 +150,10 @@ export async function initLastTip() {
 
   async function loadInitialData() {
     try {
-      const cookieToken = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-      const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
+  const modulesUrl = '/api/modules';
       const controller = new AbortController();
       const to = setTimeout(() => controller.abort(), 4000);
-      const response = await fetch('/api/modules' + nsQuery, { signal: controller.signal });
+  const response = await fetch(modulesUrl, { signal: controller.signal });
       clearTimeout(to);
       if (!response.ok) throw new Error('modules fetch failed');
       const modulesData = await response.json();
@@ -170,7 +165,7 @@ export async function initLastTip() {
   }
 
   try {
-    ws = new WebSocket(`${wsProto}://${window.location.host}${q}`);
+  ws = new WebSocket(`${wsProto}://${window.location.host}`);
     ws.onopen = () => { loadColors(); updateExchangeRate(); loadInitialData(); };
     ws.onmessage = async (event) => {
       try {

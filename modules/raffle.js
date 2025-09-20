@@ -1,4 +1,3 @@
-const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 
@@ -145,6 +144,16 @@ class RaffleModule {
             participants: Array.from(s.participants.values()).map(p => p.username),
             totalWinners: s.previousWinners.size
         };
+    }
+
+    getActiveNamespaces() {
+        const out = [];
+        try {
+            for (const [key, session] of this.sessions.entries()) {
+                if (session && session.active && !session.paused) out.push(key);
+            }
+        } catch {}
+        return out;
     }
 
     start(ns) {

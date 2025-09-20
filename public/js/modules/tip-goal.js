@@ -108,7 +108,7 @@ export async function initTipGoal() {
       const pos = Math.floor(Math.random() * 20);
       const size = Math.floor(Math.random() * 5);
       const color = Math.floor(Math.random() * 6);
-      const dur = Math.floor(Math.random() * 7) + 2; // 2..8 approx
+      const dur = Math.floor(Math.random() * 7) + 2;
       const delay = Math.floor(Math.random() * 11);
       if (Math.random() > 0.5) el.classList.add('round');
       el.classList.add(`pos-${pos}`, `size-${size}`, `color-${color}`, `dur-${dur-2}`, `delay-${delay}`);
@@ -131,8 +131,8 @@ export async function initTipGoal() {
       const p = document.createElement('div');
       p.className = 'particle';
       const pos = Math.floor(Math.random() * 20);
-      const duration = Math.floor(Math.random() * 3) + 1; // 1..3
-      const delay = Math.floor(Math.random() * 3); // 0..2
+      const duration = Math.floor(Math.random() * 3) + 1;
+      const delay = Math.floor(Math.random() * 3);
       p.classList.add(`pos-${pos}`, `p-dur-${duration}`, `p-delay-${delay}`);
       wrap.appendChild(p);
     }
@@ -142,9 +142,7 @@ export async function initTipGoal() {
 
   async function loadInitialData() {
     await loadAudioSettings();
-    const cookieToken = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
-    fetch('/api/modules' + nsQuery)
+  fetch('/api/modules')
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then(data => {
         if (data.tipGoal) {
@@ -329,9 +327,9 @@ export async function initTipGoal() {
 
   function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cookieToken = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const q = cookieToken ? `/?token=${encodeURIComponent(cookieToken)}` : '';
-    ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
+  const cookieToken = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
+  const q = '';
+  ws = new WebSocket(`${protocol}//${window.location.host}${q}`);
     ws.onopen = () => { setTimeout(async () => { if (!initialDataLoadedAt || (Date.now() - initialDataLoadedAt) > 1000) await loadInitialData(); }, 150); };
     ws.onmessage = (event) => {
       try {
@@ -367,7 +365,6 @@ export async function initTipGoal() {
     };
   }
 
-  // initial DOM state
   goalWidget.classList.add('goal-widget');
   if (isOBSWidget) goalWidget.classList.add('tip-goal-widget');
   const existingClasses = goalWidget.className;

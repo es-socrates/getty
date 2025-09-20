@@ -60,20 +60,35 @@ class LastTipModule {
     };
     if (!fs.existsSync(lastTipConfigPath)) {
       if (!hostedMode) {
-        try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2)); } catch {}
-        try { console.log('[LastTip] last-tip-config.json created with default values'); } catch {}
+        try {
+          fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2));
+          if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][CREATE_DEFAULT]', { path: lastTipConfigPath });
+        } catch (e) {
+          console.error('[LastTip] Failed creating default config:', e.message);
+        }
       }
     }
 
     try {
-      let config = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
+      let config = {};
+      try {
+        config = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
+      } catch (e) {
+        if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][PARSE_ERROR]', e.message);
+      }
+      const prevWallet = config.walletAddress || '';
 
       let mutated = false;
       for (const [k,v] of Object.entries(lastTipDefault)) {
         if (!Object.prototype.hasOwnProperty.call(config, k)) { config[k] = v; mutated = true; }
       }
       if (mutated) {
-        try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(config, null, 2)); } catch {}
+        try {
+          fs.writeFileSync(lastTipConfigPath, JSON.stringify(config, null, 2));
+          if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][FILL_DEFAULTS]', { path: lastTipConfigPath, addedKeys: true });
+        } catch (e) {
+          console.error('[LastTip] Failed writing filled defaults:', e.message);
+        }
       }
       if (config.walletAddress) {
         this.walletAddress = config.walletAddress;
@@ -94,9 +109,14 @@ class LastTipModule {
               this.walletAddress = tg.walletAddress.trim();
               const updated = { ...config, walletAddress: this.walletAddress };
               if (!hostedMode) {
-                try { fs.writeFileSync(lastTipConfigPath, JSON.stringify(updated, null, 2)); } catch {}
+                try {
+                  fs.writeFileSync(lastTipConfigPath, JSON.stringify(updated, null, 2));
+                  if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][IMPORT_WALLET_FROM_TIP_GOAL]', { prevWallet, newWallet: this.walletAddress });
+                } catch (e) {
+                  console.error('[LastTip] Failed persisting imported wallet:', e.message);
+                }
               }
-              try { console.log('[LastTip] Wallet address imported from tip-goal-config.json'); } catch {}
+              try { console.warn('[LastTip] Wallet address imported from tip-goal-config.json'); } catch {}
             }
           }
         } catch {}
@@ -328,7 +348,14 @@ class LastTipModule {
     this.processedTxs = new Set();
     this.lastDonation = null;
     const config = { ...existing, walletAddress: this.walletAddress };
-    try { fs.writeFileSync(configPath, JSON.stringify(config, null, 2)); } catch (e) { console.error('[LastTip] Error writing wallet address to config:', e); }
+    try {
+      if (existing.walletAddress && !this.walletAddress) {
+  if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][SKIP_WRITE_EMPTY_WALLET]', { existing: existing.walletAddress });
+      } else {
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][WRITE_CONFIG]', { path: configPath, wallet: this.walletAddress });
+      }
+    } catch (e) { console.error('[LastTip] Error writing wallet address to config:', e.message); }
     if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
       this.updateLatestDonation();
     }

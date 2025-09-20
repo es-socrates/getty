@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const app = require('../server');
 
-const CHAT_CONFIG_FILE = path.join(process.cwd(), 'config', 'chat-config.json');
+const CONFIG_DIR = process.env.GETTY_CONFIG_DIR ? (path.isAbsolute(process.env.GETTY_CONFIG_DIR) ? process.env.GETTY_CONFIG_DIR : path.join(process.cwd(), process.env.GETTY_CONFIG_DIR)) : path.join(process.cwd(), 'config');
+const CHAT_CONFIG_FILE = path.join(CONFIG_DIR, 'chat-config.json');
 
 function readConfig() {
   if (fs.existsSync(CHAT_CONFIG_FILE)) {
