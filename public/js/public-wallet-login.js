@@ -6,7 +6,11 @@ class WanderWalletLogin {
         this.lastBalance = null;
         this.balanceFetchInFlight = false;
         this.balanceLastFetchTs = 0;
-        this.arweave = Arweave.init({ host: 'arweave.net', port: 443, protocol: 'https' });
+
+        this.arweave = (typeof Arweave !== 'undefined') ?
+            Arweave.init({ host: 'arweave.net', port: 443, protocol: 'https' }) :
+            this.createArweaveShim();
+        this.ui = { installBanner: null };
         this.elements = {
             loginBtn: null,
             logoutBtn: null,
@@ -16,6 +20,10 @@ class WanderWalletLogin {
             statusDot: null,
             btnLabel: null
         };
+
+        this.locale = this.detectLocale();
+        this.messages = this.loadSharedMessages(this.locale);
+        this.t = (k) => (this.messages && this.messages[k]) || k;
         this.init();
     }
 
@@ -87,6 +95,7 @@ class WanderWalletLogin {
 
         this.bootstrapSession();
         this.startWalletInjectionWatcher();
+    this.ensureInstallBanner();
 
         try {
             window.addEventListener('storage', (e) => {
@@ -106,6 +115,31 @@ class WanderWalletLogin {
     }
 
     safeAttach(el, ev, fn) { if (el) try { el.addEventListener(ev, fn); } catch {} }
+
+    createArweaveShim() {
+        const WINSTON_PER_AR = 1e12;
+        return {
+            wallets: {
+                async getBalance(address) {
+                    if (!address) return '0';
+                    try {
+                        const r = await fetch('https://arweave.net/wallet/' + address + '/balance', { cache: 'no-store' });
+                        if (!r.ok) return '0';
+                        return await r.text();
+                    } catch { return '0'; }
+                }
+            },
+            ar: {
+                winstonToAr(winston) {
+                    try {
+                        const n = parseFloat(winston || '0');
+                        if (!isFinite(n)) return '0';
+                        return (n / WINSTON_PER_AR).toString();
+                    } catch { return '0'; }
+                }
+            }
+        };
+    }
 
     async bootstrapSession() {
         try {
@@ -141,7 +175,7 @@ class WanderWalletLogin {
         if (!this.elements.loginBtn) return;
         if (this.isConnected) return;
         try {
-            this.setLoading(true, 'Conectando...');
+            this.setLoading(true, this.t('connecting'));
             await this.loginFlow();
         } catch (e) {
             console.error('[wander-login] login failed', e);
@@ -159,7 +193,7 @@ class WanderWalletLogin {
             if (this.elements.btnLabel) this.elements.btnLabel.textContent = label || '...';
         } else {
             btn.classList.remove('loading');
-            if (this.elements.btnLabel) this.elements.btnLabel.textContent = 'Login';
+            if (this.elements.btnLabel) this.elements.btnLabel.textContent = this.t('loginLabel');
         }
     }
 
@@ -167,7 +201,7 @@ class WanderWalletLogin {
         await this.ensureWalletLoadedEvent();
 
         const wallet = await this.waitForWallet(2000, 150);
-        if (!wallet) throw new Error('Wander Wallet not detected');
+    if (!wallet) throw new Error(this.t('notDetectedError'));
 
         let existingPerms = [];
         if (typeof wallet.getPermissions === 'function') {
@@ -175,11 +209,11 @@ class WanderWalletLogin {
         }
         const needed = ['ACCESS_ADDRESS','ACCESS_PUBLIC_KEY','SIGN_MESSAGE'];
         const hasAll = needed.every(p => existingPerms.includes(p));
-        const address = hasAll ? await this.getActiveAddressSafe(wallet) : await this.connectWithPermissions(wallet, needed);
-        if (!address) throw new Error('No se obtuvo dirección (connect)');
+    const address = hasAll ? await this.getActiveAddressSafe(wallet) : await this.connectWithPermissions(wallet, needed);
+    if (!address) throw new Error(this.t('noAddressConnect'));
 
     let publicKey = await this.obtainPublicKey(wallet);
-    if (!publicKey) throw new Error('Public key could not be obtained (getActivePublicKey/getPublicKey)');
+    if (!publicKey) throw new Error(this.t('publicKeyMissing'));
     console.info('[wander-login] publicKey obtained type=', typeof publicKey, 'preview=', (typeof publicKey === 'string' ? publicKey.slice(0,16) : '[obj]'));
 
         const nonceResp = await this.postJson('/api/auth/wander/nonce', { address });
@@ -234,9 +268,9 @@ class WanderWalletLogin {
     }
 
     async signMessage(message, opts = {}) {
-        if (!this.isWalletReady()) throw new Error('Wallet not ready');
+        if (!this.isWalletReady()) throw new Error(this.t('walletNotReady'));
         const w = this.resolveWalletHandle();
-        if (!w) throw new Error('Wallet not available');
+        if (!w) throw new Error(this.t('walletNotAvailable'));
 
         const orderMsgFirst = ['signMessage','signature','_signatureAlgo'];
         const orderSigFirst = ['signature','signMessage','_signatureAlgo'];
@@ -278,7 +312,7 @@ class WanderWalletLogin {
                 }
             }
         }
-        throw new Error('Signature methods not available (signMessage/signature with algorithms)');
+        throw new Error(this.t('signatureMethodsUnavailable'));
     }
 
     prepareMessageForSigning(message) {
@@ -347,6 +381,7 @@ class WanderWalletLogin {
         const start = Date.now();
         const tick = () => {
             if (this.isWalletReady()) {
+                this.hideInstallBanner();
                 try { console.info('[wander-login] wallet detectada tras', Date.now() - start, 'ms'); } catch {}
                 return;
             }
@@ -354,10 +389,36 @@ class WanderWalletLogin {
                 setTimeout(tick, intervalMs);
             } else {
                 try { console.warn('[wander-login] wallet not detected after waiting. Make sure the extension is enabled for this site.'); } catch {}
+                this.showInstallBanner();
             }
         };
         setTimeout(tick, intervalMs);
     }
+
+    ensureInstallBanner() {
+        if (document.getElementById('wander-install-banner')) return;
+        const banner = document.createElement('div');
+        banner.id = 'wander-install-banner';
+        banner.style.cssText = 'display:none;position:fixed;bottom:1rem;right:1rem;max-width:320px;z-index:9999;background:#111d;border:1px solid #333;padding:0.9rem 0.95rem;border-radius:8px;font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f5f5f5;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+        const title = this.t('bannerTitle');
+        const missing = this.t('bannerMissing');
+        const dismiss = this.t('bannerDismiss');
+        const install = this.t('bannerInstall');
+        banner.innerHTML = '<div style="font-weight:600;margin-bottom:4px">'+title+'</div>'+
+            '<div style="font-size:12px;opacity:.85;margin-bottom:8px" data-i18n="wanderMissingMsg">'+missing+'</div>'+
+            '<div style="display:flex;gap:6px;justify-content:flex-end">'+
+            '<button type="button" data-act="dismiss" style="background:#333;color:#ddd;border:0;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">'+dismiss+'</button>'+
+            '<a href="https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap" target="_blank" rel="noopener" data-act="install" style="background:#0d62ff;color:#fff;text-decoration:none;padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600">'+install+'</a>'+
+            '</div>';
+        document.body.appendChild(banner);
+        this.ui.installBanner = banner;
+        banner.addEventListener('click', (e) => {
+            const act = e.target && e.target.getAttribute('data-act');
+            if (act === 'dismiss') this.hideInstallBanner();
+        });
+    }
+    showInstallBanner() { if (this.ui.installBanner) this.ui.installBanner.style.display = 'block'; }
+    hideInstallBanner() { if (this.ui.installBanner) this.ui.installBanner.style.display = 'none'; }
 
     toBase64Url(val) {
         try {
@@ -433,14 +494,6 @@ class WanderWalletLogin {
         try { await this.postJson('/api/auth/wander/logout', {}); } catch {}
 
         try {
-            await fetch('/api/session/revoke', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scope: 'all' })
-            });
-        } catch {}
-
-        try {
             const w = this.resolveWalletHandle();
             if (w && typeof w.disconnect === 'function') w.disconnect();
         } catch {}
@@ -462,6 +515,18 @@ class WanderWalletLogin {
         try {
             if (!this.arweaveAddress) return '0';
 
+            const CACHE_KEY = 'arweaveBalanceCache';
+            const TTL = 60_000;
+            try {
+                const cachedRaw = localStorage.getItem(CACHE_KEY);
+                if (cachedRaw) {
+                    const cached = JSON.parse(cachedRaw);
+                    if (cached && cached.addr === this.arweaveAddress && (Date.now() - cached.ts) < TTL) {
+                        return cached.val;
+                    }
+                }
+            } catch {}
+
             const controller = new AbortController();
             const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, 3000);
             let winston;
@@ -472,7 +537,9 @@ class WanderWalletLogin {
                 ]);
             } finally { clearTimeout(timeout); }
             const ar = this.arweave.ar.winstonToAr(winston);
-            return parseFloat(ar).toFixed(4);
+            const val = parseFloat(ar).toFixed(4);
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify({ addr: this.arweaveAddress, ts: Date.now(), val })); } catch {}
+            return val;
         } catch (error) {
             console.warn('[wander-login] Failed to obtain balance', error?.message || error);
             return null;
@@ -512,7 +579,7 @@ class WanderWalletLogin {
         } else {
             if (loginBtn) {
                 loginBtn.dataset.state = 'logged-out';
-                if (btnLabel) btnLabel.textContent = btnLabel?.dataset?.defaultLabel || 'Login';
+                if (btnLabel) btnLabel.textContent = btnLabel?.dataset?.defaultLabel || this.t('loginLabel');
                 loginBtn.title = '';
             }
             if (inlineBalance) {
@@ -658,19 +725,55 @@ class WanderWalletLogin {
     
     showError(message) {
         try { console.warn('[wander-login] error', message); } catch {}
-        alert(`Error: ${message}\n\nMake sure you have Wander Wallet installed.`);
-        if (/no detectada/i.test(message)) {
-            if (window.confirm('Do you want to install Wander Wallet?')) {
-                window.open('https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap', '_blank');
-            }
+        const walletNotDetected = /wander wallet.*(no detectada|not detected)/i.test(message);
+        if (walletNotDetected) {
+            this.showInstallBanner();
+            this.maybeToast(message, 'warn');
+            return;
         }
+
+        try { alert(this.t('errorPrefix') + ': ' + message + '\n\n' + this.t('alertSuffix')); } catch {}
+
+        if (/install.+wander wallet/i.test(message)) {
+            const url = 'https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap';
+            try { if (window.confirm(this.t('openInstallConfirm'))) window.open(url, '_blank'); } catch {}
+        }
+    }
+
+    maybeToast(message, level = 'info') {
+        try {
+
+            if (typeof window.showToast === 'function') {
+                window.showToast(message, level);
+                return;
+            }
+
+            let root = document.getElementById('getty-toast-root');
+            if (!root) {
+                root = document.createElement('div');
+                root.id = 'getty-toast-root';
+                root.style.cssText = 'position:fixed;top:0.75rem;right:0.75rem;display:flex;flex-direction:column;gap:8px;z-index:10000;';
+                document.body.appendChild(root);
+            }
+            const toast = document.createElement('div');
+            const bg = (level === 'error') ? '#b91c1c' : (level === 'warn' ? '#d97706' : '#2563eb');
+            toast.style.cssText = 'background:'+bg+';color:#fff;padding:10px 14px;border-radius:6px;font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35);max-width:300px;';
+            toast.textContent = message;
+            root.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'opacity .35s ease, transform .35s ease';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-6px)';
+                setTimeout(() => toast.remove(), 400);
+            }, 4200);
+        } catch {}
     }
 
     async signData(data) { return this.signMessage(data); }
 
     async sendTransaction(transaction) {
         if (!this.isConnected) {
-            throw new Error('Wallet no conectada');
+            throw new Error(this.t('walletNotConnected'));
         }
         
         try {
@@ -682,6 +785,83 @@ class WanderWalletLogin {
             console.error('Error sending transaction:', error);
             throw error;
         }
+    }
+
+    detectLocale() {
+        try {
+            const stored = (localStorage.getItem('lang') || localStorage.getItem('admin_locale') || '').toLowerCase();
+            if (stored === 'es' || stored === 'en') return stored;
+        } catch {}
+        try {
+            const nav = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+            if (/^es/i.test(nav)) return 'es';
+        } catch {}
+        return 'en';
+    }
+    loadSharedMessages(locale) {
+
+        const prefix = 'walletPublic.';
+        const keys = [
+            'bannerTitle','bannerMissing','bannerDismiss','bannerInstall','connecting','loginLabel',
+            'notDetectedError','noAddressConnect','publicKeyMissing','signatureMethodsUnavailable',
+            'walletNotReady','walletNotAvailable','walletNotConnected','openInstallConfirm','alertSuffix','errorPrefix'
+        ];
+        const out = {};
+        let foundAny = false;
+        try {
+            const store = (window.__i18n && window.__i18n[locale]) || (window.__i18n && window.__i18n.en) || null;
+            if (store) {
+                for (const k of keys) {
+                    const full = prefix + k;
+                    if (Object.prototype.hasOwnProperty.call(store, full)) {
+                        out[k] = store[full];
+                        foundAny = true;
+                    }
+                }
+            }
+        } catch {}
+
+        if (!foundAny) {
+            if (locale === 'es') {
+                return {
+                    bannerTitle: 'Wander Wallet',
+                    bannerMissing: 'No detectada. Instala la extensión para iniciar sesión segura.',
+                    bannerDismiss: 'OK',
+                    bannerInstall: 'Instalar',
+                    connecting: 'Conectando...',
+                    loginLabel: 'Conectar',
+                    notDetectedError: 'Wander Wallet no detectada',
+                    noAddressConnect: 'No se obtuvo dirección (connect)',
+                    publicKeyMissing: 'No se pudo obtener la clave pública',
+                    signatureMethodsUnavailable: 'Métodos de firma no disponibles',
+                    walletNotReady: 'Wallet no lista',
+                    walletNotAvailable: 'Wallet no disponible',
+                    walletNotConnected: 'Wallet no conectada',
+                    openInstallConfirm: '¿Abrir la página de instalación de Wander Wallet?',
+                    alertSuffix: 'Asegúrate de tener la extensión Wander Wallet instalada y habilitada.',
+                    errorPrefix: 'Error'
+                };
+            }
+            return {
+                bannerTitle: 'Wander Wallet',
+                bannerMissing: 'Not detected. Install the extension to sign in securely.',
+                bannerDismiss: 'OK',
+                bannerInstall: 'Install',
+                connecting: 'Connecting...',
+                loginLabel: 'Login',
+                notDetectedError: 'Wander Wallet not detected',
+                noAddressConnect: 'No address received (connect)',
+                publicKeyMissing: 'Public key could not be obtained',
+                signatureMethodsUnavailable: 'Signature methods not available',
+                walletNotReady: 'Wallet not ready',
+                walletNotAvailable: 'Wallet not available',
+                walletNotConnected: 'Wallet not connected',
+                openInstallConfirm: 'Open the Wander Wallet installation page?',
+                alertSuffix: 'Make sure you have the Wander Wallet extension installed and enabled.',
+                errorPrefix: 'Error'
+            };
+        }
+        return out;
     }
 }
 

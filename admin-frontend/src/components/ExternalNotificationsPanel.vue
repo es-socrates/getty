@@ -7,7 +7,7 @@
         class="p-5 rounded-os bg-[var(--bg-card)] border border-[var(--card-border)] shadow-lg max-w-md text-center">
         <div class="mb-2 text-lg font-semibold">{{ t('externalSessionRequiredTitle') }}</div>
         <p class="mb-4 text-sm">{{ t('externalSessionRequiredBody') }}</p>
-        <a href="/new-session" class="btn">{{ t('createSession') }}</a>
+        <a href="/" class="btn" aria-label="wallet-login-redirect">{{ t('createSession') }}</a>
       </div>
     </div>
 

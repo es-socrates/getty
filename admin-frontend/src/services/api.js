@@ -139,6 +139,9 @@ export async function fetchJson(url, opts = {}) {
     try { bodyText = await res.text(); } catch {}
     try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch { parsed = null; }
     const errCode = parsed && (parsed.error || parsed.code);
+    if (errCode === 'legacy_removed' && parsed && parsed.mode === 'wallet_only') {
+      try { window.dispatchEvent(new CustomEvent('getty:legacy-removed-wallet-only')); } catch {}
+    }
     if (res.status === 401) {
       if (errCode === 'bad_signature') {
         try { window.dispatchEvent(new CustomEvent('getty:wallet-bad-signature', { detail: { url } })); } catch {}
