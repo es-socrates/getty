@@ -160,9 +160,7 @@ export function initRaffle() {
   function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const getCookie = (name) => { try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; } };
-    const cookieToken = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const q = cookieToken ? `/?token=${encodeURIComponent(cookieToken)}` : '';
-    ws = new WebSocket(protocol + window.location.host + q);
+  ws = new WebSocket(protocol + window.location.host);
     ws.onopen = () => { reconnectAttempts = 0; try { ws.send(JSON.stringify({ type: 'get_raffle_state' })); } catch {}
     };
     ws.onmessage = (event) => {

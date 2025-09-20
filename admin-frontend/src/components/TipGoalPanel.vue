@@ -153,7 +153,7 @@ import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
-import { usePublicToken } from '../composables/usePublicToken';
+import { useWalletSession } from '../composables/useWalletSession';
 
 const { t } = useI18n();
 
@@ -202,8 +202,8 @@ const colorFields = [
   { key: 'progress', label: 'colorProgress' },
 ];
 
-const pt = usePublicToken();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/tip-goal`));
+const wallet = useWalletSession();
+const widgetUrl = computed(() => `${location.origin}/widgets/tip-goal`);
 
 function resetColors() {
   form.colors = { bg: '#080c10', font: '#ffffff', border: '#00ff7f', progress: '#00ff7f' };
@@ -211,9 +211,8 @@ function resetColors() {
 
 async function load() {
   try {
-    const statusRes = await api.get('/api/session/status').catch(() => ({ data: {} }));
-    hostedSupported.value = !!statusRes?.data?.supported;
-    sessionActive.value = !!statusRes?.data?.active;
+    hostedSupported.value = true;
+    sessionActive.value = true;
 
     const { data } = await api.get('/api/tip-goal');
     if (data && data.success) {
@@ -383,7 +382,9 @@ registerDirty(isTipGoalDirty);
 watch(form, () => {}, { deep: true });
 
 onMounted(async () => {
-  await pt.refresh();
+  try {
+    await wallet.refresh();
+  } catch {}
   await load();
 });
 </script>

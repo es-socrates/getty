@@ -110,7 +110,7 @@ import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
 import { isHttpUrl, MAX_CUSTOM_ICON_SIZE } from '../utils/validation';
-import { usePublicToken } from '../composables/usePublicToken';
+import { useWalletSession } from '../composables/useWalletSession';
 
 const { t } = useI18n();
 
@@ -119,8 +119,8 @@ const rowErrors = ref({});
 const dirty = ref(false);
 const saving = ref(false);
 
-const pt = usePublicToken();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/socialmedia`));
+const wallet = useWalletSession();
+const widgetUrl = computed(() => `${location.origin}/widgets/socialmedia`);
 
 function markDirty() {
   dirty.value = true;
@@ -231,7 +231,9 @@ async function save() {
 }
 
 onMounted(async () => {
-  await pt.refresh();
+  try {
+    await wallet.refresh();
+  } catch {}
   await load();
 });
 </script>

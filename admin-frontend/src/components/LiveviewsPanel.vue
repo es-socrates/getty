@@ -123,7 +123,7 @@ import { pushToast } from '../services/toast';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
-import { usePublicToken } from '../composables/usePublicToken';
+import { useWalletSession } from '../composables/useWalletSession';
 
 const { t } = useI18n();
 
@@ -139,8 +139,8 @@ const form = ref({
 
 const customFont = ref('');
 const errors = ref({ claimid: '' });
-const pt = usePublicToken();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/liveviews`));
+const wallet = useWalletSession();
+const widgetUrl = computed(() => `${location.origin}/widgets/liveviews`);
 const initial = ref('');
 const dirty = ref(false);
 const saving = ref(false);
@@ -251,7 +251,9 @@ function openIconDialog() {
 }
 
 onMounted(async () => {
-  await pt.refresh();
+  try {
+    await wallet.refresh();
+  } catch {}
   await load();
 });
 </script>

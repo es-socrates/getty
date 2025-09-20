@@ -1,0 +1,15 @@
+.wander-auth-card {
+  @apply bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md p-4 shadow-sm max-w-md mx-auto;
+}
+.wander-auth-card h2 {
+  @apply text-lg font-semibold mb-2;
+}
+.wander-auth-card button {
+  @apply px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition;
+}
+.wander-auth-status {
+  @apply text-sm mt-3 flex items-center gap-2;
+}
+.wander-wallet-hash {
+  @apply font-mono text-xs break-all;
+}

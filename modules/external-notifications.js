@@ -2,12 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const IS_TEST = process.env.NODE_ENV === 'test';
-const Logger = {
-    debug: (...args) => console.log('[DEBUG]', ...args),
-    info: (...args) => console.log('[INFO]', ...args),
-    warn: (...args) => console.warn('[WARN]', ...args),
-    error: (...args) => console.error('[ERROR]', ...args)
-};
+const __VERBOSE_EXT_NOTIF = process.env.GETTY_VERBOSE_EXTERNAL_NOTIFICATIONS === '1';
 
 class ExternalNotifications {
     constructor(wss) {
@@ -28,7 +23,7 @@ class ExternalNotifications {
         this.loadConfig();
         this.setupListeners();
 
-        console.log('[ExternalNotifications] Initialized with WebSocket support');
+    if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Initialized with WebSocket support');
     }
 
     async sendWithConfig(cfg, tip) {
@@ -83,7 +78,7 @@ class ExternalNotifications {
                     }
                     fs.writeFileSync(this.configFile, JSON.stringify(legacyJson, null, 2));
                     try { fs.unlinkSync(this.legacyConfigFile); } catch {}
-                    console.log('[ExternalNotifications] Migrated config to /config');
+                    if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Migrated config to /config');
                 } catch (e) {
                     console.error('[ExternalNotifications] Migration failed:', e.message);
                 }
@@ -102,10 +97,12 @@ class ExternalNotifications {
                 this.template = config.template || this.template;
                 this.lastTips = config.lastTips || [];
 
-                console.log('[ExternalNotifications] Config loaded:', {
-                    hasDiscord: !!this.discordWebhook,
-                    hasTelegram: !!(this.telegramBotToken && this.telegramChatId)
-                });
+                if (__VERBOSE_EXT_NOTIF) {
+                    console.warn('[ExternalNotifications] Config loaded:', {
+                        hasDiscord: !!this.discordWebhook,
+                        hasTelegram: !!(this.telegramBotToken && this.telegramChatId)
+                    });
+                }
             }
         } catch {
             console.error('[ExternalNotifications] Error loading config');
@@ -153,7 +150,7 @@ class ExternalNotifications {
             }
 
             fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
-            if (!IS_TEST) console.log('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
+            if (!IS_TEST && __VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
         } catch {
             console.error('[ExternalNotifications] Error saving config');
             throw new Error('Save failed');
@@ -164,7 +161,7 @@ class ExternalNotifications {
     if (this.wss) {
             this.wss.removeAllListeners('tip');
             this.wss.on('tip', (tipData, _ns) => {
-                console.log('Processing tip from:', tipData.from);
+                if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Processing tip from:', tipData.from);
                 this.handleIncomingTip(tipData).catch(err => {
                     console.error('Error processing tip:', err);
                 });
@@ -479,7 +476,6 @@ class ExternalNotifications {
             const text = textParts.join('\n\n');
             const url = `https://api.telegram.org/bot${token}/sendMessage`;
             await axios.post(url, { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: imageUrl ? true : false });
-            // Optionally send photo if provided
             if (imageUrl) {
                 const photoUrl = `https://api.telegram.org/bot${token}/sendPhoto`;
                 await axios.post(photoUrl, { chat_id: chatId, photo: imageUrl, caption: undefined });

@@ -10,6 +10,12 @@ module.exports = async () => {
     }
   } catch { /* ignore server close errors */ }
   try {
+    if (global.__GETTY_WSS__ && typeof global.__GETTY_WSS__.close === 'function') {
+      global.__GETTY_WSS__.clients?.forEach(c => { try { c.terminate(); } catch {} });
+      await new Promise(res => global.__GETTY_WSS__.close(() => res()));
+    }
+  } catch { /* ignore wss close errors */ }
+  try {
     if (global.__GETTY_REDIS__ && typeof global.__GETTY_REDIS__.quit === 'function') {
       await global.__GETTY_REDIS__.quit();
     }

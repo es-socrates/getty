@@ -3,9 +3,6 @@ import { formatWithMapping, truncateTipMessage } from './emoji-util.js';
 let __tn_started = false;
 let __tn_demoTimer = null;
 
-function getCookie(name){
-  try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
-}
 
 export async function initNotifications() {
   if (__tn_started) return;
@@ -79,8 +76,7 @@ export async function initNotifications() {
   const isOBSWidget = window.location.pathname.includes('/widgets/');
   if (isOBSWidget) notification.classList.add('tip-notification-widget');
 
-  const token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-  const wsUrl = `${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}${token?`/?token=${encodeURIComponent(token)}`:''}`;
+  const wsUrl = `${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}`;
   let AR_TO_USD = 0;
   let ttsLanguage = 'en';
   let ttsAllChat = false;

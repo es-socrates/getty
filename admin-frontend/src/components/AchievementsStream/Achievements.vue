@@ -525,7 +525,6 @@ import LegacyAudioControls from '../shared/LegacyAudioControls.vue';
 import CopyField from '../shared/CopyField.vue';
 import OsCard from '../os/OsCard.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
-import { usePublicToken } from '../../composables/usePublicToken';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';
 import {
@@ -549,9 +548,8 @@ const status = reactive({ items: [] });
 const saving = ref(false);
 const toasts = ref([]);
 let toastCounter = 0;
-const pt = usePublicToken();
 const { t } = useI18n();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/achievements`));
+const widgetUrl = computed(() => `${location.origin}/widgets/achievements`);
 const channelAvatarUrl = ref('');
 const avatarError = ref(false);
 const avatarLoading = ref(false);

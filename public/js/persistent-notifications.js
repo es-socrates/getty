@@ -2,11 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('persistent-notifications-container');
     const list = document.getElementById('notifications-list');
     
-    function getCookie(name){
-        try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
-    }
-    const token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const ws = new WebSocket(`${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}${token?`/?token=${encodeURIComponent(token)}`:''}`);
+           const ws = new WebSocket(`${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}`);
     
     ws.onopen = () => {
 

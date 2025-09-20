@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const WebSocket = require('ws');
+const makeLogger = require('../lib/logger');
+const log = makeLogger('announcement');
 
 const CONFIG_FILE = (process.env.NODE_ENV === 'test')
   ? path.join(process.cwd(), 'config', 'announcement-config.test.json')
@@ -26,7 +27,7 @@ function loadConfig() {
       };
     }
   } catch (e) {
-    console.error('[announcement] loadConfig error:', e.message);
+    log.error('loadConfig error %s', e.message);
   }
   return { messages: [], cooldownSeconds: 300, theme: 'horizontal', bgColor: '#0e1014', textColor: '#e8eef2', animationMode: 'fade', defaultDurationSeconds: 10, staticMode: false, bannerBgType: 'solid', gradientFrom: '#4f36ff', gradientTo: '#10d39e' };
 }
@@ -36,7 +37,7 @@ function saveConfig(cfg) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
     return true;
   } catch (e) {
-    console.error('[announcement] saveConfig error:', e.message);
+    log.error('saveConfig error %s', e.message);
     return false;
   }
 }
@@ -131,7 +132,7 @@ class AnnouncementModule {
     if (st.staticMode) return;
     const cooldown = st.cooldownSeconds * 1000;
     const timer = setTimeout(async () => {
-      try { await this.broadcastRandomMessage(ns); } catch { console.error('[announcement] broadcast error'); }
+  try { await this.broadcastRandomMessage(ns); } catch { log.error('broadcast error'); }
       this.scheduleNext(ns);
     }, cooldown);
     if (ns) {
@@ -148,6 +149,9 @@ class AnnouncementModule {
     const pool = st.messages.filter(m => m.enabled !== false);
     if (!pool.length) return;
     const msg = pool[Math.floor(Math.random() * pool.length)];
+    if (process.env.NODE_ENV === 'test') {
+      log.debug('broadcastRandomMessage %j', { ns: ns || null, pool: pool.length, pick: msg && msg.id });
+    }
     let duration = Number(msg.durationSeconds);
     if (!(duration >= 1)) duration = st.defaultDurationSeconds || 10;
     if (duration > 60) duration = 60;

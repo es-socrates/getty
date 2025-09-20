@@ -17,10 +17,6 @@ export async function initChat() {
       EMOJI_MAPPING = await response.json();
     } catch (e) { console.error('Error loading emojis:', e); }
 
-    function getCookie(name){
-      try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
-    }
-
     const DEFAULT_AVATAR_URL = 'https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png';
     const DEFAULT_AVATAR_BG_COLORS = ['#00bcd4','#ff9800','#8bc34a','#e91e63','#9c27b0','#3f51b5','#ff5722','#4caf50','#2196f3','#ffc107'];
     function colorForUsername(name = 'Anonymous') {
@@ -43,8 +39,7 @@ export async function initChat() {
       if (randomAvatarBgPerMessage) { const idx = Math.floor(Math.random() * DEFAULT_AVATAR_BG_COLORS.length); return DEFAULT_AVATAR_BG_COLORS[idx]; }
       return colorForUsername(name);
     }
-    const token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}${token ? `/?token=${encodeURIComponent(token)}` : ''}`;
+  const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}${window.location.host}`;
     const ws = new WebSocket(wsUrl);
     let ttsEnabled = true; let ttsAllChat = false; let ttsLanguage = 'en';
     function stripEmojis(text) {
@@ -141,7 +136,8 @@ export async function initChat() {
     async function loadColors() {
       if (!isOBSWidget) return;
       try {
-        const res = await fetch(`/api/modules?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+  const base = `/api/modules?nocache=${Date.now()}`;
+  const res = await fetch(base);
         const data = await res.json();
         if (data.chat) {
           chatColors = {
@@ -268,7 +264,8 @@ export async function initChat() {
     let lastThemeCSS = ''; let serverHasTheme = false;
     async function fetchAndApplyTheme() {
       try {
-        const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+  const base2 = `/api/chat-config?nocache=${Date.now()}`;
+  const res = await fetch(base2);
         const config = await res.json();
         const serverCSS = (config.themeCSS || '').trim();
         let isLightTheme = !!serverCSS && (serverCSS.includes('--text: #1f2328') || serverCSS.includes('--text: #111'));

@@ -60,11 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         notification.classList.add('tip-notification-widget');
     }
     
-    function getCookie(name){
-        try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
-    }
-    const __token = getCookie('getty_public_token') || getCookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const ws = new WebSocket(`${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}${__token?`/?token=${encodeURIComponent(__token)}`:''}`);
+    const ws = new WebSocket(`${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}`);
     let AR_TO_USD = 0;
     let ttsLanguage = 'en'; // Global TTS Language
     let ttsAllChat = false; // Speak all chat messages optionally

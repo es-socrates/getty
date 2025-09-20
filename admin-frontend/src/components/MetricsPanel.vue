@@ -245,6 +245,25 @@
           }}%)
           <span class="text-neutral-400">• ${{ fmt1(monthlyUsd) }}</span>
         </div>
+        <div class="text-sm" v-if="metrics.tips?.totalBalance || metrics.tips?.total">
+          {{ t('metricsTotal') || 'Total' }}:
+          <template v-if="metrics.tips?.totalBalance">
+            <strong>{{ fmt1(metrics.tips.totalBalance.ar) }} AR</strong>
+            <span class="text-neutral-400" v-if="metrics.tips.totalBalance?.usd != null">
+              • ${{ fmt1(metrics.tips.totalBalance.usd) }}
+            </span>
+            <span class="text-neutral-400" v-else-if="metrics.tips?.total?.usd">
+              • ${{ fmt1(metrics.tips.total.usd) }}
+            </span>
+            <span class="text-[10px] ml-1 text-indigo-400" v-if="metrics.tips?.wallet?.address"
+              >(wallet)</span
+            >
+          </template>
+          <template v-else>
+            <strong>{{ fmt1(metrics.tips.total.ar) }} AR</strong>
+            <span class="text-neutral-400">• ${{ fmt1(metrics.tips.total.usd) }}</span>
+          </template>
+        </div>
         <div class="text-xs mt-1 text-neutral-400">
           {{ t('metricsRate1m') || 'Rate 1m' }}: {{ metrics.tips?.rate?.perMin?.ar ?? 0 }} AR (${{
             metrics.tips?.rate?.perMin?.usd ?? 0

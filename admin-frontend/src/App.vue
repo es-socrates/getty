@@ -35,23 +35,28 @@
         </RouterLink>
       </div>
       <div class="flex items-center gap-3 relative">
-        <OsKpi>{{ new Date().toLocaleDateString() }}</OsKpi>
-        <button @click="toggleTheme" class="theme-toggle" title="Toggle theme">
-          <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z" />
-          </svg>
-          <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z" />
-          </svg>
-        </button>
+        <WalletLoginButton />
+
         <div class="relative" @keyup.esc="menuOpen = false">
           <button
             @click="toggleMenu"
             class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
             :aria-expanded="menuOpen.toString()"
             aria-haspopup="true">
+            <svg
+              viewBox="0 0 24 24"
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M2 12h20" />
+              <path
+                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z" />
+            </svg>
             <span class="font-medium">{{ currentLocaleLabel }}</span>
             <svg
               class="w-4 h-4 opacity-70"
@@ -91,6 +96,18 @@
             </ul>
           </div>
         </div>
+        <button @click="toggleTheme" class="theme-toggle" title="Toggle theme">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z" />
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z" />
+          </svg>
+        </button>
+        <!-- New standalone logout button to the right of language selector -->
+        <WalletLogoutButton />
       </div>
     </header>
     <div
@@ -161,6 +178,24 @@
               </span>
               <span>{{ t('chat') }}</span>
             </RouterLink>
+            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/raffle">
+              <span class="icon os-icon" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <rect x="3" y="3" width="6" height="6" rx="1" />
+                  <rect x="15" y="3" width="6" height="6" rx="1" />
+                  <rect x="9" y="9" width="6" height="6" rx="1" />
+                  <rect x="3" y="15" width="6" height="6" rx="1" />
+                  <rect x="15" y="15" width="6" height="6" rx="1" />
+                </svg>
+              </span>
+              <span>{{ t('raffleTitle') }}</span>
+            </RouterLink>
             <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/last-tip">
               <span class="icon os-icon" aria-hidden="true">
                 <svg
@@ -192,24 +227,7 @@
               </span>
               <span>{{ t('tipGoal') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/raffle">
-              <span class="icon os-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <path d="M2 10h20" />
-                  <path d="M8 15h.01" />
-                  <path d="M12 15h.01" />
-                  <path d="M16 15h.01" />
-                </svg>
-              </span>
-              <span>{{ t('raffleTitle') }}</span>
-            </RouterLink>
+            <!-- Wander auth panel removed; login now handled by header button -->
             <RouterLink
               class="sidebar-link os-nav-link"
               active-class="active"
@@ -327,7 +345,11 @@
               </span>
               <span>{{ t('achievementsTitle') }}</span>
             </RouterLink>
-            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/settings">
+            <RouterLink
+              v-if="SHOW_SETTINGS_SECTION"
+              class="sidebar-link os-nav-link"
+              active-class="active"
+              to="/admin/settings">
               <span class="icon os-icon" aria-hidden="true">
                 <svg
                   viewBox="0 0 24 24"
@@ -488,12 +510,14 @@
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { watch, ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import OsKpi from './components/os/OsKpi.vue';
 import { anyDirty } from './composables/useDirtyRegistry';
 import ToastHost from './components/shared/ToastHost.vue';
 import SidebarSuggestion from './components/shared/SidebarSuggestion.vue';
 import OsConfirmDialog from './components/os/OsConfirmDialog.vue';
 import { confirmDialog } from './services/confirm';
+import WalletLoginButton from './components/WalletLoginButton.vue';
+import WalletLogoutButton from './components/WalletLogoutButton.vue';
+import { useWanderSession } from './wander/store/wanderSession';
 const logoLight =
   'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ';
 const logoDark =
@@ -512,6 +536,7 @@ const odyseeUrl = import.meta.env.VITE_ODYSEE_URL || 'https://odysee.com';
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const SHOW_SETTINGS_SECTION = false;
 
 const isDark = ref(false);
 const menuOpen = ref(false);
@@ -519,6 +544,8 @@ const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
+
+const wanderSession = useWanderSession();
 
 watch(route, () => {});
 
@@ -656,6 +683,11 @@ onBeforeUnmount(() => {
 
 let suppressNextDirtyPrompt = false;
 router.beforeEach(async (to, from, next) => {
+  if (to.path.startsWith('/admin') && to.path !== '/admin/status') {
+    if (!wanderSession.state.address) {
+      if (to.path !== '/admin/status') return next('/admin/status');
+    }
+  }
   if (suppressNextDirtyPrompt) {
     suppressNextDirtyPrompt = false;
     return next();

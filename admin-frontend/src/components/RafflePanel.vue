@@ -173,7 +173,7 @@ import { pushToast } from '../services/toast';
 import CopyField from './shared/CopyField.vue';
 import { MAX_RAFFLE_IMAGE } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
-import { usePublicToken } from '../composables/usePublicToken';
+import { useWalletSession } from '../composables/useWalletSession';
 
 const { t } = useI18n();
 const masked = ref(false);
@@ -211,8 +211,8 @@ const imageInput = ref(null);
 const displayImageUrl = ref('');
 const locallyClearedImage = ref(false);
 
-const pt = usePublicToken();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/giveaway`));
+const wallet = useWalletSession();
+const widgetUrl = computed(() => `${location.origin}/widgets/giveaway`);
 
 function connectWs() {
   const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
@@ -398,7 +398,9 @@ function openImageDialog() {
 }
 
 onMounted(async () => {
-  await pt.refresh();
+  try {
+    await wallet.refresh();
+  } catch {}
   load();
   connectWs();
 });

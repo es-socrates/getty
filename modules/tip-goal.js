@@ -102,11 +102,20 @@ class TipGoalModule {
         };
         if (!fs.existsSync(configPath)) {
             if (!hostedMode) {
-                try { fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2)); } catch {}
+                try {
+                    fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2));
+                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][CREATE_DEFAULT]', { path: configPath });
+                } catch (e) { console.error('[TipGoal] Failed creating default config:', e.message); }
             }
         }
         try {
-            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            let config = {};
+            try {
+                config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            } catch (e) {
+                if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][PARSE_ERROR]', e.message);
+            }
+            const prevWallet = config.walletAddress || '';
             if (config.walletAddress) {
                 this.walletAddress = config.walletAddress;
             }
@@ -142,10 +151,12 @@ class TipGoalModule {
                     }
                     if (lastTipWallet) {
                         this.walletAddress = lastTipWallet;
-
                         const updated = { ...tipGoalDefault, ...config, walletAddress: lastTipWallet };
                         if (!hostedMode) {
-                            try { fs.writeFileSync(configPath, JSON.stringify(updated, null, 2)); } catch {}
+                            try {
+                                fs.writeFileSync(configPath, JSON.stringify(updated, null, 2));
+                                if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][IMPORT_WALLET_FROM_LAST_TIP]', { prevWallet, newWallet: lastTipWallet });
+                            } catch (e) { console.error('[TipGoal] Failed persisting imported wallet:', e.message); }
                         }
                     }
                 } catch {}
@@ -186,7 +197,7 @@ class TipGoalModule {
                 try { this.transactionCheckIntervalId.unref(); } catch {}
             }
             
-            console.log('✅ TipGoalModule initialized successfully');
+            console.warn('✅ TipGoalModule initialized successfully');
         } catch (error) {
             console.error('❌ Failed to initialize TipGoalModule:', error);
         }
@@ -269,11 +280,11 @@ class TipGoalModule {
 
         try {
             this.lastTransactionCheck = new Date();
-            console.log('🔍 Checking transactions for', this.walletAddress.slice(0, 8) + '...');
+            console.warn('🔍 Checking transactions for', this.walletAddress.slice(0, 8) + '...');
             const txs = await this.getAddressTransactions(this.walletAddress);
             
             if (txs.length === 0) {
-                console.log('ℹ️ No transactions found for address');
+                console.warn('ℹ️ No transactions found for address');
                 if (initialLoad) {
                     this.sendGoalUpdate();
                 }
@@ -285,7 +296,7 @@ class TipGoalModule {
 
             const skipRecount = initialLoad && this.currentTipsAR > 0;
             if (skipRecount) {
-                console.log('[TipGoal] Initial load: avoiding re-summing historical transactions (currentTipsAR=%s).', this.currentTipsAR);
+                console.warn('[TipGoal] Initial load: avoiding re-summing historical transactions (currentTipsAR=%s).', this.currentTipsAR);
             }
             let latestTs = this.lastDonationTimestamp || 0;
             
@@ -296,7 +307,7 @@ class TipGoalModule {
                     this.processedTxs.add(tx.id);
                     const tsIso = tx.timestamp ? new Date(tx.timestamp * 1000).toISOString() : 'pending';
                     if (!skipRecount) {
-                        console.log(`💰 New transaction: ${amount} AR`, {
+                        console.warn(`💰 New transaction: ${amount} AR`, {
                             from: tx.owner.slice(0, 6) + '...',
                             txId: tx.id.slice(0, 8) + '...',
                             timestamp: tsIso,
@@ -317,7 +328,7 @@ class TipGoalModule {
             }
 
             if (newDonations) {
-                console.log(`🎉 Found ${totalNewAR.toFixed(2)} AR in new donations`);
+                console.warn(`🎉 Found ${totalNewAR.toFixed(2)} AR in new donations`);
                 this.sendGoalUpdate();
                 
                 this.wss.clients.forEach(client => {
@@ -367,14 +378,30 @@ class TipGoalModule {
             title: this.title
         };
 
-        this.wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                    type: 'tipGoalUpdate',
-                    data: updateData
-                }));
+        try {
+            const tenantEnabled = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+            if (typeof this.wss.broadcast === 'function') {
+                if (!tenantEnabled) {
+                    this.wss.broadcast(null, { type: 'tipGoalUpdate', data: updateData });
+                } else {
+                    // For hosted / tenant aware contexts we cannot know the wallet hash.
+                }
+            } else {
+                this.wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({ type: 'tipGoalUpdate', data: updateData }));
+                    }
+                });
             }
-        });
+        } catch {
+            try {
+                this.wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify({ type: 'tipGoalUpdate', data: updateData }));
+                    }
+                });
+            } catch {}
+        }
 
         try {
             const fs = require('fs');
@@ -398,9 +425,16 @@ class TipGoalModule {
             };
             const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
             if (!hostedMode) {
-                fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+                if (existing.walletAddress && !this.walletAddress) {
+                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][SKIP_WRITE_EMPTY_WALLET]', { existing: existing.walletAddress });
+                } else {
+                    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][WRITE_CONFIG]', { path: configPath, wallet: this.walletAddress });
+                }
             }
-    } catch {}
+        } catch (e) {
+            if (process.env.GETTY_DEBUG_CONFIG === '1') console.error('[TipGoal][WRITE_ERROR]', e.message);
+        }
     }
     
     updateWalletAddress(newAddress) {
@@ -422,7 +456,14 @@ class TipGoalModule {
         const merged = { ...existing, walletAddress: this.walletAddress };
         try {
             const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-            if (!hostedMode) fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+            if (!hostedMode) {
+                if (existing.walletAddress && !this.walletAddress) {
+                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][SKIP_WRITE_EMPTY_WALLET_EXPLICIT]', { existing: existing.walletAddress });
+                } else {
+                    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][WRITE_CONFIG_EXPLICIT]', { path: configPath, wallet: this.walletAddress });
+                }
+            }
         } catch (e) { console.error('[TipGoal] Error writing wallet address to config:', e); }
         this.processedTxs = new Set();
         this.currentTipsAR = 0;
@@ -443,7 +484,7 @@ class TipGoalModule {
             return this.getStatus();
         }
         
-        console.log(`🔄 Updating goal: ${parsedGoal} AR (starting: ${parsedStarting} AR)`);
+    console.warn(`🔄 Updating goal: ${parsedGoal} AR (starting: ${parsedStarting} AR)`);
         this.monthlyGoalAR = parsedGoal;
         this.currentTipsAR = parsedStarting;
         process.env.GOAL_AR = this.monthlyGoalAR.toString();

@@ -228,8 +228,18 @@ select.quick-select::-ms-expand {
 }
 .earnings-kpi .earnings-values {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.earnings-kpi .earnings-values .line-amount {
+  display: flex;
   gap: 6px;
   align-items: baseline;
+  flex-wrap: wrap;
+}
+.earnings-kpi .earnings-values .wallet-badge {
+  line-height: 1;
 }
 .earnings-kpi .earnings-values.blurred {
   filter: blur(6px);

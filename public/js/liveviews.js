@@ -284,7 +284,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   const searchToken = (() => { try { return new URL(window.location.href).searchParams.get('token') || ''; } catch { return ''; } })();
-  const API_URL = `/api/liveviews/status` + (searchToken ? `?token=${encodeURIComponent(searchToken)}` : '');
+  const API_URL = '/api/liveviews/status';
 
   startViewerCountUpdates(API_URL);
   startAdminViewerCountUpdates(API_URL);
@@ -331,11 +331,11 @@ function reportStreamState(isLive, viewers) {
   try {
     const url = new URL(window.location.href);
     const token = url.searchParams.get('token') || '';
-    const endpoint = '/api/stream-history/event' + (token ? `?token=${encodeURIComponent(token)}` : '');
+  const endpoint = '/api/stream-history/event';
     fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ live: !!isLive, at: Date.now(), viewers: typeof viewers === 'number' ? viewers : undefined })
+      body: JSON.stringify({ live: !!isLive, at: Date.now(), viewers: typeof viewers === 'number' ? viewers : undefined })
     }).catch(() => {});
   } catch {}
 }

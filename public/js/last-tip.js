@@ -27,10 +27,7 @@
     let AR_TO_USD = 0;
     const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-    const __cookie = (name) => (document.cookie.split('; ').find(r=>r.startsWith(name+'='))||'').split('=')[1] || '';
-    const token = __cookie('getty_public_token') || __cookie('getty_admin_token') || new URLSearchParams(location.search).get('token') || '';
-    const q = token ? `/?token=${encodeURIComponent(token)}` : '';
-    const ws = new WebSocket(`${wsProto}://${window.location.host}${q}`);
+    const ws = new WebSocket(`${wsProto}://${window.location.host}`);
 
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return 'Recent';
@@ -129,9 +126,7 @@
     async function loadColors() {
         if (!isOBSWidget) return;
         try {
-            const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
-            const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
-            const res = await fetch('/api/modules' + nsQuery);
+            const res = await fetch('/api/modules');
             const data = await res.json();
             if (data.lastTip) {
                 lastTipColors = {
@@ -208,11 +203,10 @@
 
     const loadInitialData = async () => {
         try {
-            const cookieToken = (document.cookie.split('; ').find(r=>r.startsWith('getty_public_token='))||'').split('=')[1] || (document.cookie.split('; ').find(r=>r.startsWith('getty_admin_token='))||'').split('=')[1] || new URLSearchParams(location.search).get('token') || '';
-            const nsQuery = cookieToken ? (`?token=${encodeURIComponent(cookieToken)}`) : '';
+            const modulesUrl = '/api/modules';
             const controller = new AbortController();
             const to = setTimeout(() => controller.abort(), 4000);
-            const response = await fetch('/api/modules' + nsQuery, { signal: controller.signal });
+            const response = await fetch(modulesUrl, { signal: controller.signal });
             clearTimeout(to);
             if (!response.ok) throw new Error('modules fetch failed');
             const modulesData = await response.json();

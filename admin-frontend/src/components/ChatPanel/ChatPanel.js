@@ -35,18 +35,20 @@ export function createChatPanel(t) {
   const testKind = ref('');
 
   const publicToken = ref('');
-  const widgetUrl = computed(
-    () =>
-      `${location.origin}/widgets/chat${
-        publicToken.value ? `?token=${encodeURIComponent(publicToken.value)}` : ''
-      }${avatarRandomBg.value ? `${publicToken.value ? '&' : '?'}avatarRandom=1` : ''}`
-  );
-  const widgetHorizontalUrl = computed(
-    () =>
-      `${location.origin}/widgets/chat?horizontal=1${
-        publicToken.value ? `&token=${encodeURIComponent(publicToken.value)}` : ''
-      }${avatarRandomBg.value ? `&avatarRandom=1` : ''}`
-  );
+  function buildWidgetBase(extraParams = '') {
+    const base = `${location.origin}/widgets/chat`;
+    if (!extraParams) return base;
+    return base + (extraParams.startsWith('?') ? extraParams : '?' + extraParams);
+  }
+  const widgetUrl = computed(() => {
+    const params = avatarRandomBg.value ? 'avatarRandom=1' : '';
+    return buildWidgetBase(params);
+  });
+  const widgetHorizontalUrl = computed(() => {
+    const params = ['horizontal=1'];
+    if (avatarRandomBg.value) params.push('avatarRandom=1');
+    return buildWidgetBase(params.join('&'));
+  });
 
   function resetColors() {
     form.colors = {
@@ -191,12 +193,6 @@ export function createChatPanel(t) {
   }
 
   onMounted(() => {
-    fetch('/api/session/public-token')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (j && typeof j.publicToken === 'string') publicToken.value = j.publicToken;
-      })
-      .catch(() => {});
     pollStatus();
     const id = setInterval(pollStatus, 5000);
     window.addEventListener('visibilitychange', () => {

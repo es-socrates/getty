@@ -77,7 +77,7 @@ import ColorInput from './shared/ColorInput.vue';
 import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
-import { usePublicToken } from '../composables/usePublicToken';
+import { useWalletSession } from '../composables/useWalletSession';
 import OsCard from './os/OsCard.vue';
 
 const original = reactive({ snapshot: null });
@@ -109,8 +109,8 @@ const colorFields = [
   { key: 'iconBg', label: 'colorIconBg' },
   { key: 'from', label: 'colorFrom' },
 ];
-const pt = usePublicToken();
-const widgetUrl = computed(() => pt.withToken(`${location.origin}/widgets/last-tip`));
+const wallet = useWalletSession();
+const widgetUrl = computed(() => `${location.origin}/widgets/last-tip`);
 
 function resetColors() {
   form.colors = {
@@ -124,9 +124,8 @@ function resetColors() {
 }
 async function load() {
   try {
-    const statusRes = await api.get('/api/session/status').catch(() => ({ data: {} }));
-    hostedSupported.value = !!statusRes?.data?.supported;
-    sessionActive.value = !!statusRes?.data?.active;
+    hostedSupported.value = true;
+    sessionActive.value = true;
 
     const { data } = await api.get('/api/last-tip');
     if (data && data.success) {
@@ -211,7 +210,9 @@ registerDirty(isLastTipDirty);
 watch(form, () => {}, { deep: true });
 
 onMounted(async () => {
-  await pt.refresh();
+  try {
+    await wallet.refresh();
+  } catch {}
   await load();
 });
 </script>

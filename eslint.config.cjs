@@ -12,6 +12,7 @@ module.exports = [
       'public/**/i18n-runtime*.js',
       'node_modules/**'
     ] },
+
   {
     files: [
       'server.js',
@@ -35,9 +36,11 @@ module.exports = [
       }
     },
     rules: {
-      'no-console': 'off'
+      'no-console': 'off',
+      'no-legacy-token-direct/no-legacy-token-direct': 'off'
     }
   },
+
   {
     files: ['tests/**/*.test.js'],
     languageOptions: {
@@ -48,6 +51,7 @@ module.exports = [
         module: 'readonly',
         __dirname: 'readonly',
         process: 'readonly',
+        global: 'readonly',
         describe: 'readonly',
         it: 'readonly',
         test: 'readonly',
@@ -57,6 +61,9 @@ module.exports = [
         jest: 'readonly',
         Buffer: 'readonly'
       }
+    },
+    rules: {
+      'no-legacy-token-direct/no-legacy-token-direct': 'off'
     }
   },
   {
@@ -77,38 +84,31 @@ module.exports = [
       }
     },
     rules: {
-      'no-undef': 'off'
+      'no-undef': 'off',
+      'no-legacy-token-direct/no-legacy-token-direct': 'off'
     }
   },
   {
-    files: ['admin-frontend/src/**/*.{js,vue}'],
+    files: ['admin-frontend/src/**/*.{js,vue}', 'public/js/**/*.js', '!public/js/lib/token-compat.js'],
     languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
     rules: {
-        'vue/multi-word-component-names': 'off',
-        'vue/max-attributes-per-line': 'off',
-        'vue/html-self-closing': 'off',
-        'vue/html-indent': 'off',
-        'vue/singleline-html-element-content-newline': 'off',
-        'vue/html-closing-bracket-newline': 'off',
-        'vue/attributes-order': 'off',
-        'no-console': ['warn', { allow: ['warn','error'] }],
-        'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^e$|^err$', varsIgnorePattern: '^(MAX_TITLE_LEN|e)$' }],
-        'no-empty': ['error', { allowEmptyCatch: true }]
+      'vue/multi-word-component-names': 'off',
+      'vue/max-attributes-per-line': 'off',
+      'vue/html-self-closing': 'off',
+      'vue/html-indent': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
+      'vue/html-closing-bracket-newline': 'off',
+      'vue/attributes-order': 'off',
+      'no-console': ['warn', { allow: ['warn','error'] }],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^e$|^err$', varsIgnorePattern: '^(MAX_TITLE_LEN|e)$' }],
+      'no-empty': ['error', { allowEmptyCatch: true }]
     }
   },
+
   {
-    files: [
-      'server.js',
-      'modules/**/*.js',
-      'routes/**/*.js',
-      'scripts/**/*.js',
-      'lib/**/*.js'
-    ],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'commonjs' },
+    files: ['tests/wsNamespaceIsolation.test.js'],
     rules: {
-      'no-console': 'off',
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^e$|^err$', varsIgnorePattern: '^(z|SETTINGS_FILE|saveAudioSettings|Logger|error|err|e|clientsNotified|WebSocket)$' }],
-      'no-empty': ['error', { allowEmptyCatch: true }]
+      'no-console': 'off'
     }
   }
 ];

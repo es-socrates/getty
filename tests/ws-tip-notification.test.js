@@ -26,8 +26,11 @@ describe('WebSocket tip notification flow', () => {
       const timeout = setTimeout(() => reject(new Error('Timeout waiting for events')), 5000);
 
       ws.on('message', msg => {
-        const parsed = JSON.parse(msg.toString());
+        let parsed = null;
+        try { parsed = JSON.parse(msg.toString()); } catch { /* ignore malformed */ }
+        if (!parsed || typeof parsed !== 'object') return;
         events.push(parsed);
+
         if (parsed.type === 'init') {
           request(app)
             .post('/api/test-tip')
@@ -38,7 +41,7 @@ describe('WebSocket tip notification flow', () => {
             .catch(reject);
         } else if (parsed.type === 'tip') {
           clearTimeout(timeout);
-          ws.close();
+          try { ws.close(); } catch { /* ignore close error */ }
           resolve();
         }
       });
@@ -46,12 +49,13 @@ describe('WebSocket tip notification flow', () => {
       ws.on('error', reject);
     });
 
-    const init = events.find(e => e.type === 'init');
+  const safeEvents = events.filter(e => e && typeof e === 'object');
+  const init = safeEvents.find(e => e.type === 'init');
     expect(init).toBeDefined();
     expect(init.data).toHaveProperty('tipGoal');
     expect(init.data).toHaveProperty('lastTip');
 
-    const tip = events.find(e => e.type === 'tip');
+  const tip = safeEvents.find(e => e.type === 'tip');
     expect(tip).toBeDefined();
     expect(tip.data).toMatchObject({ from: 'WSUser', message: 'Hello WS' });
     expect(typeof tip.data.amount).toBe('number');
