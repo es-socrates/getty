@@ -71,7 +71,7 @@ class ChatNsManager {
     ws.on('open', () => {
       session.connected = true;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: true } });
-      try { console.info('[chat-ns] connected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
+      try { console.warn('[chat-ns] connected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
     });
     ws.on('error', (err) => {
       session.connected = false;
@@ -81,7 +81,7 @@ class ChatNsManager {
     ws.on('close', () => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
-      try { console.info('[chat-ns] disconnected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
+      try { console.warn('[chat-ns] disconnected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
 
       if (process.env.NODE_ENV !== 'test') {
         setTimeout(() => {
@@ -206,7 +206,7 @@ class ChatNsManager {
               try {
                 const added = raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
                 if (added) {
-                  try { console.info('[giveaway] participant added', { user: chatMessage.username }); } catch {}
+                  try { console.warn('[giveaway] participant added', { user: chatMessage.username }); } catch {}
                   try { this._broadcastBoth(ns, { type: 'raffle_state', ...raffle.getPublicState(ns) }); } catch {}
                 }
               } catch {}
@@ -216,6 +216,7 @@ class ChatNsManager {
       } catch {}
 
       this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
+      // Notify Achievements about chat activity
       try {
         if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
           global.gettyAchievementsInstance.onChatMessage(ns, chatMessage);
@@ -234,7 +235,7 @@ class ChatNsManager {
         const next = prev + 1;
         this.__msgCounters.set(key, next);
         if (next % 25 === 0) {
-          console.info('[chat-ns] messages', { ns: (ns||'').slice(0,6) + '…', count: next });
+          console.warn('[chat-ns] messages', { ns: (ns||'').slice(0,6) + '…', count: next });
         }
       } catch {}
 
@@ -250,7 +251,7 @@ class ChatNsManager {
         };
         try {
           if (this.wss && typeof this.wss.emit === 'function') this.wss.emit('tip', tipData, ns);
-          console.info('[chat-ns] tip', { ns: (ns||'').slice(0,6) + '…', amount: tipData.amount });
+          console.warn('[chat-ns] tip', { ns: (ns||'').slice(0,6) + '…', amount: tipData.amount });
         } catch {}
       }
     }

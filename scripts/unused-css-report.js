@@ -83,7 +83,7 @@ async function run() {
   fs.writeFileSync(outFile, JSON.stringify(output, null, 2), 'utf8')
   const top = summary.slice(0, 10).map(s => `- ${s.file} → unused: ${s.unusedCount}`).join('\n')
 
-  console.log(`Unused CSS report written to: ${path.relative(projectRoot, outFile)}\nTop files with unused selectors:\n${top}`)
+  try { console.warn(`Unused CSS report written to: ${path.relative(projectRoot, outFile)}\nTop files with unused selectors:\n${top}`) } catch {}
 }
 
 run().catch(err => {

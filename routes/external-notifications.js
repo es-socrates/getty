@@ -223,7 +223,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
       const ok = await externalNotifications.sendLiveWithConfig(cfg, payload);
       try {
-        console.info('[live/send] result', {
+        console.warn('[live/send] result', {
           ns,
           ok,
           usedWebhook: payload.discordWebhook ? 'override' : (cfg.liveDiscordWebhook ? 'global' : 'none'),
@@ -324,7 +324,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
       const ok = await externalNotifications.sendLiveWithConfig(cfg, payload);
       try {
-        console.info('[live/test] result', {
+        console.warn('[live/test] result', {
           ns,
           ok,
           title: payload.title,
@@ -378,10 +378,10 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
             const SET_KEY = 'getty:auto-live:namespaces';
             if (data.auto) {
       await store.redis.sadd(SET_KEY, ns);
-      try { console.info('[auto-live] registered namespace for auto', ns); } catch {}
+  try { console.warn('[auto-live] registered namespace for auto', ns); } catch {}
             } else {
       await store.redis.srem(SET_KEY, ns);
-      try { console.info('[auto-live] unregistered namespace for auto', ns); } catch {}
+  try { console.warn('[auto-live] unregistered namespace for auto', ns); } catch {}
             }
           }
         } catch {}
@@ -664,7 +664,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       }
 
       try {
-        console.info('[live/clear-override] cleared', { ns, target, removed });
+        console.warn('[live/clear-override] cleared', { ns, target, removed });
       } catch {}
       return res.json({ success: true, removed });
     } catch (e) {

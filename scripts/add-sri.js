@@ -58,7 +58,7 @@ function main() {
     const changed = addSriToHtml(f, publicDir);
     if (changed) count++;
   }
-  console.log(`[SRI] Processed ${htmlFiles.length} HTML files, updated ${count} with integrity attributes.`);
+  try { console.warn(`[SRI] Processed ${htmlFiles.length} HTML files, updated ${count} with integrity attributes.`); } catch {}
 }
 
 if (require.main === module) main();
