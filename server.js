@@ -289,6 +289,47 @@ try { app.use(express.urlencoded({ extended: true, limit: '1mb' })); } catch {}
 try { app.use(cookieParser()); } catch {}
 
 try { if (walletAuth && walletAuth.attachSessionMiddleware) walletAuth.attachSessionMiddleware(app); } catch {}
+
+try {
+  app.use(async (req, _res, next) => {
+    try {
+      if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession) {
+        const hash = req.walletSession.walletHash;
+        if (hash) {
+
+            if (!req.ns) req.ns = { admin: null, pub: null };
+
+          if (!req.ns.admin) {
+            req.ns.admin = hash;
+          }
+
+          if (!req.auth || !req.auth.isAdmin) {
+            req.auth = { ...(req.auth || {}), isAdmin: true, source: (req.auth && req.auth.source) || 'wallet-session', tokenRole: 'admin' };
+          }
+
+          try {
+            if (store && hash) {
+              const meta = await store.get(hash, 'meta', null);
+              if (!meta) {
+                await store.set(hash, 'meta', { role: 'admin', createdAt: Date.now(), walletAddr: req.walletSession.addr });
+              }
+              const admTok = await store.get(hash, 'adminToken', null);
+              if (!admTok) {
+                await store.set(hash, 'adminToken', hash);
+              }
+
+              const pubTok = await store.get(hash, 'publicToken', null);
+              if (!pubTok) {
+                await store.set(hash, 'publicToken', hash);
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+    return next();
+  });
+} catch {}
 try { app.use(compression()); } catch {}
 
 try {
