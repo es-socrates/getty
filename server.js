@@ -482,6 +482,16 @@ app.use(async (req, res, next) => {
     req.ns = { admin: nsAdmin || null, pub: nsPub || null };
 
     try {
+      if (
+        process.env.GETTY_MULTI_TENANT_WALLET === '1' &&
+        req.walletSession && req.walletSession.walletHash &&
+        !req.ns.admin && !req.ns.pub
+      ) {
+        req.ns.admin = req.walletSession.walletHash;
+      }
+    } catch {}
+
+    try {
       const hasAdminCookie = !!req.cookies?.[ADMIN_COOKIE];
       const isAdminPresented = hasAdminCookie || (presentedRole === 'admin');
       req.auth = {
