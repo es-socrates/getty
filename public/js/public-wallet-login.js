@@ -1,3 +1,15 @@
+(function ensureWalletLoginCss(){
+    try {
+        if (!document.querySelector('link[data-wallet-login-css]')) {
+            const l = document.createElement('link');
+            l.rel = 'stylesheet';
+            l.href = '/css/wallet-login.css';
+            l.setAttribute('data-wallet-login-css','1');
+            document.head.appendChild(l);
+        }
+    } catch {}
+})();
+
 class WanderWalletLogin {
     constructor() {
         this.isConnected = false;
@@ -399,17 +411,43 @@ class WanderWalletLogin {
         if (document.getElementById('wander-install-banner')) return;
         const banner = document.createElement('div');
         banner.id = 'wander-install-banner';
-        banner.style.cssText = 'display:none;position:fixed;bottom:1rem;right:1rem;max-width:320px;z-index:9999;background:#111d;border:1px solid #333;padding:0.9rem 0.95rem;border-radius:8px;font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f5f5f5;box-shadow:0 4px 14px rgba(0,0,0,.4)';
         const title = this.t('bannerTitle');
         const missing = this.t('bannerMissing');
         const dismiss = this.t('bannerDismiss');
         const install = this.t('bannerInstall');
-        banner.innerHTML = '<div style="font-weight:600;margin-bottom:4px">'+title+'</div>'+
-            '<div style="font-size:12px;opacity:.85;margin-bottom:8px" data-i18n="wanderMissingMsg">'+missing+'</div>'+
-            '<div style="display:flex;gap:6px;justify-content:flex-end">'+
-            '<button type="button" data-act="dismiss" style="background:#333;color:#ddd;border:0;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">'+dismiss+'</button>'+
-            '<a href="https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap" target="_blank" rel="noopener" data-act="install" style="background:#0d62ff;color:#fff;text-decoration:none;padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600">'+install+'</a>'+
-            '</div>';
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'banner-title';
+        titleEl.textContent = title;
+
+        const msgEl = document.createElement('div');
+        msgEl.className = 'banner-msg';
+        msgEl.setAttribute('data-i18n','wanderMissingMsg');
+        msgEl.textContent = missing;
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+
+        const dismissBtn = document.createElement('button');
+        dismissBtn.type = 'button';
+        dismissBtn.setAttribute('data-act','dismiss');
+        dismissBtn.textContent = dismiss;
+
+        const installLink = document.createElement('a');
+        installLink.href = 'https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap';
+        installLink.target = '_blank';
+        installLink.rel = 'noopener';
+        installLink.setAttribute('data-act','install');
+        installLink.textContent = install;
+
+        actions.appendChild(dismissBtn);
+        actions.appendChild(installLink);
+
+        banner.appendChild(titleEl);
+        banner.appendChild(msgEl);
+        banner.appendChild(actions);
+
+        try { banner.style.display = 'none'; } catch {}
         document.body.appendChild(banner);
         this.ui.installBanner = banner;
         banner.addEventListener('click', (e) => {
@@ -417,8 +455,19 @@ class WanderWalletLogin {
             if (act === 'dismiss') this.hideInstallBanner();
         });
     }
-    showInstallBanner() { if (this.ui.installBanner) this.ui.installBanner.style.display = 'block'; }
-    hideInstallBanner() { if (this.ui.installBanner) this.ui.installBanner.style.display = 'none'; }
+    showInstallBanner() {
+        if (this.ui.installBanner) {
+            try { this.ui.installBanner.style.display = 'block'; } catch {}
+
+            try { this.ui.installBanner.classList.remove('hidden'); } catch {}
+        }
+    }
+    hideInstallBanner() {
+        if (this.ui.installBanner) {
+            try { this.ui.installBanner.style.display = 'none'; } catch {}
+            try { this.ui.installBanner.classList.add('hidden'); } catch {}
+        }
+    }
 
     toBase64Url(val) {
         try {
@@ -752,18 +801,16 @@ class WanderWalletLogin {
             if (!root) {
                 root = document.createElement('div');
                 root.id = 'getty-toast-root';
-                root.style.cssText = 'position:fixed;top:0.75rem;right:0.75rem;display:flex;flex-direction:column;gap:8px;z-index:10000;';
                 document.body.appendChild(root);
             }
             const toast = document.createElement('div');
-            const bg = (level === 'error') ? '#b91c1c' : (level === 'warn' ? '#d97706' : '#2563eb');
-            toast.style.cssText = 'background:'+bg+';color:#fff;padding:10px 14px;border-radius:6px;font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35);max-width:300px;';
+            toast.className = 'getty-toast';
+            if (level === 'warn') toast.classList.add('warn');
+            else if (level === 'error') toast.classList.add('error');
             toast.textContent = message;
             root.appendChild(toast);
             setTimeout(() => {
-                toast.style.transition = 'opacity .35s ease, transform .35s ease';
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-6px)';
+                toast.classList.add('fade-out');
                 setTimeout(() => toast.remove(), 400);
             }, 4200);
         } catch {}
