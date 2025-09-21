@@ -399,17 +399,17 @@ class WanderWalletLogin {
         if (document.getElementById('wander-install-banner')) return;
         const banner = document.createElement('div');
         banner.id = 'wander-install-banner';
-        banner.style.cssText = 'display:none;position:fixed;bottom:1rem;right:1rem;max-width:320px;z-index:9999;background:#111d;border:1px solid #333;padding:0.9rem 0.95rem;border-radius:8px;font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f5f5f5;box-shadow:0 4px 14px rgba(0,0,0,.4)';
         const title = this.t('bannerTitle');
         const missing = this.t('bannerMissing');
         const dismiss = this.t('bannerDismiss');
         const install = this.t('bannerInstall');
-        banner.innerHTML = '<div style="font-weight:600;margin-bottom:4px">'+title+'</div>'+
-            '<div style="font-size:12px;opacity:.85;margin-bottom:8px" data-i18n="wanderMissingMsg">'+missing+'</div>'+
-            '<div style="display:flex;gap:6px;justify-content:flex-end">'+
-            '<button type="button" data-act="dismiss" style="background:#333;color:#ddd;border:0;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">'+dismiss+'</button>'+
-            '<a href="https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap" target="_blank" rel="noopener" data-act="install" style="background:#0d62ff;color:#fff;text-decoration:none;padding:4px 10px;border-radius:4px;font-size:12px;font-weight:600">'+install+'</a>'+
-            '</div>';
+        banner.innerHTML = `
+          <div class="banner-title">${title}</div>
+          <div class="banner-msg" data-i18n="wanderMissingMsg">${missing}</div>
+          <div class="banner-actions">
+            <button type="button" data-act="dismiss">${dismiss}</button>
+            <a href="https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap" target="_blank" rel="noopener" data-act="install" class="banner-install">${install}</a>
+          </div>`;
         document.body.appendChild(banner);
         this.ui.installBanner = banner;
         banner.addEventListener('click', (e) => {
@@ -420,350 +420,24 @@ class WanderWalletLogin {
     showInstallBanner() { if (this.ui.installBanner) this.ui.installBanner.style.display = 'block'; }
     hideInstallBanner() { if (this.ui.installBanner) this.ui.installBanner.style.display = 'none'; }
 
-    toBase64Url(val) {
-        try {
-
-            if (val instanceof Uint8Array) {
-                return this._u8ToB64Url(val);
-            }
-
-            if (val instanceof ArrayBuffer) {
-                return this._u8ToB64Url(new Uint8Array(val));
-            }
-
-            if (typeof val === 'string' && /^[0-9a-fA-F]+$/.test(val) && val.length % 2 === 0) {
-                const u8 = new Uint8Array(val.length / 2);
-                for (let i = 0; i < val.length; i += 2) {
-                    u8[i/2] = parseInt(val.substring(i, i+2), 16);
-                }
-                return this._u8ToB64Url(u8);
-            }
-
-            if (typeof val === 'string' && /[+/=]/.test(val)) {
-                return val.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-            }
-
-            if (typeof val === 'string' && /^[A-Za-z0-9_-]+$/.test(val)) {
-                return val.replace(/=+$/,'');
-            }
-
-            if (val && typeof val === 'object' && val.signature) {
-                return this.toBase64Url(val.signature);
-            }
-
-            if (typeof val === 'string') {
-                const enc = new TextEncoder().encode(val);
-                return this._u8ToB64Url(enc);
-            }
-            if (val) {
-                const enc = new TextEncoder().encode(JSON.stringify(val));
-                return this._u8ToB64Url(enc);
-            }
-        } catch (e) {
-            console.warn('[wander-login] toBase64Url fallo', e);
-        }
-        throw new Error('Formato de firma o clave desconocido');
-    }
-
-    _u8ToB64Url(u8) {
-        let binary = '';
-        for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i]);
-        const b64 = btoa(binary);
-        return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-    }
-
-    async postJson(url, body) {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        let json; try { json = await res.json(); } catch { json = { error: 'bad_json' }; }
-        return json;
-    }
-
-    async fetchMe() {
-        try {
-            const res = await fetch('/api/auth/wander/me', { method: 'GET', headers: { 'Accept': 'application/json' } });
-            if (res.status === 401) return null;
-            return await res.json();
-        } catch { return null; }
-    }
-
-    async logout() {
-        try { await this.postJson('/api/auth/wander/logout', {}); } catch {}
-
-        try {
-            const w = this.resolveWalletHandle();
-            if (w && typeof w.disconnect === 'function') w.disconnect();
-        } catch {}
-
-        this.isConnected = false;
-        this.arweaveAddress = null;
-        this.session = null;
-        localStorage.removeItem('wanderWalletConnected');
-        localStorage.removeItem('arweaveAddress');
-
-        try { localStorage.setItem('getty_logout', String(Date.now())); } catch {}
- 
-        this.updateUI();
-    }
-    
-    async connectWallet() { return this.loginFlow(); }
-    
-    async getBalance() {
-        try {
-            if (!this.arweaveAddress) return '0';
-
-            const CACHE_KEY = 'arweaveBalanceCache';
-            const TTL = 60_000;
-            try {
-                const cachedRaw = localStorage.getItem(CACHE_KEY);
-                if (cachedRaw) {
-                    const cached = JSON.parse(cachedRaw);
-                    if (cached && cached.addr === this.arweaveAddress && (Date.now() - cached.ts) < TTL) {
-                        return cached.val;
-                    }
-                }
-            } catch {}
-
-            const controller = new AbortController();
-            const timeout = setTimeout(() => { try { controller.abort(); } catch {} }, 3000);
-            let winston;
-            try {
-                winston = await Promise.race([
-                    this.arweave.wallets.getBalance(this.arweaveAddress),
-                    new Promise((_, rej) => setTimeout(() => rej(new Error('balance_timeout')), 3000))
-                ]);
-            } finally { clearTimeout(timeout); }
-            const ar = this.arweave.ar.winstonToAr(winston);
-            const val = parseFloat(ar).toFixed(4);
-            try { localStorage.setItem(CACHE_KEY, JSON.stringify({ addr: this.arweaveAddress, ts: Date.now(), val })); } catch {}
-            return val;
-        } catch (error) {
-            console.warn('[wander-login] Failed to obtain balance', error?.message || error);
-            return null;
-        }
-    }
-    
-    disconnectWallet() { return this.logout(); }
-    
-    async updateUI(balance = undefined) {
-    const { loginBtn, userInfo, addressEl, balanceEl, statusDot, btnLabel, inlineBalance, openAdmin, logoutInline, langBtn } = this.elements;
-        if (this.isConnected) {
-            const truncated = this.truncateAddress(this.arweaveAddress);
-            if (loginBtn) {
-                loginBtn.dataset.state = 'logged-in';
-                if (btnLabel) btnLabel.textContent = truncated;
-                loginBtn.title = this.arweaveAddress || '';
-            }
-            if (inlineBalance) {
-                let displayBalance = typeof balance === 'string' ? balance : (this.lastBalance || '');
-                if (!displayBalance) {
-                    inlineBalance.textContent = '…';
-                } else {
-                    inlineBalance.textContent = displayBalance + ' AR';
-                }
-                inlineBalance.classList.remove('hidden');
-            }
-            if (userInfo) userInfo.style.display = 'none';
-            if (addressEl) addressEl.textContent = this.arweaveAddress || '';
-            if (balanceEl) balanceEl.textContent = balance;
-            if (openAdmin) { openAdmin.classList.remove('hidden'); openAdmin.dataset.visible = 'true'; }
-            if (logoutInline) { logoutInline.classList.remove('hidden'); logoutInline.dataset.visible = 'true'; }
-            if (langBtn) { langBtn.classList.remove('hidden'); langBtn.dataset.visible = 'true'; langBtn.classList.add('flex'); }
-            if (statusDot) {
-                statusDot.classList.remove('disconnected');
-                statusDot.classList.add('connected');
-            }
-        } else {
-            if (loginBtn) {
-                loginBtn.dataset.state = 'logged-out';
-                if (btnLabel) btnLabel.textContent = btnLabel?.dataset?.defaultLabel || this.t('loginLabel');
-                loginBtn.title = '';
-            }
-            if (inlineBalance) {
-                inlineBalance.textContent = '';
-                inlineBalance.classList.add('hidden');
-            }
-            if (userInfo) userInfo.style.display = 'none';
-            if (openAdmin) { openAdmin.classList.add('hidden'); openAdmin.dataset.visible = 'false'; }
-            if (logoutInline) { logoutInline.classList.add('hidden'); logoutInline.dataset.visible = 'false'; }
-
-            if (langBtn) {
-                langBtn.classList.remove('hidden');
-                langBtn.dataset.visible = 'true';
-                langBtn.classList.add('flex');
-            }
-            if (statusDot) {
-                statusDot.classList.remove('connected');
-                statusDot.classList.add('disconnected');
-            }
-        }
-    }
-
-    scheduleBalanceFetch(force = false) {
-        if (!this.isConnected || !this.arweaveAddress) return;
-        const now = Date.now();
-        if (!force && (this.balanceFetchInFlight || (now - this.balanceLastFetchTs) < 15000)) return; // throttle 15s
-        this.balanceFetchInFlight = true;
-        this.getBalance()
-            .then(b => {
-                if (b) {
-                    this.lastBalance = b;
-                    this.balanceLastFetchTs = Date.now();
-
-                    if (this.elements.inlineBalance && this.isConnected) {
-                        this.elements.inlineBalance.textContent = b + ' AR';
-                    }
-                } else if (b === null) {
-                }
-            })
-            .catch(() => {})
-            .finally(() => { this.balanceFetchInFlight = false; });
-    }
-
-    truncateAddress(addr) {
-        if (!addr) return '';
-        if (addr.length <= 12) return addr;
-        return addr.slice(0,6) + '…' + addr.slice(-4);
-    }
-
-    async connectWithPermissions(wallet) {
-        const permsPrimary = [
-            'ACCESS_ADDRESS',
-            'ACCESS_PUBLIC_KEY',
-            'SIGNATURE',
-            'SIGN_MESSAGE',
-            'DISPATCH'
-        ];
-        const attempts = [];
-
-        attempts.push(async () => wallet.connect(permsPrimary));
-        attempts.push(async () => wallet.connect({ permissions: permsPrimary }));
-
-        const permsMinimal = ['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY', 'SIGNATURE'];
-        attempts.push(async () => wallet.connect(permsMinimal));
-        attempts.push(async () => wallet.connect({ permissions: permsMinimal }));
-
-        let lastErr;
-        for (const attempt of attempts) {
-            try {
-                const maybeAddr = await attempt();
-                let address = maybeAddr;
-                if (!address && typeof wallet.getActiveAddress === 'function') {
-                    try { address = await wallet.getActiveAddress(); } catch {}
-                }
-                if (address) return address;
- 
-                if (!address) {
-                    await new Promise(r => setTimeout(r, 150));
-                    if (typeof wallet.getActiveAddress === 'function') {
-                        try { address = await wallet.getActiveAddress(); } catch {}
-                    }
-                    if (address) return address;
-                }
-            } catch (e) {
-                lastErr = e;
-                if (/(denied|reject|user)/i.test(String(e?.message))) {
-                    throw new Error('Permissions denied by the user');
-                }
-            }
-        }
-        console.error('[wander-login] connect failed', lastErr);
-        throw lastErr || new Error('Unable to connect wallet');
-    }
-
-    async obtainPublicKey(wallet) {
-        if (typeof wallet.getActivePublicKey === 'function') {
-            try { const pk = await wallet.getActivePublicKey(); if (pk) return pk; } catch (e) { console.warn('[wander-login] getActivePublicKey failed', e); }
-        }
-        if (typeof wallet.getPublicKey === 'function') {
-            try { const pk = await wallet.getPublicKey(); if (pk) return pk; } catch (e) { console.warn('[wander-login] getPublicKey failed', e); }
-        }
-        if (wallet.publicKey) return wallet.publicKey;
-
-        if (wallet.account && wallet.account.publicKey) return wallet.account.publicKey;
-        return null;
-    }
-    async ensureWalletLoadedEvent() {
-        if (this.isWalletReady()) return;
-        let resolved = false;
-        await Promise.race([
-            new Promise(r => setTimeout(r, 1200)),
-            new Promise(r => {
-                try {
-                    window.addEventListener('arweaveWalletLoaded', () => { resolved = true; r(); }, { once: true });
-                } catch { r(); }
-            })
-        ]);
-        if (!resolved && !this.isWalletReady()) {
-        }
-    }
-    async getActiveAddressSafe(wallet) {
-        if (typeof wallet.getActiveAddress === 'function') {
-            try { const a = await wallet.getActiveAddress(); if (a) return a; } catch {}
-        }
-        if (typeof wallet.getAllAddresses === 'function') {
-            try {
-                const list = await wallet.getAllAddresses();
-                if (Array.isArray(list) && list.length) return list[0];
-            } catch {}
-        }
-        return null;
-    }
-    normalizePublicKey(pk) {
-        try {
-            if (typeof pk === 'string') return this.toBase64Url(pk);
-            if (pk && typeof pk === 'object') {
-                if (typeof pk.n === 'string') return this.toBase64Url(pk.n);
-                if (typeof pk.publicKey === 'string') return this.toBase64Url(pk.publicKey);
-            }
-        } catch (e) { console.warn('[wander-login] normalizePublicKey failed', e); }
-        return this.toBase64Url(pk);
-    }
-    
-    showError(message) {
-        try { console.warn('[wander-login] error', message); } catch {}
-        const walletNotDetected = /wander wallet.*(no detectada|not detected)/i.test(message);
-        if (walletNotDetected) {
-            this.showInstallBanner();
-            this.maybeToast(message, 'warn');
-            return;
-        }
-
-        try { alert(this.t('errorPrefix') + ': ' + message + '\n\n' + this.t('alertSuffix')); } catch {}
-
-        if (/install.+wander wallet/i.test(message)) {
-            const url = 'https://chromewebstore.google.com/detail/wander/einnioafmpimabjcddiinlhmijaionap';
-            try { if (window.confirm(this.t('openInstallConfirm'))) window.open(url, '_blank'); } catch {}
-        }
-    }
-
     maybeToast(message, level = 'info') {
         try {
-
             if (typeof window.showToast === 'function') {
                 window.showToast(message, level);
                 return;
             }
-
             let root = document.getElementById('getty-toast-root');
             if (!root) {
                 root = document.createElement('div');
                 root.id = 'getty-toast-root';
-                root.style.cssText = 'position:fixed;top:0.75rem;right:0.75rem;display:flex;flex-direction:column;gap:8px;z-index:10000;';
                 document.body.appendChild(root);
             }
             const toast = document.createElement('div');
-            const bg = (level === 'error') ? '#b91c1c' : (level === 'warn' ? '#d97706' : '#2563eb');
-            toast.style.cssText = 'background:'+bg+';color:#fff;padding:10px 14px;border-radius:6px;font:13px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.35);max-width:300px;';
+            toast.className = 'getty-toast' + (level === 'error' ? ' error' : (level === 'warn' ? ' warn' : ''));
             toast.textContent = message;
             root.appendChild(toast);
             setTimeout(() => {
-                toast.style.transition = 'opacity .35s ease, transform .35s ease';
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-6px)';
+                toast.classList.add('fade-out');
                 setTimeout(() => toast.remove(), 400);
             }, 4200);
         } catch {}
