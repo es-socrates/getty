@@ -228,14 +228,20 @@ try {
       .map(s => s.trim())
       .filter(Boolean);
 
-    const connectExtra = splitEnv('GETTY_CSP_CONNECT_EXTRA');
-    const scriptExtra = splitEnv('GETTY_CSP_SCRIPT_EXTRA');
-    const imgExtra = splitEnv('GETTY_CSP_IMG_EXTRA');
-    const mediaExtra = splitEnv('GETTY_CSP_MEDIA_EXTRA');
-    const scriptHashes = splitEnv('GETTY_CSP_SCRIPT_HASHES');
-    const allowUnsafeHashes = process.env.GETTY_CSP_UNSAFE_HASHES === '1';
-    const scriptAttr = (process.env.GETTY_CSP_SCRIPT_ATTR || '').trim();
-    const allowInlineScripts = process.env.GETTY_CSP_ALLOW_INLINE_SCRIPTS === '1';
+  const connectExtra = splitEnv('GETTY_CSP_CONNECT_EXTRA');
+  const scriptExtra = splitEnv('GETTY_CSP_SCRIPT_EXTRA');
+  const imgExtra = splitEnv('GETTY_CSP_IMG_EXTRA');
+  const mediaExtra = splitEnv('GETTY_CSP_MEDIA_EXTRA');
+  const styleExtra = splitEnv('GETTY_CSP_STYLE_EXTRA');
+  const frameExtra = splitEnv('GETTY_CSP_FRAME_EXTRA');
+  const fontExtra = splitEnv('GETTY_CSP_FONT_EXTRA');
+  const scriptHashes = splitEnv('GETTY_CSP_SCRIPT_HASHES');
+  const styleHashes = splitEnv('GETTY_CSP_STYLE_HASHES');
+  const allowUnsafeHashes = process.env.GETTY_CSP_UNSAFE_HASHES === '1';
+  const scriptAttr = (process.env.GETTY_CSP_SCRIPT_ATTR || '').trim();
+  const allowInlineScripts = process.env.GETTY_CSP_ALLOW_INLINE_SCRIPTS === '1';
+  const allowInlineStyles = process.env.GETTY_CSP_ALLOW_INLINE_STYLES === '1';
+  const enableGoogleFonts = process.env.GETTY_CSP_ENABLE_GOOGLE_FONTS !== '0';
 
     const cspDirectives = {
       defaultSrc: [self],
@@ -248,7 +254,14 @@ try {
         ...scriptHashes
       ],
 
-      styleSrc: [self, 'https://fonts.googleapis.com', (req, res) => `'nonce-${res.locals.cspNonce || ''}'`],
+      styleSrc: [
+        self,
+        ...(enableGoogleFonts ? ['https://fonts.googleapis.com'] : []),
+        (req, res) => `'nonce-${res.locals.cspNonce || ''}'`,
+        ...(allowInlineStyles ? ["'unsafe-inline'"] : []),
+        ...styleExtra,
+        ...styleHashes
+      ],
       imgSrc: [
         self, 'data:', 'blob:',
         'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
@@ -257,7 +270,7 @@ try {
         'https://arweave.net', 'https://*.arweave.net',
         ...imgExtra
       ],
-      fontSrc: [self, 'data:', 'blob:', 'https://fonts.gstatic.com'],
+  fontSrc: [self, 'data:', 'blob:', ...(enableGoogleFonts ? ['https://fonts.gstatic.com'] : []), ...fontExtra],
       mediaSrc: [
         self,
         'blob:',
@@ -266,7 +279,7 @@ try {
         ...mediaExtra
       ],
       connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
-      frameSrc: [self]
+      frameSrc: [self, ...frameExtra]
     };
 
     if (scriptAttr) {
