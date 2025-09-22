@@ -1,7 +1,16 @@
 function getWalletAddress() {
     const fs = require('fs');
     const path = require('path');
-    const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+            const baseConfigPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+
+            let configPath = baseConfigPath;
+            try {
+
+                if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+                    const workerCandidate = path.join(process.cwd(), 'config', `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+                    if (fs.existsSync(workerCandidate)) configPath = workerCandidate;
+                }
+            } catch {}
     if (fs.existsSync(configPath)) {
         try {
             const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -28,6 +37,7 @@ function getGoalConfig() {
 }
 const axios = require('axios');
 const WebSocket = require('ws');
+const { buildGatewayList } = require('../lib/arweave-gateways');
 
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { tenantEnabled } = (() => { try { return require('../lib/tenant'); } catch { return { tenantEnabled: () => false }; } })();
@@ -40,8 +50,11 @@ class TipGoalModule {
 
         this.wss = wss;
         this.walletAddress = '';
-        this.monthlyGoalAR = 10;
-        this.currentTipsAR = 0;
+    this.monthlyGoalAR = 10;
+    this.currentTipsAR = 0;
+
+    this._stickyGoal = null;
+    this._stickyCurrent = null;
         this.bgColor = '#080c10';
         this.fontColor = '#ffffff';
         this.borderColor = '#00ff7f';
@@ -69,22 +82,14 @@ class TipGoalModule {
     } catch {}
 
         this.AR_TO_USD = 0;
-        this.ARWEAVE_GATEWAYS = [
-            'https://arweave.net',
-            'https://ar-io.net',
-            'https://arweave.live',
-            'https://arweave-search.goldsky.com'
-        ];
+        this.ARWEAVE_GATEWAYS = buildGatewayList({});
 
-        if (process.env.TIP_GOAL_EXTRA_GATEWAYS) {
-            try {
-                const extra = String(process.env.TIP_GOAL_EXTRA_GATEWAYS)
-                    .split(',').map(s=>s.trim()).filter(Boolean)
-                    .map(s => (s.startsWith('http') ? s : `https://${s}`)).map(u=>u.replace(/\/$/, ''));
-                this.ARWEAVE_GATEWAYS.push(...extra);
-            } catch {}
-        }
-        this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
+        try {
+            if (process.env.TIP_GOAL_EXTRA_GATEWAYS) {
+                const extra = process.env.TIP_GOAL_EXTRA_GATEWAYS.split(',').map(s=>s.trim()).filter(Boolean);
+                this.ARWEAVE_GATEWAYS = Array.from(new Set([...this.ARWEAVE_GATEWAYS, ...extra]));
+            }
+        } catch {}
         this.GRAPHQL_TIMEOUT = Number(process.env.TIP_GOAL_GRAPHQL_TIMEOUT_MS || 10000);
         this.processedTxs = new Set();
         this.lastDonationTimestamp = null;
@@ -111,9 +116,22 @@ class TipGoalModule {
                         const rawTxt = fs.readFileSync(p,'utf8');
                         let parsed = {};
                         try { parsed = JSON.parse(rawTxt); } catch {}
-                        const dataLayer = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
-                        if (dataLayer && typeof dataLayer.walletAddress === 'string' && dataLayer.walletAddress.trim()) {
-                            this.walletAddress = dataLayer.walletAddress.trim();
+
+                        let dataLayer = parsed;
+                        if (parsed && parsed.data && typeof parsed.data === 'object') {
+
+                            if ('__version' in parsed || 'checksum' in parsed || 'updatedAt' in parsed || !parsed.walletAddress) {
+                                dataLayer = parsed.data;
+                            }
+
+                            if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object' && dataLayer.data.walletAddress) {
+                                dataLayer = dataLayer.data;
+                            }
+                        }
+                        if (dataLayer && typeof dataLayer === 'object') {
+                            if (typeof dataLayer.walletAddress === 'string' && dataLayer.walletAddress.trim()) {
+                                this.walletAddress = dataLayer.walletAddress.trim();
+                            }
                             if (typeof dataLayer.monthlyGoal === 'number') this.monthlyGoalAR = dataLayer.monthlyGoal;
                             if (typeof dataLayer.currentAmount === 'number') this.currentTipsAR = dataLayer.currentAmount;
                         }
@@ -128,7 +146,15 @@ class TipGoalModule {
         const fs = require('fs');
         const path = require('path');
         const configDir = path.join(process.cwd(), 'config');
-        const globalPath = path.join(configDir, 'tip-goal-config.json');
+            const globalBasePath = path.join(configDir, 'tip-goal-config.json');
+            let globalPath = globalBasePath;
+            try {
+
+                if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+                    const workerCandidate = path.join(configDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+                    if (fs.existsSync(workerCandidate)) globalPath = workerCandidate;
+                }
+            } catch {}
         if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
         const tipGoalDefault = {
             walletAddress: '',
@@ -165,6 +191,56 @@ class TipGoalModule {
                         if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][CREATE_DEFAULT]', { path: globalPath });
                     } catch (e) { console.error('[TipGoal] Failed creating default config:', e.message); }
                 }
+            }
+
+            if (config && config.data && typeof config.data === 'object' && ((config.__version || config.checksum || config.updatedAt) || !config.walletAddress)) {
+                config = config.data;
+                if (config && config.data && typeof config.data === 'object' && config.data.walletAddress) {
+                    config = config.data;
+                }
+            }
+
+            if (hostedMode && (!config || !config.walletAddress)) {
+                try {
+                    const tenantRoot = path.join(process.cwd(), 'tenant');
+                    if (fs.existsSync(tenantRoot)) {
+                        const dirs = fs.readdirSync(tenantRoot).filter(d => !d.startsWith('.') && fs.statSync(path.join(tenantRoot, d)).isDirectory());
+                        let best = null;
+                        const debugScan = process.env.GETTY_TIPGOAL_DEBUG === '1';
+                        for (const d of dirs) {
+                            const candidate = path.join(tenantRoot, d, 'config', 'tip-goal-config.json');
+                            if (!fs.existsSync(candidate)) continue;
+                            try {
+                                let raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+                                if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
+                                    raw = raw.data;
+                                    if (raw && raw.data && typeof raw.data === 'object' && raw.data.walletAddress) raw = raw.data;
+                                }
+                                if (raw && typeof raw === 'object' && raw.walletAddress) {
+                                    const goalVal = typeof raw.monthlyGoal === 'number' ? raw.monthlyGoal : 0;
+                                    const currentVal = typeof raw.currentAmount === 'number' ? raw.currentAmount : (typeof raw.currentTips === 'number' ? raw.currentTips : 0);
+                                    if (!best) {
+                                        best = { raw, candidate, score: (goalVal * 1000) + currentVal };
+                                    } else {
+                                        const score = (goalVal * 1000) + currentVal;
+                                        if (score > best.score) {
+                                            best = { raw, candidate, score };
+                                        }
+                                    }
+                                }
+                            } catch {}
+                        }
+                        if (best && (!config || !config.walletAddress)) {
+                            config = best.raw;
+                            this._loadedMeta = { source: 'tenant-scan', tenantPath: best.candidate };
+                            if (debugScan) {
+                                try { console.warn('[TipGoal][TENANT_SCAN_ADOPT]', { wallet: (config.walletAddress||'').slice(0,8)+'...', goal: config.monthlyGoal, current: config.currentAmount, path: best.candidate }); } catch {}
+                            }
+                        } else if (debugScan) {
+                            try { console.warn('[TipGoal][TENANT_SCAN_NO_ADOPT]', { reason: best ? 'wallet_already_present' : 'no_candidates' }); } catch {}
+                        }
+                    }
+                } catch {}
             }
             const prevWallet = config.walletAddress || '';
             if (config.walletAddress) {
@@ -547,8 +623,19 @@ class TipGoalModule {
         }
         
     console.warn(`🔄 Updating goal: ${parsedGoal} AR (starting: ${parsedStarting} AR)`);
-        this.monthlyGoalAR = parsedGoal;
-        this.currentTipsAR = parsedStarting;
+
+        if (this._stickyGoal != null && parsedGoal < this._stickyGoal) {
+            if (process.env.GETTY_TIPGOAL_DEBUG === '1') console.warn('[TipGoal][STICKY_GOAL_RETAIN]', { incoming: parsedGoal, sticky: this._stickyGoal });
+        } else {
+            this.monthlyGoalAR = parsedGoal;
+            if (this._stickyGoal == null || parsedGoal > this._stickyGoal) this._stickyGoal = parsedGoal;
+        }
+        if (this._stickyCurrent != null && parsedStarting < this._stickyCurrent) {
+            if (process.env.GETTY_TIPGOAL_DEBUG === '1') console.warn('[TipGoal][STICKY_CURRENT_RETAIN]', { incoming: parsedStarting, sticky: this._stickyCurrent });
+        } else {
+            this.currentTipsAR = parsedStarting;
+            if (this._stickyCurrent == null || parsedStarting > this._stickyCurrent) this._stickyCurrent = parsedStarting;
+        }
         process.env.GOAL_AR = this.monthlyGoalAR.toString();
         process.env.STARTING_AR = this.currentTipsAR.toString();
         
@@ -578,6 +665,8 @@ class TipGoalModule {
             walletAddress: this.walletAddress,
             monthlyGoal: this.monthlyGoalAR,
             currentTips: this.currentTipsAR,
+            stickyGoal: this._stickyGoal,
+            stickyCurrent: this._stickyCurrent,
             processedTxs: this.processedTxs.size,
             exchangeRate: this.AR_TO_USD,
             lastDonation: this.lastDonationTimestamp,

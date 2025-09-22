@@ -2,40 +2,36 @@ const axios = require('axios');
 const WebSocket = require('ws');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { tenantEnabled } = (() => { try { return require('../lib/tenant'); } catch { return { tenantEnabled: () => false }; } })();
+const { buildGatewayList } = require('../lib/arweave-gateways');
 
 class LastTipModule {
   constructor(wss) {
     this.wss = wss;
-    this.ARWEAVE_GATEWAYS = [
-      'https://arweave.net',
-      'https://ar-io.net',
-      'https://arweave.live',
-      'https://arweave-search.goldsky.com',
-      'https://permagate.io',
-      'https://zerosettle.online',
-      'https://zigza.xyz',
-      'https://ario-gateway.nethermind.dev'
-    ];
 
-    if (process.env.LAST_TIP_EXTRA_GATEWAYS) {
-      try {
-        const extra = String(process.env.LAST_TIP_EXTRA_GATEWAYS)
-          .split(',')
-          .map(s => s.trim())
-          .filter(Boolean)
-          .map(s => (s.startsWith('http') ? s : `https://${s}`)
-            .replace(/\/$/, ''));
-        this.ARWEAVE_GATEWAYS.push(...extra);
-      } catch {}
-    }
-    this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
+    this.ARWEAVE_GATEWAYS = buildGatewayList({});
+
+    try {
+      if (process.env.LAST_TIP_EXTRA_GATEWAYS) {
+        const extra = process.env.LAST_TIP_EXTRA_GATEWAYS.split(',').map(s=>s.trim()).filter(Boolean);
+        const merged = Array.from(new Set([...this.ARWEAVE_GATEWAYS, ...extra]));
+        this.ARWEAVE_GATEWAYS = merged;
+      }
+    } catch {}
     this.GRAPHQL_TIMEOUT = Number(process.env.LAST_TIP_GRAPHQL_TIMEOUT_MS || 10000);
     this.VIEWBLOCK_TIMEOUT = Number(process.env.LAST_TIP_VIEWBLOCK_TIMEOUT_MS || 6000);
     this.walletAddress = null;
     this._loadedMeta = null;
     this._lastReqForSave = null;
     this.lastDonation = null;
+
+    this._lastFetchTs = null;
+    this._lastFetchGatewayAttempts = [];
+    this._lastFetchSucceededGateway = null;
+    this._lastFetchErrorCount = 0;
+    this._fetchCount = 0;
     this.processedTxs = new Set();
+    this._cacheLoaded = false;
+
   const __loadPromise = this.loadWalletAddress();
     try {
       if (__loadPromise && typeof __loadPromise.then === 'function') {
@@ -202,6 +198,12 @@ class LastTipModule {
   }
 
   async getEnhancedTransactions(address) {
+
+    this._lastFetchTs = Date.now();
+    this._lastFetchGatewayAttempts = [];
+    this._lastFetchSucceededGateway = null;
+    this._lastFetchErrorCount = 0;
+    this._fetchCount += 1;
     const query = `
       query($recipients: [String!]) {
         transactions(recipients: $recipients, first: 75, sort: HEIGHT_DESC) {
@@ -220,6 +222,7 @@ class LastTipModule {
 
     const tryGateway = async (gw) => {
       const url = `${gw}/graphql`;
+      this._lastFetchGatewayAttempts.push(gw);
       const resp = await axios.post(
         url,
         { query, variables: { recipients: [address] } },
@@ -227,6 +230,7 @@ class LastTipModule {
       );
       const edges = resp.data?.data?.transactions?.edges || [];
       if (!Array.isArray(edges)) throw new Error('Bad GraphQL shape');
+      if (!this._lastFetchSucceededGateway) this._lastFetchSucceededGateway = gw;
       return edges.map((edge) => ({
         id: edge.node.id,
         owner: edge.node.owner?.address,
@@ -243,6 +247,7 @@ class LastTipModule {
       try {
         graphqlResults = await Promise.any(gateways.map((gw) => tryGateway(gw)));
       } catch {
+        this._lastFetchErrorCount += 1;
 
       }
     } else {
@@ -251,7 +256,7 @@ class LastTipModule {
           graphqlResults = await tryGateway(gw);
           break;
   } catch {
-
+          this._lastFetchErrorCount += 1;
         }
       }
     }
@@ -271,6 +276,7 @@ class LastTipModule {
           }
         );
         if (Array.isArray(vb.data) && vb.data.length > 0) {
+          if (!this._lastFetchSucceededGateway) this._lastFetchSucceededGateway = 'viewblock';
           return vb.data
             .filter((tx) => tx?.owner && tx?.id && (typeof tx.quantity === 'number' || typeof tx.quantity === 'string'))
             .map((tx) => ({
@@ -281,7 +287,7 @@ class LastTipModule {
             }));
         }
   } catch {
-
+        this._lastFetchErrorCount += 1;
       }
     }
 
@@ -322,6 +328,7 @@ class LastTipModule {
     if (last && this.shouldUpdateDonation(last)) {
       this.lastDonation = last;
       this.notifyFrontend(last);
+      this.saveDonationCache();
     }
   }
   
@@ -365,6 +372,7 @@ class LastTipModule {
     const path = require('path');
     const configDir = path.join(process.cwd(), 'config');
     const configPath = path.join(configDir, 'last-tip-config.json');
+    const cachePath = path.join(configDir, 'last-donation-cache.json');
     let existing = {};
     if (fs.existsSync(configPath)) {
       try { existing = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
@@ -374,10 +382,18 @@ class LastTipModule {
       this.walletAddress = existing.walletAddress;
       return this.getStatus();
     }
+    const incoming = (newAddress || '').trim();
+    const prev = this.walletAddress || '';
+    const changed = !!incoming && incoming !== prev;
+    this.walletAddress = incoming;
+    if (changed) {
+      this.processedTxs = new Set();
+      this.lastDonation = null;
+      try { if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath); } catch {}
+      this._cacheLoaded = false;
 
-    this.walletAddress = (newAddress || '').trim();
-    this.processedTxs = new Set();
-    this.lastDonation = null;
+      try { if (this.walletAddress) this.updateLatestDonation(); } catch {}
+    }
     const config = { ...existing, walletAddress: this.walletAddress };
     try {
       const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
@@ -399,6 +415,7 @@ class LastTipModule {
     } catch (e) { console.error('[LastTip] Error writing wallet address to config:', e.message); }
     if (this._lastReqForSave) this.scheduleWriteThrough(config);
     if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
+
       this.updateLatestDonation();
     }
     return this.getStatus();
@@ -407,19 +424,29 @@ class LastTipModule {
   getLastDonation() {
     if (this.lastDonation) return this.lastDonation;
 
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const p = path.join(process.cwd(), 'config', 'last-donation-cache.json');
-      if (fs.existsSync(p)) {
-        const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-        if (raw && raw.txId && raw.amount) {
-          this.lastDonation = raw;
-          return this.lastDonation;
+    if (!this._cacheLoaded) {
+      this._cacheLoaded = true;
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const p = path.join(process.cwd(), 'config', 'last-donation-cache.json');
+        if (fs.existsSync(p)) {
+          const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (raw && raw.txId && raw.amount) {
+
+            if (!raw.walletAddress || raw.walletAddress === this.walletAddress) {
+              this.lastDonation = {
+                from: raw.from,
+                amount: raw.amount,
+                txId: raw.txId,
+                timestamp: raw.timestamp || Math.floor(Date.now() / 1000)
+              };
+            }
+          }
         }
-      }
-    } catch {}
-    return null;
+      } catch {}
+    }
+    return this.lastDonation || null;
   }
   
   getStatus() {
@@ -431,6 +458,15 @@ class LastTipModule {
       lastDonation: cached || null,
       processedTxs: this.processedTxs.size,
       meta: this._loadedMeta || null,
+      diagnostics: {
+        lastFetchTs: this._lastFetchTs,
+        lastFetchTsIso: this._lastFetchTs ? new Date(this._lastFetchTs).toISOString() : null,
+        lastFetchGatewayAttempts: this._lastFetchGatewayAttempts,
+        lastFetchSucceededGateway: this._lastFetchSucceededGateway,
+        lastFetchErrorCount: this._lastFetchErrorCount,
+        fetchCount: this._fetchCount,
+        hasDonationCached: !!cached
+      }
     };
   }
 
@@ -453,6 +489,27 @@ class LastTipModule {
     } catch {
       return null;
     }
+  }
+
+  saveDonationCache() {
+    try {
+      if (!this.lastDonation || !this.walletAddress) return;
+      const fs = require('fs');
+      const path = require('path');
+      const configDir = path.join(process.cwd(), 'config');
+      if (!fs.existsSync(configDir)) {
+        try { fs.mkdirSync(configDir, { recursive: true }); } catch {}
+      }
+      const cachePath = path.join(configDir, 'last-donation-cache.json');
+      const payload = {
+        walletAddress: this.walletAddress,
+        from: this.lastDonation.from,
+        amount: this.lastDonation.amount,
+        txId: this.lastDonation.txId,
+        timestamp: this.lastDonation.timestamp
+      };
+      fs.writeFileSync(cachePath, JSON.stringify(payload, null, 2));
+    } catch {}
   }
 
   

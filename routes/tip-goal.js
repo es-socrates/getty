@@ -282,6 +282,27 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         if (!(typeof store.setConfig === 'function')) {
           try { await store.set(ns, 'tip-goal-config', config); } catch {}
         }
+
+        if (process.env.NODE_ENV === 'test' && process.env.GETTY_REQUIRE_SESSION === '1' && !process.env.REDIS_URL) {
+          try {
+              const { writeHybridConfig } = require('../lib/hybrid-config');
+
+              let targetFile = TIP_GOAL_CONFIG_FILE;
+              try {
+
+                if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+                  const dir = path.dirname(TIP_GOAL_CONFIG_FILE);
+                  const workerPath = path.join(dir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+                  targetFile = workerPath;
+                } else if (process.env.GETTY_TIP_GOAL_ISOLATE === '1' && process.env.JEST_WORKER_ID) {
+                  const dir = path.dirname(TIP_GOAL_CONFIG_FILE);
+                  const workerPath = path.join(dir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+                  targetFile = workerPath;
+                }
+              } catch {}
+              try { writeHybridConfig(targetFile, config); } catch { fs.writeFileSync(targetFile, JSON.stringify(config, null, 2)); }
+          } catch {}
+        }
         if (walletProvided) {
           try {
             let existingLast = {};
