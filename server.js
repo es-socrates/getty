@@ -2464,12 +2464,42 @@ app.get('/api/modules', async (req, res) => {
         return sanitizeIfNoNs(out);
       } catch { return sanitizeIfNoNs(tipWidget.getStatus()); }
     })(),
-  tipGoal: (() => {
+  tipGoal: (async () => {
       try {
-        const base = tipGoal.getStatus?.() || {};
+
+        let base = tipGoal.getStatus?.() || {};
+
+        const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+        const maybeNeedsHydration = hostedMode && hasNs && (!base.walletAddress || (typeof base.walletAddress === 'string' && !base.walletAddress.trim()));
+        if (maybeNeedsHydration && typeof tipGoal.loadWalletAddress === 'function') {
+          try {
+            await tipGoal.loadWalletAddress(req);
+
+            base = tipGoal.getStatus?.() || base;
+          } catch {}
+        }
+
         const merged = { ...base, ...tipGoalColors };
-        const current = Number(merged.currentAmount ?? merged.currentTips ?? base.currentTips ?? 0) || 0;
-        const goal = Number(merged.monthlyGoal ?? base.monthlyGoal ?? 0) || 0;
+        let current = Number(merged.currentAmount ?? merged.currentTips ?? base.currentTips ?? 0) || 0;
+        let goal = Number(merged.monthlyGoal ?? base.monthlyGoal ?? 0) || 0;
+
+        try {
+          const cfgPathPre = TIP_GOAL_CONFIG_FILE;
+          if (fs.existsSync(cfgPathPre)) {
+            try {
+              const rawTxt = fs.readFileSync(cfgPathPre,'utf8');
+              const parsed = JSON.parse(rawTxt);
+              const dataLayer = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+              if (dataLayer) {
+                const fileGoal = Number(dataLayer.monthlyGoal || 0);
+                const fileCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
+                if (fileGoal > 0 && (goal === 0 || goal < fileGoal)) goal = fileGoal;
+                if (fileCurrent > 0 && (current === 0 || current < fileCurrent)) current = fileCurrent;
+              }
+            } catch {}
+          }
+        } catch {}
+
         let rate = Number(merged.exchangeRate || base.exchangeRate || 0);
         if (!rate || !isFinite(rate) || rate <= 0) {
           try { if (__arPriceCache && __arPriceCache.usd > 0) rate = Number(__arPriceCache.usd) || 0; } catch {}
@@ -2481,6 +2511,7 @@ app.get('/api/modules', async (req, res) => {
         }
         merged.currentTips = current;
         merged.currentAmount = current;
+
         const __tgBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
         const __tgCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
         const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
@@ -2493,15 +2524,44 @@ app.get('/api/modules', async (req, res) => {
         merged.active = configured;
         merged.initialized = configured;
         merged.configured = configured;
+        const pct = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+
+        if (typeof merged.progress !== 'number') merged.progress = pct;
         if (!wallet) {
-          merged.title = 'Configure tip goal 💸';
-          merged.monthlyGoal = 0;
-          merged.currentAmount = 0;
-          merged.currentTips = 0;
-          merged.usdValue = '0.00';
-          merged.goalUsd = '0.00';
-          merged.progress = 0;
+          const hasProgressData = (goal > 0) || (current > 0);
+          if (!hasProgressData) {
+            merged.title = merged.title || 'Configure tip goal 💸';
+          }
         }
+        try {
+          if (wallet) {
+            const cfgPath = TIP_GOAL_CONFIG_FILE;
+            if (fs.existsSync(cfgPath)) {
+              try {
+                const rawTxt = fs.readFileSync(cfgPath,'utf8');
+                const parsed = JSON.parse(rawTxt);
+                const dataLayer = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+                if (dataLayer) {
+                  const fileGoal = Number(dataLayer.monthlyGoal || 0);
+                  const fileCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
+                  const shouldAdopt = (fileGoal > 0 && (merged.monthlyGoal === 0 || merged.monthlyGoal < fileGoal)) || (fileCurrent > 0 && (merged.currentAmount === 0 || merged.currentAmount < fileCurrent));
+                  if (shouldAdopt) {
+                    merged.monthlyGoal = fileGoal;
+                    merged.currentAmount = fileCurrent;
+                    merged.currentTips = fileCurrent;
+                    const rate2 = Number(merged.exchangeRate || 0);
+                    if (rate2 > 0) {
+                      merged.usdValue = (fileCurrent * rate2).toFixed(2);
+                      merged.goalUsd = (fileGoal * rate2).toFixed(2);
+                    }
+                    const pct2 = fileGoal > 0 ? Math.min((fileCurrent / fileGoal) * 100, 100) : 0;
+                    merged.progress = pct2;
+                  }
+                }
+              } catch {}
+            }
+          }
+        } catch {}
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
     })(),
