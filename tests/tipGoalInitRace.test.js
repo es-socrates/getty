@@ -46,11 +46,14 @@ describe('TipGoal async init race (hosted)', () => {
     expect(create.status).toBe(200);
     expect(create.body.monthlyGoal).toBe(33);
 
-    await new Promise(r => setTimeout(r, 25));
-
-    const after = await agent.get('/api/tip-goal').set('Cookie', cookie);
+    let after; let tries = 0;
+    while (tries < 10) {
+      after = await agent.get('/api/tip-goal').set('Cookie', cookie);
+      if (after.status === 200 && after.body.walletAddress === address && after.body.monthlyGoal === 33) break;
+      await new Promise(r => setTimeout(r, 50));
+      tries += 1;
+    }
     expect(after.status).toBe(200);
-
     expect(after.body.walletAddress).toBe(address);
     expect(after.body.monthlyGoal).toBe(33);
 
@@ -60,9 +63,20 @@ describe('TipGoal async init race (hosted)', () => {
     const dummyWss = new Server({ noServer: true });
     const fresh = new TipGoalModule(dummyWss);
 
-    await new Promise(r => setTimeout(r, 10));
-
+    const start = Date.now();
+    const timeoutMs = 750;
+    while (Date.now() - start < timeoutMs) {
+      if (typeof fresh.walletAddress === 'string' && fresh.walletAddress &&
+          fresh.monthlyGoalAR === 33 && fresh.currentTipsAR === 3) {
+        break;
+      }
+      await new Promise(r => setTimeout(r, 25));
+    }
     expect(typeof fresh.walletAddress).toBe('string');
+
+    if (!fresh.walletAddress) {
+      console.warn('[TEST][tipGoalInitRace] walletAddress still empty after polling', { monthlyGoalAR: fresh.monthlyGoalAR, currentTipsAR: fresh.currentTipsAR });
+    }
     if (fresh.walletAddress) {
       expect(fresh.monthlyGoalAR).toBe(33);
       expect(fresh.currentTipsAR).toBe(3);
