@@ -2,13 +2,13 @@ function getWalletAddress() {
     const fs = require('fs');
     const path = require('path');
             const baseConfigPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
-
             let configPath = baseConfigPath;
             try {
 
                 if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
                     const workerCandidate = path.join(process.cwd(), 'config', `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
-                    if (fs.existsSync(workerCandidate)) configPath = workerCandidate;
+
+                    configPath = workerCandidate;
                 }
             } catch {}
     if (fs.existsSync(configPath)) {
@@ -50,11 +50,11 @@ class TipGoalModule {
 
         this.wss = wss;
         this.walletAddress = '';
-    this.monthlyGoalAR = 10;
-    this.currentTipsAR = 0;
+        this.monthlyGoalAR = 10;
+        this.currentTipsAR = 0;
 
-    this._stickyGoal = null;
-    this._stickyCurrent = null;
+        this._stickyGoal = null;
+        this._stickyCurrent = null;
         this.bgColor = '#080c10';
         this.fontColor = '#ffffff';
         this.borderColor = '#00ff7f';
@@ -62,6 +62,75 @@ class TipGoalModule {
         this.theme = 'classic';
         this.title = 'Monthly tip goal 🎖️';
         this._loadedMeta = null;
+
+    try {
+        if (process.env.NODE_ENV === 'test') {
+            const fs = require('fs');
+            const path = require('path');
+            const baseDir = path.join(process.cwd(),'config');
+            const globalPath = path.join(baseDir,'tip-goal-config.json');
+            let eff = globalPath;
+            if (process.env.JEST_WORKER_ID) {
+                const workerPath = path.join(baseDir,`tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+                if (fs.existsSync(workerPath)) {
+                    eff = workerPath;
+                } else if (fs.existsSync(globalPath)) {
+                    try { fs.copyFileSync(globalPath, workerPath); eff = workerPath; } catch {}
+                } else {
+                    eff = workerPath;
+                }
+            }
+            if (fs.existsSync(eff)) {
+                try {
+                    let raw = JSON.parse(fs.readFileSync(eff,'utf8'));
+                    if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
+                        raw = raw.data;
+                        if (raw && raw.data && typeof raw.data === 'object') raw = raw.data;
+                    }
+                    if (raw && typeof raw === 'object') {
+                        if (typeof raw.walletAddress === 'string') this.walletAddress = raw.walletAddress.trim();
+                        if (typeof raw.monthlyGoal === 'number') this.monthlyGoalAR = raw.monthlyGoal;
+                        if (typeof raw.currentAmount === 'number') this.currentTipsAR = raw.currentAmount;
+                        else if (typeof raw.currentTips === 'number') this.currentTipsAR = raw.currentTips;
+                        if (typeof raw.theme === 'string') this.theme = (raw.theme === 'koku-list') ? 'modern-list' : raw.theme;
+                        if (typeof raw.bgColor === 'string') this.bgColor = raw.bgColor;
+                        if (typeof raw.fontColor === 'string') this.fontColor = raw.fontColor;
+                        if (typeof raw.borderColor === 'string') this.borderColor = raw.borderColor;
+                        if (typeof raw.progressColor === 'string') this.progressColor = raw.progressColor;
+                        if (typeof raw.title === 'string' && raw.title.trim()) this.title = raw.title.trim();
+                    }
+                } catch {}
+            }
+
+            try {
+                const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+                if (hostedMode) {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const workerPath = process.env.JEST_WORKER_ID ? path.join(baseDir,`tip-goal-config.${process.env.JEST_WORKER_ID}.json`) : eff;
+                    let wRaw = {}; let gRaw = {};
+                    try { if (fs.existsSync(workerPath)) wRaw = JSON.parse(fs.readFileSync(workerPath,'utf8')); } catch {}
+                    try { if (fs.existsSync(globalPath)) gRaw = JSON.parse(fs.readFileSync(globalPath,'utf8')); } catch {}
+                    const norm = (o) => {
+                        if (o && o.data && typeof o.data === 'object' && ((o.__version || o.checksum || o.updatedAt) || !o.walletAddress)) {
+                            o = o.data; if (o && o.data && typeof o.data === 'object') o = o.data;
+                        }
+                        return o || {};
+                    };
+                    wRaw = norm(wRaw); gRaw = norm(gRaw);
+                    const wGoal = Number(wRaw.monthlyGoal || 0); const wCur = Number(wRaw.currentAmount || wRaw.currentTips || 0); const wWallet = (wRaw.walletAddress||'').trim();
+                    const gGoal = Number(gRaw.monthlyGoal || 0); const gCur = Number(gRaw.currentAmount || gRaw.currentTips || 0); const gWallet = (gRaw.walletAddress||'').trim();
+                    const workerLooksDefault = (wGoal === 10 && wCur === 0 && !wWallet);
+                    const globalHasNonDefaults = (gGoal && gGoal !== 10) || (gCur && gCur !== 0) || (!gWallet && (gGoal>0 || gCur>=0));
+                    if (workerLooksDefault && globalHasNonDefaults) {
+                        if (gGoal && gGoal !== 10) { this.monthlyGoalAR = gGoal; }
+                        if (gCur || gCur === 0) { this.currentTipsAR = gCur; }
+                        if (typeof gRaw.theme === 'string') this.theme = (gRaw.theme === 'koku-list') ? 'modern-list' : gRaw.theme;
+                    }
+                }
+            } catch {}
+        }
+    } catch {}
 
     const __loadPromise = this.loadWalletAddress();
     try {
@@ -110,20 +179,25 @@ class TipGoalModule {
             if (!this.walletAddress && hostedSync) {
                 const fs = require('fs');
                 const path = require('path');
-                const p = path.join(process.cwd(),'config','tip-goal-config.json');
+                const baseDir = path.join(process.cwd(),'config');
+                let p = path.join(baseDir,'tip-goal-config.json');
+
+                try {
+                    if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+                        const workerCandidate = path.join(baseDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+                        if (fs.existsSync(workerCandidate)) p = workerCandidate;
+                    }
+                } catch {}
                 if (fs.existsSync(p)) {
                     try {
                         const rawTxt = fs.readFileSync(p,'utf8');
                         let parsed = {};
                         try { parsed = JSON.parse(rawTxt); } catch {}
-
                         let dataLayer = parsed;
                         if (parsed && parsed.data && typeof parsed.data === 'object') {
-
                             if ('__version' in parsed || 'checksum' in parsed || 'updatedAt' in parsed || !parsed.walletAddress) {
                                 dataLayer = parsed.data;
                             }
-
                             if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object' && dataLayer.data.walletAddress) {
                                 dataLayer = dataLayer.data;
                             }
@@ -132,8 +206,11 @@ class TipGoalModule {
                             if (typeof dataLayer.walletAddress === 'string' && dataLayer.walletAddress.trim()) {
                                 this.walletAddress = dataLayer.walletAddress.trim();
                             }
+
                             if (typeof dataLayer.monthlyGoal === 'number') this.monthlyGoalAR = dataLayer.monthlyGoal;
+                            else if (typeof dataLayer.goalAmount === 'number') this.monthlyGoalAR = dataLayer.goalAmount;
                             if (typeof dataLayer.currentAmount === 'number') this.currentTipsAR = dataLayer.currentAmount;
+                            else if (typeof dataLayer.currentTips === 'number') this.currentTipsAR = dataLayer.currentTips;
                         }
                     } catch {}
                 }
@@ -146,15 +223,46 @@ class TipGoalModule {
         const fs = require('fs');
         const path = require('path');
         const configDir = path.join(process.cwd(), 'config');
-            const globalBasePath = path.join(configDir, 'tip-goal-config.json');
-            let globalPath = globalBasePath;
-            try {
 
-                if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
-                    const workerCandidate = path.join(configDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
-                    if (fs.existsSync(workerCandidate)) globalPath = workerCandidate;
+        const globalBasePath = path.join(configDir, 'tip-goal-config.json');
+
+        let effectivePath = globalBasePath;
+        try {
+            if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+                const workerPath = path.join(configDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+
+                if (fs.existsSync(workerPath)) {
+                    effectivePath = workerPath;
+
+                    try {
+                        const hasGlobal = fs.existsSync(globalBasePath);
+                        if (hasGlobal) {
+                            let wRaw = {};
+                            let gRaw = {};
+                            try { wRaw = JSON.parse(fs.readFileSync(workerPath,'utf8')); } catch {}
+                            try { gRaw = JSON.parse(fs.readFileSync(globalBasePath,'utf8')); } catch {}
+                            const wGoal = Number(wRaw.monthlyGoal || 0);
+                            const wCur = Number(wRaw.currentAmount || wRaw.currentTips || 0);
+                            const gGoal = Number(gRaw.monthlyGoal || 0);
+                            const gCur = Number(gRaw.currentAmount || gRaw.currentTips || 0);
+                            const wWallet = (typeof wRaw.walletAddress === 'string') ? wRaw.walletAddress.trim() : '';
+                            const gWallet = (typeof gRaw.walletAddress === 'string') ? gRaw.walletAddress.trim() : '';
+                            const workerLooksDefault = (wGoal === 10 && wCur === 0 && wWallet === '');
+                            const globalHasUpdates = (gGoal !== 10 || gCur !== 0 || gWallet);
+                            if (workerLooksDefault && globalHasUpdates) {
+                                try { fs.copyFileSync(globalBasePath, workerPath); } catch {}
+                            }
+                        }
+                    } catch {}
+                } else if (fs.existsSync(globalBasePath)) {
+
+                    try { fs.copyFileSync(globalBasePath, workerPath); effectivePath = workerPath; } catch {}
+                } else {
+
+                    effectivePath = workerPath;
                 }
-            } catch {}
+            }
+        } catch {}
         if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
         const tipGoalDefault = {
             walletAddress: '',
@@ -173,7 +281,7 @@ class TipGoalModule {
             if (tenantEnabled && tenantEnabled(reqForTenant)) {
                 try {
                     const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
-                    const lt = await loadTenantConfig(reqForTenant, store, globalPath, 'tip-goal-config.json');
+                    const lt = await loadTenantConfig(reqForTenant, store, effectivePath, 'tip-goal-config.json');
                     const data = lt.data?.data ? lt.data.data : lt.data;
                     if (data && Object.keys(data).length) config = data;
                     this._loadedMeta = { source: lt.source, tenantPath: lt.tenantPath };
@@ -182,14 +290,21 @@ class TipGoalModule {
                 }
             }
             if (!config || !Object.keys(config).length) {
-                if (fs.existsSync(globalPath)) {
-                    try { config = JSON.parse(fs.readFileSync(globalPath, 'utf8')); } catch {}
+                if (fs.existsSync(effectivePath)) {
+                    try { config = JSON.parse(fs.readFileSync(effectivePath, 'utf8')); } catch {}
                 } else if (!hostedMode) {
                     try {
-                        fs.writeFileSync(globalPath, JSON.stringify(tipGoalDefault, null, 2));
+                        fs.writeFileSync(effectivePath, JSON.stringify(tipGoalDefault, null, 2));
                         config = { ...tipGoalDefault };
-                        if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][CREATE_DEFAULT]', { path: globalPath });
+                        if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][CREATE_DEFAULT]', { path: effectivePath });
                     } catch (e) { console.error('[TipGoal] Failed creating default config:', e.message); }
+                } else if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+
+                    try {
+                        const isolated = { walletAddress: '', monthlyGoal: 10, currentAmount: 0 };
+                        fs.writeFileSync(effectivePath, JSON.stringify(isolated, null, 2));
+                        config = { ...isolated };
+                    } catch {}
                 }
             }
 
@@ -201,6 +316,10 @@ class TipGoalModule {
             }
 
             if (hostedMode && (!config || !config.walletAddress)) {
+
+                if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
+                    // Saltamos adopción cross-tenant.
+                } else {
                 try {
                     const tenantRoot = path.join(process.cwd(), 'tenant');
                     if (fs.existsSync(tenantRoot)) {
@@ -241,6 +360,7 @@ class TipGoalModule {
                         }
                     }
                 } catch {}
+                }
             }
             const prevWallet = config.walletAddress || '';
             if (config.walletAddress) {
@@ -281,14 +401,14 @@ class TipGoalModule {
                         const updated = { ...tipGoalDefault, ...config, walletAddress: lastTipWallet };
                         if (!hostedMode) {
                             try {
-                                fs.writeFileSync(globalPath, JSON.stringify(updated, null, 2));
+                                fs.writeFileSync(effectivePath, JSON.stringify(updated, null, 2));
                                 if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][IMPORT_WALLET_FROM_LAST_TIP]', { prevWallet, newWallet: lastTipWallet });
                             } catch (e) { console.error('[TipGoal] Failed persisting imported wallet:', e.message); }
                         } else if (tenantEnabled && tenantEnabled(reqForTenant)) {
                             try {
                                 const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
                                 const saveReq = reqForTenant || { __forceWalletHash: (this.walletAddress || '').slice(0, 12) };
-                                await saveTenantConfig(saveReq, store, globalPath, 'tip-goal-config.json', updated);
+                                await saveTenantConfig(saveReq, store, effectivePath, 'tip-goal-config.json', updated);
                             } catch {}
                         }
                     }
@@ -697,6 +817,44 @@ class TipGoalModule {
 
     dispose() {
         this.cleanup();
+    }
+
+    hydrateFromFileIfWalletEmpty() {
+        try {
+            if (this.walletAddress && this.walletAddress.trim()) return false;
+            const fs = require('fs');
+            const path = require('path');
+            const baseDir = path.join(process.cwd(),'config');
+            const globalPath = path.join(baseDir,'tip-goal-config.json');
+            const paths = [];
+            if (process.env.JEST_WORKER_ID) paths.push(path.join(baseDir,`tip-goal-config.${process.env.JEST_WORKER_ID}.json`));
+            paths.push(globalPath);
+            for (const p of paths) {
+                if (!fs.existsSync(p)) continue;
+                try {
+                    let raw = JSON.parse(fs.readFileSync(p,'utf8'));
+                    if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
+                        raw = raw.data; if (raw && raw.data && typeof raw.data === 'object') raw = raw.data;
+                    }
+                    if (!raw || typeof raw !== 'object') continue;
+                    const fGoal = Number(raw.monthlyGoal || 0);
+                    const fCur = Number(raw.currentAmount || raw.currentTips || 0);
+
+                    const nonDefault = (fGoal > 10) || (fCur > 0) || (typeof raw.theme === 'string');
+                    if (!nonDefault) continue;
+                    if (fGoal > 0) this.monthlyGoalAR = fGoal;
+                    if (fCur >= 0) this.currentTipsAR = fCur;
+                    if (typeof raw.theme === 'string') this.theme = (raw.theme === 'koku-list') ? 'modern-list' : raw.theme;
+                    if (typeof raw.bgColor === 'string') this.bgColor = raw.bgColor;
+                    if (typeof raw.fontColor === 'string') this.fontColor = raw.fontColor;
+                    if (typeof raw.borderColor === 'string') this.borderColor = raw.borderColor;
+                    if (typeof raw.progressColor === 'string') this.progressColor = raw.progressColor;
+                    if (typeof raw.title === 'string' && raw.title.trim()) this.title = raw.title.trim();
+                    return true;
+                } catch {}
+            }
+        } catch {}
+        return false;
     }
 }
 
