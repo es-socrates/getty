@@ -2856,6 +2856,26 @@ app.get('/api/modules', async (req, res) => {
             }
           }
         } catch {}
+
+        try {
+          if (typeof tipGoal === 'object' && tipGoal) {
+            const sGoal = Number(tipGoal._stickyGoal || 0) || 0;
+            const sCurRaw = tipGoal._stickyCurrent;
+            const sCurrent = (sCurRaw == null) ? null : Number(sCurRaw);
+            if (sGoal > 0) {
+              if (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < sGoal) merged.monthlyGoal = sGoal;
+              if (merged.monthlyGoal > sGoal) merged.monthlyGoal = sGoal;
+            }
+            if (sCurrent != null && !isNaN(sCurrent) && sCurrent >= 0) {
+              if (typeof merged.currentAmount !== 'number' || merged.currentAmount < sCurrent) {
+                merged.currentAmount = sCurrent; merged.currentTips = sCurrent;
+              }
+              if (merged.currentAmount > sCurrent) {
+                merged.currentAmount = sCurrent; merged.currentTips = sCurrent;
+              }
+            }
+          }
+        } catch {}
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
     })(),
