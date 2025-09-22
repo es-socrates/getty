@@ -618,6 +618,12 @@ try {
       const isApi = typeof req.path === 'string' && req.path.startsWith('/api/');
       if (!isApi || !isUnsafe) return next();
 
+      if (req.path === '/api/auth/wander/nonce' ||
+          req.path === '/api/auth/wander/verify' ||
+          req.path === '/api/auth/wander/logout') {
+        return next();
+      }
+
       const adminNs = await resolveAdminNsFromReq(req);
       if (!adminNs) return next();
 
