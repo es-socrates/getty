@@ -48,8 +48,25 @@ class TipGoalModule {
         this.progressColor = '#00ff7f';
         this.theme = 'classic';
         this.title = 'Monthly tip goal 🎖️';
-    this._loadedMeta = null; // store version/checksum meta when hybrid persisted
-    this.loadWalletAddress();
+        this._loadedMeta = null;
+
+    const __loadPromise = this.loadWalletAddress();
+    try {
+        if (__loadPromise && typeof __loadPromise.then === 'function') {
+            __loadPromise.then(() => {
+                try {
+                    if (!this.isInitialized && this.walletAddress && process.env.NODE_ENV !== 'test') {
+                        this.init();
+                    } else if (!this.isInitialized && this.walletAddress && process.env.NODE_ENV === 'test') {
+
+                        try { this.sendGoalUpdate(); } catch {}
+                    } else if (!this.isInitialized && !this.walletAddress && process.env.GETTY_REQUIRE_SESSION === '1') {
+                        // Hosted idle state; nothing to do yet.
+                    }
+                } catch {}
+            }).catch(()=>{});
+        }
+    } catch {}
 
         this.AR_TO_USD = 0;
         this.ARWEAVE_GATEWAYS = [
@@ -79,8 +96,31 @@ class TipGoalModule {
         this.transactionCheckInterval = 60000;
         
         if (process.env.NODE_ENV !== 'test') {
+
             this.init();
         }
+
+        try {
+            const hostedSync = !!process.env.GETTY_REQUIRE_SESSION || !!process.env.REDIS_URL;
+            if (!this.walletAddress && hostedSync) {
+                const fs = require('fs');
+                const path = require('path');
+                const p = path.join(process.cwd(),'config','tip-goal-config.json');
+                if (fs.existsSync(p)) {
+                    try {
+                        const rawTxt = fs.readFileSync(p,'utf8');
+                        let parsed = {};
+                        try { parsed = JSON.parse(rawTxt); } catch {}
+                        const dataLayer = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+                        if (dataLayer && typeof dataLayer.walletAddress === 'string' && dataLayer.walletAddress.trim()) {
+                            this.walletAddress = dataLayer.walletAddress.trim();
+                            if (typeof dataLayer.monthlyGoal === 'number') this.monthlyGoalAR = dataLayer.monthlyGoal;
+                            if (typeof dataLayer.currentAmount === 'number') this.currentTipsAR = dataLayer.currentAmount;
+                        }
+                    } catch {}
+                }
+            }
+        } catch {}
     }
 
     async loadWalletAddress(reqForTenant) {

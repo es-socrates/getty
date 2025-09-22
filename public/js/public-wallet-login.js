@@ -634,8 +634,20 @@ class WanderWalletLogin {
             if (logoutInline) {
                 logoutInline.classList.remove('hidden');
                 logoutInline.dataset.visible = 'true';
-                try { logoutInline.textContent = this.t('logoutLabel') || logoutInline.textContent; } catch {}
-                try { logoutInline.title = this.t('logoutLabel'); logoutInline.setAttribute('aria-label', this.t('logoutLabel')); } catch {}
+                try {
+                        const candidates = ['logoutLabel','walletLogout','walletPublic.logoutLabel'];
+                        let chosen = '';
+                        for (const c of candidates) {
+                            const v = this.t(c);
+                            if (v && v !== c) { chosen = v; break; }
+                        }
+                        if (chosen) {
+                            const span = logoutInline.querySelector('[data-i18n]');
+                            if (span) span.textContent = chosen; else logoutInline.textContent = chosen;
+                            logoutInline.title = chosen;
+                            logoutInline.setAttribute('aria-label', chosen);
+                    }
+                } catch {}
             }
             if (langBtn) { langBtn.classList.remove('hidden'); langBtn.dataset.visible = 'true'; langBtn.classList.add('flex'); }
             if (statusDot) {
@@ -866,7 +878,7 @@ class WanderWalletLogin {
 
         const prefix = 'walletPublic.';
         const keys = [
-            'bannerTitle','bannerMissing','bannerDismiss','bannerInstall','connecting','loginLabel',
+            'bannerTitle','bannerMissing','bannerDismiss','bannerInstall','connecting','loginLabel','logoutLabel',
             'notDetectedError','noAddressConnect','publicKeyMissing','signatureMethodsUnavailable',
             'walletNotReady','walletNotAvailable','walletNotConnected','openInstallConfirm','alertSuffix','errorPrefix'
         ];

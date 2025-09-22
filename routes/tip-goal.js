@@ -98,7 +98,32 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           if (!isLocal && out && typeof out === 'object' && out.walletAddress) delete out.walletAddress;
         }
       } catch {}
-      res.json({ success: true, ...(meta ? { meta } : {}), ...out });
+
+      try {
+        const monthlyGoalVal = Number(out.monthlyGoal || out.goalAmount || 0) || 0;
+        const currentAmountVal = (typeof out.currentAmount === 'number') ? out.currentAmount
+          : (typeof out.currentTips === 'number') ? out.currentTips : 0;
+        const rateCandidate = (() => {
+          try {
+            if (tipGoal && typeof tipGoal.AR_TO_USD === 'number' && tipGoal.AR_TO_USD > 0) return tipGoal.AR_TO_USD;
+            if (global.__arPriceCache && global.__arPriceCache.usd > 0) return Number(global.__arPriceCache.usd) || 0;
+          } catch {}
+          return 0;
+        })();
+        const progress = (monthlyGoalVal > 0) ? Math.min((currentAmountVal / monthlyGoalVal) * 100, 100) : 0;
+        const enrich = {
+          currentTips: currentAmountVal,
+          progress,
+          ...(rateCandidate > 0 ? {
+            exchangeRate: rateCandidate,
+            usdValue: (currentAmountVal * rateCandidate).toFixed(2),
+            goalUsd: (monthlyGoalVal * rateCandidate).toFixed(2)
+          } : {})
+        };
+        return res.json({ success: true, ...(meta ? { meta } : {}), ...out, ...enrich });
+      } catch {
+        return res.json({ success: true, ...(meta ? { meta } : {}), ...out });
+      }
     } catch (e) {
       res.status(500).json({ error: 'Error loading tip goal config', details: e.message });
     }
@@ -358,26 +383,51 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       }
 
       try {
+
+        const rateCandidate = (() => {
+          try {
+            if (tipGoal && typeof tipGoal.AR_TO_USD === 'number' && tipGoal.AR_TO_USD > 0) return tipGoal.AR_TO_USD;
+            if (global.__arPriceCache && global.__arPriceCache.usd > 0) return Number(global.__arPriceCache.usd) || 0;
+          } catch {}
+          return 0;
+        })();
+        const progressDerived = (typeof monthlyGoal === 'number' && monthlyGoal > 0)
+          ? Math.min((currentAmount / monthlyGoal) * 100, 100)
+          : 0;
+        const broadcastPayload = {
+          ...config,
+          currentTips: currentAmount,
+          progress: progressDerived,
+          ...(rateCandidate > 0 ? {
+            exchangeRate: rateCandidate,
+            usdValue: (currentAmount * rateCandidate).toFixed(2),
+            goalUsd: (monthlyGoal * rateCandidate).toFixed(2)
+          } : {})
+        };
         if (tenant && tenant.tenantEnabled(req)) {
           if (req.walletSession && req.walletSession.walletHash && typeof wss?.broadcast === 'function') {
-            wss.broadcast(req.walletSession.walletHash, {
-              type: 'goalAudioSettingsUpdate',
-              data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) }
-            });
+            try {
+              wss.broadcast(req.walletSession.walletHash, { type: 'tipGoalUpdate', data: broadcastPayload });
+            } catch {}
+            wss.broadcast(req.walletSession.walletHash, { type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } });
           }
         } else if (store && ns && typeof wss?.broadcast === 'function') {
-          wss.broadcast(ns, {
-            type: 'goalAudioSettingsUpdate',
-            data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) }
-          });
+          try { wss.broadcast(ns, { type: 'tipGoalUpdate', data: broadcastPayload }); } catch {}
+          wss.broadcast(ns, { type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } });
         } else if (req.walletSession && req.walletSession.walletHash && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
           if (typeof wss?.broadcast === 'function') {
-            wss.broadcast(req.walletSession.walletHash, {
-              type: 'goalAudioSettingsUpdate',
-              data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) }
-            });
+            try { wss.broadcast(req.walletSession.walletHash, { type: 'tipGoalUpdate', data: broadcastPayload }); } catch {}
+            wss.broadcast(req.walletSession.walletHash, { type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } });
           }
         } else if (wss && wss.clients) {
+
+          try {
+            wss.clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ type: 'tipGoalUpdate', data: broadcastPayload }));
+              }
+            });
+          } catch {}
           wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } }));
@@ -386,7 +436,31 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         }
       } catch {}
 
-  res.json({ success: true, active: true, ...(meta ? { meta } : {}), ...config });
+      try {
+        const rateCandidate = (() => {
+          try {
+            if (tipGoal && typeof tipGoal.AR_TO_USD === 'number' && tipGoal.AR_TO_USD > 0) return tipGoal.AR_TO_USD;
+            if (global.__arPriceCache && global.__arPriceCache.usd > 0) return Number(global.__arPriceCache.usd) || 0;
+          } catch {}
+          return 0;
+        })();
+        const progressDerived = (typeof monthlyGoal === 'number' && monthlyGoal > 0)
+          ? Math.min((currentAmount / monthlyGoal) * 100, 100)
+          : 0;
+        const responsePayload = {
+          ...config,
+          currentTips: currentAmount,
+          progress: progressDerived,
+          ...(rateCandidate > 0 ? {
+            exchangeRate: rateCandidate,
+            usdValue: (currentAmount * rateCandidate).toFixed(2),
+            goalUsd: (monthlyGoal * rateCandidate).toFixed(2)
+          } : {})
+        };
+        return res.json({ success: true, active: true, ...(meta ? { meta } : {}), ...responsePayload });
+      } catch {
+        return res.json({ success: true, active: true, ...(meta ? { meta } : {}), ...config });
+      }
     } catch (error) {
       console.error('Error in /api/tip-goal:', error);
       res.status(500).json({
