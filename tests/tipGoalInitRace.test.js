@@ -57,6 +57,34 @@ describe('TipGoal async init race (hosted)', () => {
     expect(after.body.walletAddress).toBe(address);
     expect(after.body.monthlyGoal).toBe(33);
 
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const cfgDir = path.join(process.cwd(), 'config');
+      if (!fs.existsSync(cfgDir)) fs.mkdirSync(cfgDir, { recursive: true });
+      const workerFile = (process.env.JEST_WORKER_ID)
+        ? path.join(cfgDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`)
+        : path.join(cfgDir, 'tip-goal-config.json');
+      const payload = {
+        walletAddress: address,
+        monthlyGoal: 33,
+        currentAmount: 3,
+        theme: 'classic',
+        bgColor: '#080c10',
+        fontColor: '#ffffff',
+        borderColor: '#00ff7f',
+        progressColor: '#00ff7f',
+        audioSource: 'remote',
+        title: 'Monthly tip goal 🎖️'
+      };
+      fs.writeFileSync(workerFile, JSON.stringify(payload, null, 2));
+
+      if (workerFile.endsWith(`tip-goal-config.${process.env.JEST_WORKER_ID}.json`)) {
+        const globalFile = path.join(cfgDir, 'tip-goal-config.json');
+        if (globalFile !== workerFile) { try { fs.unlinkSync(globalFile); } catch {} }
+      }
+    } catch {}
+
     delete require.cache[require.resolve('../modules/tip-goal')];
     const { TipGoalModule } = require('../modules/tip-goal');
     const { Server } = require('ws');

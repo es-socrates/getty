@@ -5,6 +5,7 @@ node_modules/
 /public/js/min
 public/css/output.css
 public/index.html
+public/admin-dist/*
 public/min/*.js
 .DS_Store
 *.log
