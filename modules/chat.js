@@ -150,14 +150,15 @@ class ChatModule {
           const incomingMsg = (chatMessage.message || '').trim().toLowerCase();
           const incomingNorm = incomingMsg.replace(/^!+/, '');
           let targetNs = null;
-          let state = raffle.getPublicState(targetNs);
+
+          let state = await raffle.getPublicState(targetNs);
 
           if (!(state && state.active && !state.paused)) {
             try {
               if (typeof raffle.getActiveNamespaces === 'function') {
                 const actives = raffle.getActiveNamespaces();
                 for (const nsKey of actives) {
-                  const st = raffle.getPublicState(nsKey);
+                  const st = await raffle.getPublicState(nsKey);
                   if (!st || !st.active || st.paused || typeof st.command !== 'string') continue;
                   const cmdNorm = (st.command || '').trim().toLowerCase().replace(/^!+/, '');
                   if (incomingNorm && cmdNorm && incomingNorm === cmdNorm) {
@@ -172,14 +173,15 @@ class ChatModule {
           if (state && state.active && !state.paused && typeof state.command === 'string') {
             const cmdNorm = (state.command || '').trim().toLowerCase().replace(/^!+/, '');
             if (incomingNorm && cmdNorm && incomingNorm === cmdNorm) {
-              const added = raffle.addParticipant(targetNs, chatMessage.username, chatMessage.userId);
+              const added = await raffle.addParticipant(targetNs, chatMessage.username, chatMessage.userId);
               if (added) {
                 Logger.info(`[Giveaway] New participant: ${chatMessage.username}${targetNs ? ' ns=' + targetNs.slice(0,6)+'…' : ''}`);
                 try {
+                  const newState = await raffle.getPublicState(targetNs);
                   if (this.wss && typeof this.wss.broadcast === 'function') {
-                    this.wss.broadcast(targetNs, { type: 'raffle_state', ...raffle.getPublicState(targetNs) });
+                    this.wss.broadcast(targetNs, { type: 'raffle_state', ...newState });
                   } else if (this.wss && this.wss.clients) {
-                    const payload = JSON.stringify({ type: 'raffle_state', ...raffle.getPublicState(targetNs) });
+                    const payload = JSON.stringify({ type: 'raffle_state', ...newState });
                     this.wss.clients.forEach(c => { try { if (c.readyState === 1 && (!targetNs || c.nsToken === targetNs)) c.send(payload); } catch {} });
                   }
                 } catch {}

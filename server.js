@@ -1,8 +1,15 @@
 const path = require('path');
 
 require('./lib/log-shim');
-require('dotenv').config();
+try {
+  if (process.env.DONT_LOAD_DOTENV !== '1') {
+    require('dotenv').config();
+  }
+} catch {}
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
+
+let loadTenantConfig = null;
+try { ({ loadTenantConfig } = require('./lib/tenant-config')); } catch {}
 const express = require('express');
 const compression = require('compression');
 const helmet = require('helmet');
@@ -482,12 +489,10 @@ app.use(async (req, res, next) => {
     req.ns = { admin: nsAdmin || null, pub: nsPub || null };
 
     try {
-      if (
-        process.env.GETTY_MULTI_TENANT_WALLET === '1' &&
-        req.walletSession && req.walletSession.walletHash &&
-        !req.ns.admin && !req.ns.pub
-      ) {
-        req.ns.admin = req.walletSession.walletHash;
+      if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession && req.walletSession.walletHash) {
+        if (!req.ns.admin) {
+          req.ns.admin = req.walletSession.walletHash;
+        }
       }
     } catch {}
 
@@ -499,6 +504,32 @@ app.use(async (req, res, next) => {
         source: incomingToken ? 'token' : (hasAdminCookie ? 'admin-cookie' : (req.cookies?.[PUBLIC_COOKIE] ? 'public-cookie' : null)),
         tokenRole: presentedRole
       };
+    } catch {}
+
+    try {
+      if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession && req.walletSession.walletHash) {
+        if (req.ns && req.ns.admin === req.walletSession.walletHash) {
+          if (!req.auth) req.auth = {};
+          if (!req.auth.isAdmin) {
+            req.auth.isAdmin = true;
+            req.auth.source = req.auth.source || 'wallet-session';
+            req.auth.tokenRole = req.auth.tokenRole || 'admin';
+          }
+
+          try {
+            if (!req.cookies?.[ADMIN_COOKIE]) {
+              const cookieOpts = {
+                httpOnly: true,
+                sameSite: 'Lax',
+                secure: SECURE_COOKIE(),
+                path: '/',
+                maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
+              };
+              res.cookie(ADMIN_COOKIE, req.ns.admin, cookieOpts);
+            }
+          } catch {}
+        }
+      }
     } catch {}
 
     try {
@@ -1020,7 +1051,11 @@ try {
       try { return await store.get(ns, 'live-announcement-draft', null); } catch { return null; }
     }
     async function loadNsExtCfg(ns) {
-      try { return await store.get(ns, 'external-notifications-config', null); } catch { return null; }
+      try {
+        const raw = await store.get(ns, 'external-notifications-config', null);
+        if (raw && typeof raw === 'object' && raw.__version && raw.data && typeof raw.data === 'object') return raw.data;
+        return raw;
+      } catch { return null; }
     }
     async function loadNsClaim(ns) {
       try {
@@ -1208,10 +1243,116 @@ if (process.env.NODE_ENV !== 'test') {
   } catch (e) {
     console.error('Error loading chat config for auto-activation:', e);
   }
+
+  try {
+    const autostartDisabled = process.env.GETTY_CHAT_AUTOSTART === '0';
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    const debugAutostart = process.env.GETTY_CHAT_AUTOSTART_DEBUG === '1';
+    if (!autostartDisabled && !hostedMode) {
+      const status = typeof chat.getStatus === 'function' ? chat.getStatus() : { active: false, connected: false };
+      const hasExplicitConfig = fs.existsSync(CHAT_CONFIG_FILE);
+      const alreadyActive = !!(status && (status.active || status.connected));
+      if (debugAutostart) console.warn('[Chat][Autostart] begin check', { autostartDisabled, hostedMode, hasExplicitConfig, alreadyActive });
+      if (!hasExplicitConfig && !alreadyActive) {
+        let claimId = '';
+
+        try {
+          const shPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
+          if (fs.existsSync(shPath)) {
+            const raw = JSON.parse(fs.readFileSync(shPath, 'utf8'));
+            if (raw && typeof raw === 'object') {
+              if (typeof raw.claimid === 'string' && raw.claimid.trim()) claimId = raw.claimid.trim();
+              else if (raw.data && typeof raw.data.claimid === 'string' && raw.data.claimid.trim()) claimId = raw.data.claimid.trim();
+            }
+          }
+        } catch (e) { if (debugAutostart) console.warn('[Chat][Autostart] stream-history parse error', e?.message); }
+        if (!claimId) {
+          try {
+            const lvPath = path.join(process.cwd(), 'config', 'liveviews-config.json');
+            if (fs.existsSync(lvPath)) {
+              const raw = JSON.parse(fs.readFileSync(lvPath, 'utf8'));
+              if (raw && typeof raw === 'object') {
+                if (typeof raw.claimid === 'string' && raw.claimid.trim()) claimId = raw.claimid.trim();
+                else if (raw.data && typeof raw.data.claimid === 'string' && raw.data.claimid.trim()) claimId = raw.data.claimid.trim();
+              }
+            }
+          } catch (e) { if (debugAutostart) console.warn('[Chat][Autostart] liveviews parse error', e?.message); }
+        }
+
+        let directWs = '';
+        try { if (process.env.ODYSEE_WS_URL && /^wss?:\/\//i.test(process.env.ODYSEE_WS_URL)) directWs = process.env.ODYSEE_WS_URL; } catch {}
+        if (debugAutostart) console.warn('[Chat][Autostart] resolved inputs', { claimId: claimId ? claimId.slice(0,8)+'…' : '', directWs: directWs ? 'yes' : 'no' });
+        if (directWs || claimId) {
+          try {
+            console.warn('[Chat] Autostart connecting', directWs ? '[env URL]' : '[claimId derived]', directWs || (claimId.slice(0, 8) + '…'));
+            chat.updateChatUrl(directWs || claimId); // updateChatUrl will resolve claimId into ws URL template
+          } catch (e) {
+            console.error('[Chat] Autostart failed:', e && e.message ? e.message : e);
+          }
+        } else if (debugAutostart) {
+          console.warn('[Chat][Autostart] skipped: no claimId or env ODYSEE_WS_URL');
+        }
+      } else if (debugAutostart) {
+        console.warn('[Chat][Autostart] not eligible', { hasExplicitConfig, alreadyActive });
+      }
+    } else if (debugAutostart) {
+      console.warn('[Chat][Autostart] disabled or hosted', { autostartDisabled, hostedMode });
+    }
+  } catch {}
+
+  try {
+    const enableTenantAuto = process.env.GETTY_CHAT_AUTOSTART_TENANT === '1';
+    const debugAutostart = process.env.GETTY_CHAT_AUTOSTART_DEBUG === '1';
+    const inWalletMulti = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+    const hasRedis = !!process.env.REDIS_URL; // if Redis present, we skip to avoid large fan-out / resource use
+    if (enableTenantAuto && inWalletMulti && !hasRedis && chatNs) {
+      const tenantRoot = path.join(process.cwd(), 'tenant');
+      if (fs.existsSync(tenantRoot)) {
+        const dirs = fs.readdirSync(tenantRoot, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).slice(0, 200);
+        if (debugAutostart) console.warn('[Chat][Autostart][Tenant] scanning', { count: dirs.length });
+        const startPromises = [];
+        for (const ns of dirs) {
+          const nsLabel = ns.slice(0,8)+'…';
+          try {
+            const cfgPath = path.join(tenantRoot, ns, 'config', 'chat-config.json');
+            if (!fs.existsSync(cfgPath)) { continue; }
+            const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+            const data = raw && raw.data ? raw.data : raw;
+            const chatUrl = (data && typeof data.chatUrl === 'string') ? data.chatUrl : '';
+            if (!chatUrl) { continue; }
+            const st = chatNs.getStatus(ns) || {};
+            if (st.connected) { if (debugAutostart) console.warn('[Chat][Autostart][Tenant] already connected', nsLabel); continue; }
+            if (debugAutostart) console.warn('[Chat][Autostart][Tenant] starting ns', nsLabel);
+            const p = chatNs.start(ns, chatUrl).catch(e => {
+              if (debugAutostart) console.warn('[Chat][Autostart][Tenant] start promise rejected', nsLabel, e?.message);
+              throw e;
+            });
+            startPromises.push(p);
+          } catch (e) {
+            if (debugAutostart) console.warn('[Chat][Autostart][Tenant] failed pre-start', nsLabel, e?.message);
+          }
+        }
+        if (startPromises.length) {
+          Promise.allSettled(startPromises).then(results => {
+            try {
+              const ok = results.filter(r => r.status === 'fulfilled').length;
+              const fail = results.filter(r => r.status === 'rejected').length;
+              if (debugAutostart) console.warn('[Chat][Autostart][Tenant] completed', { ok, fail });
+            } catch {}
+          });
+        } else if (debugAutostart) {
+          console.warn('[Chat][Autostart][Tenant] no eligible tenants to start');
+        }
+      } else if (debugAutostart) {
+        console.warn('[Chat][Autostart][Tenant] no tenant dir');
+      }
+    } else if (debugAutostart) {
+      console.warn('[Chat][Autostart][Tenant] skipped', { enableTenantAuto, inWalletMulti, hasRedis, hasChatNs: !!chatNs });
+    }
+  } catch {}
 }
 
 registerTtsRoutes(app, wss, limiter, { store });
-registerSocialMediaRoutes(app, socialMediaModule, strictLimiter);
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, { store });
 
 registerLastTipRoutes(app, lastTip, tipWidget, { store, wss });
@@ -1462,6 +1603,8 @@ app.post('/api/test-tip', limiter, async (req, res) => {
       wss.broadcast(ns, { type: 'tip', data: donation });
     }
 
+    try { if (wss && typeof wss.emit === 'function') wss.emit('tip', { ...donation, source: donation.source || 'test-tip' }, ns || null); } catch {}
+
     wss.clients.forEach(client => {
       if (client && client.readyState === 1) {
         try { client.send(JSON.stringify({ type: 'tip', data: donation })); } catch {}
@@ -1470,7 +1613,8 @@ app.post('/api/test-tip', limiter, async (req, res) => {
     
     if (store && ns) {
       try {
-        const cfg = await store.get(ns, 'external-notifications-config', null);
+        let cfg = await store.get(ns, 'external-notifications-config', null);
+        if (cfg && cfg.__version && cfg.data) cfg = cfg.data;
         if (cfg) await externalNotifications.sendWithConfig(cfg, donation);
       } catch {}
     } else {
@@ -1931,6 +2075,110 @@ registerRaffleRoutes(app, raffle, wss, { store });
 
 const __serverStartTime = Date.now();
 
+try {
+  app.get('/api/admin/tenant/config-status', async (req, res) => {
+    try {
+      if (!process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+        return res.status(400).json({ error: 'multi_tenant_disabled' });
+      }
+      const adminNs = await resolveAdminNsFromReq(req);
+      if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
+
+      if (!req.auth || !req.auth.isAdmin) return res.status(401).json({ error: 'admin_required' });
+
+      const { loadTenantConfig, computeChecksum } = require('./lib/tenant-config');
+      const fs = require('fs');
+      const path = require('path');
+      const baseTenantDir = path.join(process.cwd(), 'tenant', adminNs, 'config');
+      const ensureMeta = (p) => {
+        try {
+          if (!fs.existsSync(p)) return null;
+          const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+          const data = raw.data || raw;
+          const checksum = raw.checksum || computeChecksum(data);
+          return {
+            filename: path.basename(p),
+            exists: true,
+            __version: raw.__version || null,
+            updatedAt: raw.updatedAt || null,
+            checksum,
+            size: Buffer.byteLength(JSON.stringify(raw)),
+            items: Array.isArray(data) ? data.length : (Array.isArray(data.messages) ? data.messages.length : undefined)
+          };
+        } catch (e) { return { filename: path.basename(p), error: e.message }; }
+      };
+
+  const annGlobal = path.join(process.cwd(), 'config', 'announcement-config.json');
+  const socGlobal = path.join(process.cwd(), 'config', 'socialmedia-config.json');
+  const tipGoalGlobal = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+  const lastTipGlobal = path.join(process.cwd(), 'config', 'last-tip-config.json');
+  const raffleGlobal = path.join(process.cwd(), 'config', 'raffle-config.json');
+  const achievementsGlobal = path.join(process.cwd(), 'config', 'achievements-config.json');
+  const chatGlobal = path.join(process.cwd(), 'config', 'chat-config.json');
+    const annTenant = path.join(baseTenantDir, 'announcement-config.json');
+    const socTenant = path.join(baseTenantDir, 'socialmedia-config.json');
+  const tipGoalTenant = path.join(baseTenantDir, 'tip-goal-config.json');
+  const lastTipTenant = path.join(baseTenantDir, 'last-tip-config.json');
+  const raffleTenant = path.join(baseTenantDir, 'raffle-config.json');
+  const achievementsTenant = path.join(baseTenantDir, 'achievements-config.json');
+  const chatTenant = path.join(baseTenantDir, 'chat-config.json');
+
+  const annLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, annGlobal, 'announcement-config.json');
+  const socLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, socGlobal, 'socialmedia-config.json');
+  const tipGoalLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, tipGoalGlobal, 'tip-goal-config.json');
+  const lastTipLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, lastTipGlobal, 'last-tip-config.json');
+  const raffleLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, raffleGlobal, 'raffle-config.json');
+  const achievementsLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, achievementsGlobal, 'achievements-config.json');
+  const chatLoad = await loadTenantConfig({ ns: { admin: adminNs } }, store, chatGlobal, 'chat-config.json');
+
+      const out = {
+        namespace: adminNs,
+        timestamp: new Date().toISOString(),
+        configs: {
+          announcement: {
+            source: annLoad.source,
+            tenantPath: annLoad.tenantPath || null,
+            meta: ensureMeta(annTenant) || ensureMeta(annGlobal)
+          },
+          socialmedia: {
+            source: socLoad.source,
+            tenantPath: socLoad.tenantPath || null,
+            meta: ensureMeta(socTenant) || ensureMeta(socGlobal)
+          },
+          tipGoal: {
+            source: tipGoalLoad.source,
+            tenantPath: tipGoalLoad.tenantPath || null,
+            meta: ensureMeta(tipGoalTenant) || ensureMeta(tipGoalGlobal)
+          },
+          lastTip: {
+            source: lastTipLoad.source,
+            tenantPath: lastTipLoad.tenantPath || null,
+            meta: ensureMeta(lastTipTenant) || ensureMeta(lastTipGlobal)
+          },
+          raffle: {
+            source: raffleLoad.source,
+            tenantPath: raffleLoad.tenantPath || null,
+            meta: ensureMeta(raffleTenant) || ensureMeta(raffleGlobal)
+          },
+          achievements: {
+            source: achievementsLoad.source,
+            tenantPath: achievementsLoad.tenantPath || null,
+            meta: ensureMeta(achievementsTenant) || ensureMeta(achievementsGlobal)
+          },
+          chat: {
+            source: chatLoad.source,
+            tenantPath: chatLoad.tenantPath || null,
+            meta: ensureMeta(chatTenant) || ensureMeta(chatGlobal)
+          }
+        }
+      };
+      return res.json(out);
+    } catch (e) {
+      return res.status(500).json({ error: 'config_status_failed', details: e?.message });
+    }
+  });
+} catch {}
+
 const __tipEvents = [];
 function __recordTip(evt) {
   try {
@@ -2322,7 +2570,7 @@ app.get('/api/modules', async (req, res) => {
   raffle: (async () => {
       try {
         let __adm = adminNs;
-        const st = raffle.getPublicState(__adm);
+  const st = await raffle.getPublicState(__adm);
         let configured = !!st.active || !!st.paused || (Array.isArray(st.participants) && st.participants.length > 0);
 
         if (!configured) {
@@ -2526,15 +2774,56 @@ app.get('/api/metrics', async (req, res) => {
 
     let liveviews = { live: false, viewerCount: 0 };
     try {
-      if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-        const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
-        const cfg = getLiveviewsConfigWithDefaults(raw || {});
-        if (cfg.claimid) {
-          const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(cfg.claimid)}`;
-          const resp = await axios.get(url, { timeout: 3000 });
-          const data = resp.data && resp.data.data ? resp.data.data : {};
-          liveviews.live = !!data.Live;
-          liveviews.viewerCount = typeof data.ViewerCount === 'number' ? data.ViewerCount : 0;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const key = ns ? `ns:${ns}` : 'single';
+      const ttlMs = Math.max(1000, parseInt(process.env.GETTY_LIVEVIEWS_TTL_MS || '10000', 10));
+      if (!app.__lvCache) app.__lvCache = {};
+
+      let cfgData = null;
+      if (loadTenantConfig) {
+        try {
+          const wrapped = await loadTenantConfig(req, store, LIVEVIEWS_CONFIG_FILE, 'liveviews-config.json');
+          if (wrapped && wrapped.data) cfgData = wrapped.data;
+        } catch {}
+      }
+
+      if ((!cfgData || !cfgData.claimid) && store && ns) {
+        try {
+          const legacy = await store.get(ns, 'liveviews-config', null);
+          if (legacy && typeof legacy === 'object') cfgData = { ...(cfgData || {}), ...legacy };
+        } catch {}
+      }
+
+      if ((!cfgData || !cfgData.claimid) && fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
+        try {
+          const raw = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+          if (raw && typeof raw === 'object') cfgData = { ...(cfgData || {}), ...raw };
+        } catch {}
+      }
+      const cfg = getLiveviewsConfigWithDefaults(cfgData || {});
+      const claimid = (cfg.claimid || '').trim();
+      if (claimid) {
+        const cached = app.__lvCache[key];
+        const now = Date.now();
+        if (cached && (now - cached.ts) < ttlMs) {
+          liveviews.live = !!cached.data.Live;
+          liveviews.viewerCount = typeof cached.data.ViewerCount === 'number' ? cached.data.ViewerCount : 0;
+        } else {
+          try {
+            const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claimid)}`;
+            const resp = await axios.get(url, { timeout: 3000 });
+            const data = resp?.data?.data || {};
+            const out = { Live: !!data.Live, ViewerCount: (typeof data.ViewerCount === 'number' ? data.ViewerCount : 0) };
+            app.__lvCache[key] = { ts: now, data: out };
+            liveviews.live = out.Live;
+            liveviews.viewerCount = out.ViewerCount;
+          } catch {
+            const stale = app.__lvCache[key];
+            if (stale) {
+              liveviews.live = !!stale.data.Live;
+              liveviews.viewerCount = typeof stale.data.ViewerCount === 'number' ? stale.data.ViewerCount : 0;
+            }
+          }
         }
       }
     } catch {}
@@ -2695,12 +2984,12 @@ wss.on('connection', async (ws) => {
           initPayload.lastTip = { lastDonation: lastTip.getLastDonation(), ...lt };
         }
 
-        initPayload.raffle = raffle.getPublicState(ns);
+  initPayload.raffle = await raffle.getPublicState(ns);
       } catch {}
     } else {
       initPayload.raffle = shouldRequireSession
         ? { active: false, paused: false, participants: [], totalWinners: 0 }
-        : raffle.getPublicState(null);
+  : await raffle.getPublicState(null);
     }
   try { ws.send(JSON.stringify({ type: 'init', data: initPayload })); ws.__initSent = true; } catch {}
 
@@ -2753,11 +3042,11 @@ wss.on('connection', async (ws) => {
     }
   } catch {}
 
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     try {
       const msg = JSON.parse(message);
       if (msg.type === 'get_raffle_state') {
-        const st = raffle.getPublicState(ws.nsToken || null);
+  const st = await raffle.getPublicState(ws.nsToken || null);
         ws.send(JSON.stringify({ type: 'raffle_state', ...st }));
       }
 
@@ -2792,7 +3081,8 @@ app.post('/api/test-discord', express.json(), async (req, res) => {
     let success = false;
     const ns = (req?.ns?.admin || req?.ns?.pub || null);
     if (store && ns) {
-      const cfg = await store.get(ns, 'external-notifications-config', null);
+      let cfg = await store.get(ns, 'external-notifications-config', null);
+      if (cfg && cfg.__version && cfg.data) cfg = cfg.data;
       if (cfg) success = await externalNotifications.sendWithConfig(cfg, tip);
     } else {
       success = await externalNotifications.sendToDiscord(tip);

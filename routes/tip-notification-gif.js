@@ -3,6 +3,7 @@ const path = require('path');
 const multer = require('multer');
 const { z } = require('zod');
 const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
+const { isOpenTestMode } = require('../lib/test-open-mode');
 
 function readGifDimensions(filePath) {
   const fd = fs.openSync(filePath, 'r');
@@ -94,12 +95,14 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       if (!hasNs) {
         const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
         if (requireSessionFlag) {
+
           return res.json({ gifPath: '', width: 0, height: 0 });
         }
         return res.json({ gifPath: '', position: 'right', width: 0, height: 0 });
       }
 
       if (conceal && !trusted) {
+
         return res.json({ gifPath: '', width: 0, height: 0 });
       }
       if (store && hasNs) {
@@ -126,10 +129,10 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     const hosted = !!process.env.REDIS_URL;
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
     const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
-    if ((requireSessionFlag || hosted) && !hasNs) {
+  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
       return res.status(401).json({ error: 'no_session' });
     }
-    if (requireAdminWrites) {
+  if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
@@ -185,14 +188,14 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     }
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
     const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
-    if ((requireSessionFlag || hosted) && !hasNs) {
+  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
       return res.status(401).json({ error: 'no_session' });
     }
-    if (requireAdminWrites) {
+  if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
-    if ((hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
+  if (!isOpenTestMode() && (hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
       return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }
     try {

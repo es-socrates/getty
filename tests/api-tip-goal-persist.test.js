@@ -1,21 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
+const { freshServer } = require('./helpers/freshServer');
+let appRef; let restoreBaseline;
+beforeAll(() => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENFORCE_OWNER_WRITES: '0', GETTY_REQUIRE_ADMIN_WRITE: '0' })); });
+afterAll(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
 
-process.env.NODE_ENV = 'test';
-const app = require('../server');
-
-const CONFIG_PATH = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+const CONFIG_DIR = process.env.GETTY_CONFIG_DIR ? process.env.GETTY_CONFIG_DIR : path.join(process.cwd(), 'config');
+const CONFIG_PATH = path.join(CONFIG_DIR, 'tip-goal-config.json');
 
 describe('Tip Goal persistence', () => {
   let server;
   let agent;
   beforeAll(async () => {
-    if (app.startTestServer) {
-      server = await app.startTestServer();
+    if (appRef.startTestServer) {
+      server = await appRef.startTestServer();
       agent = request(server);
     } else {
-      agent = request(app);
+      agent = request(appRef);
     }
   });
   afterAll(done => { if (server) server.close(done); else done(); });
@@ -33,9 +35,10 @@ describe('Tip Goal persistence', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
 
-    const raw = JSON.parse(fs.readFileSync(CONFIG_PATH,'utf8'));
-    expect(raw.title).toBe(title);
-    expect(raw.currentAmount).toBeCloseTo(0.1, 5);
+  const raw = JSON.parse(fs.readFileSync(CONFIG_PATH,'utf8'));
+  const dataLayer = raw && raw.data && typeof raw.data === 'object' ? raw.data : raw;
+  expect(dataLayer.title).toBe(title);
+  expect(dataLayer.currentAmount).toBeCloseTo(0.1, 5);
 
     delete require.cache[require.resolve('../modules/tip-goal')];
     const { TipGoalModule } = require('../modules/tip-goal');
@@ -43,8 +46,8 @@ describe('Tip Goal persistence', () => {
     const dummyWss = new Server({ noServer: true });
     const fresh = new TipGoalModule(dummyWss);
 
-    expect(fresh.title).toBe(title);
-    expect(fresh.currentTipsAR).toBeCloseTo(0.1, 5);
-    expect(fresh.monthlyGoalAR).toBe(8);
+  expect(fresh.title).toBe(title);
+  expect(fresh.currentTipsAR).toBeCloseTo(0.1, 5);
+  expect(fresh.monthlyGoalAR).toBe(8);
   });
 });

@@ -10,8 +10,20 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
   router.get('/config', async (req, res) => {
     try {
       const ns = await getNs(req);
-      const cfg = await achievements.getConfigEffective(ns);
-      res.json(cfg);
+      const { config: cfg, meta } = await achievements.getConfigWithMeta(ns);
+
+      try {
+        const hosted = (!!process.env.REDIS_URL) || (process.env.GETTY_REQUIRE_SESSION === '1');
+        if (hosted) {
+          const { canReadSensitive } = require('../lib/authz');
+          const allowSensitive = canReadSensitive(req);
+          if (!allowSensitive && cfg && typeof cfg === 'object' && 'claimid' in cfg) {
+            cfg.claimid = '';
+          }
+        }
+      } catch {}
+
+      res.json({ data: cfg, meta });
     } catch (e) {
       res.status(500).json({ error: 'failed_to_read_config', details: e?.message });
     }
@@ -20,8 +32,22 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
   router.post('/config', limiter, express.json(), async (req, res) => {
     try {
       const ns = await getNs(req);
-      const ok = await achievements.saveConfig(ns, req.body || {});
-      res.json({ ok });
+      const cfgIn = req.body || {};
+      const save = await achievements.saveConfig(ns, cfgIn);
+      const { config: cfg, meta } = await achievements.getConfigWithMeta(ns);
+
+      try {
+        const hosted = (!!process.env.REDIS_URL) || (process.env.GETTY_REQUIRE_SESSION === '1');
+        if (hosted) {
+          const { canReadSensitive } = require('../lib/authz');
+          const allowSensitive = canReadSensitive(req);
+          if (!allowSensitive && cfg && typeof cfg === 'object' && 'claimid' in cfg) {
+            cfg.claimid = '';
+          }
+        }
+      } catch {}
+
+      res.json({ ok: !!save.ok, data: cfg, meta: meta || save.meta || null });
     } catch (e) {
       res.status(500).json({ error: 'failed_to_save_config', details: e?.message });
     }

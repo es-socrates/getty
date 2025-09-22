@@ -545,6 +545,7 @@ const cfg = reactive({
   sound: { enabled: false, url: '', volume: 0.5 },
 });
 const status = reactive({ items: [] });
+const achMeta = ref(null);
 const saving = ref(false);
 const toasts = ref([]);
 let toastCounter = 0;
@@ -620,7 +621,20 @@ const grouped = computed(() => {
 
 async function loadAll() {
   try {
-    Object.assign(cfg, await fetchAchievementsConfig());
+    const { config, meta } = await fetchAchievementsConfig();
+
+    if (config && typeof config === 'object') {
+      for (const k of Object.keys(config)) {
+        if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
+          cfg.sound = { ...cfg.sound, ...config.sound };
+        } else if (k in cfg) {
+          cfg[k] = config[k];
+        } else {
+          cfg[k] = config[k];
+        }
+      }
+    }
+    achMeta.value = meta;
   } catch {}
   try {
     const st = await getAchievementsStatus();
@@ -642,7 +656,20 @@ async function loadAll() {
 async function save() {
   saving.value = true;
   try {
-    await saveAchievementsConfig(cfg);
+    const payload = { ...cfg, sound: { ...cfg.sound } };
+    const { config, meta } = await saveAchievementsConfig(payload);
+    if (config && typeof config === 'object') {
+      for (const k of Object.keys(config)) {
+        if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
+          cfg.sound = { ...cfg.sound, ...config.sound };
+        } else if (k in cfg) {
+          cfg[k] = config[k];
+        } else {
+          cfg[k] = config[k];
+        }
+      }
+    }
+    achMeta.value = meta;
     await loadAll();
     pushToast('success', 'toastSettingsSaved');
   } finally {

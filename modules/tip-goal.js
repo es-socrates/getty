@@ -29,6 +29,9 @@ function getGoalConfig() {
 const axios = require('axios');
 const WebSocket = require('ws');
 
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { tenantEnabled } = (() => { try { return require('../lib/tenant'); } catch { return { tenantEnabled: () => false }; } })();
+
 class TipGoalModule {
     constructor(wss) {
         if (!wss) {
@@ -45,7 +48,8 @@ class TipGoalModule {
         this.progressColor = '#00ff7f';
         this.theme = 'classic';
         this.title = 'Monthly tip goal 🎖️';
-        this.loadWalletAddress();
+    this._loadedMeta = null; // store version/checksum meta when hybrid persisted
+    this.loadWalletAddress();
 
         this.AR_TO_USD = 0;
         this.ARWEAVE_GATEWAYS = [
@@ -79,15 +83,13 @@ class TipGoalModule {
         }
     }
 
-    loadWalletAddress() {
+    async loadWalletAddress(reqForTenant) {
         const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
         const fs = require('fs');
         const path = require('path');
         const configDir = path.join(process.cwd(), 'config');
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        const configPath = path.join(configDir, 'tip-goal-config.json');
+        const globalPath = path.join(configDir, 'tip-goal-config.json');
+        if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
         const tipGoalDefault = {
             walletAddress: '',
             monthlyGoal: 10,
@@ -100,20 +102,29 @@ class TipGoalModule {
             audioSource: 'remote',
             title: 'Monthly tip goal 🎖️'
         };
-        if (!fs.existsSync(configPath)) {
-            if (!hostedMode) {
-                try {
-                    fs.writeFileSync(configPath, JSON.stringify(tipGoalDefault, null, 2));
-                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][CREATE_DEFAULT]', { path: configPath });
-                } catch (e) { console.error('[TipGoal] Failed creating default config:', e.message); }
-            }
-        }
+        let config = {};
         try {
-            let config = {};
-            try {
-                config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            } catch (e) {
-                if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][PARSE_ERROR]', e.message);
+            if (tenantEnabled && tenantEnabled(reqForTenant)) {
+                try {
+                    const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
+                    const lt = await loadTenantConfig(reqForTenant, store, globalPath, 'tip-goal-config.json');
+                    const data = lt.data?.data ? lt.data.data : lt.data;
+                    if (data && Object.keys(data).length) config = data;
+                    this._loadedMeta = { source: lt.source, tenantPath: lt.tenantPath };
+                } catch (e) {
+                    if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[TipGoal][TENANT_LOAD_ERROR]', e.message);
+                }
+            }
+            if (!config || !Object.keys(config).length) {
+                if (fs.existsSync(globalPath)) {
+                    try { config = JSON.parse(fs.readFileSync(globalPath, 'utf8')); } catch {}
+                } else if (!hostedMode) {
+                    try {
+                        fs.writeFileSync(globalPath, JSON.stringify(tipGoalDefault, null, 2));
+                        config = { ...tipGoalDefault };
+                        if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][CREATE_DEFAULT]', { path: globalPath });
+                    } catch (e) { console.error('[TipGoal] Failed creating default config:', e.message); }
+                }
             }
             const prevWallet = config.walletAddress || '';
             if (config.walletAddress) {
@@ -154,9 +165,15 @@ class TipGoalModule {
                         const updated = { ...tipGoalDefault, ...config, walletAddress: lastTipWallet };
                         if (!hostedMode) {
                             try {
-                                fs.writeFileSync(configPath, JSON.stringify(updated, null, 2));
+                                fs.writeFileSync(globalPath, JSON.stringify(updated, null, 2));
                                 if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][IMPORT_WALLET_FROM_LAST_TIP]', { prevWallet, newWallet: lastTipWallet });
                             } catch (e) { console.error('[TipGoal] Failed persisting imported wallet:', e.message); }
+                        } else if (tenantEnabled && tenantEnabled(reqForTenant)) {
+                            try {
+                                const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
+                                const saveReq = reqForTenant || { __forceWalletHash: (this.walletAddress || '').slice(0, 12) };
+                                await saveTenantConfig(saveReq, store, globalPath, 'tip-goal-config.json', updated);
+                            } catch {}
                         }
                     }
                 } catch {}
@@ -406,30 +423,28 @@ class TipGoalModule {
         try {
             const fs = require('fs');
             const path = require('path');
-            const configPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+            const globalPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
             let existing = {};
-            if (fs.existsSync(configPath)) {
-                try { existing = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {}
-            }
-            const merged = {
-                ...existing,
-                walletAddress: this.walletAddress,
-                monthlyGoal: this.monthlyGoalAR,
-                currentAmount: this.currentTipsAR,
-                theme: this.theme,
-                bgColor: this.bgColor,
-                fontColor: this.fontColor,
-                borderColor: this.borderColor,
-                progressColor: this.progressColor,
-                title: this.title
-            };
+            if (fs.existsSync(globalPath)) { try { existing = JSON.parse(fs.readFileSync(globalPath, 'utf8')); } catch {} }
+            const merged = { ...existing, walletAddress: this.walletAddress, monthlyGoal: this.monthlyGoalAR, currentAmount: this.currentTipsAR, theme: this.theme, bgColor: this.bgColor, fontColor: this.fontColor, borderColor: this.borderColor, progressColor: this.progressColor, title: this.title };
             const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
             if (!hostedMode) {
                 if (existing.walletAddress && !this.walletAddress) {
                     if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][SKIP_WRITE_EMPTY_WALLET]', { existing: existing.walletAddress });
                 } else {
-                    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
-                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][WRITE_CONFIG]', { path: configPath, wallet: this.walletAddress });
+                    fs.writeFileSync(globalPath, JSON.stringify(merged, null, 2));
+                    if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][WRITE_CONFIG]', { path: globalPath, wallet: this.walletAddress });
+                }
+            } else {
+                if (this._lastReqForSave && (tenantEnabled && tenantEnabled(this._lastReqForSave))) {
+                    try {
+                        const store = (this._lastReqForSave.app && this._lastReqForSave.app.get) ? this._lastReqForSave.app.get('store') : null;
+                        saveTenantConfig(this._lastReqForSave, store, globalPath, 'tip-goal-config.json', merged)
+                          .then(saveRes => { this._loadedMeta = saveRes.meta; })
+                          .catch(e => { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[TipGoal][TENANT_SAVE_ERROR]', e.message); });
+                    } catch (e) {
+                        if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[TipGoal][TENANT_SAVE_ERROR]', e.message);
+                    }
                 }
             }
         } catch (e) {
@@ -437,7 +452,7 @@ class TipGoalModule {
         }
     }
     
-    updateWalletAddress(newAddress) {
+    updateWalletAddress(newAddress, reqForTenant) {
         const incoming = (newAddress || '').trim();
 
         if (incoming === this.walletAddress) return this.getStatus();
@@ -463,6 +478,13 @@ class TipGoalModule {
                     fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
                     if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[TipGoal][WRITE_CONFIG_EXPLICIT]', { path: configPath, wallet: this.walletAddress });
                 }
+            } else if (reqForTenant && tenantEnabled && tenantEnabled(reqForTenant)) {
+                try {
+                    const store = (reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
+                    saveTenantConfig(reqForTenant, store, configPath, 'tip-goal-config.json', merged)
+                      .then(saveRes => { this._loadedMeta = saveRes.meta; this._lastReqForSave = reqForTenant; })
+                      .catch(e => { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[TipGoal][TENANT_SAVE_WALLET_ERROR]', e.message); });
+                } catch (e) { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[TipGoal][TENANT_SAVE_WALLET_ERROR]', e.message); }
             }
         } catch (e) { console.error('[TipGoal] Error writing wallet address to config:', e); }
         this.processedTxs = new Set();
@@ -476,7 +498,7 @@ class TipGoalModule {
         return this.getStatus();
     }
     
-    updateGoal(newGoal, startingAmount = 0) {
+    updateGoal(newGoal, startingAmount = 0, reqForTenant) {
         const parsedGoal = parseFloat(newGoal) || 10;
         const parsedStarting = parseFloat(startingAmount) || 0;
         
@@ -490,6 +512,7 @@ class TipGoalModule {
         process.env.GOAL_AR = this.monthlyGoalAR.toString();
         process.env.STARTING_AR = this.currentTipsAR.toString();
         
+        if (reqForTenant) this._lastReqForSave = reqForTenant;
         this.sendGoalUpdate();
         return this.getStatus();
     }

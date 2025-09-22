@@ -17,6 +17,9 @@ importers:
       '@untitledui/icons':
         specifier: ^0.0.19
         version: 0.0.19(react@19.1.1)
+      '@wanderapp/connect':
+        specifier: ^0.1.12
+        version: 0.1.12
       arweave:
         specifier: ^1.15.7
         version: 1.15.7
@@ -1998,6 +2001,9 @@ packages:
 
   '@vue/test-utils@2.4.6':
     resolution: {integrity: sha512-FMxEjOpYNYiFe0GkaHsnJPXFHxQ6m4t8vI/ElPGpMWxZKpmRvQ33OIrvRXemy6yha03RxhOlQuy+gZMC3CQSow==}
+
+  '@wanderapp/connect@0.1.12':
+    resolution: {integrity: sha512-9UwqUw6EJemhqnEd24kjDa4rnQpGFetcp2bmcfMYP2N50i6MLk0suIDjBPF/NFXnU60rCLc2ZxUWa1x5M8dAVg==}
 
   abbrev@2.0.0:
     resolution: {integrity: sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ==}
@@ -4939,6 +4945,10 @@ packages:
     peerDependencies:
       typescript: '>=4.0.0'
 
+  ts-deepmerge@7.0.3:
+    resolution: {integrity: sha512-Du/ZW2RfwV/D4cmA5rXafYjBQVuvu4qGiEEla4EmEHVHgRdx68Gftx7i66jn2bzHPwSVZY36Ae6OuDn9el4ZKA==}
+    engines: {node: '>=14.13.1'}
+
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
@@ -7502,6 +7512,10 @@ snapshots:
     dependencies:
       js-beautify: 1.15.4
       vue-component-type-helpers: 2.2.12
+
+  '@wanderapp/connect@0.1.12':
+    dependencies:
+      ts-deepmerge: 7.0.3
 
   abbrev@2.0.0: {}
 
@@ -11079,6 +11093,8 @@ snapshots:
     dependencies:
       picomatch: 4.0.3
       typescript: 5.9.2
+
+  ts-deepmerge@7.0.3: {}
 
   ts-interface-checker@0.1.13: {}
 

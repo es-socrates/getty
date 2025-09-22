@@ -2,6 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const { z } = require('zod');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
+const { isOpenTestMode } = require('../lib/test-open-mode');
 
 const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
 function isValidArweaveAddress(addr) {
@@ -23,14 +26,25 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
   const tenant = (() => { try { return require('../lib/tenant'); } catch { return null; } })();
   const __VERBOSE_BROADCAST = process.env.GETTY_VERBOSE_BROADCAST === '1';
 
-  function readConfig() {
+  function __hostedRedis() { return !!(store && store.redis); }
+  function __requireSessionFlag() { return process.env.GETTY_REQUIRE_SESSION === '1'; }
+  function __requireAdminWriteFlag() { return process.env.GETTY_REQUIRE_ADMIN_WRITE === '1'; }
+  function __hasRedisUrl() { return !!process.env.REDIS_URL; }
+  function __hosted() { return __hostedRedis() || __requireSessionFlag(); }
+  function __shouldRequireSession() { return __hosted() && !isOpenTestMode(); }
+  function __shouldRequireAdminWrites() { return (__requireAdminWriteFlag() || __hasRedisUrl()) && !isOpenTestMode(); }
+  function __shouldEnforceTrustedWrite() { return __hosted() && !isOpenTestMode(); }
+
+  function readConfigRaw() {
     try {
       if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-        return JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
+        try {
+          const hybrid = readHybridConfig(TIP_GOAL_CONFIG_FILE);
+          if (hybrid && hybrid.data && Object.keys(hybrid.data).length) return hybrid.data;
+        } catch {}
+        try { return JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8')); } catch {}
       }
-    } catch (e) {
-      console.error('Error reading tip goal config:', e);
-    }
+    } catch {}
     return null;
   }
 
@@ -47,17 +61,25 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           if (!exists) return res.status(404).json({ error: 'No tip goal configured', tenant: true, strict: true });
         } catch {}
       }
+      let meta = null;
       if (tenant && tenant.tenantEnabled(req)) {
-        const loaded = tenant.loadConfigWithFallback(req, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
-        if (loaded.missing) return res.status(404).json({ error: 'No tip goal configured', tenant: true });
-        cfg = loaded.data;
-        if (cfg && typeof cfg === 'object' && Object.keys(cfg).length === 0) {
-          return res.status(404).json({ error: 'No tip goal configured', tenant: true, empty: true });
-        }
+        try {
+          const storeInst = (req.app && req.app.get) ? req.app.get('store') : store;
+          const lt = await loadTenantConfig(req, storeInst, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
+          const data = lt.data?.data ? lt.data.data : lt.data;
+          if (data && Object.keys(data).length) {
+            cfg = data;
+            meta = { source: lt.source, tenantPath: lt.tenantPath, checksum: lt.data.checksum, __version: lt.data.__version };
+          }
+        } catch (e) { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[tip-goal][tenant_load_error]', e.message); }
       } else if (store && ns) {
-        cfg = await store.get(ns, 'tip-goal-config', null);
+        const wrapped = await store.getConfig(ns, 'tip-goal-config.json', null) || await store.get(ns, 'tip-goal-config', null);
+        if (wrapped) {
+          cfg = wrapped.data ? wrapped.data : wrapped;
+          meta = wrapped.data ? { __version: wrapped.__version, checksum: wrapped.checksum } : null;
+        }
       }
-      if (!cfg) cfg = readConfig();
+      if (!cfg) cfg = readConfigRaw();
       if (!cfg) return res.status(404).json({ error: 'No tip goal configured' });
       const out = { ...cfg };
       try {
@@ -76,7 +98,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           if (!isLocal && out && typeof out === 'object' && out.walletAddress) delete out.walletAddress;
         }
       } catch {}
-      res.json({ success: true, ...out });
+      res.json({ success: true, ...(meta ? { meta } : {}), ...out });
     } catch (e) {
       res.status(500).json({ error: 'Error loading tip goal config', details: e.message });
     }
@@ -85,18 +107,15 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
     try {
       try { require('../lib/wallet-session').ensureWalletSession(req); } catch {}
 
-  const requireSession = (store && store.redis) || process.env.GETTY_REQUIRE_SESSION === '1';
-  if (requireSession && !(req?.ns?.admin || req?.ns?.pub || (req.walletSession && req.walletSession.walletHash))) {
+  if (__shouldRequireSession() && !(req?.ns?.admin || req?.ns?.pub || (req.walletSession && req.walletSession.walletHash))) {
         return res.status(401).json({ error: 'no_session' });
       }
-      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
-      if (requireAdminWrites) {
+  if (__shouldRequireAdminWrites()) {
         const isAdmin = !!(req?.auth && req.auth.isAdmin);
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const { canWriteConfig } = require('../lib/authz');
-      const hosted = ((store && store.redis) || process.env.GETTY_REQUIRE_SESSION === '1');
-      if (hosted && !canWriteConfig(req)) {
+      if (__shouldEnforceTrustedWrite() && !canWriteConfig(req)) {
         return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
       }
       const schema = z.object({
@@ -122,13 +141,24 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       let prevCfg = null;
       if (tenant && tenant.tenantEnabled(req)) {
         try {
-          const loaded = tenant.loadConfigWithFallback(req, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
-          if (!loaded.missing) prevCfg = loaded.data;
+          const storeInst = (req.app && req.app.get) ? req.app.get('store') : store;
+          const lt = await loadTenantConfig(req, storeInst, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
+          const data = lt.data?.data ? lt.data.data : lt.data;
+          if (data && Object.keys(data).length) prevCfg = data;
         } catch {}
       } else if (store && ns) {
-        try { prevCfg = await store.get(ns, 'tip-goal-config', null); } catch {}
+        try {
+          let wrapped = null;
+          if (typeof store.getConfig === 'function') {
+            try { wrapped = await store.getConfig(ns, 'tip-goal-config.json', null); } catch {}
+          }
+          if (!wrapped) {
+            try { wrapped = await store.get(ns, 'tip-goal-config', null); } catch {}
+          }
+          prevCfg = wrapped ? (wrapped.data ? wrapped.data : wrapped) : null;
+        } catch {}
       } else {
-        prevCfg = readConfig();
+        prevCfg = readConfigRaw();
       }
       prevCfg = (prevCfg && typeof prevCfg === 'object') ? prevCfg : {};
 
@@ -165,10 +195,10 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       }
 
       if (!(tenant && tenant.tenantEnabled(req)) && !(store && ns)) {
-        tipGoal.updateWalletAddress(walletAddress);
-        tipGoal.monthlyGoalAR = monthlyGoal;
-        tipGoal.currentTipsAR = currentAmount;
-        tipGoal.theme = theme;
+        try { if (tipGoal && typeof tipGoal.updateWalletAddress === 'function') tipGoal.updateWalletAddress(walletAddress); } catch {}
+        try { if (tipGoal) tipGoal.monthlyGoalAR = monthlyGoal; } catch {}
+        try { if (tipGoal) tipGoal.currentTipsAR = currentAmount; } catch {}
+        try { if (tipGoal) tipGoal.theme = theme; } catch {}
       }
 
       let audioFile = null;
@@ -199,31 +229,59 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         ...(widgetTitle ? { title: widgetTitle } : (prevCfg.title ? { title: prevCfg.title } : {})),
         ...(audioFile ? { customAudioUrl: audioFile } : (prevCfg.customAudioUrl ? { customAudioUrl: prevCfg.customAudioUrl } : {}))
       };
+      let meta = null;
       if (tenant && tenant.tenantEnabled(req)) {
-        // Save tenant-specific tip goal config
-        tenant.saveTenantAwareConfig(req, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json', () => config);
-        // Propagate wallet to tenant last-tip config if provided
-        if (walletProvided) {
-          try {
-            tenant.saveTenantAwareConfig(
-              req,
-              path.join(process.cwd(), 'config', 'last-tip-config.json'),
-              'last-tip-config.json',
-              current => ({ ...(current && typeof current === 'object' ? current : {}), walletAddress })
-            );
-          } catch {}
-        }
+        try {
+          const storeInst = (req.app && req.app.get) ? req.app.get('store') : store;
+          const saveRes = await saveTenantConfig(req, storeInst, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json', config);
+          meta = saveRes.meta;
+          if (walletProvided) {
+            try {
+              const lastTipGlobal = path.join(process.cwd(), 'config', 'last-tip-config.json');
+
+              let existingLast = {};
+              try {
+                const ltLoaded = await loadTenantConfig(req, storeInst, lastTipGlobal, 'last-tip-config.json');
+                const data = ltLoaded.data?.data ? ltLoaded.data.data : ltLoaded.data;
+                if (data && typeof data === 'object') existingLast = data;
+              } catch {}
+              const mergedLast = { ...existingLast, walletAddress };
+              await saveTenantConfig(req, storeInst, lastTipGlobal, 'last-tip-config.json', mergedLast);
+            } catch {}
+          }
+        } catch (e) { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[tip-goal][tenant_save_error]', e.message); }
       } else if (store && ns) {
-        await store.set(ns, 'tip-goal-config', config);
+        if (typeof store.setConfig === 'function') {
+          try { await store.setConfig(ns, 'tip-goal-config.json', config); } catch { /* fall through */ }
+        }
+        if (!(typeof store.setConfig === 'function')) {
+          try { await store.set(ns, 'tip-goal-config', config); } catch {}
+        }
         if (walletProvided) {
           try {
-            const prevLast = await store.get(ns, 'last-tip-config', null);
-            const newLast = { ...(prevLast && typeof prevLast === 'object' ? prevLast : {}), walletAddress };
-            await store.set(ns, 'last-tip-config', newLast);
+            let existingLast = {};
+            if (typeof store.getConfig === 'function') {
+              try { existingLast = await store.getConfig(ns, 'last-tip-config.json', null) || {}; } catch {}
+            }
+            if (!existingLast || Object.keys(existingLast).length === 0) {
+              try { existingLast = await store.get(ns, 'last-tip-config', null) || {}; } catch {}
+            }
+            const existingData = existingLast.data ? existingLast.data : existingLast;
+            const mergedLast = { ...(existingData && typeof existingData === 'object' ? existingData : {}), walletAddress };
+            if (typeof store.setConfig === 'function') {
+              try { await store.setConfig(ns, 'last-tip-config.json', mergedLast); } catch {}
+            } else {
+              try { await store.set(ns, 'last-tip-config', mergedLast); } catch {}
+            }
           } catch {}
         }
       } else {
-        fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2));
+        try {
+          const saveRes = writeHybridConfig(TIP_GOAL_CONFIG_FILE, config);
+          meta = saveRes.meta || meta;
+        } catch {
+          try { fs.writeFileSync(TIP_GOAL_CONFIG_FILE, JSON.stringify(config, null, 2)); } catch {}
+        }
       }
 
       try {
@@ -250,15 +308,15 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         } else if (store && ns) {
           await store.set(ns, 'goal-audio-settings', audioCfg);
         } else {
-          fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(audioCfg, null, 2));
+          try { writeHybridConfig(GOAL_AUDIO_CONFIG_FILE, audioCfg); } catch { try { fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(audioCfg, null, 2)); } catch {} }
         }
       } catch {}
 
       if (tenant && tenant.tenantEnabled(req)) {
-        const walletNs = req.walletSession.walletHash;
+        const walletNs = (req.walletSession && req.walletSession.walletHash) ? req.walletSession.walletHash : null;
         try {
-          if (process.env.NODE_ENV === 'test' && __VERBOSE_BROADCAST) console.warn('[tip-goal][broadcast]', { path: 'tenant', walletNs, hasWs: !!wss, hasBroadcast: typeof wss?.broadcast === 'function' });
-          if (typeof wss?.broadcast === 'function') wss.broadcast(walletNs, { type: 'tipGoalUpdate', data: { ...config } });
+          if (walletNs && process.env.NODE_ENV === 'test' && __VERBOSE_BROADCAST) console.warn('[tip-goal][broadcast]', { path: 'tenant', walletNs, hasWs: !!wss, hasBroadcast: typeof wss?.broadcast === 'function' });
+          if (walletNs && typeof wss?.broadcast === 'function') wss.broadcast(walletNs, { type: 'tipGoalUpdate', data: { ...config } });
         } catch {}
       } else if (store && ns) {
         try {
@@ -271,7 +329,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           if (typeof wss?.broadcast === 'function') wss.broadcast(req.walletSession.walletHash, { type: 'tipGoalUpdate', data: { ...config } });
         } catch {}
       } else {
-        tipGoal.sendGoalUpdate();
+        try { if (tipGoal && typeof tipGoal.sendGoalUpdate === 'function') tipGoal.sendGoalUpdate(); } catch {}
       }
 
       try {
@@ -301,7 +359,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
 
       try {
         if (tenant && tenant.tenantEnabled(req)) {
-          if (typeof wss?.broadcast === 'function') {
+          if (req.walletSession && req.walletSession.walletHash && typeof wss?.broadcast === 'function') {
             wss.broadcast(req.walletSession.walletHash, {
               type: 'goalAudioSettingsUpdate',
               data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) }
@@ -319,7 +377,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
               data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) }
             });
           }
-        } else {
+        } else if (wss && wss.clients) {
           wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } }));
@@ -328,7 +386,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         }
       } catch {}
 
-  res.json({ success: true, active: true, ...config });
+  res.json({ success: true, active: true, ...(meta ? { meta } : {}), ...config });
     } catch (error) {
       console.error('Error in /api/tip-goal:', error);
       res.status(500).json({

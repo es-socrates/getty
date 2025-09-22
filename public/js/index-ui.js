@@ -1,8 +1,4 @@
-// Index page UI behavior (extracted from inline script)
-// - Theme toggle persistence
-// - User menu open/close
-// - Chat theme flags
-// - Raffle element tagging
+// Index page UI behavior
 
 ;(function() {
   try {

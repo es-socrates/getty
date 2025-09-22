@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const LanguageConfig = require('./language-config');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 class AchievementsModule {
   constructor(wss, opts = {}) {
@@ -22,23 +23,41 @@ class AchievementsModule {
     this._loadStateFromDisk();
   }
 
-  loadConfig(ns = null) {
+  async loadConfig(ns = null) {
     try {
-      if (this.namespaced && ns) return this.store.get(ns, 'achievements-config', null);
-      if (!fs.existsSync(this.configFile)) return null;
-      return JSON.parse(fs.readFileSync(this.configFile, 'utf8'));
+      const reqShim = { ns: { admin: ns } };
+      const lt = await loadTenantConfig(reqShim, this.store, this.configFile, 'achievements-config.json');
+      return (lt && lt.data) ? lt.data : null;
     } catch { return null; }
   }
   async saveConfig(ns, cfg) {
     try {
-      const sane = this._withDefaults(cfg);
-      if (this.namespaced && ns) {
-        await this.store.set(ns, 'achievements-config', sane);
-        return true;
+      const existing = await this.loadConfig(ns) || {};
+      const incoming = cfg && typeof cfg === 'object' ? cfg : {};
+      const merged = { ...existing };
+      for (const k of Object.keys(incoming)) {
+        if (k === 'sound' && typeof incoming.sound === 'object' && incoming.sound) {
+          const prevSound = existing.sound && typeof existing.sound === 'object' ? existing.sound : {};
+          merged.sound = { ...prevSound, ...incoming.sound };
+        } else {
+          merged[k] = incoming[k];
+        }
       }
-      fs.writeFileSync(this.configFile, JSON.stringify(sane, null, 2));
-      return true;
-    } catch { return false; }
+      const sane = this._withDefaults(merged);
+      const reqShim = { ns: { admin: ns } };
+      const metaWrap = await saveTenantConfig(reqShim, this.store, this.configFile, 'achievements-config.json', sane);
+      return { ok: true, meta: metaWrap && metaWrap.meta ? metaWrap.meta : null };
+    } catch { return { ok: false, meta: null }; }
+  }
+
+  async getConfigWithMeta(ns = null) {
+    try {
+      const reqShim = { ns: { admin: ns } };
+      const lt = await loadTenantConfig(reqShim, this.store, this.configFile, 'achievements-config.json');
+      const cfg = (lt && lt.data) ? lt.data : {};
+      const meta = lt && lt.meta ? { ...lt.meta, source: lt.source } : null;
+      return { config: this._withDefaults(cfg || {}), meta };
+    } catch { return { config: this._withDefaults({}), meta: null }; }
   }
   _withDefaults(partial) {
     const p = partial || {};
@@ -201,10 +220,8 @@ class AchievementsModule {
       if (!bag.progress) bag.progress = {};
 
       const now = Date.now();
-
       const lastWeekStart = Number(bag.progress._weekStart || 0);
       const lastMonthStart = Number(bag.progress._monthStart || 0);
-
       const d = new Date(now);
       const monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0).getTime();
       const day = (d.getDay() + 6) % 7;
@@ -356,14 +373,7 @@ class AchievementsModule {
     } catch { return ''; }
   }
 
-  _coerceConfigSync(ns) {
-    try { const v = this.loadConfig(ns); if (v && typeof v.then === 'function') return this._withDefaults(null); } catch {}
-    try {
-      if (this.namespaced || ns) return this._withDefaults({});
-      if (fs.existsSync(this.configFile)) return this._withDefaults(JSON.parse(fs.readFileSync(this.configFile, 'utf8')));
-    } catch {}
-    return this._withDefaults({});
-  }
+  _coerceConfigSync(_ns) { return this._withDefaults({}); }
 }
 
 module.exports = { AchievementsModule };

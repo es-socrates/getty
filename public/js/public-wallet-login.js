@@ -51,6 +51,7 @@ class WanderWalletLogin {
         this.elements.langInline = document.getElementById('language-selector-inline');
         this.elements.langBtn = document.getElementById('lang-btn');
         this.elements.langMenu = document.getElementById('lang-menu');
+        this.elements.langBtnLabel = document.getElementById('lang-btn-label');
         this.elements.statusDot = document.querySelector('.connection-status .status-dot');
         this.elements.btnLabel = this.elements.loginBtn ? this.elements.loginBtn.querySelector('.btn-label') : null;
         this.safeAttach(this.elements.loginBtn, 'click', () => this.handleLoginClick());
@@ -87,6 +88,10 @@ class WanderWalletLogin {
                     this.safeAttach(btn, 'click', () => {
                         const lang = btn.getAttribute('data-lang');
                         try { localStorage.setItem('lang', lang); localStorage.setItem('admin_locale', lang); } catch {}
+
+                        if (this.elements.langBtnLabel) {
+                            this.elements.langBtnLabel.textContent = lang.toUpperCase();
+                        }
                         window.location.reload();
                     });
                 });
@@ -108,6 +113,13 @@ class WanderWalletLogin {
         this.bootstrapSession();
         this.startWalletInjectionWatcher();
     this.ensureInstallBanner();
+
+        try {
+            const storedLang = (localStorage.getItem('lang') || this.locale || 'en').toLowerCase();
+            if (this.elements.langBtnLabel) {
+                this.elements.langBtnLabel.textContent = storedLang.toUpperCase();
+            }
+        } catch {}
 
         try {
             window.addEventListener('storage', (e) => {
@@ -619,7 +631,12 @@ class WanderWalletLogin {
             if (addressEl) addressEl.textContent = this.arweaveAddress || '';
             if (balanceEl) balanceEl.textContent = balance;
             if (openAdmin) { openAdmin.classList.remove('hidden'); openAdmin.dataset.visible = 'true'; }
-            if (logoutInline) { logoutInline.classList.remove('hidden'); logoutInline.dataset.visible = 'true'; }
+            if (logoutInline) {
+                logoutInline.classList.remove('hidden');
+                logoutInline.dataset.visible = 'true';
+                try { logoutInline.textContent = this.t('logoutLabel') || logoutInline.textContent; } catch {}
+                try { logoutInline.title = this.t('logoutLabel'); logoutInline.setAttribute('aria-label', this.t('logoutLabel')); } catch {}
+            }
             if (langBtn) { langBtn.classList.remove('hidden'); langBtn.dataset.visible = 'true'; langBtn.classList.add('flex'); }
             if (statusDot) {
                 statusDot.classList.remove('disconnected');
@@ -628,8 +645,8 @@ class WanderWalletLogin {
         } else {
             if (loginBtn) {
                 loginBtn.dataset.state = 'logged-out';
-                if (btnLabel) btnLabel.textContent = btnLabel?.dataset?.defaultLabel || this.t('loginLabel');
-                loginBtn.title = '';
+                if (btnLabel) btnLabel.textContent = this.t('loginLabel');
+                loginBtn.title = this.t('loginLabel');
             }
             if (inlineBalance) {
                 inlineBalance.textContent = '';

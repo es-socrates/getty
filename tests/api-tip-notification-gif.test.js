@@ -1,7 +1,10 @@
 const request = require('supertest');
 const path = require('path');
 const fs = require('fs');
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
+let appRef; let restoreBaseline;
+beforeAll(() => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENFORCE_OWNER_WRITES: '0', GETTY_REQUIRE_ADMIN_WRITE: '0' })); });
+afterAll(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
 
 function makeMinimalGif(width, height) {
   const buf = Buffer.alloc(10);
@@ -13,7 +16,7 @@ function makeMinimalGif(width, height) {
 
 async function uploadGif(width, height, position = 'right') {
   const gifBuffer = makeMinimalGif(width, height);
-  return request(app)
+  return request(appRef)
     .post('/api/tip-notification-gif')
     .field('position', position)
     .attach('gifFile', gifBuffer, { filename: 'test.gif', contentType: 'image/gif' });
@@ -26,13 +29,13 @@ describe('Tip Notification GIF API', () => {
   });
 
   test('DELETE resets config safely (idempotent)', async () => {
-    const res = await request(app).delete('/api/tip-notification-gif');
+  const res = await request(appRef).delete('/api/tip-notification-gif');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true, gifPath: '', position: 'right' });
   });
 
   test('GET returns default-like structure', async () => {
-    const res = await request(app).get('/api/tip-notification-gif');
+  const res = await request(appRef).get('/api/tip-notification-gif');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('gifPath');
     expect(res.body).toHaveProperty('position');
@@ -41,7 +44,7 @@ describe('Tip Notification GIF API', () => {
   });
 
   test('Rejects non-GIF file', async () => {
-    const res = await request(app)
+  const res = await request(appRef)
       .post('/api/tip-notification-gif')
       .field('position', 'left')
       .attach('gifFile', Buffer.from('not a gif'), { filename: 'file.txt', contentType: 'text/plain' });
@@ -68,7 +71,7 @@ describe('Tip Notification GIF API', () => {
   });
 
   test('Updates position without re-uploading file', async () => {
-    const res = await request(app)
+  const res = await request(appRef)
       .post('/api/tip-notification-gif')
       .field('position', 'bottom');
     expect(res.status).toBe(200);
@@ -79,7 +82,7 @@ describe('Tip Notification GIF API', () => {
   });
 
   test('DELETE removes stored GIF data', async () => {
-    const res = await request(app).delete('/api/tip-notification-gif');
+  const res = await request(appRef).delete('/api/tip-notification-gif');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.gifPath).toBe('');

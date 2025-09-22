@@ -13,6 +13,8 @@ function calculateFileHash(filePath) {
 }
 
 function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
+  const { isOpenTestMode } = require('../lib/test-open-mode');
+  const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
   app.get('/api/goal-audio', (req, res) => {
     try {
       const baseDir = path.join(process.cwd(), 'public/uploads/goal-audio');
@@ -70,33 +72,17 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
     }
   });
 
-  function loadGoalAudioSettings(GOAL_AUDIO_CONFIG_FILE) {
-    try {
-      if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
-        const settings = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
-        return {
-          audioSource: settings.audioSource || 'remote',
-          hasCustomAudio: settings.hasCustomAudio || false,
-          audioFileName: settings.audioFileName || null,
-          audioFileSize: settings.audioFileSize || 0
-        };
-      }
-    } catch (error) {
-      console.error('Error loading goal audio settings:', error);
-    }
-    return { audioSource: 'remote', hasCustomAudio: false, audioFileName: null, audioFileSize: 0 };
-  }
+  const SETTINGS_FILENAME = 'goal-audio-settings.json';
+  const GLOBAL_SETTINGS_PATH = path.join(process.cwd(), 'config', SETTINGS_FILENAME);
 
-  function saveGoalAudioSettings(GOAL_AUDIO_CONFIG_FILE, newSettings) {
-    try {
-      const current = loadGoalAudioSettings(GOAL_AUDIO_CONFIG_FILE);
-      const merged = { ...current, ...newSettings };
-      fs.writeFileSync(GOAL_AUDIO_CONFIG_FILE, JSON.stringify(merged, null, 2));
-      return true;
-    } catch (error) {
-      console.error('Error saving goal audio settings:', error);
-      return false;
-    }
+  function normalizeSettings(raw) {
+    const base = raw && typeof raw === 'object' ? raw : {};
+    return {
+      audioSource: base.audioSource || 'remote',
+      hasCustomAudio: !!base.hasCustomAudio,
+      audioFileName: base.audioFileName || null,
+      audioFileSize: base.audioFileSize || 0
+    };
   }
 
   app.get('/api/goal-audio-settings', (req, res) => {
@@ -104,16 +90,25 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-      if ((requireSessionFlag || hosted) && !hasNs) {
+  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.json({ audioSource: 'remote', hasCustomAudio: false });
       }
-      const file = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
-      if (fs.existsSync(file)) {
-        const settings = JSON.parse(fs.readFileSync(file, 'utf8'));
-        res.json(settings);
-      } else {
-        res.json({ audioSource: 'remote', hasCustomAudio: false });
-      }
+      (async () => {
+        try {
+          const loaded = await loadTenantConfig(req, req.app?.get('store'), GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
+          const raw = loaded.data?.data ? loaded.data.data : loaded.data; // unwrap
+          const meta = loaded.data && (loaded.data.__version || loaded.data.checksum) ? {
+            __version: loaded.data.__version,
+            checksum: loaded.data.checksum,
+            updatedAt: loaded.data.updatedAt
+          } : null;
+          const flat = normalizeSettings(raw);
+          return res.json(meta ? { meta, ...flat } : flat);
+        } catch (e) {
+          console.error('Error loading goal audio settings (tenant):', e);
+          return res.json({ audioSource: 'remote', hasCustomAudio: false });
+        }
+      })();
     } catch (error) {
       console.error('Error loading goal audio settings:', error);
       res.status(500).json({ error: 'Error loading settings' });
@@ -127,7 +122,7 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
       const shouldRequireSession = requireSessionFlag || hostedWithRedis;
       const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
 
-      if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
         const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
@@ -151,15 +146,21 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
         });
       } catch {}
 
-      const file = path.join(process.cwd(), 'config', 'goal-audio-settings.json');
-      saveGoalAudioSettings(file, {
-        audioSource: 'remote',
-        hasCustomAudio: false,
-        audioFileName: null,
-        audioFileSize: 0
-      });
-
-      res.json({ success: true });
+      (async () => {
+        try {
+          const next = {
+            audioSource: 'remote',
+            hasCustomAudio: false,
+            audioFileName: null,
+            audioFileSize: 0
+          };
+          const saveRes = await saveTenantConfig(req, req.app?.get('store'), GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME, next);
+          return res.json({ success: true, meta: saveRes.meta, ...next });
+        } catch (e) {
+          console.error('Error resetting goal audio settings (tenant):', e);
+          return res.json({ success: true, audioSource: 'remote', hasCustomAudio: false });
+        }
+      })();
     } catch (error) {
       console.error('Error deleting goal audio:', error);
       res.status(500).json({ error: 'Error deleting audio' });
@@ -170,7 +171,7 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-      if (hosted && !ns) {
+  if (!isOpenTestMode() && hosted && !ns) {
         return res.status(404).json({ error: 'Custom goal audio not found' });
       }
       const base = GOAL_AUDIO_UPLOADS_DIR;
