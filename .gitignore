@@ -15,3 +15,4 @@ config/*.json
 .eslintcache
 reports/
 tenant/
+data/*
