@@ -1,4 +1,7 @@
 const { z } = require('zod');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const path = require('path');
+const GLOBAL_EXT_NOTIF_PATH = path.join(process.cwd(), 'config', 'external-notifications-config.json');
 
 function registerExternalNotificationsRoutes(app, externalNotifications, limiter, options = {}) {
   const store = options.store || null;
@@ -9,6 +12,23 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
   app.post('/api/external-notifications', limiter, async (req, res) => {
     try {
+      let nsEarly = req?.ns?.admin || req?.ns?.pub || null;
+      const tenantDebugEarly = process.env.GETTY_TENANT_DEBUG === '1';
+      if (!nsEarly && tenantDebugEarly) {
+        try {
+          const ua = (req.get && req.get('user-agent')) || '';
+          const ip = (req.ip || req.connection?.remoteAddress || '') + '';
+          const seed = `${ua}::${ip}`.trim() || 'fallback';
+          const crypto = require('crypto');
+          const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0,16);
+          nsEarly = `__earlydbg_${hash}`;
+          if (!req.ns) req.ns = {};
+          req.ns.admin = nsEarly;
+          try { console.warn('[external-notifications][debug] early synthesized namespace', { ns: nsEarly }); } catch {}
+        } catch (e) {
+          try { console.warn('[external-notifications][debug] early synthesis failed', e?.message || e); } catch {}
+        }
+      }
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
@@ -41,37 +61,66 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!parsed.success) return res.status(400).json({ success: false, error: 'Invalid payload' });
       const { discordWebhook, telegramBotToken, telegramChatId, template, liveDiscordWebhook, liveTelegramBotToken, liveTelegramChatId } = parsed.data;
 
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let existing = {};
-      if (store && ns) {
-        try { existing = (await store.get(ns, 'external-notifications-config', null)) || {}; } catch {}
+      let ns = req?.ns?.admin || req?.ns?.pub || null;
+      const tenantDebug = process.env.GETTY_TENANT_DEBUG === '1';
+      if (!ns && tenantDebug) {
+        try {
+          const ua = (req.get && req.get('user-agent')) || '';
+          const ip = (req.ip || req.connection?.remoteAddress || '') + '';
+          const seed = `${ua}::${ip}`.trim() || 'fallback';
+          const crypto = require('crypto');
+          const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0,16);
+          ns = `__debug_${hash}`;
+          if (!req.ns) req.ns = {};
+          req.ns.admin = ns;
+          console.warn('[external-notifications][debug] synthesized namespace', { ns, seed });
+        } catch (e) {
+          console.warn('[external-notifications][debug] failed to synthesize namespace', e?.message || e);
+        }
+      }
+      let existingData = {};
+      let meta = null;
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+          if (loaded && loaded.data) existingData = loaded.data;
+
+        } catch {}
+      } else if (store) {
+        try { existingData = (await store.get(ns, 'external-notifications-config', null)) || {}; } catch {}
       } else {
-        existing = {
-          template: externalNotifications.template || ''
-        };
+        existingData = { template: externalNotifications.template || '' };
       }
 
       const merged = {
-        discordWebhook: typeof discordWebhook === 'string' ? discordWebhook : '',
-        telegramBotToken: typeof telegramBotToken === 'string' ? telegramBotToken : '',
-        telegramChatId: typeof telegramChatId === 'string' ? telegramChatId : '',
-        template: typeof template === 'string' ? template : (existing.template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"'),
-        liveDiscordWebhook: typeof liveDiscordWebhook === 'string' ? liveDiscordWebhook : '',
-        liveTelegramBotToken: typeof liveTelegramBotToken === 'string' ? liveTelegramBotToken : '',
-        liveTelegramChatId: typeof liveTelegramChatId === 'string' ? liveTelegramChatId : ''
+        discordWebhook: typeof discordWebhook === 'string' ? discordWebhook : (existingData.discordWebhook || ''),
+        telegramBotToken: typeof telegramBotToken === 'string' ? telegramBotToken : (existingData.telegramBotToken || ''),
+        telegramChatId: typeof telegramChatId === 'string' ? telegramChatId : (existingData.telegramChatId || ''),
+        template: typeof template === 'string' ? template : (existingData.template || '🎉 New tip from {from}: {amount} AR (${usd}) - "{message}"'),
+        liveDiscordWebhook: typeof liveDiscordWebhook === 'string' ? liveDiscordWebhook : (existingData.liveDiscordWebhook || ''),
+        liveTelegramBotToken: typeof liveTelegramBotToken === 'string' ? liveTelegramBotToken : (existingData.liveTelegramBotToken || ''),
+        liveTelegramChatId: typeof liveTelegramChatId === 'string' ? liveTelegramChatId : (existingData.liveTelegramChatId || '')
       };
 
-      if (store && ns) {
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const saved = await saveTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json', merged);
+          if (saved && saved.meta) meta = { __version: saved.meta.__version, checksum: saved.meta.checksum, updatedAt: saved.meta.updatedAt, source: 'tenant-disk' };
+        } catch (e) { console.error('Error saving external notifications config:', e); return res.status(500).json({ success:false, error:'save_failed' }); }
+      } else if (store) {
         await store.set(ns, 'external-notifications-config', merged);
       } else {
         await externalNotifications.saveConfig(merged);
       }
 
-      res.json({
-        success: true,
-        status: externalNotifications.getStatus(),
-        message: 'Settings saved successfully'
-      });
+      if (tenantDebug) {
+        try {
+          console.warn('[external-notifications][debug] save complete', { ns, hasMeta: !!meta, keys: Object.keys(merged) });
+        } catch {}
+      }
+      res.json({ success: true, status: externalNotifications.getStatus(), meta, message: 'Settings saved successfully', ns: tenantDebug ? ns : undefined });
     } catch (error) {
       console.error('Error saving external notifications config:', error);
       res.status(500).json({ success: false, error: 'Internal server error', details: error.message });
@@ -81,51 +130,171 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   app.get('/api/external-notifications', async (req, res) => {
     const ns = req?.ns?.admin || req?.ns?.pub || null;
     const hasNs = !!ns;
-    if (store && ns) {
+    let wrapperMeta = null;
+    if (ns) {
       try {
-        const cfg = (await store.get(ns, 'external-notifications-config', null)) || {};
-        return res.json({
-          active: !!(cfg.discordWebhook || (cfg.telegramBotToken && cfg.telegramChatId)),
-          lastTips: [],
-          config: {
-            hasDiscord: !!cfg.discordWebhook,
-            hasTelegram: !!(cfg.telegramBotToken && cfg.telegramChatId),
-            template: cfg.template || '',
-            discordWebhook: '',
-            telegramBotToken: '',
-            telegramChatId: '',
-            hasLiveDiscord: !!cfg.liveDiscordWebhook,
-            hasLiveTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId),
-            liveDiscordWebhook: '',
-            liveTelegramBotToken: '',
-            liveTelegramChatId: ''
-          },
-          lastUpdated: new Date().toISOString()
-        });
+        const reqLike = { ns: { admin: ns } };
+        const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+        if (loaded && loaded.data) {
+          const cfg = loaded.data;
+          const tenantLastTips = Array.isArray(cfg.lastTips) ? cfg.lastTips.slice(0,5) : [];
+            const hasDiscordWebhook = !!(cfg.discordWebhook && String(cfg.discordWebhook).trim());
+            const hasTelegramBotToken = !!(cfg.telegramBotToken && String(cfg.telegramBotToken).trim());
+            const hasTelegramChatId = !!(cfg.telegramChatId && String(cfg.telegramChatId).trim());
+            const hasLiveDiscordWebhook = !!(cfg.liveDiscordWebhook && String(cfg.liveDiscordWebhook).trim());
+            const hasLiveTelegramBotToken = !!(cfg.liveTelegramBotToken && String(cfg.liveTelegramBotToken).trim());
+            const hasLiveTelegramChatId = !!(cfg.liveTelegramChatId && String(cfg.liveTelegramChatId).trim());
+          return res.json({
+            active: !!(cfg.discordWebhook || (cfg.telegramBotToken && cfg.telegramChatId)),
+            lastTips: tenantLastTips,
+            config: {
+              hasDiscord: hasDiscordWebhook,
+              hasTelegram: !!(hasTelegramBotToken && hasTelegramChatId),
+              hasDiscordWebhook,
+              hasTelegramBotToken,
+              hasTelegramChatId,
+              template: cfg.template || '',
+              discordWebhook: '',
+              telegramBotToken: '',
+              telegramChatId: '',
+              hasLiveDiscord: hasLiveDiscordWebhook,
+              hasLiveTelegram: !!(hasLiveTelegramBotToken && hasLiveTelegramChatId),
+              hasLiveDiscordWebhook,
+              hasLiveTelegramBotToken,
+              hasLiveTelegramChatId,
+              liveDiscordWebhook: '',
+              liveTelegramBotToken: '',
+              liveTelegramChatId: ''
+            },
+            meta: wrapperMeta,
+            lastUpdated: (wrapperMeta && wrapperMeta.updatedAt) || new Date().toISOString()
+          });
+        }
       } catch {}
     }
 
-    const status = externalNotifications.getStatus();
+    if (!hasNs && process.env.GETTY_TENANT_DEBUG === '1') {
+      try {
+        const ua = (req.get && req.get('user-agent')) || '';
+        const ip = (req.ip || req.connection?.remoteAddress || '') + '';
+        const seed = `${ua}::${ip}`.trim() || 'fallback';
+        const crypto = require('crypto');
+        const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0,16);
+        const candidates = [
+          `__earlydbg_${hash}`,
+            `__debug_${hash}`,
+            `__revealdbg_${hash}`
+        ];
+        for (const candidate of candidates) {
+          try {
+            const reqLike = { ns: { admin: candidate } };
+            const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+            if (loaded && loaded.data) {
+              const cfg = loaded.data;
+              const hasDiscordWebhook = !!(cfg.discordWebhook && String(cfg.discordWebhook).trim());
+              const hasTelegramBotToken = !!(cfg.telegramBotToken && String(cfg.telegramBotToken).trim());
+              const hasTelegramChatId = !!(cfg.telegramChatId && String(cfg.telegramChatId).trim());
+              const hasLiveDiscordWebhook = !!(cfg.liveDiscordWebhook && String(cfg.liveDiscordWebhook).trim());
+              const hasLiveTelegramBotToken = !!(cfg.liveTelegramBotToken && String(cfg.liveTelegramBotToken).trim());
+              const hasLiveTelegramChatId = !!(cfg.liveTelegramChatId && String(cfg.liveTelegramChatId).trim());
+              try { console.warn('[external-notifications][debug] GET synthesized candidate hit', { candidate }); } catch {}
+              return res.json({
+                active: !!(cfg.discordWebhook || (cfg.telegramBotToken && cfg.telegramChatId)),
+                lastTips: [],
+                config: {
+                  hasDiscord: hasDiscordWebhook,
+                  hasTelegram: !!(hasTelegramBotToken && hasTelegramChatId),
+                  hasDiscordWebhook,
+                  hasTelegramBotToken,
+                  hasTelegramChatId,
+                  template: cfg.template || '',
+                  discordWebhook: '',
+                  telegramBotToken: '',
+                  telegramChatId: '',
+                  hasLiveDiscord: hasLiveDiscordWebhook,
+                  hasLiveTelegram: !!(hasLiveTelegramBotToken && hasLiveTelegramChatId),
+                  hasLiveDiscordWebhook,
+                  hasLiveTelegramBotToken,
+                  hasLiveTelegramChatId,
+                  liveDiscordWebhook: '',
+                  liveTelegramBotToken: '',
+                  liveTelegramChatId: ''
+                },
+                meta: null,
+                lastUpdated: new Date().toISOString()
+              });
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+  const status = externalNotifications.getStatus();
   const allowRevealLocal = !shouldRequireSession;
   const sanitized = {
       active: !!status.active,
-      lastTips: (hostedWithRedis || requireSessionFlag) && !hasNs ? [] : status.lastTips,
+  lastTips: (hostedWithRedis || requireSessionFlag) && !hasNs ? [] : status.lastTips,
       config: {
         hasDiscord: !!status.config?.hasDiscord,
         hasTelegram: !!status.config?.hasTelegram,
+        hasDiscordWebhook: !!status.config?.hasDiscord,
+        hasTelegramBotToken: !!(externalNotifications.telegramBotToken),
+        hasTelegramChatId: !!(externalNotifications.telegramChatId),
         template: status.config?.template || '',
         discordWebhook: allowRevealLocal ? (externalNotifications.discordWebhook || '') : '',
         telegramBotToken: allowRevealLocal ? (externalNotifications.telegramBotToken || '') : '',
         telegramChatId: allowRevealLocal ? (externalNotifications.telegramChatId || '') : '',
         hasLiveDiscord: !!status.config?.hasLiveDiscord,
         hasLiveTelegram: !!status.config?.hasLiveTelegram,
+        hasLiveDiscordWebhook: !!status.config?.hasLiveDiscord,
+        hasLiveTelegramBotToken: !!(externalNotifications.liveTelegramBotToken),
+        hasLiveTelegramChatId: !!(externalNotifications.liveTelegramChatId),
         liveDiscordWebhook: allowRevealLocal ? (externalNotifications.liveDiscordWebhook || '') : '',
         liveTelegramBotToken: allowRevealLocal ? (externalNotifications.liveTelegramBotToken || '') : '',
         liveTelegramChatId: allowRevealLocal ? (externalNotifications.liveTelegramChatId || '') : ''
       },
       lastUpdated: status.lastUpdated
     };
+    try {
+      if (!sanitized.meta && wrapperMeta) sanitized.meta = wrapperMeta;
+    } catch {}
     res.json(sanitized);
+  });
+
+  app.get('/api/external-notifications/reveal', async (req, res) => {
+    try {
+      const field = String(req.query.field || '').trim();
+  const allowed = new Set(['discordWebhook','liveDiscordWebhook','telegramBotToken','liveTelegramBotToken','telegramChatId','liveTelegramChatId']);
+      if (!allowed.has(field)) return res.status(400).json({ success:false, error:'invalid_field' });
+      let ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (!ns && process.env.GETTY_TENANT_DEBUG === '1') {
+        try {
+          const ua = (req.get && req.get('user-agent')) || '';
+          const ip = (req.ip || req.connection?.remoteAddress || '') + '';
+          const seed = `${ua}::${ip}`.trim() || 'fallback';
+          const crypto = require('crypto');
+          const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0,16);
+          ns = `__revealdbg_${hash}`;
+          if (!req.ns) req.ns = {}; req.ns.admin = ns;
+          try { console.warn('[external-notifications][debug] reveal synthesized namespace', { ns }); } catch {}
+        } catch {}
+      }
+      if (!ns) return res.status(401).json({ success:false, error:'session_required' });
+      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin && process.env.GETTY_TENANT_DEBUG !== '1') return res.status(401).json({ success:false, error:'admin_required' });
+      }
+      const reqLike = { ns: { admin: ns } };
+      let value = '';
+      try {
+        const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+        if (loaded && loaded.data && typeof loaded.data[field] === 'string') value = loaded.data[field];
+      } catch {}
+      return res.json({ success:true, field, value });
+    } catch {
+      return res.status(500).json({ success:false, error:'reveal_failed' });
+    }
   });
 
   function extractClaimIdFromUrl(url) {
@@ -369,22 +538,40 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
       const data = parsed.data || {};
 
-  const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const saved = await saveTenantConfig(reqLike, null,
+            path.join(process.cwd(), 'config', 'live-announcement-config.json'),
+            'live-announcement-config.json',
+            data
+          );
+
+          try {
+            if (store && store.redis && typeof data.auto === 'boolean') {
+              const SET_KEY = 'getty:auto-live:namespaces';
+              if (data.auto) {
+                await store.redis.sadd(SET_KEY, ns);
+                try { console.warn('[auto-live] registered namespace for auto', ns); } catch {}
+              } else {
+                await store.redis.srem(SET_KEY, ns);
+                try { console.warn('[auto-live] unregistered namespace for auto', ns); } catch {}
+              }
+            }
+          } catch {}
+          return res.json({ success: true, meta: saved && saved.meta ? {
+            __version: saved.meta.__version,
+            checksum: saved.meta.checksum,
+            updatedAt: saved.meta.updatedAt
+          } : null });
+        } catch (e) {
+          console.error('[live/config] tenant save failed, fallback to legacy store/file', e?.message || e);
+        }
+      }
+
       if (store && ns) {
         await store.set(ns, 'live-announcement-draft', data);
-
-        try {
-          if (store.redis && typeof data.auto === 'boolean') {
-            const SET_KEY = 'getty:auto-live:namespaces';
-            if (data.auto) {
-      await store.redis.sadd(SET_KEY, ns);
-  try { console.warn('[auto-live] registered namespace for auto', ns); } catch {}
-            } else {
-      await store.redis.srem(SET_KEY, ns);
-  try { console.warn('[auto-live] unregistered namespace for auto', ns); } catch {}
-            }
-          }
-        } catch {}
       } else {
         const fs = require('fs'); const path = require('path');
         const cfgDir = path.join(process.cwd(), 'config');
@@ -392,7 +579,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         if (!fs.existsSync(cfgDir)) fs.mkdirSync(cfgDir, { recursive: true });
         fs.writeFileSync(file, JSON.stringify(data, null, 2));
       }
-      res.json({ success: true });
+      res.json({ success: true, meta: null });
     } catch (e) {
       console.error('Error saving live draft:', e);
       res.status(500).json({ success: false, error: 'internal_error' });
@@ -410,16 +597,35 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       }
       const hostedWithRedis = !!process.env.REDIS_URL;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let draft = null;
-      if (store && ns) {
-        try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      let draft = null; let meta = null;
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null,
+            path.join(process.cwd(), 'config', 'live-announcement-config.json'),
+            'live-announcement-config.json'
+          );
+          if (loaded && loaded.data) {
+            draft = loaded.data;
+            if (loaded.meta) meta = {
+              __version: loaded.meta.__version,
+              checksum: loaded.meta.checksum,
+              updatedAt: loaded.meta.updatedAt
+            };
+          }
+        } catch {}
       }
       if (!draft) {
-        try {
-          const fs = require('fs'); const path = require('path');
-          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
-          if (fs.existsSync(file)) draft = JSON.parse(fs.readFileSync(file, 'utf8'));
-        } catch {}
+        if (store && ns) {
+          try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+        }
+        if (!draft) {
+            try {
+              const fs = require('fs'); const path = require('path');
+              const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+              if (fs.existsSync(file)) draft = JSON.parse(fs.readFileSync(file, 'utf8'));
+            } catch {}
+        }
       }
       if (!draft) draft = {};
       const sanitized = {
@@ -433,7 +639,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         auto: !!draft.auto,
         livePostClaimId: typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : ''
       };
-      res.json({ success: true, config: sanitized });
+      res.json({ success: true, config: sanitized, meta });
   } catch {
       res.json({ success: true, config: { title:'', description:'', channelUrl:'', imageUrl:'', signature:'', discordWebhook:'', hasDiscordOverride:false } });
     }

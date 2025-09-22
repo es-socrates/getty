@@ -4,6 +4,14 @@ const path = require('path');
 const IS_TEST = process.env.NODE_ENV === 'test';
 const __VERBOSE_EXT_NOTIF = process.env.GETTY_VERBOSE_EXTERNAL_NOTIFICATIONS === '1';
 
+let tenantConfigLib = null;
+function ensureTenantLib() {
+    if (!tenantConfigLib) {
+        try { tenantConfigLib = require('../lib/tenant-config'); } catch { tenantConfigLib = {}; }
+    }
+    return tenantConfigLib;
+}
+
 class ExternalNotifications {
     constructor(wss) {
         this.wss = wss;
@@ -175,18 +183,18 @@ class ExternalNotifications {
     }
 
     setupListeners() {
-    if (this.wss) {
+        if (this.wss) {
             this.wss.removeAllListeners('tip');
-            this.wss.on('tip', (tipData, _ns) => {
-                if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Processing tip from:', tipData.from);
-                this.handleIncomingTip(tipData).catch(err => {
+            this.wss.on('tip', (tipData, ns) => {
+                if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Processing tip from:', tipData.from, 'ns=', ns || null);
+                this.handleIncomingTip(tipData, ns || null).catch(err => {
                     console.error('Error processing tip:', err);
                 });
             });
         }
     }
 
-    async handleIncomingTip(tipData) {
+    async handleIncomingTip(tipData, ns) {
         if (!tipData || !tipData.amount) {
             console.warn('[ExternalNotifications] Invalid tip data received');
             return;
@@ -209,26 +217,37 @@ class ExternalNotifications {
                 timestamp: tipData.timestamp || new Date().toISOString()
             };
 
-            if (!this.hosted) {
-                this.lastTips.unshift(formattedTip);
-                if (this.lastTips.length > 10) this.lastTips.pop();
-            }
-
-            if (!this.hosted) {
-                if (this.discordWebhook) {
-                    await this.sendToDiscord(formattedTip);
+            const isTenant = !!ns;
+            if (isTenant) {
+                const { loadTenantConfig, saveTenantConfig } = ensureTenantLib();
+                const reqLike = { ns: { admin: ns } };
+                let loaded = null;
+                try { loaded = await loadTenantConfig(reqLike, null, require('path').join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json'); } catch {}
+                const data = (loaded && loaded.data) ? loaded.data : {};
+                if (!Array.isArray(data.lastTips)) data.lastTips = [];
+                data.lastTips.unshift(formattedTip);
+                if (data.lastTips.length > 10) data.lastTips.splice(10);
+                try { await saveTenantConfig(reqLike, null, require('path').join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json', data); } catch (e) { if (!IS_TEST) console.error('[ExternalNotifications] save tenant lastTips failed', e.message); }
+            } else {
+                if (!this.hosted) {
+                    this.lastTips.unshift(formattedTip);
+                    if (this.lastTips.length > 10) this.lastTips.pop();
                 }
-
-                if (this.telegramBotToken && this.telegramChatId) {
-                    await this.sendToTelegram(formattedTip);
+                if (!this.hosted) {
+                    if (this.discordWebhook) {
+                        await this.sendToDiscord(formattedTip);
+                    }
+                    if (this.telegramBotToken && this.telegramChatId) {
+                        await this.sendToTelegram(formattedTip);
+                    }
+                    await this.saveConfig({
+                        discordWebhook: this.discordWebhook,
+                        telegramBotToken: this.telegramBotToken,
+                        telegramChatId: this.telegramChatId,
+                        template: this.template,
+                        lastTips: this.lastTips
+                    });
                 }
-
-                await this.saveConfig({
-                    discordWebhook: this.discordWebhook,
-                    telegramBotToken: this.telegramBotToken,
-                    telegramChatId: this.telegramChatId,
-                    template: this.template
-                });
             }
 
         } catch (err) {

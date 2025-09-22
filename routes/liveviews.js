@@ -3,6 +3,8 @@ const path = require('path');
 const multer = require('multer');
 const axios = require('axios');
 
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+
 function getLiveviewsConfigWithDefaults(partial) {
   return {
     bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
@@ -19,6 +21,7 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
   const store = options.store || null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
+  const LIVEVIEWS_FILENAME = 'liveviews-config.json';
   const LIVEVIEWS_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'liveviews');
   if (!fs.existsSync(LIVEVIEWS_UPLOADS_DIR)) {
     fs.mkdirSync(LIVEVIEWS_UPLOADS_DIR, { recursive: true });
@@ -83,11 +86,15 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
       const body = req.body || {};
       const removeIcon = body.removeIcon === '1';
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let prev = {};
-      if (store && ns) {
-        try { prev = (await store.get(ns, 'liveviews-config', null)) || {}; } catch { prev = {}; }
-      } else if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-        try { prev = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')); } catch { prev = {}; }
+
+      let prevWrapped = await loadTenantConfig(req, store, LIVEVIEWS_CONFIG_FILE, LIVEVIEWS_FILENAME).catch(() => ({ data: {} }));
+      let prev = prevWrapped && prevWrapped.data ? prevWrapped.data : {};
+
+      if ((!prev || Object.keys(prev).length === 0) && store && ns) {
+        try {
+          const legacy = await store.get(ns, 'liveviews-config', null);
+          if (legacy && typeof legacy === 'object') prev = legacy;
+        } catch {}
       }
 
       let iconUrl = '';
@@ -98,23 +105,23 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
         iconUrl = prev.icon;
       }
       if (removeIcon && prev.icon) {
-        const iconPath = path.join(process.cwd(), 'public', prev.icon.replace(/^\//, ''));
-        if (fs.existsSync(iconPath)) {
-          try { fs.unlinkSync(iconPath); } catch {}
-        }
+        try {
+          const iconPath = path.join(process.cwd(), 'public', prev.icon.replace(/^\//, ''));
+          if (fs.existsSync(iconPath)) {
+            try { fs.unlinkSync(iconPath); } catch {}
+          }
+        } catch {}
         iconUrl = '';
       }
 
-      const config = getLiveviewsConfigWithDefaults({
+      const merged = {
         ...prev,
         ...body,
         icon: iconUrl
-      });
-      if (store && ns) {
-        await store.set(ns, 'liveviews-config', config);
-      } else {
-        fs.writeFileSync(LIVEVIEWS_CONFIG_FILE, JSON.stringify(config, null, 2));
-      }
+      };
+      const config = getLiveviewsConfigWithDefaults(merged);
+
+      await saveTenantConfig(req, store, LIVEVIEWS_CONFIG_FILE, LIVEVIEWS_FILENAME, config);
       res.json({ success: true, config });
     } catch (error) {
       res.status(500).json({ error: 'Error saving configuration', details: error.message });
@@ -124,23 +131,28 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
   app.get('/config/liveviews-config.json', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let config = {};
-      if (store && ns) {
-        config = (await store.get(ns, 'liveviews-config', null)) || {};
-      } else if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-        config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8'));
+      let loaded = await loadTenantConfig(req, store, LIVEVIEWS_CONFIG_FILE, LIVEVIEWS_FILENAME).catch(() => ({ data: {} }));
+      let config = getLiveviewsConfigWithDefaults(loaded && loaded.data ? loaded.data : {});
+
+      if ((!config || Object.keys(config).length === 0) && store && ns) {
+        try {
+          const legacy = await store.get(ns, 'liveviews-config', null);
+          if (legacy && typeof legacy === 'object') {
+            config = getLiveviewsConfigWithDefaults(legacy);
+            await saveTenantConfig(req, store, LIVEVIEWS_CONFIG_FILE, LIVEVIEWS_FILENAME, config);
+          }
+        } catch {}
       }
-      config = getLiveviewsConfigWithDefaults(config);
 
       const isHosted = !!store;
       const hasNs = !!ns;
       const trusted = isTrustedIp(req);
       if (isHosted && !hasNs && !trusted) {
-            const sanitized = { ...config, claimid: '' };
-            return res.json(sanitized);
-          }
+        const sanitized = { ...config, claimid: '' };
+        return res.json(sanitized);
+      }
       res.json(config);
-  } catch {
+    } catch {
       res.json(getLiveviewsConfigWithDefaults({}));
     }
   });
@@ -184,6 +196,8 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
 
   app.get('/api/liveviews/status', async (req, res) => {
     try {
+      const debugMode = String(req.query.debug || '') === '1';
+      const forceFresh = String(req.query.force || '') === '1';
       if (LV_RL_ENABLED && !isTrustedIp(req)) {
         if (!app.__lvRate) app.__lvRate = {};
         const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -211,35 +225,124 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
       }
 
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let config = {};
-      if (store && ns) {
-        try { config = (await store.get(ns, 'liveviews-config', null)) || {}; } catch { config = {}; }
-      } else if (fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
-        try { config = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')); } catch { config = {}; }
+
+      let loadedCfg = await loadTenantConfig(req, store, LIVEVIEWS_CONFIG_FILE, LIVEVIEWS_FILENAME).catch(() => ({ data: {} }));
+      let config = getLiveviewsConfigWithDefaults(loadedCfg && loadedCfg.data ? loadedCfg.data : {});
+      if (debugMode) {
+        try {
+          config.__source = loadedCfg && loadedCfg.source;
+          if (loadedCfg && loadedCfg.meta) config.__version = loadedCfg.meta.__version;
+        } catch {}
       }
-      config = getLiveviewsConfigWithDefaults(config);
       const claimid = (config.claimid || '').trim();
-      if (!claimid) return res.json({ data: { Live: false, ViewerCount: 0 } });
+      if (!claimid) {
+        const base = { data: { Live: false, ViewerCount: 0 } };
+        if (debugMode) {
+          return res.json({
+            ...base,
+            debug: {
+              reason: 'missing_claimid',
+              ns: ns || null,
+              ttlMs: LV_TTL_MS,
+              cachedKeys: Object.keys(app.__lvCache || {}),
+              now: Date.now()
+            }
+          });
+        }
+        return res.json(base);
+      }
 
       const key = (ns && typeof ns === 'string') ? `ns:${ns}` : 'single';
       const now = Date.now();
       const TTL = LV_TTL_MS;
       if (!app.__lvCache) app.__lvCache = {};
       const cached = app.__lvCache[key];
-      if (cached && (now - cached.ts) < TTL) {
+      if (!forceFresh && cached && (now - cached.ts) < TTL) {
+        if (debugMode) {
+          return res.json({
+            data: cached.data,
+            debug: {
+              source: 'cache',
+              ageMs: now - cached.ts,
+              ttlMs: TTL,
+              expiresInMs: TTL - (now - cached.ts),
+              ns: ns || null,
+              claimid,
+              lastError: app.__lvLastError && app.__lvLastError[key] ? app.__lvLastError[key] : null,
+              now
+            }
+          });
+        }
         return res.json({ data: cached.data });
       }
 
       try {
-        const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claimid)}`;
-        const resp = await axios.get(url, { timeout: 5000 });
-        const data = resp?.data?.data;
-        const out = { Live: !!(data && data.Live), ViewerCount: (data && typeof data.ViewerCount === 'number') ? data.ViewerCount : 0 };
+        const primaryUrl = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claimid)}`;
+        const resp = await axios.get(primaryUrl, { timeout: 5000 });
+        let data = resp?.data?.data;
+        let out = { Live: !!(data && data.Live), ViewerCount: (data && typeof data.ViewerCount === 'number') ? data.ViewerCount : 0 };
+
+        const fallbackTried = false;
+        const fallbackOut = null;
+        const fallbackUrl = null;
         app.__lvCache[key] = { ts: now, data: out };
+        if (debugMode) {
+          return res.json({
+            data: out,
+            debug: {
+              source: 'fresh',
+              fetchedAt: now,
+              ttlMs: TTL,
+              ns: ns || null,
+              claimid,
+              liveRaw: data && data.Live,
+              viewerRaw: data && data.ViewerCount,
+              fallbackTried,
+              fallbackUrl,
+              fallbackOut,
+              forceFresh,
+              lastError: app.__lvLastError && app.__lvLastError[key] ? app.__lvLastError[key] : null
+            }
+          });
+        }
         return res.json({ data: out });
-  } catch {
-        if (cached) return res.json({ data: cached.data });
-        return res.json({ data: { Live: false, ViewerCount: 0 } });
+      } catch (e) {
+        try {
+          if (!app.__lvLastError) app.__lvLastError = {};
+          app.__lvLastError[key] = {
+            ts: Date.now(),
+            message: e && e.message ? e.message : String(e)
+          };
+        } catch {}
+        if (cached) {
+          if (debugMode) {
+            return res.json({
+              data: cached.data,
+              debug: {
+                source: 'cache-stale',
+                ageMs: now - cached.ts,
+                ttlMs: TTL,
+                ns: ns || null,
+                claimid,
+                lastError: app.__lvLastError[key]
+              }
+            });
+          }
+          return res.json({ data: cached.data });
+        }
+        const base = { data: { Live: false, ViewerCount: 0 } };
+        if (debugMode) {
+          return res.json({
+            ...base,
+            debug: {
+              source: 'error',
+              ns: ns || null,
+              claimid,
+              error: app.__lvLastError[key]
+            }
+          });
+        }
+        return res.json(base);
       }
     } catch {
       return res.json({ data: { Live: false, ViewerCount: 0 } });

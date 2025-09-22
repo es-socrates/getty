@@ -39,6 +39,7 @@ function saveSettings(newSettings) {
 }
 
 function registerTtsRoutes(app, wss, limiter, options = {}) {
+  const { isOpenTestMode } = require('../lib/test-open-mode');
   const store = options.store;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
@@ -46,7 +47,7 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
   app.get('/api/tts-setting', async (req, res) => {
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-    if (shouldRequireSession && !hasNs) {
+  if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
       return res.json({ ttsEnabled: true, ttsAllChat: false });
     }
 
@@ -62,11 +63,11 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-setting', limiter, async (req, res) => {
-    if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
     }
-    if (requireAdminWrites) {
+  if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
     }
@@ -121,7 +122,7 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
 
   app.get('/api/tts-language', async (req, res) => {
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-    if (shouldRequireSession && !hasNs) {
+  if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
       return res.json({ ttsLanguage: 'en' });
     }
 
@@ -137,11 +138,11 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-language', limiter, async (req, res) => {
-    if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
     }
-    if (requireAdminWrites) {
+  if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
     }

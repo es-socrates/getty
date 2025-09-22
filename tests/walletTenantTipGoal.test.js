@@ -3,7 +3,8 @@
 const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
-
+const { freshServer } = require('./helpers/freshServer');
+let app; let restoreHosted; let server;
 const { addressFromOwnerPublicKey } = require('../lib/wallet-auth');
 
 function fakePublicKey(seed) {
@@ -27,20 +28,21 @@ async function walletLogin(agent, publicKey) {
 }
 
 describe('Tenant tip-goal isolation', () => {
-  let app;
   let pubA, pubB, addressA;
 
   const agentFactory = () => request(app);
 
-  beforeAll(() => {
-    process.env.GETTY_MULTI_TENANT_WALLET = '1';
-    process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
-    process.env.GETTY_DISABLE_GLOBAL_FALLBACK = '1';
-    process.env.GETTY_REQUIRE_SESSION = '1';
-    process.env.GETTY_SILENCE_REDIS_TEST = '1';
-    jest.resetModules();
-    app = require('../server');
+  beforeAll(async () => {
+    ({ app, restore: restoreHosted } = freshServer({
+      GETTY_MULTI_TENANT_WALLET: '1',
+      GETTY_WALLET_AUTH_ALLOW_DUMMY: '1',
+      GETTY_DISABLE_GLOBAL_FALLBACK: '1',
+      GETTY_REQUIRE_SESSION: '1',
+      GETTY_SILENCE_REDIS_TEST: '1'
+    }));
+    if (app.startTestServer) server = await app.startTestServer();
   });
+  afterAll(done => { try { restoreHosted && restoreHosted(); } catch {} if (server) server.close(done); else done(); });
 
   beforeEach(() => {
     pubA = fakePublicKey('A');

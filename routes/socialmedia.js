@@ -1,7 +1,26 @@
 const { z } = require('zod');
 const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
+const path = require('path');
+const { saveTenantConfig, loadTenantConfig } = require('../lib/tenant-config');
+
+async function resolveNsFromReq(req) {
+  try {
+    const direct = req?.ns?.admin || req?.ns?.pub || null;
+    if (direct) return direct;
+    const token = typeof req.query?.token === 'string' ? req.query.token : null;
+    if (token && req.app && req.app.get && req.app.get('store')) {
+      const st = req.app.get('store');
+      try {
+        const meta = await st.get(token, 'meta', null);
+        if (meta) return token;
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
 
 function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, options = {}) {
+  const { isOpenTestMode } = require('../lib/test-open-mode');
   const store = options.store || null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
@@ -10,18 +29,56 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
 
   app.get('/api/socialmedia-config', async (req, res) => {
     try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const ns = await resolveNsFromReq(req);
       const trustedLocalAdmin = isTrustedLocalAdmin(req);
       const conceal = shouldMaskSensitive(req);
       if (conceal && !trustedLocalAdmin) {
         return res.json({ success: true, config: [] });
       }
       let config = null;
+      let meta = null;
+      const globalPath = path.join(process.cwd(), 'config', 'socialmedia-config.json');
       if (store && ns) {
-        config = await store.get(ns, 'socialmedia-config', null);
+        const loaded = await store.getConfig(ns, 'socialmedia-config.json', null) || await store.get(ns, 'socialmedia-config', null);
+        if (loaded) {
+          config = loaded.data ? loaded.data : loaded;
+        }
       }
-      if (!config) config = socialMediaModule.loadConfig();
-      res.json({ success: true, config });
+
+      if (!config) {
+        const ltReq = ns ? { ...req, ns: { admin: ns } } : req;
+        const lt = await loadTenantConfig(ltReq, store, globalPath, 'socialmedia-config.json');
+        const raw = lt.data?.data ? lt.data.data : lt.data;
+        config = raw || socialMediaModule.loadConfig();
+        if (lt && lt.data && (lt.data.__version || lt.data.checksum || lt.data.updatedAt)) {
+          meta = {
+            __version: lt.data.__version,
+            checksum: lt.data.checksum,
+            updatedAt: lt.data.updatedAt,
+            source: lt.source
+          };
+        }
+      } else {
+        try {
+          const ltReq = ns ? { ns: { admin: ns } } : {};
+            const lt = await loadTenantConfig(ltReq, store, globalPath, 'socialmedia-config.json');
+            if (lt && lt.data && (lt.data.__version || lt.data.checksum || lt.data.updatedAt)) {
+              meta = {
+                __version: lt.data.__version,
+                checksum: lt.data.checksum,
+                updatedAt: lt.data.updatedAt,
+                source: lt.source
+              };
+            }
+        } catch {}
+      }
+      if (!meta) {
+        try {
+          const { computeChecksum } = require('../lib/tenant-config');
+          meta = { __version: 1, checksum: computeChecksum({ config }), updatedAt: new Date().toISOString(), source: 'memory' };
+        } catch {}
+      }
+      res.json({ success: true, config: config || [], meta });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
     }
@@ -29,8 +86,8 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
 
   app.post('/api/socialmedia-config', strictLimiter, async (req, res) => {
     try {
-      if (shouldRequireSession) {
-        const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
+  if (!isOpenTestMode() && shouldRequireSession) {
+        const nsCheck = await resolveNsFromReq(req);
         if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
       }
       if (requireAdminWrites) {
@@ -149,16 +206,91 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
         }
       }
 
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (store && ns) {
-        await store.set(ns, 'socialmedia-config', normalized);
+      const ns = await resolveNsFromReq(req);
+      let meta = null;
+      if (ns && store) {
+        const globalPath = path.join(process.cwd(), 'config', 'socialmedia-config.json');
+        await store.setConfig(ns, 'socialmedia-config.json', normalized);
+
+        let forceHash = null;
+        if (req.walletSession && req.walletSession.walletHash) {
+          forceHash = req.walletSession.walletHash;
+        } else {
+          const h = [...ns].reduce((a,c)=>((a*33) ^ c.charCodeAt(0))>>>0,5381).toString(36);
+          forceHash = h;
+        }
+        const fakeReq = { ns: { admin: ns }, walletSession: req.walletSession, tenant: req.tenant, __forceWalletHash: forceHash };
+        const saveResult = await saveTenantConfig(fakeReq, store, globalPath, 'socialmedia-config.json', normalized);
+        meta = saveResult && saveResult.meta;
       } else {
         socialMediaModule.saveConfig(normalized);
       }
-      res.json({ success: true });
+  res.json({ success: true, ...(meta ? { meta } : {}) });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
     }
+  });
+
+  app.delete('/api/socialmedia-config', strictLimiter, async (req, res) => {
+    try {
+      const ns = await resolveNsFromReq(req);
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hostedWithRedis = !!process.env.REDIS_URL;
+      const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
+  if (!isOpenTestMode() && shouldRequireSession && !ns) return res.status(401).json({ success: false, error: 'session_required' });
+      if (requireAdminWrites && !(req?.auth && req.auth.isAdmin)) return res.status(401).json({ success: false, error: 'admin_required' });
+      if (!ns || !store) {
+        socialMediaModule.saveConfig([]);
+        return res.json({ success: true, cleared: true, global: true });
+      }
+      const globalPath = path.join(process.cwd(), 'config', 'socialmedia-config.json');
+      await store.setConfig(ns, 'socialmedia-config.json', []);
+      const fakeReq = { ns: { admin: ns }, walletSession: req.walletSession, tenant: req.tenant };
+      const saveResult = await saveTenantConfig(fakeReq, store, globalPath, 'socialmedia-config.json', []);
+      if (process.env.GETTY_TENANT_DEBUG === '1') {
+        try { console.warn('[socialmedia] cleared config', { ns, tenantPath: saveResult.tenantPath }); } catch {}
+      }
+      return res.json({ success: true, cleared: true, meta: saveResult.meta });
+    } catch (e) {
+      return res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  app.delete('/api/socialmedia-config/:idx', strictLimiter, async (req, res) => {
+    try {
+      const ns = await resolveNsFromReq(req);
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hostedWithRedis = !!process.env.REDIS_URL;
+      const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
+  if (!isOpenTestMode() && shouldRequireSession && !ns) return res.status(401).json({ success: false, error: 'session_required' });
+      if (requireAdminWrites && !(req?.auth && req.auth.isAdmin)) return res.status(401).json({ success: false, error: 'admin_required' });
+      const idx = parseInt(req.params.idx, 10);
+      if (!Number.isFinite(idx) || idx < 0) return res.status(400).json({ success: false, error: 'invalid_index' });
+      let items = [];
+      if (store && ns) {
+        const existing = await store.getConfig(ns, 'socialmedia-config.json', null) || await store.get(ns, 'socialmedia-config', null) || [];
+        items = existing.data ? existing.data : existing;
+      } else {
+        items = socialMediaModule.loadConfig();
+      }
+      if (!Array.isArray(items)) items = [];
+      if (idx >= items.length) return res.status(404).json({ success: false, error: 'index_out_of_range' });
+      const removed = items.splice(idx, 1);
+      const globalPath = path.join(process.cwd(), 'config', 'socialmedia-config.json');
+      if (ns && store) {
+        await store.setConfig(ns, 'socialmedia-config.json', items);
+        const fakeReq = { ns: { admin: ns }, walletSession: req.walletSession, tenant: req.tenant };
+        const saveResult = await saveTenantConfig(fakeReq, store, globalPath, 'socialmedia-config.json', items);
+        if (process.env.GETTY_TENANT_DEBUG === '1') {
+          try { console.warn('[socialmedia] removed index', { ns, idx, tenantPath: saveResult.tenantPath }); } catch {}
+        }
+        return res.json({ success: true, removed, meta: saveResult.meta, length: items.length });
+      }
+      socialMediaModule.saveConfig(items);
+      return res.json({ success: true, removed, length: items.length, global: true });
+    } catch (e) { return res.status(500).json({ success: false, error: e.message }); }
   });
 }
 

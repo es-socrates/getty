@@ -2,30 +2,45 @@ const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
 const { shouldMaskSensitive, isTrustedLocalAdmin } = require('../lib/trust');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { isOpenTestMode } = require('../lib/test-open-mode');
+const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 
 function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
   const store = options.store;
   const chatNs = options.chatNs;
   const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
-  const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-  const hostedWithRedis = !!process.env.REDIS_URL;
+
+  function __requireSessionFlag() { return process.env.GETTY_REQUIRE_SESSION === '1'; }
+  function __hostedWithRedis() { return !!process.env.REDIS_URL; }
+  function __shouldRequireSession() { return (__requireSessionFlag() || __hostedWithRedis()); }
 
   app.get('/api/chat-config', async (req, res) => {
     try {
-      let config = {};
-
-      if (store && req.ns && (req.ns.admin || req.ns.pub)) {
-        const ns = req.ns.admin || req.ns.pub;
-        const st = await store.get(ns, 'chat-config', null);
-        if (st && typeof st === 'object') config = st;
-      } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
-        config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-      }
+      const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
+      let loaded = null; let meta = null; let source = 'global';
+      try {
+        const lt = await loadTenantConfig({ ns: { admin: ns } }, store, CHAT_CONFIG_FILE, 'chat-config.json');
+        loaded = lt.data?.data ? lt.data.data : lt.data;
+        source = lt.source;
+        if (lt.tenantPath && fs.existsSync(lt.tenantPath)) {
+          try {
+            const raw = JSON.parse(fs.readFileSync(lt.tenantPath, 'utf8'));
+            meta = { __version: raw.__version, checksum: raw.checksum, updatedAt: raw.updatedAt, source };
+          } catch {}
+        } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
+          try {
+            const raw = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+            if (raw && (raw.__version || raw.checksum)) meta = { __version: raw.__version, checksum: raw.checksum, updatedAt: raw.updatedAt, source };
+          } catch {}
+        }
+      } catch {}
+      let config = loaded && typeof loaded === 'object' ? loaded : {};
       config.themeCSS = config.themeCSS || '';
 
-  const hasNs = !!(req.ns && (req.ns.admin || req.ns.pub));
-    const conceal = shouldMaskSensitive(req);
-    if (conceal && !isTrustedLocalAdmin(req) && !hasNs) {
+      const hasNs = !!ns;
+      const conceal = shouldMaskSensitive(req);
+      if (conceal && !isTrustedLocalAdmin(req) && !hasNs) {
         const sanitized = {
           bgColor: config.bgColor || '#080c10',
           msgBgColor: config.msgBgColor || '#0a0e12',
@@ -41,10 +56,9 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           chatUrl: '',
           odyseeWsUrl: ''
         };
-        return res.json(sanitized);
+        return res.json(meta ? { meta, ...sanitized } : sanitized);
       }
-
-      res.json(config);
+      return res.json(meta ? { meta, ...config } : config);
     } catch (e) {
       res.status(500).json({ error: 'Error loading chat config', details: e.message });
     }
@@ -52,7 +66,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
 
   app.post('/api/chat', limiter, async (req, res) => {
     try {
-      if (hostedWithRedis || requireSessionFlag) {
+      if (!isOpenTestMode() && __shouldRequireSession()) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ error: 'session_required' });
       }
@@ -93,13 +107,14 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         themeCSS = sanitizeThemeCSS(themeCSS).slice(0, 20000);
       }
 
-      let config = {};
-      if (store && req.ns && req.ns.admin) {
-        const st = await store.get(req.ns.admin, 'chat-config', null);
-        if (st && typeof st === 'object') config = st;
-      } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
-        config = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-      }
+  let config = {};
+      let ns = (req.ns && req.ns.admin) ? req.ns.admin : null;
+      try {
+        const lt = await loadTenantConfig({ ns: { admin: ns } }, store, CHAT_CONFIG_FILE, 'chat-config.json');
+        const base = lt.data?.data ? lt.data.data : lt.data;
+        if (base && typeof base === 'object') config = base;
+
+      } catch {}
 
       const newConfig = {
         ...config,
@@ -118,27 +133,31 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         avatarRandomBg: (avatarRandomBg !== undefined) ? !!avatarRandomBg : !!config.avatarRandomBg
       };
       const isHosted = !!(store && req.ns && req.ns.admin);
-      const ns = isHosted ? req.ns.admin : null;
       let prevUrl = null;
       if (isHosted) {
         try { const stPrev = await store.get(ns, 'chat-config', null); prevUrl = stPrev?.chatUrl || null; } catch {}
       }
+      let meta = null;
       if (isHosted) {
-        await store.set(req.ns.admin, 'chat-config', newConfig);
         try {
-          const wss = req.app?.get('wss');
-          if (wss && typeof wss.broadcast === 'function') {
-            try { wss.broadcast(req.ns.admin, { type: 'chatConfigUpdate', data: newConfig }); } catch {}
-            try {
-              const publicToken = await (store.get(req.ns.admin, 'publicToken', null));
-              if (typeof publicToken === 'string' && publicToken) {
-                wss.broadcast(publicToken, { type: 'chatConfigUpdate', data: newConfig });
-              }
-            } catch {}
-          }
-        } catch {}
+          const saveRes = await saveTenantConfig({ ns: { admin: ns } }, store, CHAT_CONFIG_FILE, 'chat-config.json', newConfig);
+          meta = saveRes.meta;
+        } catch {
+          await store.set(ns, 'chat-config', newConfig);
+        }
       } else {
-        fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+        try {
+          const saveRes = await saveTenantConfig({ ns: { admin: null } }, store, CHAT_CONFIG_FILE, 'chat-config.json', newConfig);
+          meta = saveRes.meta;
+        } catch {
+          try {
+            const saveRes = writeHybridConfig(CHAT_CONFIG_FILE, newConfig);
+            meta = saveRes.meta || meta;
+          } catch {
+            try { console.warn('[chat-config][save][fallback-flat] attempting fs.writeFileSync'); } catch {}
+            try { fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2)); } catch {}
+          }
+        }
       }
       let result = {};
       if (!isHosted) {
@@ -161,7 +180,24 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       } catch (e) {
         result = { ...(result||{}), relayError: e?.message };
       }
-      res.json({ success: true, ...newConfig, ...result });
+
+      try {
+        const wss = req.app?.get('wss');
+        if (wss && typeof wss.broadcast === 'function') {
+          if (ns) {
+            try { wss.broadcast(ns, { type: 'chatConfigUpdate', data: newConfig, meta }); } catch {}
+            try {
+              const publicToken = await (store.get(ns, 'publicToken', null));
+              if (typeof publicToken === 'string' && publicToken) {
+                wss.broadcast(publicToken, { type: 'chatConfigUpdate', data: newConfig, meta });
+              }
+            } catch {}
+          } else {
+            try { wss.broadcast(null, { type: 'chatConfigUpdate', data: newConfig, meta }); } catch {}
+          }
+        }
+      } catch {}
+      res.json({ success: true, ...(meta ? { meta } : {}), ...newConfig, ...result });
     } catch (error) {
       console.error('Error updating chat:', error);
       res.status(500).json({ error: 'Internal server error', details: error.message });
@@ -196,8 +232,16 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         return sanitizeThemesArray(arr);
       }
       if (fs.existsSync(CHAT_CUSTOM_THEMES_FILE)) {
-        const raw = JSON.parse(fs.readFileSync(CHAT_CUSTOM_THEMES_FILE, 'utf8'));
-        return sanitizeThemesArray(raw);
+        try {
+          const hybrid = readHybridConfig(CHAT_CUSTOM_THEMES_FILE); // tolerant of legacy flat array
+          const rawData = hybrid && Array.isArray(hybrid.data) ? hybrid.data : (hybrid.data || []);
+          return sanitizeThemesArray(rawData);
+        } catch {
+          try {
+            const rawLegacy = JSON.parse(fs.readFileSync(CHAT_CUSTOM_THEMES_FILE, 'utf8'));
+            return sanitizeThemesArray(rawLegacy);
+          } catch {}
+        }
       }
     } catch { /* ignore */ }
     return [];
@@ -209,7 +253,11 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       if (store && ns) {
         await store.set(ns, 'chat-custom-themes', sanitized);
       } else {
-        fs.writeFileSync(CHAT_CUSTOM_THEMES_FILE, JSON.stringify(sanitized, null, 2));
+        try {
+          writeHybridConfig(CHAT_CUSTOM_THEMES_FILE, sanitized);
+        } catch {
+          try { fs.writeFileSync(CHAT_CUSTOM_THEMES_FILE, JSON.stringify(sanitized, null, 2)); } catch {}
+        }
       }
     } catch { /* ignore */ }
     return sanitized;
@@ -217,7 +265,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
 
   app.get('/api/chat-custom-themes', async (req, res) => {
     try {
-      const shouldRequire = requireSessionFlag || hostedWithRedis;
+    const shouldRequire = __shouldRequireSession() && !isOpenTestMode();
       const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
       if (shouldRequire && !ns) return res.status(401).json({ error: 'session_required' });
       const list = await loadStoredThemes( (store && ns && req.ns?.admin) ? req.ns.admin : null );
@@ -229,7 +277,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
 
   app.post('/api/chat-custom-themes', limiter, async (req, res) => {
     try {
-      const shouldRequire = requireSessionFlag || hostedWithRedis;
+    const shouldRequire = __shouldRequireSession() && !isOpenTestMode();
       const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
       if (shouldRequire && !ns) return res.status(401).json({ error: 'session_required' });
       const payload = req.body || {};

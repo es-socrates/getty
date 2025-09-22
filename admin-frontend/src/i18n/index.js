@@ -155,6 +155,8 @@ const adminExtra = {
   },
   es: {
     valMax120: 'Máx 120 caracteres',
+    logout: 'Cerrar sesión',
+    reconnect: 'Reconectar',
     statusTitle: 'Estadísticas',
     liveviewsTitle: 'Espectadores',
     externalNotificationsTitle: 'Integraciones',

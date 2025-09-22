@@ -13,6 +13,9 @@
 
     <OsCard>
       <div class="mb-2 font-semibold">{{ t('tipNotificationsTitle') }}</div>
+      <p class="small mb-3 text-gray-400" aria-live="polite">
+        {{ t('externalSecretLegend', { mask: MASK }) }}
+      </p>
       <div class="form-group">
         <label class="label">{{ t('externalDiscordWebhook') }}</label>
         <div class="input-group">
@@ -24,42 +27,18 @@
             placeholder="https://discord.com/api/webhooks/..."
             @input="validate"
             autocomplete="off" />
-          <button
-            type="button"
-            @click="reveal.discord = !reveal.discord"
-            :aria-pressed="reveal.discord ? 'true' : 'false'"
-            :aria-label="reveal.discord ? 'Hide' : 'Show'">
-            <svg
-              v-if="!reveal.discord"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="#fff"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <svg
-              v-else
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="#fff"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <path
-                d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
-              <path d="M1 1l22 22" />
-              <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
-            </svg>
-          </button>
+          <EyeToggle
+            :shown="reveal.discord"
+            :hide-label="t('secretHide')"
+            :show-label="t('secretShow')"
+            @toggle="
+              async (next) => {
+                if (next && form.discordWebhook === MASK) {
+                  await revealSecret('discordWebhook');
+                }
+                reveal.discord = next;
+              }
+            " />
         </div>
         <small v-if="errors.discordWebhook" class="small text-red-700">{{
           errors.discordWebhook
@@ -77,42 +56,18 @@
               placeholder="123456:ABCDEF"
               @input="validate"
               autocomplete="off" />
-            <button
-              type="button"
-              @click="reveal.telegram = !reveal.telegram"
-              :aria-pressed="reveal.telegram ? 'true' : 'false'"
-              :aria-label="reveal.telegram ? 'Hide' : 'Show'">
-              <svg
-                v-if="!reveal.telegram"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="#fff"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <svg
-                v-else
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="#fff"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-                <path
-                  d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.77 21.77 0 0 1 5.06-6.94" />
-                <path d="M1 1l22 22" />
-                <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 3-3 3 3 0 0 0-.24-1.17" />
-              </svg>
-            </button>
+            <EyeToggle
+              :shown="reveal.telegram"
+              :hide-label="t('secretHideGeneric') || t('secretHide')"
+              :show-label="t('secretShowGeneric') || t('secretShow')"
+              @toggle="
+                async (next) => {
+                  if (next && form.telegramBotToken === MASK) {
+                    await revealSecret('telegramBotToken');
+                  }
+                  reveal.telegram = next;
+                }
+              " />
           </div>
           <small v-if="errors.telegramBotToken" class="small text-red-700">{{
             errors.telegramBotToken
@@ -120,12 +75,27 @@
         </div>
         <div>
           <label class="label">{{ t('externalTelegramChatId') }}</label>
-          <input
-            class="input"
-            :class="{ 'input-error': errors.telegramChatId }"
-            v-model="form.telegramChatId"
-            placeholder="-1001234567890"
-            @input="validate" />
+          <div class="input-group">
+            <input
+              class="input"
+              :class="{ 'input-error': errors.telegramChatId }"
+              :type="reveal.telegramChatId ? 'text' : 'password'"
+              v-model="form.telegramChatId"
+              placeholder="-1001234567890"
+              @input="validate" />
+            <EyeToggle
+              :shown="reveal.telegramChatId"
+              :hide-label="t('secretHideGeneric') || t('secretHide')"
+              :show-label="t('secretShowGeneric') || t('secretShow')"
+              @toggle="
+                async (next) => {
+                  if (next && form.telegramChatId === MASK) {
+                    await revealSecret('telegramChatId');
+                  }
+                  reveal.telegramChatId = next;
+                }
+              " />
+          </div>
           <small v-if="errors.telegramChatId" class="small text-red-700">{{
             errors.telegramChatId
           }}</small>
@@ -292,12 +262,18 @@
             placeholder="https://discord.com/api/webhooks/..."
             @input="validate"
             autocomplete="off" />
-          <button
-            type="button"
-            @click="reveal.liveDiscord = !reveal.liveDiscord"
-            :aria-pressed="reveal.liveDiscord ? 'true' : 'false'">
-            <span>{{ reveal.liveDiscord ? 'Hide' : 'Show' }}</span>
-          </button>
+          <EyeToggle
+            :shown="reveal.liveDiscord"
+            :hide-label="t('secretHideLiveWebhook')"
+            :show-label="t('secretShowLiveWebhook')"
+            @toggle="
+              async (next) => {
+                if (next && form.liveDiscordWebhook === MASK) {
+                  await revealSecret('liveDiscordWebhook');
+                }
+                reveal.liveDiscord = next;
+              }
+            " />
         </div>
         <small v-if="errors.liveDiscordWebhook" class="small text-red-700">{{
           errors.liveDiscordWebhook
@@ -316,12 +292,18 @@
               placeholder="123456:ABCDEF"
               @input="validate"
               autocomplete="off" />
-            <button
-              type="button"
-              @click="reveal.liveTelegram = !reveal.liveTelegram"
-              :aria-pressed="reveal.liveTelegram ? 'true' : 'false'">
-              <span>{{ reveal.liveTelegram ? 'Hide' : 'Show' }}</span>
-            </button>
+            <EyeToggle
+              :shown="reveal.liveTelegram"
+              :hide-label="t('secretHideGeneric') || t('secretHide')"
+              :show-label="t('secretShowGeneric') || t('secretShow')"
+              @toggle="
+                async (next) => {
+                  if (next && form.liveTelegramBotToken === MASK) {
+                    await revealSecret('liveTelegramBotToken');
+                  }
+                  reveal.liveTelegram = next;
+                }
+              " />
           </div>
           <small v-if="errors.liveTelegramBotToken" class="small text-red-700">{{
             errors.liveTelegramBotToken
@@ -329,12 +311,27 @@
         </div>
         <div>
           <label class="label">Live Telegram Chat ID</label>
-          <input
-            class="input"
-            :class="{ 'input-error': errors.liveTelegramChatId }"
-            v-model="form.liveTelegramChatId"
-            placeholder="-1001234567890"
-            @input="validate" />
+          <div class="input-group">
+            <input
+              class="input"
+              :class="{ 'input-error': errors.liveTelegramChatId }"
+              :type="reveal.liveTelegramChatId ? 'text' : 'password'"
+              v-model="form.liveTelegramChatId"
+              placeholder="-1001234567890"
+              @input="validate" />
+            <EyeToggle
+              :shown="reveal.liveTelegramChatId"
+              :hide-label="t('secretHideGeneric') || t('secretHide')"
+              :show-label="t('secretShowGeneric') || t('secretShow')"
+              @toggle="
+                async (next) => {
+                  if (next && form.liveTelegramChatId === MASK) {
+                    await revealSecret('liveTelegramChatId');
+                  }
+                  reveal.liveTelegramChatId = next;
+                }
+              " />
+          </div>
           <small v-if="errors.liveTelegramChatId" class="small text-red-700">{{
             errors.liveTelegramChatId
           }}</small>
@@ -373,10 +370,13 @@ import { isHttpUrl } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Rocket } from 'lucide-vue-next';
+import EyeToggle from './EyeToggle.vue';
 
 const { t } = useI18n();
 
 const masked = ref(false);
+
+const MASK = '................';
 
 const reveal = reactive({
   discord: false,
@@ -385,6 +385,8 @@ const reveal = reactive({
   telegram: false,
   liveDiscord: false,
   liveTelegram: false,
+  telegramChatId: false,
+  liveTelegramChatId: false,
 });
 
 const form = ref({
@@ -431,16 +433,23 @@ async function load() {
       api.get('/api/external-notifications'),
     ]);
     masked.value = !!modulesRes?.data?.masked;
-    form.value.discordWebhook = r.data.config?.discordWebhook || '';
-    form.value.telegramBotToken = r.data.config?.telegramBotToken || '';
-    form.value.telegramChatId = r.data.config?.telegramChatId || '';
-    form.value.template = r.data.config?.template || '';
-    form.value.liveDiscordWebhook = r.data.config?.liveDiscordWebhook || '';
-    form.value.liveTelegramBotToken = r.data.config?.liveTelegramBotToken || '';
-    form.value.liveTelegramChatId = r.data.config?.liveTelegramChatId || '';
-    liveHas.value.discord = !!r.data.config?.hasLiveDiscord;
-    liveHas.value.telegram = !!r.data.config?.hasLiveTelegram;
-    statusActive.value = !!r.data.active;
+    const cfg = r.data?.config || {};
+    form.value.template = cfg.template || '';
+    form.value.discordWebhook = cfg.discordWebhook || (cfg.hasDiscordWebhook ? MASK : '');
+    form.value.telegramBotToken = cfg.telegramBotToken || (cfg.hasTelegramBotToken ? MASK : '');
+    form.value.telegramChatId = cfg.telegramChatId || (cfg.hasTelegramChatId ? MASK : '');
+    form.value.liveDiscordWebhook =
+      cfg.liveDiscordWebhook || (cfg.hasLiveDiscordWebhook ? MASK : '');
+    form.value.liveTelegramBotToken =
+      cfg.liveTelegramBotToken || (cfg.hasLiveTelegramBotToken ? MASK : '');
+    form.value.liveTelegramChatId =
+      cfg.liveTelegramChatId || (cfg.hasLiveTelegramChatId ? MASK : '');
+    liveHas.value.discord = !!(cfg.hasLiveDiscord || cfg.hasLiveDiscordWebhook);
+    liveHas.value.telegram = !!(
+      cfg.hasLiveTelegram ||
+      (cfg.hasLiveTelegramBotToken && cfg.hasLiveTelegramChatId)
+    );
+    statusActive.value = !!r.data?.active;
     initial.value = JSON.stringify(form.value);
     dirty.value = false;
   } catch {
@@ -519,11 +528,27 @@ function mapError(msg) {
   return t('externalSaveFailed');
 }
 
+async function revealSecret(field) {
+  try {
+    const current = form.value[field];
+    if (!field || (current && current !== MASK)) return;
+    const r = await api.get('/api/external-notifications/reveal', { params: { field } });
+    if (r.data.success) form.value[field] = r.data.value || '';
+  } catch {}
+}
+
 function validate() {
   errors.value.discordWebhook =
-    form.value.discordWebhook && !isHttpUrl(form.value.discordWebhook) ? t('invalidUrl') : '';
+    form.value.discordWebhook &&
+    form.value.discordWebhook !== MASK &&
+    !isHttpUrl(form.value.discordWebhook)
+      ? t('invalidUrl')
+      : '';
 
-  if (form.value.telegramBotToken || form.value.telegramChatId) {
+  if (
+    (form.value.telegramBotToken && form.value.telegramBotToken !== MASK) ||
+    (form.value.telegramChatId && form.value.telegramChatId !== MASK)
+  ) {
     errors.value.telegramBotToken = form.value.telegramBotToken ? '' : t('requiredField');
     errors.value.telegramChatId = form.value.telegramChatId ? '' : t('requiredField');
   } else {
@@ -532,11 +557,16 @@ function validate() {
   }
 
   errors.value.liveDiscordWebhook =
-    form.value.liveDiscordWebhook && !isHttpUrl(form.value.liveDiscordWebhook)
+    form.value.liveDiscordWebhook &&
+    form.value.liveDiscordWebhook !== MASK &&
+    !isHttpUrl(form.value.liveDiscordWebhook)
       ? t('invalidUrl')
       : '';
 
-  if (form.value.liveTelegramBotToken || form.value.liveTelegramChatId) {
+  if (
+    (form.value.liveTelegramBotToken && form.value.liveTelegramBotToken !== MASK) ||
+    (form.value.liveTelegramChatId && form.value.liveTelegramChatId !== MASK)
+  ) {
     errors.value.liveTelegramBotToken = form.value.liveTelegramBotToken ? '' : t('requiredField');
     errors.value.liveTelegramChatId = form.value.liveTelegramChatId ? '' : t('requiredField');
   } else {
@@ -565,7 +595,7 @@ async function save() {
       liveTelegramChatId: (form.value.liveTelegramChatId || '').trim() || undefined,
     };
     Object.keys(payload).forEach((k) => {
-      if (payload[k] === undefined) delete payload[k];
+      if (payload[k] === MASK || payload[k] === undefined) delete payload[k];
     });
     const r = await api.post('/api/external-notifications', payload);
     if (r.data.success) {

@@ -2,11 +2,19 @@ import api from '../../services/api';
 
 export async function fetchAchievementsConfig() {
   const r = await api.get('/api/achievements/config');
-  return r.data;
+  return {
+    config: r?.data?.data || {},
+    meta: r?.data?.meta || null,
+  };
 }
+
 export async function saveAchievementsConfig(cfg) {
   const r = await api.post('/api/achievements/config', cfg);
-  return r.data;
+  return {
+    ok: !!r?.data?.ok,
+    config: r?.data?.data || {},
+    meta: r?.data?.meta || null,
+  };
 }
 export async function getAchievementsStatus() {
   const r = await api.get('/api/achievements/status');

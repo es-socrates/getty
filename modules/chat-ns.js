@@ -196,7 +196,7 @@ class ChatNsManager {
       try {
         const raffle = global && global.gettyRaffleInstance ? global.gettyRaffleInstance : null;
         if (raffle && typeof raffle.getPublicState === 'function' && typeof raffle.addParticipant === 'function') {
-          const st = raffle.getPublicState(ns);
+          const st = await raffle.getPublicState(ns);
           if (st && st.active && !st.paused && typeof st.command === 'string' && typeof chatMessage.message === 'string') {
             const msg = (chatMessage.message || '').trim().toLowerCase();
             const cmd = (st.command || '').trim().toLowerCase();
@@ -204,10 +204,13 @@ class ChatNsManager {
             const cmdNorm = cmd.replace(/^!+/, '');
             if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
               try {
-                const added = raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
+                const added = await raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
                 if (added) {
                   try { console.warn('[giveaway] participant added', { user: chatMessage.username }); } catch {}
-                  try { this._broadcastBoth(ns, { type: 'raffle_state', ...raffle.getPublicState(ns) }); } catch {}
+                  try {
+                    const newState = await raffle.getPublicState(ns);
+                    this._broadcastBoth(ns, { type: 'raffle_state', ...newState });
+                  } catch {}
                 }
               } catch {}
             }
@@ -216,7 +219,7 @@ class ChatNsManager {
       } catch {}
 
       this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
-      // Notify Achievements about chat activity
+
       try {
         if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
           global.gettyAchievementsInstance.onChatMessage(ns, chatMessage);

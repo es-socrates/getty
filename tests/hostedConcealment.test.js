@@ -1,20 +1,10 @@
 const request = require('supertest');
+const { freshServer } = require('./helpers/freshServer');
 
 describe('Hosted concealment (masking) behavior', () => {
-  let originalEnv;
-  let app;
-  beforeAll(() => {
-    originalEnv = { ...process.env };
-    process.env.REDIS_URL = 'redis://localhost:6379';
-    process.env.GETTY_REQUIRE_SESSION = '1';
-    process.env.GETTY_STRICT_LOCAL_ADMIN = '1';
-    jest.resetModules();
-    app = require('../server');
-  });
-  afterAll(() => {
-    jest.resetModules();
-    process.env = originalEnv;
-  });
+  let app; let restore;
+  beforeAll(() => { ({ app, restore } = freshServer({ REDIS_URL: 'redis://localhost:6379', GETTY_REQUIRE_SESSION: '1', GETTY_STRICT_LOCAL_ADMIN: '1' })); });
+  afterAll(() => { try { restore && restore(); } catch {} });
 
   test('Chat config concealed without namespace', async () => {
     const res = await request(app).get('/api/chat-config');

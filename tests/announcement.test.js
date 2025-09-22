@@ -1,23 +1,26 @@
 const request = require('supertest');
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
+let appRef; let restoreBaseline;
 
 let server;
 let base;
 
 beforeAll(async () => {
   try { jest.spyOn(console, 'error').mockImplementation(() => {}); } catch { /* ignore spy error */ }
-  if (typeof app.startTestServer === 'function') {
-    server = await app.startTestServer();
+  ({ app: appRef, restore: restoreBaseline } = freshServer({ GETTY_REQUIRE_SESSION: null, REDIS_URL: null }));
+  if (typeof appRef.startTestServer === 'function') {
+    server = await appRef.startTestServer();
     base = request(server);
   } else {
-    base = request(app);
+    base = request(appRef);
   }
 });
 
 afterAll(done => {
   try {
-    if (app.disposeGetty) app.disposeGetty();
+    if (appRef?.disposeGetty) appRef.disposeGetty();
   } catch { /* ignore dispose errors */ }
+  try { restoreBaseline && restoreBaseline(); } catch {}
   if (server) server.close(done); else done();
 });
 
@@ -138,7 +141,7 @@ describe('Announcement WebSocket', () => {
   let server, address, ws;
   const WebSocket = require('ws');
   beforeAll(async () => {
-    server = await app.startTestServer();
+  server = await appRef.startTestServer();
     const token = 'ws-ann-test';
     address = `ws://localhost:${server.address().port}?token=${token}`;
 
@@ -188,11 +191,11 @@ describe('Announcement WebSocket', () => {
 
     const create = await base.post('/api/announcement/message').field('text','WS live');
     expect(create.status).toBe(200);
-    const mod = app.getAnnouncementModule();
+  const mod = appRef.getAnnouncementModule();
     await mod.broadcastRandomMessage();
 
     if (!events.some(e=>e.type==='announcement')) {
-      try { const wss = app.getWss(); wss.broadcast(null, { type:'announcement', text:'WS injected fallback' }); } catch { /* ignore fallback broadcast error */ }
+  try { const wss = appRef.getWss(); wss.broadcast(null, { type:'announcement', text:'WS injected fallback' }); } catch { /* ignore fallback broadcast error */ }
     }
     await waitForAnnouncement;
     const safe = events.filter(e=>e && typeof e==='object');

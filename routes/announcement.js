@@ -5,12 +5,13 @@ const axios = require('axios');
 const { z } = require('zod');
 const { UPLOAD_DIR } = require('../modules/announcement');
 const __faviconCache = Object.create(null);
+const { isOpenTestMode } = require('../lib/test-open-mode');
 const FAVICON_TTL_MS = 60 * 60 * 1000;
 
 function registerAnnouncementRoutes(app, announcementModule, limiters) {
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
-  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
+  const shouldRequireSession = (requireSessionFlag || hostedWithRedis);
   async function resolveNsFromReq(req) {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -90,7 +91,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     try {
       const ns = await resolveNsFromReq(req);
       const cfg = await announcementModule.getPublicConfig(ns);
-      if (hostedWithRedis || requireSessionFlag) {
+  if (!isOpenTestMode() && (hostedWithRedis || requireSessionFlag)) {
         const isAdmin = await isAdminRequest(req);
         if (!isAdmin) {
           return res.json({ success: true, config: maskedDefaults() });
@@ -104,7 +105,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.post('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
-      if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
@@ -132,7 +133,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.post('/api/announcement/message', getLimiter('message'), upload.single('image'), async (req, res) => {
     try {
-      if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
@@ -205,7 +206,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.put('/api/announcement/message/:id', getLimiter('message'), async (req, res) => {
     try {
-      if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
@@ -256,7 +257,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.put('/api/announcement/message/:id/image', getLimiter('message'), upload.single('image'), async (req, res) => {
     try {
-      if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
@@ -285,7 +286,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
 
   app.delete('/api/announcement/message/:id', getLimiter('message'), async (req, res) => {
     try {
-      if (shouldRequireSession) {
+  if (!isOpenTestMode() && shouldRequireSession) {
         const ns = await resolveNsFromReq(req);
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }

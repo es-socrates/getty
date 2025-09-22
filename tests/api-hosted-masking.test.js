@@ -1,26 +1,13 @@
 const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
+const { freshServer } = require('./helpers/freshServer');
 
-let app;
-const ORIGINAL_ENV = { ...process.env };
-
+let app; let restore;
 beforeAll(() => {
-
-  process.env.REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-
-  process.env.GETTY_REQUIRE_SESSION = '1';
-  jest.resetModules();
-  app = require('../server');
+  ({ app, restore } = freshServer({ REDIS_URL: 'redis://127.0.0.1:6379', GETTY_REQUIRE_SESSION: '1' }));
 });
-
-afterAll(() => {
-  for (const k of Object.keys(process.env)) {
-    if (!(k in ORIGINAL_ENV)) delete process.env[k];
-  }
-  for (const [k, v] of Object.entries(ORIGINAL_ENV)) process.env[k] = v;
-  jest.resetModules();
-});
+afterAll(() => { try { restore && restore(); } catch {} });
 
 const CONFIG_DIR = process.env.GETTY_CONFIG_DIR ? (path.isAbsolute(process.env.GETTY_CONFIG_DIR) ? process.env.GETTY_CONFIG_DIR : path.join(process.cwd(), process.env.GETTY_CONFIG_DIR)) : path.join(process.cwd(), 'config');
 const CHAT_CONFIG_FILE = path.join(CONFIG_DIR, 'chat-config.json');

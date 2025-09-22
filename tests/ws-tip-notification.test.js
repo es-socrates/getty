@@ -1,12 +1,14 @@
 const WebSocket = require('ws');
 const request = require('supertest');
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
+let app; let restoreBaseline;
 
 describe('WebSocket tip notification flow', () => {
   let server;
   let address;
 
   beforeAll(async () => {
+    ({ app: app, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null }));
     server = await app.startTestServer();
     const port = server.address().port;
     address = `ws://localhost:${port}`;
@@ -16,6 +18,7 @@ describe('WebSocket tip notification flow', () => {
     if (server) {
       await new Promise(r => server.close(r));
     }
+    try { restoreBaseline && restoreBaseline(); } catch {}
   });
 
   test('receives init payload and subsequent tip event', async () => {

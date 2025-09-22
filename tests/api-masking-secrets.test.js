@@ -1,19 +1,10 @@
 const request = require('supertest');
+const { freshServer } = require('./helpers/freshServer');
 
 describe('Masking secrets and sensitive fields when GETTY_REQUIRE_SESSION=1', () => {
-  let app;
-  const OLD_ENV = process.env;
-
-  beforeAll(() => {
-    process.env = { ...OLD_ENV, NODE_ENV: 'test', GETTY_REQUIRE_SESSION: '1' };
-    jest.resetModules();
-    app = require('../server');
-  });
-
-  afterAll(() => {
-    process.env = OLD_ENV;
-    try { app?.disposeGetty?.(); } catch { /* ignore */ }
-  });
+  let app; let restore;
+  beforeAll(() => { ({ app, restore } = freshServer({ GETTY_REQUIRE_SESSION: '1' })); });
+  afterAll(() => { try { restore && restore(); } catch {} });
 
   test('GET /api/external-notifications hides secrets and lastTips', async () => {
     const res = await request(app).get('/api/external-notifications');
