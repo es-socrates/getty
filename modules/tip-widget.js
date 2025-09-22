@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { getWalletAddress } = require('./tip-goal');
+const { buildGatewayList } = require('../lib/arweave-gateways');
 
 const COLORS = {
   debug: '\x1b[36m',    // Cyan
@@ -74,21 +75,13 @@ class TipWidgetModule {
   constructor(wss) {
     this.wss = wss;
     this.ttsEnabled = true; // Default value
-    this.ARWEAVE_GATEWAYS = [
-      'https://arweave.net',
-      'https://ar-io.net',
-      'https://arweave.live',
-      'https://arweave-search.goldsky.com'
-    ];
-    if (process.env.TIP_WIDGET_EXTRA_GATEWAYS) {
-      try {
-        const extra = String(process.env.TIP_WIDGET_EXTRA_GATEWAYS)
-          .split(',').map(s=>s.trim()).filter(Boolean)
-          .map(s => (s.startsWith('http') ? s : `https://${s}`)).map(u=>u.replace(/\/$/, ''));
-        this.ARWEAVE_GATEWAYS.push(...extra);
-      } catch {}
-    }
-    this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
+    this.ARWEAVE_GATEWAYS = buildGatewayList({});
+    try {
+      if (process.env.TIP_WIDGET_EXTRA_GATEWAYS) {
+        const extra = process.env.TIP_WIDGET_EXTRA_GATEWAYS.split(',').map(s=>s.trim()).filter(Boolean);
+        this.ARWEAVE_GATEWAYS = Array.from(new Set([...this.ARWEAVE_GATEWAYS, ...extra]));
+      }
+    } catch {}
     this.GRAPHQL_TIMEOUT = Number(process.env.TIP_WIDGET_GRAPHQL_TIMEOUT_MS || 10000);
     this.walletAddress = getWalletAddress() || process.env.WALLET_ADDRESS || '';
     this.processedTxs = new Set();

@@ -19,6 +19,19 @@ if (process.env.NODE_ENV === 'test') {
   try {
   jest.mock('ws', () => require('./tests/mocks/ws'));
     jest.mock('obs-websocket-js', () => ({ OBSWebSocket: class MockOBS { async connect(){ return { connected:true }; } async call(){ return {}; } on(){} off(){} } }));
+
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const cfgDir = path.join(process.cwd(), 'config');
+      if (fs.existsSync(cfgDir)) {
+        const entries = fs.readdirSync(cfgDir);
+        const targets = entries.filter(f => /^(tip-goal-config|last-tip-config)(\.[0-9]+)?\.json$/i.test(f));
+        for (const f of targets) {
+          try { fs.unlinkSync(path.join(cfgDir, f)); } catch { /* ignore unlink errors */ }
+        }
+      }
+    } catch { /* ignore cleanup errors */ }
   } catch { /* ignore */ }
 }
 

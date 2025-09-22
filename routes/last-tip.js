@@ -199,6 +199,28 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
     }
   });
 
+  app.get('/api/last-tip/status', async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL || requireSessionFlag;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      const st = lastTip && typeof lastTip.getStatus === 'function' ? lastTip.getStatus() : { active: false };
+      const clone = { ...st };
+      if ((requireSessionFlag || hosted) && !hasNs) {
+        if (clone.walletAddress) clone.walletAddress = null;
+      }
+
+      try {
+        if (clone.diagnostics && clone.diagnostics.lastFetchTs) {
+          clone.diagnostics.lastFetchAgeSeconds = Math.round((Date.now() - clone.diagnostics.lastFetchTs) / 1000);
+        }
+      } catch {}
+      res.json({ ok: true, ...clone });
+    } catch (e) {
+      res.status(500).json({ error: 'last_tip_status_failed', details: e?.message });
+    }
+  });
+
   app.post('/api/last-tip', async (req, res) => {
     try {
 

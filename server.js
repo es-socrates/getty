@@ -2359,6 +2359,39 @@ app.get('/api/modules', async (req, res) => {
   let lastTipColors = {};
   let chatColors = {};
 
+  function __unwrapMaybe(o) {
+
+    try {
+      let cur = o;
+      let safety = 0;
+      while (
+        cur && typeof cur === 'object' &&
+        cur.data && typeof cur.data === 'object' &&
+        (cur.__version || cur.checksum || cur.updatedAt || cur.data.__version || cur.data.checksum || cur.data.updatedAt) &&
+        safety < 5
+      ) {
+
+        if (
+          cur.data.walletAddress !== undefined ||
+          cur.data.monthlyGoal !== undefined ||
+          cur.data.currentAmount !== undefined ||
+          cur.data.currentTips !== undefined ||
+          cur.data.bgColor !== undefined
+        ) {
+          cur = cur.data;
+        } else if (cur.data.data && typeof cur.data.data === 'object') {
+
+          cur = cur.data.data;
+        } else {
+          cur = cur.data;
+        }
+        safety++;
+      }
+      return cur;
+    } catch {}
+    return o;
+  }
+
   const TENANT_SCAN_TTL_MS = 30_000;
   if (!global.__gettyTenantConfigCache) global.__gettyTenantConfigCache = { files: {}, ts: 0 };
   function hasAnyTenantFile(basename) {
@@ -2398,19 +2431,19 @@ app.get('/api/modules', async (req, res) => {
   try {
     if (store && adminNs) {
       const tg = await store.get(adminNs, 'tip-goal-config', null);
-      if (tg && typeof tg === 'object') tipGoalColors = tg;
+      if (tg && typeof tg === 'object') tipGoalColors = __unwrapMaybe(tg);
 
     } else if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-      tipGoalColors = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'));
+      try { tipGoalColors = __unwrapMaybe(JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'))); } catch {}
     }
   } catch {}
   try {
     if (store && adminNs) {
       const lt = await store.get(adminNs, 'last-tip-config', null);
-      if (lt && typeof lt === 'object') lastTipColors = lt;
+      if (lt && typeof lt === 'object') lastTipColors = __unwrapMaybe(lt);
     }
     if ((!lastTipColors || Object.keys(lastTipColors).length === 0) && fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-      lastTipColors = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+      try { lastTipColors = __unwrapMaybe(JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'))); } catch {}
     }
   } catch {}
 
@@ -2433,12 +2466,50 @@ app.get('/api/modules', async (req, res) => {
         const merged = { ...base, ...lastTipColors };
         const __ltBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
         const __ltCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
-        const __tgWallet = typeof tipGoalColors.walletAddress === 'string' ? tipGoalColors.walletAddress.trim() : '';
+
+        let __tgWallet = '';
+        try {
+          if (typeof tipGoal?.getStatus === 'function') {
+            const liveTg = tipGoal.getStatus();
+            if (liveTg && typeof liveTg.walletAddress === 'string') __tgWallet = liveTg.walletAddress.trim();
+          }
+        } catch {}
+        if (!__tgWallet && typeof tipGoalColors.walletAddress === 'string') {
+          __tgWallet = tipGoalColors.walletAddress.trim();
+        }
         const __effLtWallet = __ltCfgWallet || __ltBaseWallet || __tgWallet;
+
+        try {
+          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+          const hasNsSession = !!(req?.ns?.admin || req?.ns?.pub);
+          if (hostedMode && hasNsSession) {
+            if (!__ltBaseWallet && (__ltCfgWallet || __tgWallet)) {
+              const adopt = __ltCfgWallet || __tgWallet;
+              if (adopt && typeof adopt === 'string') {
+                if (typeof lastTip.updateWalletAddress === 'function') {
+                  try { lastTip.updateWalletAddress(adopt, req); } catch {}
+                } else {
+                  try { lastTip.walletAddress = adopt; } catch {}
+                }
+              }
+            }
+          }
+        } catch {}
         if (__effLtWallet) merged.walletAddress = __effLtWallet;
         const wallet = __effLtWallet;
         if (wallet) {
-          try { merged.lastDonation = await lastTip.fetchLastDonation(wallet); } catch {}
+          try {
+            const fetched = await lastTip.fetchLastDonation(wallet);
+            if (fetched) {
+              merged.lastDonation = fetched;
+            } else if (process.env.GETTY_LAST_TIP_DEBUG === '1') {
+              try { console.warn('[LastTip][DEBUG] Retaining cached lastDonation because fetch returned null'); } catch {}
+            }
+          } catch (e) {
+            if (process.env.GETTY_LAST_TIP_DEBUG === '1') {
+              try { console.warn('[LastTip][DEBUG] fetchLastDonation error, retaining cached value:', e.message); } catch {}
+            }
+          }
         }
         merged.active = !!wallet || !!merged.lastDonation;
         return sanitizeIfNoNs(merged);
@@ -2447,13 +2518,47 @@ app.get('/api/modules', async (req, res) => {
     tipWidget: (() => {
       try {
         const base = tipWidget.getStatus?.() || {};
-        const effWallet = (typeof tipGoalColors.walletAddress === 'string' && tipGoalColors.walletAddress.trim())
-          || (typeof lastTipColors.walletAddress === 'string' && lastTipColors.walletAddress.trim())
-          || (typeof base.walletAddress === 'string' && base.walletAddress.trim())
-          || '';
+        let effWallet = '';
+
+        try {
+          if (tipGoal && typeof tipGoal.walletAddress === 'string' && tipGoal.walletAddress.trim()) {
+            effWallet = tipGoal.walletAddress.trim();
+          } else if (typeof tipGoal?.getStatus === 'function') {
+            const liveTg = tipGoal.getStatus();
+            if (liveTg && typeof liveTg.walletAddress === 'string' && liveTg.walletAddress.trim()) {
+              effWallet = liveTg.walletAddress.trim();
+            }
+          }
+        } catch {}
+        if (!effWallet && typeof tipGoalColors.walletAddress === 'string' && tipGoalColors.walletAddress.trim()) effWallet = tipGoalColors.walletAddress.trim();
+        if (!effWallet && typeof lastTipColors.walletAddress === 'string' && lastTipColors.walletAddress.trim()) effWallet = lastTipColors.walletAddress.trim();
+        if (!effWallet && typeof base.walletAddress === 'string' && base.walletAddress.trim()) effWallet = base.walletAddress.trim();
+        if (!effWallet) {
+
+          try {
+            if (typeof tipGoal?.getStatus === 'function') {
+              const lateTg = tipGoal.getStatus();
+              if (lateTg && typeof lateTg.walletAddress === 'string' && lateTg.walletAddress.trim()) {
+                effWallet = lateTg.walletAddress.trim();
+              }
+            }
+          } catch {}
+        }
         const out = { ...base };
         if (effWallet) out.walletAddress = effWallet;
-        out.active = !!(effWallet || base.active);
+
+        try {
+          if (effWallet) {
+            if (typeof tipWidget.updateWalletAddress === 'function') {
+              try { tipWidget.updateWalletAddress(effWallet, req); } catch {}
+            } else {
+              try { tipWidget.walletAddress = effWallet; } catch {}
+            }
+            out.walletAddress = effWallet;
+          }
+        } catch {}
+  const __hasEffectiveWallet = !!(effWallet || out.walletAddress);
+  out.active = __hasEffectiveWallet || !!base.active;
         out.configured = !!effWallet;
         if (!out.configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
 
@@ -2479,24 +2584,156 @@ app.get('/api/modules', async (req, res) => {
           } catch {}
         }
 
-        const merged = { ...base, ...tipGoalColors };
-        let current = Number(merged.currentAmount ?? merged.currentTips ?? base.currentTips ?? 0) || 0;
-        let goal = Number(merged.monthlyGoal ?? base.monthlyGoal ?? 0) || 0;
+        let merged = { ...base, ...tipGoalColors };
+        const isolate = process.env.GETTY_TIP_GOAL_ISOLATE === '1';
+        if (isolate) {
+          try {
+            if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+              let rawIso = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8'));
+              if (rawIso && rawIso.data && typeof rawIso.data === 'object' && ((rawIso.__version || rawIso.checksum || rawIso.updatedAt) || !rawIso.walletAddress)) {
+                rawIso = rawIso.data;
+                if (rawIso && rawIso.data && typeof rawIso.data === 'object') rawIso = rawIso.data;
+              }
+              const fileWalletIso = (rawIso && typeof rawIso.walletAddress === 'string') ? rawIso.walletAddress.trim() : '';
+              if (fileWalletIso === '') {
 
+                if (typeof rawIso.monthlyGoal === 'number') {
+                  if (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < rawIso.monthlyGoal) merged.monthlyGoal = rawIso.monthlyGoal;
+                }
+                if (typeof rawIso.currentAmount === 'number') {
+                  if (typeof merged.currentAmount !== 'number' || merged.currentAmount < rawIso.currentAmount) merged.currentAmount = rawIso.currentAmount;
+                  if (typeof merged.currentTips !== 'number' || merged.currentTips < rawIso.currentAmount) merged.currentTips = rawIso.currentAmount;
+                }
+              }
+            }
+          } catch {}
+        }
+  let current = Number(merged.currentAmount ?? merged.currentTips ?? base.currentTips ?? 0) || 0;
+  let goal = Number(merged.monthlyGoal ?? base.monthlyGoal ?? 0) || 0;
+
+        let __preLoginFileGoal = null;
+        let __preLoginFileCurrent = null;
+        let __preLoginAuthoritative = false;
+        try {
+          if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
+            let rawFile = {};
+            try { rawFile = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8')); } catch {}
+            let dataLayer = rawFile;
+            if (rawFile && rawFile.data && typeof rawFile.data === 'object' && ((rawFile.__version || rawFile.checksum || rawFile.updatedAt) || !rawFile.walletAddress)) {
+              dataLayer = rawFile.data;
+              if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object') dataLayer = dataLayer.data;
+            }
+            if (dataLayer && typeof dataLayer === 'object') {
+              const fGoal = Number(dataLayer.monthlyGoal || 0);
+              const fCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
+              const fWallet = (typeof dataLayer.walletAddress === 'string') ? dataLayer.walletAddress.trim() : '';
+              if (fWallet === '' && (fGoal > 0 || fCurrent >= 0)) {
+                __preLoginFileGoal = fGoal;
+                __preLoginFileCurrent = fCurrent;
+
+                goal = (fGoal > 0) ? fGoal : goal;
+                current = (fCurrent >= 0) ? fCurrent : current;
+                __preLoginAuthoritative = true;
+
+                try {
+                  if (fGoal > 0) merged.monthlyGoal = fGoal;
+                  if (fCurrent >= 0) { merged.currentAmount = fCurrent; merged.currentTips = fCurrent; }
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+
+        try {
+          if ((__preLoginFileGoal != null && __preLoginFileGoal > 0) || (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0)) {
+            if (typeof tipGoal === 'object' && tipGoal) {
+              if (__preLoginFileGoal != null && __preLoginFileGoal > 0) {
+                if (!tipGoal._stickyGoal || tipGoal._stickyGoal < __preLoginFileGoal) tipGoal._stickyGoal = __preLoginFileGoal;
+              }
+              if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0) {
+                if (tipGoal._stickyCurrent == null || tipGoal._stickyCurrent < __preLoginFileCurrent) tipGoal._stickyCurrent = __preLoginFileCurrent;
+              }
+            }
+            if (__preLoginFileGoal != null && __preLoginFileGoal > 0) {
+              if (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < goal) merged.monthlyGoal = goal;
+            }
+            if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0) {
+              if (typeof merged.currentAmount !== 'number' || merged.currentAmount < current) merged.currentAmount = current;
+              if (typeof merged.currentTips !== 'number' || merged.currentTips < current) merged.currentTips = current;
+            }
+          }
+        } catch {}
+
+        if (typeof base.stickyGoal === 'number' && base.stickyGoal > 0) {
+          if (goal < base.stickyGoal) goal = base.stickyGoal;
+        }
+        if (typeof base.stickyCurrent === 'number' && base.stickyCurrent >= 0) {
+          if (current < base.stickyCurrent) current = base.stickyCurrent;
+        }
+
+        if (__preLoginFileGoal != null && __preLoginFileGoal > 0 && goal < __preLoginFileGoal) {
+          goal = __preLoginFileGoal;
+        }
+        if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0 && current < __preLoginFileCurrent) {
+          current = __preLoginFileCurrent;
+        }
+
+        let __authoritativeFileGoal = null;
+        let __authoritativeFileCurrent = null;
         try {
           const cfgPathPre = TIP_GOAL_CONFIG_FILE;
           if (fs.existsSync(cfgPathPre)) {
             try {
               const rawTxt = fs.readFileSync(cfgPathPre,'utf8');
-              const parsed = JSON.parse(rawTxt);
-              const dataLayer = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
-              if (dataLayer) {
+              let parsed = {};
+              try { parsed = JSON.parse(rawTxt); } catch {}
+
+              let dataLayer = parsed;
+              if (parsed && parsed.data && typeof parsed.data === 'object') {
+                if ('__version' in parsed || 'checksum' in parsed || 'updatedAt' in parsed || !parsed.walletAddress) {
+                  dataLayer = parsed.data;
+                }
+
+                if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object') {
+                  if (dataLayer.data.walletAddress || dataLayer.data.monthlyGoal || dataLayer.data.currentAmount || dataLayer.data.currentTips) {
+                    dataLayer = dataLayer.data;
+                  }
+                }
+              }
+              if (dataLayer && typeof dataLayer === 'object') {
                 const fileGoal = Number(dataLayer.monthlyGoal || 0);
                 const fileCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
-                if (fileGoal > 0 && (goal === 0 || goal < fileGoal)) goal = fileGoal;
-                if (fileCurrent > 0 && (current === 0 || current < fileCurrent)) current = fileCurrent;
+                const fileWallet = (typeof dataLayer.walletAddress === 'string') ? dataLayer.walletAddress.trim() : '';
+                const hasFileValues = fileGoal > 0 || fileCurrent > 0;
+
+                if (hasFileValues && fileWallet === '') {
+
+                  if (fileGoal > 0 && goal < fileGoal) goal = fileGoal;
+                  if (fileCurrent >= 0 && current < fileCurrent) current = fileCurrent;
+                  if (fileGoal > 0) __authoritativeFileGoal = fileGoal;
+                  if (fileCurrent >= 0) __authoritativeFileCurrent = fileCurrent;
+
+                  try {
+                    if (typeof tipGoal === 'object') {
+                      if (fileGoal > 0 && (!tipGoal._stickyGoal || tipGoal._stickyGoal < fileGoal)) tipGoal._stickyGoal = fileGoal;
+                      if (fileCurrent >= 0 && (tipGoal._stickyCurrent == null || tipGoal._stickyCurrent < fileCurrent)) tipGoal._stickyCurrent = fileCurrent;
+                    }
+                  } catch {}
+                } else {
+
+                  if (fileGoal > 0 && (goal === 0 || goal < fileGoal)) goal = fileGoal;
+                  if (fileCurrent > 0 && (current === 0 || current < fileCurrent)) current = fileCurrent;
+                }
               }
             } catch {}
+          }
+        } catch {}
+
+        try {
+          if (goal > 0 && (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < goal)) merged.monthlyGoal = goal;
+          if (current >= 0 && (typeof merged.currentAmount !== 'number' || merged.currentAmount < current)) {
+            merged.currentAmount = current;
+            merged.currentTips = current;
           }
         } catch {}
 
@@ -2539,26 +2776,83 @@ app.get('/api/modules', async (req, res) => {
             if (fs.existsSync(cfgPath)) {
               try {
                 const rawTxt = fs.readFileSync(cfgPath,'utf8');
-                const parsed = JSON.parse(rawTxt);
-                const dataLayer = parsed && parsed.data && typeof parsed.data === 'object' ? parsed.data : parsed;
-                if (dataLayer) {
+                let parsed = {};
+                try { parsed = JSON.parse(rawTxt); } catch {}
+                let dataLayer = parsed;
+                if (parsed && parsed.data && typeof parsed.data === 'object') {
+                  if ('__version' in parsed || 'checksum' in parsed || 'updatedAt' in parsed || !parsed.walletAddress) {
+                    dataLayer = parsed.data;
+                  }
+                  if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object') {
+                    if (dataLayer.data.walletAddress || dataLayer.data.monthlyGoal || dataLayer.data.currentAmount || dataLayer.data.currentTips) {
+                      dataLayer = dataLayer.data;
+                    }
+                  }
+                }
+                if (dataLayer && typeof dataLayer === 'object') {
                   const fileGoal = Number(dataLayer.monthlyGoal || 0);
                   const fileCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
-                  const shouldAdopt = (fileGoal > 0 && (merged.monthlyGoal === 0 || merged.monthlyGoal < fileGoal)) || (fileCurrent > 0 && (merged.currentAmount === 0 || merged.currentAmount < fileCurrent));
+                  const fileWallet = (typeof dataLayer.walletAddress === 'string') ? dataLayer.walletAddress.trim() : '';
+                  const hasFileValues = fileGoal > 0 || fileCurrent > 0;
+                  let shouldAdopt = false;
+                  if (hasFileValues && fileWallet === '') {
+
+                    shouldAdopt = true;
+                    if (fileGoal > 0) __authoritativeFileGoal = fileGoal;
+                    if (fileCurrent >= 0) __authoritativeFileCurrent = fileCurrent;
+                  } else if ((fileGoal > 0 && (merged.monthlyGoal === 0 || merged.monthlyGoal < fileGoal)) || (fileCurrent > 0 && (merged.currentAmount === 0 || merged.currentAmount < fileCurrent))) {
+                    shouldAdopt = true;
+                  }
                   if (shouldAdopt) {
-                    merged.monthlyGoal = fileGoal;
-                    merged.currentAmount = fileCurrent;
-                    merged.currentTips = fileCurrent;
+                    if (fileGoal > 0 && merged.monthlyGoal < fileGoal) merged.monthlyGoal = fileGoal;
+                    if (fileCurrent >= 0 && merged.currentAmount < fileCurrent) {
+                      merged.currentAmount = fileCurrent;
+                      merged.currentTips = fileCurrent;
+                    }
                     const rate2 = Number(merged.exchangeRate || 0);
-                    if (rate2 > 0) {
+                    if (rate2 > 0 && fileGoal > 0) {
                       merged.usdValue = (fileCurrent * rate2).toFixed(2);
                       merged.goalUsd = (fileGoal * rate2).toFixed(2);
                     }
-                    const pct2 = fileGoal > 0 ? Math.min((fileCurrent / fileGoal) * 100, 100) : 0;
-                    merged.progress = pct2;
+                    if (fileGoal > 0) {
+                      const pct2 = fileGoal > 0 ? Math.min((fileCurrent / fileGoal) * 100, 100) : 0;
+                      merged.progress = pct2;
+                    }
                   }
                 }
               } catch {}
+            }
+          }
+        } catch {}
+
+        try {
+          if (__authoritativeFileGoal != null && __authoritativeFileGoal > 0 && merged.monthlyGoal !== __authoritativeFileGoal) {
+            if (merged.monthlyGoal < __authoritativeFileGoal) merged.monthlyGoal = __authoritativeFileGoal;
+          }
+          if (__authoritativeFileCurrent != null && __authoritativeFileCurrent >= 0 && merged.currentAmount !== __authoritativeFileCurrent) {
+            if (merged.currentAmount < __authoritativeFileCurrent) {
+              merged.currentAmount = __authoritativeFileCurrent;
+              merged.currentTips = __authoritativeFileCurrent;
+            }
+          }
+
+          if (__preLoginFileGoal != null && __preLoginFileGoal > 0 && merged.monthlyGoal < __preLoginFileGoal) {
+            merged.monthlyGoal = __preLoginFileGoal;
+          }
+            if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0 && merged.currentAmount < __preLoginFileCurrent) {
+              merged.currentAmount = __preLoginFileCurrent;
+              merged.currentTips = __preLoginFileCurrent;
+            }
+        } catch {}
+
+        try {
+          if (__preLoginAuthoritative) {
+            if (__preLoginFileGoal != null && __preLoginFileGoal > 0 && merged.monthlyGoal > __preLoginFileGoal) {
+              merged.monthlyGoal = __preLoginFileGoal;
+            }
+            if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0 && merged.currentAmount > __preLoginFileCurrent) {
+              merged.currentAmount = __preLoginFileCurrent;
+              merged.currentTips = __preLoginFileCurrent;
             }
           }
         } catch {}
