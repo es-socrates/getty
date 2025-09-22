@@ -78,7 +78,15 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
           meta = { __version: 1, checksum: computeChecksum({ config }), updatedAt: new Date().toISOString(), source: 'memory' };
         } catch {}
       }
-      res.json({ success: true, config: config || [], meta });
+
+      if (!Array.isArray(config)) {
+        if (config && typeof config === 'object' && Array.isArray(config.data)) {
+          config = config.data;
+        } else {
+          config = [];
+        }
+      }
+      res.json({ success: true, config: config, meta });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
     }
