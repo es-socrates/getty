@@ -52,7 +52,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "obs-websocket-js": "^5.0.6",
-    "primeicons": "^6.0.1",
+    "primeicons": "^7.0.0",
     "primevue": "^4.1.1",
     "react-aria-components": "^1.12.2",
     "tailwind-merge": "^3.3.1",
