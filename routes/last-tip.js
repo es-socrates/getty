@@ -1,6 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { z } = require('zod');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { readHybridConfig, writeHybridConfig } = require('../lib/hybrid-config');
+const { isOpenTestMode } = require('../lib/test-open-mode');
 
 const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
 function isValidArweaveAddress(addr) {
@@ -23,22 +26,57 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
   const tenant = (() => { try { return require('../lib/tenant'); } catch { return null; } })();
 
+  function __hasRedisStore() { return !!(store && store.redis); }
+  function __requireSessionFlag() { return process.env.GETTY_REQUIRE_SESSION === '1'; }
+  function __requireAdminWriteFlag() { return process.env.GETTY_REQUIRE_ADMIN_WRITE === '1'; }
+  function __hasRedisUrl() { return !!process.env.REDIS_URL; }
+  function __hosted() { return __hasRedisStore() || __requireSessionFlag(); }
+  function __shouldRequireSession() { return __hosted() && !isOpenTestMode(); }
+  function __shouldRequireAdminWrites() { return (__requireAdminWriteFlag() || __hasRedisUrl()) && !isOpenTestMode(); }
+  function __shouldEnforceTrustedWrite() { return __hosted() && !isOpenTestMode(); }
+
   app.get('/api/last-tip', async (req, res) => {
     try {
       let cfg = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let meta = null;
 
       if (tenant && tenant.tenantEnabled(req)) {
-        const loaded = tenant.loadConfigWithFallback(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
-        cfg = loaded.data || {};
+        try {
+          const storeInst = (req.app && req.app.get) ? req.app.get('store') : store;
+          const lt = await loadTenantConfig(req, storeInst, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+          const data = lt.data?.data ? lt.data.data : lt.data;
+          if (data && Object.keys(data).length) cfg = data;
+
+          if (lt.tenantPath && fs.existsSync(lt.tenantPath)) {
+            try {
+              const raw = JSON.parse(fs.readFileSync(lt.tenantPath, 'utf8'));
+              meta = { __version: raw.__version, checksum: raw.checksum, updatedAt: raw.updatedAt, source: lt.source };
+            } catch {}
+          }
+        } catch {}
       } else if (store && ns) {
-        cfg = await store.get(ns, 'last-tip-config', null);
+        let wrapped = null;
+        if (typeof store.getConfig === 'function') {
+          try { wrapped = await store.getConfig(ns, 'last-tip-config.json', null); } catch {}
+        }
+        if (!wrapped) {
+          try { wrapped = await store.get(ns, 'last-tip-config', null); } catch {}
+        }
+        if (wrapped) cfg = wrapped.data ? wrapped.data : wrapped;
       }
       if (!cfg) {
-        if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-          return res.status(404).json({ error: 'No last tip config' });
-        }
-        cfg = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+        if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) return res.status(404).json({ error: 'No last tip config' });
+        try {
+          const hybrid = readHybridConfig(LAST_TIP_CONFIG_FILE);
+          cfg = hybrid.data || {};
+          if (hybrid.meta && hybrid.meta.wrapped) {
+            meta = { __version: hybrid.meta.__version, checksum: hybrid.meta.checksum, updatedAt: hybrid.meta.updatedAt, source: 'global-file' };
+          } else if (!hybrid.meta?.error) {
+            const rawTxt = fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8');
+            try { const legacy = JSON.parse(rawTxt); if (legacy.__version) meta = { __version: legacy.__version, checksum: legacy.checksum, updatedAt: legacy.updatedAt, source: 'global-file' }; } catch {}
+          }
+        } catch { cfg = {}; }
       }
 
   const out = { ...cfg };
@@ -59,7 +97,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
             if (!isLocal && out && typeof out === 'object' && out.walletAddress) delete out.walletAddress;
         }
       } catch {}
-      res.json({ success: true, ...out });
+      res.json({ success: true, ...(meta ? { meta } : {}), ...out });
     } catch (e) {
       res.status(500).json({ error: 'Error loading last tip config', details: e.message });
     }
@@ -68,12 +106,10 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   app.get('/api/last-tip/earnings', async (req, res) => {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
-      const requireSession = hosted;
-      if (requireSession && !(req?.ns?.admin || req?.ns?.pub)) {
+  if (__shouldRequireSession() && !(req?.ns?.admin || req?.ns?.pub)) {
         return res.status(401).json({ error: 'no_session' });
       }
-      if (!hosted) {
+  if (!__hosted()) {
 
         try {
           const remote = (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || req.ip || '';
@@ -87,22 +123,56 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       }
 
       let wallet = '';
-      if (store && ns) {
+      try {
+        const tenantLib = (() => { try { return require('../lib/tenant'); } catch { return null; } })();
+        const tenantEnabled = tenantLib && typeof tenantLib.tenantEnabled === 'function' ? tenantLib.tenantEnabled(req) : false;
+        if (tenantEnabled) {
+          try {
+            const { loadTenantConfig } = require('../lib/tenant-config');
+            const globalPath = path.join(process.cwd(), 'config', 'last-tip-config.json');
+            const wrapped = await loadTenantConfig(req, store, globalPath, 'last-tip-config.json');
+            const data = wrapped?.data?.data ? wrapped.data.data : wrapped?.data;
+            if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+              wallet = data.walletAddress.trim();
+            }
+          } catch {}
+        }
+      } catch {}
+
+      if (!wallet && store && ns) {
         try {
-          const cfg = await store.get(ns, 'last-tip-config', null);
-          if (cfg && typeof cfg.walletAddress === 'string') wallet = cfg.walletAddress.trim();
+          if (typeof store.getConfig === 'function') {
+            const wrapped = await store.getConfig(ns, 'last-tip-config.json', null);
+            if (wrapped && wrapped.data && typeof wrapped.data.walletAddress === 'string' && wrapped.data.walletAddress.trim()) {
+              wallet = wrapped.data.walletAddress.trim();
+            }
+          }
         } catch {}
+        if (!wallet) {
+          try {
+            const cfg = await store.get(ns, 'last-tip-config', null);
+            if (cfg && typeof cfg.walletAddress === 'string' && cfg.walletAddress.trim()) wallet = cfg.walletAddress.trim();
+          } catch {}
+        }
       }
       if (!wallet) {
         try {
           const cfgPath = path.join(process.cwd(), 'config', 'last-tip-config.json');
           if (fs.existsSync(cfgPath)) {
-            const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-            if (cfg && typeof cfg.walletAddress === 'string') wallet = String(cfg.walletAddress).trim();
+            try {
+              const rawTxt = fs.readFileSync(cfgPath, 'utf8');
+              const parsed = JSON.parse(rawTxt);
+              const data = parsed && parsed.data ? parsed.data : parsed; // wrapper or legacy
+              if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+                wallet = data.walletAddress.trim();
+              }
+            } catch {}
           }
         } catch {}
       }
-      if (!wallet && lastTip && lastTip.walletAddress) wallet = String(lastTip.walletAddress).trim();
+      if (!wallet && lastTip && lastTip.walletAddress) {
+        wallet = String(lastTip.walletAddress).trim();
+      }
       if (!wallet) {
         return res.json({ totalAR: 0, txCount: 0, ns: !!ns, configured: false, warning: 'no_wallet_configured' });
       }
@@ -132,18 +202,15 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
   app.post('/api/last-tip', async (req, res) => {
     try {
 
-  const requireSession = (store && store.redis) || process.env.GETTY_REQUIRE_SESSION === '1';
-  if (requireSession && !(req?.ns?.admin || req?.ns?.pub)) {
+  if (__shouldRequireSession() && !(req?.ns?.admin || req?.ns?.pub)) {
         return res.status(401).json({ error: 'no_session' });
       }
-      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
-      if (requireAdminWrites) {
+  if (__shouldRequireAdminWrites()) {
         const isAdmin = !!(req?.auth && req.auth.isAdmin);
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const { canWriteConfig } = require('../lib/authz');
-      const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
-      if (hosted && !canWriteConfig(req)) {
+  if (__shouldEnforceTrustedWrite() && !canWriteConfig(req)) {
         return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
       }
       const schema = z.object({
@@ -162,13 +229,28 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       let config = {};
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (tenant && tenant.tenantEnabled(req)) {
-        const loaded = tenant.loadConfigWithFallback(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
-        config = loaded.data || {};
+        try {
+          const storeInst = (req.app && req.app.get) ? req.app.get('store') : store;
+          const lt = await loadTenantConfig(req, storeInst, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+          const data = lt.data?.data ? lt.data.data : lt.data;
+          if (data && Object.keys(data).length) config = data;
+        } catch {}
       } else if (store && ns) {
-        const st = await store.get(ns, 'last-tip-config', null);
-        if (st && typeof st === 'object') config = st;
+        try {
+          let wrapped = null;
+          if (typeof store.getConfig === 'function') {
+            try { wrapped = await store.getConfig(ns, 'last-tip-config.json', null); } catch {}
+          }
+            if (!wrapped) {
+              try { wrapped = await store.get(ns, 'last-tip-config', null); } catch {}
+            }
+          if (wrapped) config = wrapped.data ? wrapped.data : wrapped;
+        } catch {}
       } else if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-        config = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+        try {
+          const hybrid = readHybridConfig(LAST_TIP_CONFIG_FILE);
+          config = hybrid.data || {};
+        } catch {}
       }
       const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof walletAddress === 'string';
       let effectiveWallet = walletProvided ? (walletAddress || '').trim() : (config.walletAddress || '');
@@ -191,32 +273,63 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       ...(walletProvided ? { walletAddress: effectiveWallet } : {}),
         title: (typeof title === 'string' && title.trim()) ? title.trim() : (config.title || 'Last tip received 👏')
       };
+      let meta = null;
       if (tenant && tenant.tenantEnabled(req)) {
-        tenant.saveTenantAwareConfig(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json', () => newConfig);
         try {
-          if (wss && typeof wss.broadcast === 'function') {
-            wss.broadcast(req.walletSession.walletHash, { type: 'lastTipConfig', data: newConfig });
+          const storeInst = (req.app && req.app.get) ? req.app.get('store') : store;
+          const saveRes = await saveTenantConfig(req, storeInst, LAST_TIP_CONFIG_FILE, 'last-tip-config.json', newConfig);
+          meta = saveRes.meta;
+          if (walletProvided) {
+            try {
+              const tgGlobal = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+              let existingTg = {};
+              try {
+                const tgLoaded = await loadTenantConfig(req, storeInst, tgGlobal, 'tip-goal-config.json');
+                const data = tgLoaded.data?.data ? tgLoaded.data.data : tgLoaded.data;
+                if (data && typeof data === 'object') existingTg = data;
+              } catch {}
+              const mergedTg = { ...existingTg, walletAddress: effectiveWallet };
+              await saveTenantConfig(req, storeInst, tgGlobal, 'tip-goal-config.json', mergedTg);
+            } catch {}
           }
-        } catch {}
-        return res.json({ success: true, tenant: true, ...newConfig });
+          if (wss && typeof wss.broadcast === 'function' && req.walletSession && req.walletSession.walletHash) {
+            try { wss.broadcast(req.walletSession.walletHash, { type: 'lastTipConfig', data: newConfig }); } catch {}
+          }
+          try { if (lastTip) { lastTip._lastReqForSave = req; lastTip.scheduleWriteThrough(newConfig); } } catch {}
+          return res.json({ success: true, tenant: true, ...(meta ? { meta } : {}), ...newConfig });
+        } catch (e) { return res.status(500).json({ error: 'tenant_save_failed', details: e.message }); }
       } else if (store && ns) {
-        await store.set(ns, 'last-tip-config', newConfig);
+        if (typeof store.setConfig === 'function') {
+          try { await store.setConfig(ns, 'last-tip-config.json', newConfig); } catch {}
+        } else {
+          try { await store.set(ns, 'last-tip-config', newConfig); } catch {}
+        }
         if (walletProvided) {
           try {
-            const tg = await store.get(ns, 'tip-goal-config', null);
-            const newTg = { ...(tg && typeof tg === 'object' ? tg : {}), walletAddress: effectiveWallet };
-            await store.set(ns, 'tip-goal-config', newTg);
+            let existingTg = {};
+            if (typeof store.getConfig === 'function') {
+              try { existingTg = await store.getConfig(ns, 'tip-goal-config.json', null) || {}; } catch {}
+            }
+            if (!existingTg || Object.keys(existingTg).length === 0) {
+              try { existingTg = await store.get(ns, 'tip-goal-config', null) || {}; } catch {}
+            }
+            const existingData = existingTg.data ? existingTg.data : existingTg;
+            const mergedTg = { ...(existingData && typeof existingData === 'object' ? existingData : {}), walletAddress: effectiveWallet };
+            if (typeof store.setConfig === 'function') {
+              try { await store.setConfig(ns, 'tip-goal-config.json', mergedTg); } catch {}
+            } else {
+              try { await store.set(ns, 'tip-goal-config', mergedTg); } catch {}
+            }
           } catch {}
         }
-        try {
-          if (wss && typeof wss.broadcast === 'function') {
-            wss.broadcast(ns, { type: 'lastTipConfig', data: newConfig });
-          }
-        } catch {}
-        return res.json({ success: true, ...newConfig });
+        if (wss && typeof wss.broadcast === 'function') {
+            try { wss.broadcast(ns, { type: 'lastTipConfig', data: newConfig }); } catch {}
+        }
+        try { if (lastTip) { lastTip._lastReqForSave = req; lastTip.scheduleWriteThrough(newConfig); } } catch {}
+        return res.json({ success: true, ...(meta ? { meta } : {}), ...newConfig });
       } else {
-        fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
-        const result = lastTip.updateWalletAddress(newConfig.walletAddress);
+        try { writeHybridConfig(LAST_TIP_CONFIG_FILE, newConfig); } catch { try { fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2)); } catch {} }
+        const result = (lastTip && typeof lastTip.updateWalletAddress === 'function') ? lastTip.updateWalletAddress(newConfig.walletAddress) : {};
         if (typeof lastTip.broadcastConfig === 'function') {
           lastTip.broadcastConfig(newConfig);
         }

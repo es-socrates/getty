@@ -6,24 +6,40 @@
   <title>Welcome to getty</title>
   <link rel="icon" href="https://f6kxms722ekygyfrhqnuhegs7czgujfu4mnklpl3wfldfpo5c6fq.arweave.net/L5V2S_rRFYNgsTwbQ5DS-LJqJLTjGqW9e7FWMr3dF4s" />
   <script src="/js/head-theme-init.js" integrity="sha384-sg4ZGX1HIe2yy5wrH4yjXf6+kJVXEwLlH+nJ85vo7ropVY/grxssN1pAA2vmig89" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/css/welcome.css" integrity="sha384-gmpZJAOZ8fkgbUYAxL1zSRsbp7BorX8IflvXe00Heldf9p1ymzUHgteWxKtUTmrd" crossorigin="anonymous">
+  <link rel="stylesheet" href="/css/welcome.css" integrity="sha384-mW928g3/3w+fSI3ON8LPf1BUr6U07+wPMIwfoQVmDOyBeoU3SoQSgOiZLQHAFiNU" crossorigin="anonymous">
+  <link rel="stylesheet" href="/css/output.css" integrity="sha384-WTogPnpwQvZyNluQQ9NyCQK39YJHrmcreslQNGsbzZyUlBZQHq+T4jHondylP22s" crossorigin="anonymous">
   <meta property="og:title" content="Welcome to getty" />
   <meta property="og:site_name" content="getty" />
   <meta name="description" content="Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee." />
   <link rel="preload" href="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" as="image">
   <link rel="preload" href="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" as="image">
-  <link rel="modulepreload" href="/js/min/i18n-runtime.js?v=451feb7d">
-  <script src="/js/min/i18n-runtime.js?v=451feb7d" integrity="sha384-udk9MNKumhZZq287t7VcuO8pexXPY5HJPw+/wc0BPqZeX75TdocBXHAjAl/AIhPm" crossorigin="anonymous" defer></script>
-  <script src="/js/welcome.js" integrity="sha384-hdY8EQQBUiKnHlrPjIaem0kFync52K6xqQgMOTuy2iwXQMYX+AVUL30ab9uin62D" crossorigin="anonymous" defer></script>
+  <link rel="modulepreload" href="/js/min/i18n-runtime.js?v=ec16ddc7">
+  <script src="/js/min/i18n-runtime.js?v=ec16ddc7" integrity="sha384-8jCa/+3W9vaMIzHqiPOhioX7H/se7wl7XJQnmseKq2vaNrtJ0ilsbGG9yhhQOqgJ" crossorigin="anonymous" defer></script>
+  <script src="/js/welcome.js" integrity="sha384-wQOnFD4Ux2etUT80gomliWFdfz9GQPNl/YNVf55e4BQoqcfzDwq6p3DzwvPVQhdS" crossorigin="anonymous" defer></script>
   </head>
 <body>
   <header class="header">
-    <a class="os-btn" href="/" data-i18n="goToHome">Homepage</a>
-    <a class="os-btn primary" href="/admin/" target="_self" data-i18n="goToAdmin">Go to admin</a>
-    <select id="lang-select" class="lang-select" aria-label="Language">
-      <option value="en" data-i18n="english">English</option>
-      <option value="es" data-i18n="spanish">Español</option>
-    </select>
+    <div class="relative" id="lang-picker-wrapper">
+      <button id="lang-btn" class="items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors flex" aria-haspopup="true" aria-expanded="false" aria-controls="lang-menu" title="Language">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/></svg>
+        <span id="lang-btn-label" class="font-medium">EN</span>
+        <svg viewBox="0 0 24 24" class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div id="lang-menu" class="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-lg p-2 z-50 hidden" role="menu" aria-labelledby="lang-btn">
+        <p class="px-2 py-1 text-xs uppercase tracking-wide text-[var(--text-secondary)]" data-i18n="languageLabel">Language</p>
+        <ul class="space-y-1">
+          <li><button type="button" data-lang="en" class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]" role="menuitem" data-i18n="english">English</button></li>
+          <li><button type="button" data-lang="es" class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]" role="menuitem" data-i18n="spanish">Español</button></li>
+        </ul>
+      </div>
+    </div>
+    <a href="/index.html" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out" data-i18n="walletLogin" aria-label="Login">
+      <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M16 12h.01" />
+      </svg>
+      <span class="btn-label" data-default-label="Login">Login</span>
+    </a>
     <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
       <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <path d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z"/>
@@ -35,10 +51,9 @@
   </header>
   <div id="app" class="wrap">
     <div class="card">
-  <img src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" alt="getty" class="logo dark-logo" />
-  <img src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" alt="getty" class="logo light-logo" />
-  <div id="caption" class="subtitle">&nbsp;</div>
-  <div class="foot" data-i18n="welcomeTipNewSession"></div>
+      <img src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" alt="getty" class="logo dark-logo" />
+      <img src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" alt="getty" class="logo light-logo" />
+      <div id="caption" class="subtitle">&nbsp;</div>
     </div>
   </div>
   

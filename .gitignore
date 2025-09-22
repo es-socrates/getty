@@ -13,4 +13,6 @@ tts-settings.json
 config/*.json
 .stylelintcache
 .eslintcache
-/reports/
+reports/
+tenant/
+data/*

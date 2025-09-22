@@ -1,5 +1,7 @@
 const axios = require('axios');
 const WebSocket = require('ws');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { tenantEnabled } = (() => { try { return require('../lib/tenant'); } catch { return { tenantEnabled: () => false }; } })();
 
 class LastTipModule {
   constructor(wss) {
@@ -29,16 +31,40 @@ class LastTipModule {
     this.ARWEAVE_GATEWAYS = Array.from(new Set(this.ARWEAVE_GATEWAYS));
     this.GRAPHQL_TIMEOUT = Number(process.env.LAST_TIP_GRAPHQL_TIMEOUT_MS || 10000);
     this.VIEWBLOCK_TIMEOUT = Number(process.env.LAST_TIP_VIEWBLOCK_TIMEOUT_MS || 6000);
-    this.walletAddress = null;
+  this.walletAddress = null;
+  this._loadedMeta = null;
+  this._lastReqForSave = null;
   this.lastDonation = null;
     this.processedTxs = new Set();
-    this.loadWalletAddress();
+  this.loadWalletAddress();
     if (process.env.NODE_ENV !== 'test') {
       this.init();
     }
   }
 
-  loadWalletAddress() {
+  scheduleWriteThrough(configSnapshot) {
+    try {
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (!hostedMode) return;
+      if (!this._lastReqForSave) return;
+      if (this._pendingFlush) clearTimeout(this._pendingFlush);
+      this._pendingFlush = setTimeout(() => {
+        try {
+          const req = this._lastReqForSave;
+          const store = (req.app && req.app.get) ? req.app.get('store') : null;
+          const path = require('path');
+          const globalPath = path.join(process.cwd(), 'config', 'last-tip-config.json');
+          saveTenantConfig(req, store, globalPath, 'last-tip-config.json', configSnapshot)
+            .then(r => { this._loadedMeta = r.meta; })
+            .catch(e => { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][WRITE_THROUGH_ERROR]', e.message); });
+        } catch (e) {
+          if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][WRITE_THROUGH_FATAL]', e.message);
+        }
+      }, 250);
+    } catch {}
+  }
+
+  async loadWalletAddress(reqForTenant) {
     const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
     const fs = require('fs');
     const path = require('path');
@@ -58,23 +84,30 @@ class LastTipModule {
       fromColor: '#817ec8',
       title: 'Last Tip'
     };
-    if (!fs.existsSync(lastTipConfigPath)) {
-      if (!hostedMode) {
-        try {
-          fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2));
-          if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][CREATE_DEFAULT]', { path: lastTipConfigPath });
-        } catch (e) {
-          console.error('[LastTip] Failed creating default config:', e.message);
-        }
-      }
-    }
-
+    let config = {};
     try {
-      let config = {};
-      try {
-        config = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
-      } catch (e) {
-        if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][PARSE_ERROR]', e.message);
+      if (tenantEnabled && tenantEnabled(reqForTenant)) {
+        try {
+          const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
+          const lt = await loadTenantConfig(reqForTenant, store, lastTipConfigPath, 'last-tip-config.json');
+          const data = lt.data?.data ? lt.data.data : lt.data;
+          if (data && Object.keys(data).length) config = data;
+          this._loadedMeta = { source: lt.source, tenantPath: lt.tenantPath };
+        } catch (e) { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][TENANT_LOAD_ERROR]', e.message); }
+      }
+      if (!config || !Object.keys(config).length) {
+        if (fs.existsSync(lastTipConfigPath)) {
+          try {
+            const raw = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
+            config = raw.data ? raw.data : raw;
+          } catch {}
+        } else if (!hostedMode) {
+          try {
+            fs.writeFileSync(lastTipConfigPath, JSON.stringify(lastTipDefault, null, 2));
+            config = { ...lastTipDefault };
+            if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][CREATE_DEFAULT]', { path: lastTipConfigPath });
+          } catch (e) { console.error('[LastTip] Failed creating default config:', e.message); }
+        }
       }
       const prevWallet = config.walletAddress || '';
 
@@ -82,13 +115,11 @@ class LastTipModule {
       for (const [k,v] of Object.entries(lastTipDefault)) {
         if (!Object.prototype.hasOwnProperty.call(config, k)) { config[k] = v; mutated = true; }
       }
-      if (mutated) {
+      if (mutated && !hostedMode) {
         try {
           fs.writeFileSync(lastTipConfigPath, JSON.stringify(config, null, 2));
           if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][FILL_DEFAULTS]', { path: lastTipConfigPath, addedKeys: true });
-        } catch (e) {
-          console.error('[LastTip] Failed writing filled defaults:', e.message);
-        }
+        } catch (e) { console.error('[LastTip] Failed writing filled defaults:', e.message); }
       }
       if (config.walletAddress) {
         this.walletAddress = config.walletAddress;
@@ -112,19 +143,19 @@ class LastTipModule {
                 try {
                   fs.writeFileSync(lastTipConfigPath, JSON.stringify(updated, null, 2));
                   if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][IMPORT_WALLET_FROM_TIP_GOAL]', { prevWallet, newWallet: this.walletAddress });
-                } catch (e) {
-                  console.error('[LastTip] Failed persisting imported wallet:', e.message);
-                }
+                } catch (e) { console.error('[LastTip] Failed persisting imported wallet:', e.message); }
+              } else if (tenantEnabled && tenantEnabled(reqForTenant)) {
+                try {
+                  const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
+                  await saveTenantConfig(reqForTenant, store, lastTipConfigPath, 'last-tip-config.json', updated);
+                } catch {}
               }
               try { console.warn('[LastTip] Wallet address imported from tip-goal-config.json'); } catch {}
             }
           }
         } catch {}
       }
-
-    } catch (e) {
-      console.error('[LastTip] Error reading wallet address from config:', e);
-    }
+    } catch (e) { console.error('[LastTip] Error reading wallet address from config:', e); }
   }
   
   init() {
@@ -244,43 +275,6 @@ class LastTipModule {
     return [];
   }
   
-  async refreshDonationsCache() {
-    const transactions = await this.getEnhancedTransactions(this.walletAddress);
-    if (!Array.isArray(transactions) || transactions.length === 0) {
-      return { last: null };
-    }
-    const sortedTxs = transactions
-      .filter(tx => tx && tx.id && (typeof tx.amount === 'string' || typeof tx.amount === 'number'))
-      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-    const seen = new Set();
-    let last = null;
-    for (const tx of sortedTxs) {
-      if (seen.has(tx.id)) continue;
-      const d = this.toDonation(tx);
-      if (!d) continue;
-      seen.add(tx.id);
-      last = d;
-      break;
-    }
-
-    if (last && !this.processedTxs.has(last.txId)) this.processedTxs.add(last.txId);
-
-    if (last) this.lastDonation = last;
-
-    try {
-      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-      if (!hostedMode) {
-        const fs = require('fs');
-        const path = require('path');
-        const dir = path.join(process.cwd(), 'config');
-        fs.writeFileSync(path.join(dir, 'last-donation-cache.json'), JSON.stringify(this.lastDonation || null, null, 2));
-      }
-    } catch {}
-
-    return { last: this.lastDonation };
-  }
-  
   shouldUpdateDonation(newDonation) {
     if (!this.lastDonation) return true;
     return newDonation.txId !== this.lastDonation.txId;
@@ -329,7 +323,7 @@ class LastTipModule {
     } catch {}
   }
   
-  updateWalletAddress(newAddress) {
+  updateWalletAddress(newAddress, reqForTenant) {
     const fs = require('fs');
     const path = require('path');
     const configDir = path.join(process.cwd(), 'config');
@@ -349,13 +343,24 @@ class LastTipModule {
     this.lastDonation = null;
     const config = { ...existing, walletAddress: this.walletAddress };
     try {
-      if (existing.walletAddress && !this.walletAddress) {
-  if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][SKIP_WRITE_EMPTY_WALLET]', { existing: existing.walletAddress });
-      } else {
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-  if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][WRITE_CONFIG]', { path: configPath, wallet: this.walletAddress });
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      if (!hostedMode) {
+        if (existing.walletAddress && !this.walletAddress) {
+          if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][SKIP_WRITE_EMPTY_WALLET]', { existing: existing.walletAddress });
+        } else {
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+          if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][WRITE_CONFIG]', { path: configPath, wallet: this.walletAddress });
+        }
+      } else if (reqForTenant && tenantEnabled && tenantEnabled(reqForTenant)) {
+        try {
+          const store = (reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
+          saveTenantConfig(reqForTenant, store, configPath, 'last-tip-config.json', config)
+            .then(res => { this._loadedMeta = res.meta; this._lastReqForSave = reqForTenant; })
+            .catch(()=>{});
+        } catch {}
       }
     } catch (e) { console.error('[LastTip] Error writing wallet address to config:', e.message); }
+    if (this._lastReqForSave) this.scheduleWriteThrough(config);
     if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
       this.updateLatestDonation();
     }
@@ -387,7 +392,8 @@ class LastTipModule {
       walletAddress: this.walletAddress,
       lastChecked: new Date().toISOString(),
       lastDonation: cached || null,
-      processedTxs: this.processedTxs.size
+      processedTxs: this.processedTxs.size,
+      meta: this._loadedMeta || null,
     };
   }
 

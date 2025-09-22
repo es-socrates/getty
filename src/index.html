@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="/widgets/chat.css">
     <link rel="stylesheet" href="/widgets/raffle.css">
     <link rel="stylesheet" href="/widgets/achievements.css">
-    <script src="/js/min/i18n-runtime.js?v=451feb7d"></script>
+    <script src="/js/min/i18n-runtime.js?v=ec16ddc7"></script>
     
 </head>
 <body class="landing bg-background text-gray-100 font-sans">
@@ -40,17 +40,17 @@
               <span class="status-dot disconnected"></span>
             </div>
 
-            <button id="public-wallet-login" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out">
-              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="6" width="20" height="12" rx="2" />
-                <path d="M16 12h.01" />
-              </svg>
-              <span class="btn-label" data-default-label="Login">Login</span>
-              <span class="balance-label hidden text-xs font-mono" id="login-balance"></span>
-            </button>
+                        <button id="public-wallet-login" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out">
+                            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="2" y="6" width="20" height="12" rx="2" />
+                                <path d="M16 12h.01" />
+                            </svg>
+                            <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
+                            <span class="balance-label hidden text-xs font-mono" id="login-balance"></span>
+                        </button>
                         <button id="open-admin" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false">Admin</button>
-                        <button id="logout-inline" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" title="Logout" aria-label="Logout">Logout</button>
-                        <!-- Language picker button (dropdown) -->
+                        <button id="logout-inline" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" title="Logout" aria-label="Logout"><span data-i18n="walletLogout">Logout</span></button>
+
                                                 <div class="relative" id="lang-picker-wrapper">
                                                       <button id="lang-btn" class="hidden items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" aria-haspopup="true" aria-expanded="false" aria-controls="lang-menu" title="Language">
                                                         <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

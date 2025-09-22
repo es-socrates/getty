@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
-
-process.env.NODE_ENV = 'test';
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
+let appRef; let restoreBaseline; let server;
+beforeAll(async () => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENFORCE_OWNER_WRITES: '0', GETTY_REQUIRE_ADMIN_WRITE: '0' })); if (appRef.startTestServer) server = await appRef.startTestServer(); });
+afterAll(done => { try { restoreBaseline && restoreBaseline(); } catch {} if (server) server.close(done); else done(); });
 
 const TG_PATH = path.join(process.cwd(), 'config', 'tip-goal-config.json');
 const LT_PATH = path.join(process.cwd(), 'config', 'last-tip-config.json');
@@ -13,17 +14,8 @@ function readJson(file) {
 }
 
 describe('Wallet clear behavior', () => {
-  let server;
   let agent;
-  beforeAll(async () => {
-    if (app.startTestServer) {
-      server = await app.startTestServer();
-      agent = request(server);
-    } else {
-      agent = request(app);
-    }
-  });
-  afterAll(done => { if (server) server.close(done); else done(); });
+  beforeAll(() => { agent = request(appRef); });
 
   describe('Tip Goal', () => {
   it('persists wallet and ignores empty clear attempt (preservation policy)', async () => {

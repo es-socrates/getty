@@ -6,6 +6,7 @@ const log = makeLogger('announcement');
 const CONFIG_FILE = (process.env.NODE_ENV === 'test')
   ? path.join(process.cwd(), 'config', 'announcement-config.test.json')
   : path.join(process.cwd(), 'config', 'announcement-config.json');
+const { saveTenantConfig, loadTenantConfig } = require('../lib/tenant-config');
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'announcement');
 
 function loadConfig() {
@@ -63,9 +64,20 @@ class AnnouncementModule {
     let st = null;
     if (this.store) {
       try {
-        const j = await this.store.get(ns, 'announcement-config', null);
-        if (j && typeof j === 'object') st = this._normalizeState(j);
+        const j = await this.store.getConfig(ns, 'announcement-config.json', null) || await this.store.get(ns, 'announcement-config', null);
+        if (j && typeof j === 'object') st = this._normalizeState(j.data ? j.data : j);
       } catch {}
+
+      if (!st) {
+        try {
+          const globalPath = CONFIG_FILE;
+          const lt = await loadTenantConfig({ ns: { admin: ns } }, this.store, globalPath, 'announcement-config.json');
+          if (lt && lt.data) {
+            const raw = lt.data.data ? lt.data.data : lt.data;
+            if (raw && typeof raw === 'object') st = this._normalizeState(raw);
+          }
+        } catch {}
+      }
     }
     if (!st) st = this._normalizeState({});
     this._states.set(ns, st);
@@ -98,7 +110,11 @@ class AnnouncementModule {
     }
     this._states.set(ns, st);
     if (this.store) {
-      try { await this.store.set(ns, 'announcement-config', st); } catch {}
+      try {
+        await this.store.setConfig(ns, 'announcement-config.json', st);
+
+        await saveTenantConfig({ ns: { admin: ns } }, this.store, CONFIG_FILE, 'announcement-config.json', st);
+      } catch {}
     }
     return true;
   }
@@ -194,7 +210,9 @@ class AnnouncementModule {
   }
 
   async broadcastConfig(ns = null) {
-    const payload = { type: 'announcement_config', data: await this.getPublicConfig(ns) };
+    const { config, meta } = await this.getConfigWithMeta(ns);
+
+    const payload = { type: 'announcement_config', data: config, ...(meta ? { meta } : {}) };
     if (typeof this.wss?.broadcast === 'function') {
       this.wss.broadcast(ns || null, payload);
     } else {
@@ -205,8 +223,13 @@ class AnnouncementModule {
   }
 
   async getPublicConfig(ns = null) {
+    const { config } = await this.getConfigWithMeta(ns);
+    return config;
+  }
+
+  async getConfigWithMeta(ns = null) {
     const st = await this._getState(ns);
-    return {
+    const config = {
       messages: st.messages.map(m => ({
         id: m.id,
         text: m.text,
@@ -245,6 +268,36 @@ class AnnouncementModule {
       gradientFrom: st.gradientFrom || '#4f36ff',
       gradientTo: st.gradientTo || '#10d39e'
     };
+
+    let meta = null;
+    try {
+      if (this.store && (ns || ns === null)) {
+        const globalPath = CONFIG_FILE;
+
+        const { loadTenantConfig, computeChecksum } = require('../lib/tenant-config');
+        const reqShim = ns ? { ns: { admin: ns } } : {};
+        const lt = await loadTenantConfig(reqShim, this.store, globalPath, 'announcement-config.json');
+        if (lt && lt.data) {
+          const wrapped = lt.data;
+
+            if (wrapped && typeof wrapped === 'object' && (wrapped.__version || wrapped.checksum || wrapped.updatedAt)) {
+              meta = {
+                __version: wrapped.__version || 1,
+                checksum: wrapped.checksum || computeChecksum(config),
+                updatedAt: wrapped.updatedAt || new Date().toISOString(),
+                source: lt.source
+              };
+            }
+        }
+      }
+    } catch { /* ignore meta errors */ }
+    if (!meta) {
+      try {
+        const { computeChecksum } = require('../lib/tenant-config');
+        meta = { __version: 1, checksum: computeChecksum(config), updatedAt: new Date().toISOString(), source: 'memory' };
+      } catch {}
+    }
+    return { config, meta };
   }
 
   async setSettings({ cooldownSeconds, theme, bgColor, textColor, animationMode, defaultDurationSeconds, applyAllDurations, bannerBgType, gradientFrom, gradientTo, staticMode }, ns = null) {

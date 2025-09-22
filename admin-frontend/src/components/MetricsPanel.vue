@@ -283,7 +283,7 @@
           <OsSparkline :data="hist.tips" :width="sparkMedW" :height="28" color="#ef4444" />
         </div>
       </div>
-      <div class="p-2 rounded-os-sm os-subtle">
+      <div class="p-2 rounded-os-sm os-subtle flex flex-col">
         <div class="os-th text-xs mb-1 flex items-center gap-1.5">
           <svg
             width="14"
@@ -300,8 +300,15 @@
           </svg>
           <span>{{ t('metricsLiveviews') || 'Liveviews' }}</span>
         </div>
-        <div class="text-sm">{{ metrics.liveviews?.live ? t('liveNow') : t('notLive') }}</div>
-        <div class="text-2xl font-semibold">{{ metrics.liveviews?.viewerCount ?? 0 }}</div>
+        <div class="text-xs tracking-wide uppercase opacity-80 mb-1 text-center">
+          {{ metrics.liveviews?.live ? t('liveNow') || 'Live now' : t('notLive') || 'Offline' }}
+        </div>
+        <div
+          class="font-semibold leading-none tracking-tight select-none text-center"
+          style="color: rgb(255 24 76); font-size: 4.75rem; line-height: 0.95"
+          :aria-label="(metrics.liveviews?.viewerCount ?? 0) + ' live viewers'">
+          {{ liveviewsPretty }}
+        </div>
       </div>
     </div>
 
@@ -544,6 +551,25 @@ const seriesList = computed(() => {
     list.push({ name: 'viewsAvg', color: '#e11d48', data: viewsAvg.value });
   return list;
 });
+
+function abbreviateNumber(n) {
+  try {
+    const v = Number(n || 0);
+    if (!isFinite(v)) return '0';
+    if (v >= 1_000_000) {
+      const m = v / 1_000_000;
+      return (m >= 10 ? Math.round(m) : m.toFixed(1)).replace(/\.0$/, '') + 'M';
+    }
+    if (v >= 1_000) {
+      const k = v / 1_000;
+      return (k >= 10 ? Math.round(k) : k.toFixed(1)).replace(/\.0$/, '') + 'k';
+    }
+    return String(v);
+  } catch {
+    return '0';
+  }
+}
+const liveviewsPretty = computed(() => abbreviateNumber(metrics.value?.liveviews?.viewerCount));
 
 const chartWidth = ref(720);
 const chartHeight = computed(() => {

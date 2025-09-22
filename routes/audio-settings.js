@@ -44,6 +44,7 @@ function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
 }
 
 function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json', { store } = {}) {
+  const { isOpenTestMode } = require('../lib/test-open-mode');
   const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
   app.get('/api/audio-settings', (req, res) => {
     try {
@@ -51,7 +52,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-      if ((requireSessionFlag || hosted) && !hasNs) {
+  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.json({
           audioSource: 'remote',
           hasCustomAudio: false,
@@ -82,7 +83,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-      if ((requireSessionFlag || hosted) && !hasNs) {
+  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
       if (requireAdminWrites) {
@@ -157,7 +158,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-      if ((requireSessionFlag || hosted) && !hasNs) {
+  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
       if (requireAdminWrites) {

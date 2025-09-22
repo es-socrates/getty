@@ -374,31 +374,59 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     return null;
   }
 
+  let loadTenantConfig = null, saveTenantConfig = null;
+  try { ({ loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config')); } catch {}
+
   async function loadConfigNS(req) {
+    if (loadTenantConfig) {
+      try {
+        const wrapped = await loadTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json');
+        if (wrapped && wrapped.data && typeof wrapped.data.claimid === 'string') {
+          return { claimid: wrapped.data.claimid };
+        }
+      } catch {}
+    }
+
     try {
       const adminNs = await resolveAdminNs(req);
       if (store && adminNs) {
-        const cfg = await store.get(adminNs, 'stream-history-config', null);
-        if (cfg && typeof cfg.claimid === 'string') return { claimid: cfg.claimid };
-        return { claimid: '' };
+        const legacy = await store.get(adminNs, 'stream-history-config', null);
+        if (legacy && typeof legacy.claimid === 'string') {
+          if (saveTenantConfig) {
+            try { await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', { claimid: legacy.claimid }); } catch {}
+          }
+          return { claimid: legacy.claimid };
+        }
       }
     } catch {}
 
     try {
       if (fs.existsSync(CONFIG_FILE)) {
         const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-        return { claimid: typeof c.claimid === 'string' ? c.claimid : '' };
+        if (c && typeof c.claimid === 'string') {
+            if (saveTenantConfig && !store) {
+              try { await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', { claimid: c.claimid }); } catch {}
+            }
+          return { claimid: c.claimid };
+        }
       }
     } catch {}
     return { claimid: '' };
   }
 
   async function saveConfigNS(req, cfg) {
+    const claimid = (cfg.claimid || '').trim();
+    if (saveTenantConfig) {
+      try {
+        await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', { claimid });
+        return true;
+      } catch {}
+    }
     const adminNs = await resolveAdminNs(req);
     if (store && adminNs) {
-      try { await store.set(adminNs, 'stream-history-config', { claimid: cfg.claimid || '' }); return true; } catch { return false; }
+      try { await store.set(adminNs, 'stream-history-config', { claimid }); return true; } catch { return false; }
     }
-    try { fs.writeFileSync(CONFIG_FILE, JSON.stringify({ claimid: cfg.claimid || '' }, null, 2)); return true; } catch { return false; }
+    try { fs.writeFileSync(CONFIG_FILE, JSON.stringify({ claimid }, null, 2)); return true; } catch { return false; }
   }
 
   async function loadHistoryNS(req) {

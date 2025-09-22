@@ -1,13 +1,16 @@
 const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
-
-process.env.GETTY_MULTI_TENANT_WALLET = '1';
-process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
-process.env.GETTY_ENFORCE_OWNER_WRITES = '0';
-process.env.GETTY_REQUIRE_ADMIN_WRITE = '0';
-
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
+let appRef; let restoreHosted; let server;
+({ app: appRef, restore: restoreHosted } = freshServer({
+  GETTY_MULTI_TENANT_WALLET: '1',
+  GETTY_WALLET_AUTH_ALLOW_DUMMY: '1',
+  GETTY_ENFORCE_OWNER_WRITES: '0',
+  GETTY_REQUIRE_ADMIN_WRITE: '0'
+}));
+beforeAll(async () => { if (appRef.startTestServer) server = await appRef.startTestServer(); });
+afterAll(done => { try { restoreHosted && restoreHosted(); } catch {} if (server) server.close(done); else done(); });
 const { addressFromOwnerPublicKey } = require('../lib/wallet-auth');
 
 function fakePublicKey() {
@@ -21,13 +24,13 @@ describe('Wallet multi-tenant last-tip integration', () => {
   const tenantConfigFile = () => path.join(tenantDir(), 'config', 'last-tip-config.json');
 
   it('performs nonce -> verify -> create tenant config -> read back without exposing global file', async () => {
-    const nonceResp = await request(app)
+  const nonceResp = await request(appRef)
       .post('/api/auth/wallet/nonce')
       .send({ address })
       .expect(200);
     expect(nonceResp.body.nonce).toBeTruthy();
 
-    const verifyResp = await request(app)
+  const verifyResp = await request(appRef)
       .post('/api/auth/wallet/verify')
       .send({ address, publicKey: pubKey, signature: 'TEST' })
       .expect(200);
@@ -35,7 +38,7 @@ describe('Wallet multi-tenant last-tip integration', () => {
     const cookie = verifyResp.headers['set-cookie'].find(c=>c.startsWith('getty_wallet_session='));
     expect(cookie).toBeTruthy();
 
-    const cfgResp = await request(app)
+  const cfgResp = await request(appRef)
       .post('/api/last-tip')
       .set('Cookie', cookie)
       .send({ walletAddress: address, title: 'Tenant LT Title' })
@@ -46,7 +49,7 @@ describe('Wallet multi-tenant last-tip integration', () => {
 
     expect(fs.existsSync(tenantConfigFile())).toBe(true);
 
-    const getResp = await request(app)
+  const getResp = await request(appRef)
       .get('/api/last-tip')
       .set('Cookie', cookie)
       .expect(200);

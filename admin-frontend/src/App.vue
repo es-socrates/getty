@@ -37,6 +37,29 @@
       <div class="flex items-center gap-3 relative">
         <WalletLoginButton />
 
+        <a
+          href="/index.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+          aria-label="Home"
+          :title="t('home')">
+          <svg
+            viewBox="0 0 24 24"
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true">
+            <path d="M3 11.5 12 4l9 7.5" />
+            <path d="M5 10v10h14V10" />
+            <path d="M9 20v-6h6v6" />
+          </svg>
+          <span data-i18n="home">Home</span>
+        </a>
+
         <div class="relative" @keyup.esc="menuOpen = false">
           <button
             @click="toggleMenu"

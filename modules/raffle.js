@@ -1,34 +1,18 @@
-const fs = require('fs');
 const path = require('path');
+const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 const CONFIG_FILE = path.join(process.cwd(), 'config', 'raffle-config.json');
 
-function ensureConfigDir() {
-    try { fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true }); } catch {}
-}
-function readConfigFile() {
-    try {
-        const raw = fs.readFileSync(CONFIG_FILE, 'utf8');
-        const data = JSON.parse(raw);
-        return (data && typeof data === 'object') ? data : {};
-    } catch { return {}; }
-}
-function writeConfigFile(data) {
-    try {
-        ensureConfigDir();
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), 'utf8');
-    } catch {}
-}
 function nsKey(ns) {
-    const key = String(ns || '') || '__global__';
-    return key;
+  const key = String(ns || '') || '__global__';
+  return key;
 }
 
 class RaffleModule {
-    constructor(wss) {
+    constructor(wss, opts = {}) {
         this.wss = wss;
         this.sessions = new Map();
-        this.configByNs = readConfigFile();
+        this.store = opts.store || null;
         this.DEFAULTS = {
             command: '!giveaway',
             prize: '',
@@ -41,10 +25,33 @@ class RaffleModule {
         };
     }
 
-    getOrCreate(ns) {
+    async __loadConfigFor(ns) {
+        const reqShim = { ns: { admin: ns } };
+        let loaded;
+        try {
+            loaded = await loadTenantConfig(reqShim, this.store, CONFIG_FILE, 'raffle-config.json');
+        } catch {
+            loaded = { data: { ...this.DEFAULTS }, meta: {} };
+        }
+        const candidate = loaded && loaded.data ? loaded.data : {};
+        const unwrapped = (candidate && candidate.data && (candidate.__version || candidate.checksum)) ? candidate.data : candidate;
+        let meta = null;
+        try {
+            if (candidate && (candidate.__version || candidate.checksum)) {
+                meta = { __version: candidate.__version || null, checksum: candidate.checksum || null, updatedAt: candidate.updatedAt || null, source: loaded.source };
+            }
+        } catch { meta = null; }
+        return { raw: unwrapped || {}, meta };
+    }
+
+    async getOrCreate(ns) {
         const key = nsKey(ns);
         if (!this.sessions.has(key)) {
-            const persisted = (this.configByNs && this.configByNs[key]) || {};
+            let persisted = {};
+            try {
+                const { raw } = await this.__loadConfigFor(ns);
+                persisted = raw || {};
+            } catch { persisted = {}; }
             this.sessions.set(key, {
                 active: false,
                 paused: false,
@@ -63,8 +70,8 @@ class RaffleModule {
         return this.sessions.get(key);
     }
 
-    saveSettings(ns, settings) {
-        const s = this.getOrCreate(ns);
+    async saveSettings(ns, settings) {
+        const s = await this.getOrCreate(ns);
         s.command = settings.command || s.command;
         s.prize = settings.prize || s.prize;
         s.maxWinners = typeof settings.maxWinners === 'number' && !isNaN(settings.maxWinners) ? settings.maxWinners : s.maxWinners;
@@ -85,7 +92,6 @@ class RaffleModule {
         s.participants.clear();
         s.previousWinners.clear();
 
-        const key = nsKey(ns);
         const toPersist = {
             command: s.command,
             prize: s.prize,
@@ -96,24 +102,27 @@ class RaffleModule {
             duration: s.duration,
             interval: s.interval
         };
-        this.configByNs = this.configByNs && typeof this.configByNs === 'object' ? this.configByNs : {};
-        this.configByNs[key] = toPersist;
-        writeConfigFile(this.configByNs);
+        try { await saveTenantConfig({ ns: { admin: ns } }, this.store, CONFIG_FILE, 'raffle-config.json', toPersist); } catch {}
     }
 
-    setImage(ns, imageUrl) {
-        const s = this.getOrCreate(ns);
+    async setImage(ns, imageUrl) {
+        const s = await this.getOrCreate(ns);
         s.imageUrl = imageUrl;
-        const key = nsKey(ns);
-        const current = (this.configByNs && this.configByNs[key]) || {};
-        const next = { ...current, imageUrl: s.imageUrl };
-        this.configByNs = this.configByNs && typeof this.configByNs === 'object' ? this.configByNs : {};
-        this.configByNs[key] = next;
-        writeConfigFile(this.configByNs);
+        const toPersist = {
+            command: s.command,
+            prize: s.prize,
+            imageUrl: s.imageUrl,
+            maxWinners: s.maxWinners,
+            mode: s.mode,
+            enabled: s.enabled,
+            duration: s.duration,
+            interval: s.interval
+        };
+        try { await saveTenantConfig({ ns: { admin: ns } }, this.store, CONFIG_FILE, 'raffle-config.json', toPersist); } catch {}
     }
 
-    getSettings(ns) {
-        const s = this.getOrCreate(ns);
+    async getSettings(ns) {
+        const s = await this.getOrCreate(ns);
         return {
             command: s.command,
             prize: s.prize,
@@ -130,8 +139,16 @@ class RaffleModule {
         };
     }
 
-    getPublicState(ns) {
-        const s = this.getOrCreate(ns);
+    async getSettingsWithMeta(ns) {
+        try {
+            const s = await this.getSettings(ns);
+            const { meta } = await this.__loadConfigFor(ns);
+            return { settings: s, meta: meta || null };
+        } catch { return { settings: await this.getSettings(ns), meta: null }; }
+    }
+
+    async getPublicState(ns) {
+        const s = await this.getOrCreate(ns);
         return {
             active: s.active,
             paused: s.paused,
@@ -156,37 +173,37 @@ class RaffleModule {
         return out;
     }
 
-    start(ns) {
-        const s = this.getOrCreate(ns);
+    async start(ns) {
+        const s = await this.getOrCreate(ns);
         s.active = true;
         s.paused = false;
         s.participants.clear();
         return { success: true };
     }
 
-    stop(ns) {
-        const s = this.getOrCreate(ns);
+    async stop(ns) {
+        const s = await this.getOrCreate(ns);
         s.active = false;
         s.paused = false;
         return { success: true };
     }
 
-    pause(ns) {
-        const s = this.getOrCreate(ns);
+    async pause(ns) {
+        const s = await this.getOrCreate(ns);
         if (!s.active) return { success: false, error: 'Raffle is not active' };
         s.paused = true;
         return { success: true };
     }
 
-    resume(ns) {
-        const s = this.getOrCreate(ns);
+    async resume(ns) {
+        const s = await this.getOrCreate(ns);
         if (!s.active) return { success: false, error: 'Raffle is not active' };
         s.paused = false;
         return { success: true };
     }
 
-    addParticipant(ns, username, userId) {
-        const s = this.getOrCreate(ns);
+    async addParticipant(ns, username, userId) {
+        const s = await this.getOrCreate(ns);
         if (!s.active || s.paused) return false;
         if (!s.participants.has(userId)) {
             s.participants.set(userId, { username, timestamp: Date.now() });
@@ -195,8 +212,8 @@ class RaffleModule {
         return false;
     }
 
-    drawWinner(ns) {
-        const s = this.getOrCreate(ns);
+    async drawWinner(ns) {
+        const s = await this.getOrCreate(ns);
         if (s.participants.size === 0) {
             return { success: false, error: 'No participants in the raffle' };
         }
@@ -223,8 +240,8 @@ class RaffleModule {
         return result;
     }
 
-    resetWinners(ns) {
-        const s = this.getOrCreate(ns);
+    async resetWinners(ns) {
+        const s = await this.getOrCreate(ns);
         s.previousWinners.clear();
         s.participants.clear();
         s.active = false;
