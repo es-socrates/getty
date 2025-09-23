@@ -894,7 +894,7 @@ class WanderWalletLogin {
 
         const prefix = 'walletPublic.';
         const keys = [
-            'bannerTitle','bannerMissing','bannerDismiss','bannerInstall','connecting','loginLabel','logoutLabel',
+            'bannerTitle','bannerMissing','bannerDismiss','bannerInstall','connecting','loginLabel','logoutLabel','welcomeUser',
             'notDetectedError','noAddressConnect','publicKeyMissing','signatureMethodsUnavailable',
             'walletNotReady','walletNotAvailable','walletNotConnected','openInstallConfirm','alertSuffix','errorPrefix'
         ];
@@ -922,6 +922,8 @@ class WanderWalletLogin {
                     bannerInstall: 'Instalar',
                     connecting: 'Conectando...',
                     loginLabel: 'Conectar',
+                    logoutLabel: 'Cerrar sesión',
+                    welcomeUser: 'Bienvenido, {token}',
                     notDetectedError: 'Wander Wallet no detectada',
                     noAddressConnect: 'No se obtuvo dirección (connect)',
                     publicKeyMissing: 'No se pudo obtener la clave pública',
@@ -941,6 +943,8 @@ class WanderWalletLogin {
                 bannerInstall: 'Install',
                 connecting: 'Connecting...',
                 loginLabel: 'Login',
+                logoutLabel: 'Logout',
+                welcomeUser: 'Welcome, {token}',
                 notDetectedError: 'Wander Wallet not detected',
                 noAddressConnect: 'No address received (connect)',
                 publicKeyMissing: 'Public key could not be obtained',

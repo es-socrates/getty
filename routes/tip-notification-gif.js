@@ -101,8 +101,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         return res.json({ gifPath: '', position: 'right', width: 0, height: 0 });
       }
 
-      if (conceal && !trusted) {
-
+      if (conceal && !trusted && !hasNs) {
         return res.json({ gifPath: '', width: 0, height: 0 });
       }
       if (store && hasNs) {
@@ -159,11 +158,12 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         config.height = dims.height;
       }
       config.position = position;
+      const hosted = !!process.env.REDIS_URL;
       if (store && ns) {
         try {
           await store.set(ns, 'tip-notification-gif', config);
         } catch {}
-        saveConfig(config);
+        if (!hosted) saveConfig(config);
         res.json({ success: true, ...config });
       } else {
         saveConfig(config);
@@ -209,9 +209,10 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   } catch { /* ignore */ }
       }
       const cleared = { gifPath: '', position: 'right', width: 0, height: 0 };
+      const hosted = !!process.env.REDIS_URL;
       if (store && ns) {
         try { await store.set(ns, 'tip-notification-gif', cleared); } catch {}
-        saveConfig(cleared);
+        if (!hosted) saveConfig(cleared);
         return res.json({ success: true, ...cleared });
       }
       saveConfig(cleared);

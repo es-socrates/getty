@@ -2015,6 +2015,11 @@ try {
         const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
         html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
       }
+      if (nonce) {
+        html = html.replace(/<style(\s[^>]*)?>/gi, function (m) {
+          return m.includes('nonce=') ? m : m.replace('<style', `<style nonce="${nonce}"`);
+        });
+      }
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
       return res.send(html);
