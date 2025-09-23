@@ -31,6 +31,8 @@ class LastTipModule {
     this._fetchCount = 0;
     this.processedTxs = new Set();
     this._cacheLoaded = false;
+    this._updateInterval = null;
+    this._pendingFlush = null;
 
   const __loadPromise = this.loadWalletAddress();
     try {
@@ -227,7 +229,7 @@ class LastTipModule {
     if (process.env.NODE_ENV !== 'test') {
       const quickDelays = [2000, 5000, 10000, 20000];
       quickDelays.forEach(d => setTimeout(() => { try { this.updateLatestDonation(); } catch {} }, d));
-      setInterval(() => this.updateLatestDonation(), 60000);
+      this._updateInterval = setInterval(() => this.updateLatestDonation(), 60000);
     }
   }
 
@@ -337,7 +339,9 @@ class LastTipModule {
       }
     }
 
-    console.warn('[LastTip] All transaction fetchers failed (GraphQL gateways). Will retry next interval.');
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[LastTip] All transaction fetchers failed (GraphQL gateways). Will retry next interval.');
+    }
     return [];
   }
   
@@ -558,7 +562,16 @@ class LastTipModule {
     } catch {}
   }
 
-  
+  dispose() {
+    if (this._updateInterval) {
+      clearInterval(this._updateInterval);
+      this._updateInterval = null;
+    }
+    if (this._pendingFlush) {
+      clearTimeout(this._pendingFlush);
+      this._pendingFlush = null;
+    }
+  }
 }
 
 module.exports = LastTipModule;

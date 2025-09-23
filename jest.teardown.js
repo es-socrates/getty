@@ -20,4 +20,9 @@ module.exports = async () => {
       await global.__GETTY_REDIS__.quit();
     }
   } catch { /* ignore redis close */ }
+  try {
+    if (global.__GETTY_HTTP_SERVER__ && typeof global.__GETTY_HTTP_SERVER__.disposeGetty === 'function') {
+      global.__GETTY_HTTP_SERVER__.disposeGetty();
+    }
+  } catch { /* ignore dispose errors */ }
 };
