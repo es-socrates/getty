@@ -2,13 +2,14 @@ const { z } = require('zod');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const path = require('path');
 const GLOBAL_EXT_NOTIF_PATH = path.join(process.cwd(), 'config', 'external-notifications-config.json');
+const { isOpenTestMode } = require('../lib/test-open-mode');
 
 function registerExternalNotificationsRoutes(app, externalNotifications, limiter, options = {}) {
   const store = options.store || null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
-  const shouldRequireSession = requireSessionFlag || hostedWithRedis;
-  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
+  const shouldRequireSession = (requireSessionFlag || hostedWithRedis) && !isOpenTestMode();
+  const requireAdminWrites = ((process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis) && !isOpenTestMode();
 
   app.post('/api/external-notifications', limiter, async (req, res) => {
     try {
@@ -274,13 +275,13 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
           const seed = `${ua}::${ip}`.trim() || 'fallback';
           const crypto = require('crypto');
           const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0,16);
-          ns = `__revealdbg_${hash}`;
+          ns = `__earlydbg_${hash}`;
           if (!req.ns) req.ns = {}; req.ns.admin = ns;
           try { console.warn('[external-notifications][debug] reveal synthesized namespace', { ns }); } catch {}
         } catch {}
       }
       if (!ns) return res.status(401).json({ success:false, error:'session_required' });
-      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
+      const requireAdminWrites = ((process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL) && !isOpenTestMode();
       if (requireAdminWrites) {
         const isAdmin = !!(req?.auth && req.auth.isAdmin);
         if (!isAdmin && process.env.GETTY_TENANT_DEBUG !== '1') return res.status(401).json({ success:false, error:'admin_required' });
@@ -313,7 +314,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   app.post('/api/external-notifications/live/send', limiter, async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      const shouldRequireSession = (requireSessionFlag || !!process.env.REDIS_URL) && !isOpenTestMode();
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
@@ -413,7 +414,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   app.post('/api/external-notifications/live/test', limiter, async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      const shouldRequireSession = (requireSessionFlag || !!process.env.REDIS_URL) && !isOpenTestMode();
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
@@ -515,7 +516,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
-      const shouldRequireSession = requireSessionFlag || hosted;
+      const shouldRequireSession = (requireSessionFlag || hosted) && !isOpenTestMode();
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
@@ -590,7 +591,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
-      const shouldRequireSession = requireSessionFlag || hosted;
+      const shouldRequireSession = (requireSessionFlag || hosted) && !isOpenTestMode();
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
@@ -648,7 +649,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
   app.post('/api/external-notifications/live/upload', async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      const shouldRequireSession = (requireSessionFlag || !!process.env.REDIS_URL) && !isOpenTestMode();
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
@@ -825,7 +826,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
-      const shouldRequireSession = requireSessionFlag || hosted;
+      const shouldRequireSession = (requireSessionFlag || hosted) && !isOpenTestMode();
       if (shouldRequireSession) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });

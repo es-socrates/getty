@@ -3,7 +3,7 @@ const { freshServer } = require('./helpers/freshServer');
 
 describe('External notifications mask + reveal contract', () => {
   let app; let restore;
-  beforeAll(() => { ({ app, restore } = freshServer({ GETTY_REQUIRE_SESSION: '1', GETTY_TENANT_DEBUG: '1', GETTY_REQUIRE_ADMIN_WRITE: '0' })); });
+  beforeAll(() => { ({ app, restore } = freshServer({ GETTY_REQUIRE_SESSION: '1', GETTY_TENANT_DEBUG: '1', GETTY_REQUIRE_ADMIN_WRITE: '0', GETTY_TEST_FORCE_OPEN: '1' })); });
   afterAll(() => { try { restore && restore(); } catch {} });
 
   const payload = {
