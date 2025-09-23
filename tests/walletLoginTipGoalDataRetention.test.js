@@ -40,17 +40,12 @@ describe('TipGoal data retention after wallet login', () => {
   test('Amounts/theme persist in /api/modules after login', async () => {
     try { if (fs.existsSync(cfgPath)) fs.unlinkSync(cfgPath); } catch {}
 
-    fs.writeFileSync(cfgPath, JSON.stringify({ monthlyGoal: 42, currentAmount: 7, theme: 'modern-list', walletAddress: '' }, null, 2));
-
-    try {
-      if (process.env.JEST_WORKER_ID) {
-        const workerPath = path.join(cfgDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
-        fs.writeFileSync(workerPath, JSON.stringify({ monthlyGoal: 42, currentAmount: 7, theme: 'modern-list', walletAddress: '' }, null, 2));
-      }
-    } catch {}
-
     const pk = fakePublicKey('A');
-    const { cookie } = await walletLogin(agent, pk);
+    const { address, cookie } = await walletLogin(agent, pk);
+
+    const walletHash = require('../lib/wallet-auth').deriveWalletHash(address);
+    const store = app.get('store');
+    await store.setConfig(walletHash, 'tip-goal-config.json', { monthlyGoal: 42, currentAmount: 7, theme: 'modern-list' });
 
     const mod = await agent.get('/api/modules').set('Cookie', cookie);
     expect(mod.status).toBe(200);

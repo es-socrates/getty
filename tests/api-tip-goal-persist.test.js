@@ -25,6 +25,10 @@ describe('Tip Goal persistence', () => {
   it('saves title and current amount then survives simulated restart', async () => {
 
     try { if (fs.existsSync(CONFIG_PATH)) fs.unlinkSync(CONFIG_PATH); } catch { /* ignore error */ }
+    if (process.env.JEST_WORKER_ID) {
+      const workerPath = path.join(CONFIG_DIR, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+      try { if (fs.existsSync(workerPath)) fs.unlinkSync(workerPath); } catch { /* ignore error */ }
+    }
     const title = 'Monthly tip goal 🎖️';
     const res = await agent
       .post('/api/tip-goal')
@@ -44,7 +48,10 @@ describe('Tip Goal persistence', () => {
     const { TipGoalModule } = require('../modules/tip-goal');
     const { Server } = require('ws');
     const dummyWss = new Server({ noServer: true });
+    const oldWorkerId = process.env.JEST_WORKER_ID;
+    process.env.JEST_WORKER_ID = '';
     const fresh = new TipGoalModule(dummyWss);
+    process.env.JEST_WORKER_ID = oldWorkerId;
 
   expect(fresh.title).toBe(title);
   expect(fresh.currentTipsAR).toBeCloseTo(0.1, 5);
