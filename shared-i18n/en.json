@@ -416,6 +416,7 @@
   "kpiTotalEarnings": "Total earnings",
   "show": "Show",
   "hide": "Hide",
+  "welcomeUser": "Welcome, {token}",
   "welcomeCaptionTips": "Real-time tip notifications",
   "welcomeCaptionGoals": "Donation goals with celebratory effects",
   "welcomeCaptionChatRaffle": "Live chat overlay and raffles",

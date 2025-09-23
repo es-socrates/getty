@@ -35,7 +35,17 @@ class WanderWalletLogin {
 
         this.locale = this.detectLocale();
         this.messages = this.loadSharedMessages(this.locale);
-        this.t = (k) => (this.messages && this.messages[k]) || k;
+        this.t = (k) => {
+
+            if (this.messages && this.messages[k]) return this.messages[k];
+
+            try {
+                const globalStore = window.__i18n && window.__i18n[this.locale];
+                if (globalStore && globalStore[k]) return globalStore[k];
+            } catch {}
+
+            return k;
+        };
         this.init();
     }
 
@@ -286,14 +296,13 @@ class WanderWalletLogin {
         this.scheduleBalanceFetch();
         console.log('[wander-login] connected', address);
 
-        // Check if we're on the main dashboard page
         const isOnMainPage = window.location.pathname === '/' || window.location.pathname === '/index.html';
 
         if (isOnMainPage) {
-            // Show user dashboard instead of redirecting to admin
+
             this.showUserDashboard();
         } else {
-            // Only auto-redirect to admin if not on the main dashboard page
+
             setTimeout(() => { window.open('/admin/', '_self'); }, 350);
         }
     }
@@ -947,24 +956,20 @@ class WanderWalletLogin {
         return out;
     }
 
-    // Custom dashboard functionality
     showUserDashboard() {
-        // Show welcome message with user identifier
+
         const userToken = this.session?.userToken || this.arweaveAddress?.slice(0, 8);
         const welcomeEl = document.getElementById('user-welcome-message');
         if (welcomeEl) {
-            welcomeEl.textContent = `Welcome, ${userToken}`;
+            welcomeEl.textContent = this.t('welcomeUser').replace('{token}', userToken);
             welcomeEl.classList.remove('hidden');
         }
 
-        // Change body class for dashboard mode
         document.body.classList.add('user-dashboard-mode');
         document.body.classList.remove('landing');
 
-        // Load user-specific configuration and widgets
         this.loadUserSpecificConfig();
         
-        // Load user-specific widgets if function exists
         if (typeof window.loadUserSpecificWidgets === 'function') {
             window.loadUserSpecificWidgets();
         }
@@ -972,7 +977,7 @@ class WanderWalletLogin {
 
     async loadUserSpecificConfig() {
         try {
-            // Load user namespace configuration
+
             const response = await fetch('/api/user/config');
             if (response.ok) {
                 const config = await response.json();
@@ -984,20 +989,17 @@ class WanderWalletLogin {
     }
 
     applyUserConfigToWidgets(config) {
-        // Apply custom colors, titles, etc. to widgets
         if (config.lastTip?.title) {
             const lastTipTitle = document.querySelector('#last-donation .os-panel-title span:last-child');
             if (lastTipTitle) lastTipTitle.textContent = config.lastTip.title;
         }
 
-        // Apply other widget customizations
         if (config.colors) {
             this.applyCustomColors(config.colors);
         }
     }
 
     applyCustomColors(colors) {
-        // Apply custom CSS variables for user theme
         const root = document.documentElement;
         if (colors.primary) root.style.setProperty('--user-primary-color', colors.primary);
         if (colors.secondary) root.style.setProperty('--user-secondary-color', colors.secondary);

@@ -395,7 +395,7 @@ class LastTipModule {
     
     this.wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        // Only send to clients with matching namespace, or to all if no namespace specified (for backward compatibility)
+
         if (!ns || client.nsToken === ns) {
           client.send(payload);
         }
@@ -420,7 +420,7 @@ class LastTipModule {
       
       this.wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-          // Only send to clients with matching namespace, or to all if no namespace specified (for backward compatibility)
+
           if (!ns || client.nsToken === ns) {
             client.send(payload);
           }

@@ -418,6 +418,7 @@
   "show": "Mostrar",
   "hide": "Ocultar",
   "welcomeCaptionTips": "Notificaciones de propinas en tiempo real",
+  "welcomeUser": "Bienvenido, {token}",
   "welcomeCaptionGoals": "Metas de propinas con efectos de celebración",
   "welcomeCaptionChatRaffle": "Overlay de chat en vivo y sorteos",
   "deltaPercentHuge": ">10k%",
