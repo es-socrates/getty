@@ -34,15 +34,6 @@ class ChatNsManager {
   async _broadcastBoth(ns, payload) {
     try {
       this._broadcast(ns, payload);
-      if (!this.store || !ns) return;
-
-      let other = null;
-      try {
-        const adminOfNs = await this.store.get(ns, 'adminToken', null);
-        const publicOfNs = await this.store.get(ns, 'publicToken', null);
-        other = adminOfNs || publicOfNs || null;
-      } catch {}
-      if (other && other !== ns) this._broadcast(other, payload);
     } catch {}
   }
 

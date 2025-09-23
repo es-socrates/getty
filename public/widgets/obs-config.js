@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const widget = document.getElementById('widget-container');
+  const token = urlParams.get('token');
   
   if (!widget) return;
 
@@ -98,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {}
   }
 
-  const ws = new WebSocket(`ws://${window.location.host}`);
+  const ws = new WebSocket(`ws://${window.location.host}${token ? `?token=${token}` : ''}`);
   ws.onopen = () => {
     loadInitialData();
   };

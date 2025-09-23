@@ -174,6 +174,7 @@ import CopyField from './shared/CopyField.vue';
 import { MAX_RAFFLE_IMAGE } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 const masked = ref(false);
@@ -212,7 +213,8 @@ const displayImageUrl = ref('');
 const locallyClearedImage = ref(false);
 
 const wallet = useWalletSession();
-const widgetUrl = computed(() => `${location.origin}/widgets/giveaway`);
+const { withToken } = usePublicToken();
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/giveaway`));
 
 function connectWs() {
   const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;

@@ -78,6 +78,7 @@ import CopyField from './shared/CopyField.vue';
 import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import { useWalletSession } from '../composables/useWalletSession';
+import { usePublicToken } from '../composables/usePublicToken';
 import OsCard from './os/OsCard.vue';
 
 const original = reactive({ snapshot: null });
@@ -110,7 +111,8 @@ const colorFields = [
   { key: 'from', label: 'colorFrom' },
 ];
 const wallet = useWalletSession();
-const widgetUrl = computed(() => `${location.origin}/widgets/last-tip`);
+const { withToken } = usePublicToken();
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/last-tip`));
 
 function resetColors() {
   form.colors = {

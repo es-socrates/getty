@@ -124,6 +124,7 @@ import { registerDirty } from '../composables/useDirtyRegistry';
 import CopyField from './shared/CopyField.vue';
 import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 
@@ -140,7 +141,8 @@ const form = ref({
 const customFont = ref('');
 const errors = ref({ claimid: '' });
 const wallet = useWalletSession();
-const widgetUrl = computed(() => `${location.origin}/widgets/liveviews`);
+const { withToken } = usePublicToken();
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/liveviews`));
 const initial = ref('');
 const dirty = ref(false);
 const saving = ref(false);

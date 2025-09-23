@@ -154,6 +154,7 @@ import { pushToast } from '../services/toast';
 import { MAX_TITLE_LEN, isArweaveAddress } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
+import { usePublicToken } from '../composables/usePublicToken';
 
 const { t } = useI18n();
 
@@ -203,7 +204,8 @@ const colorFields = [
 ];
 
 const wallet = useWalletSession();
-const widgetUrl = computed(() => `${location.origin}/widgets/tip-goal`);
+const { withToken } = usePublicToken();
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/tip-goal`));
 
 function resetColors() {
   form.colors = { bg: '#080c10', font: '#ffffff', border: '#00ff7f', progress: '#00ff7f' };

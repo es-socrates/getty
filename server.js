@@ -616,6 +616,21 @@ try {
     });
   }
 
+  app.get('/api/publicToken', async (req, res) => {
+    try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (!ns || !store) return res.status(400).json({ error: 'no_session' });
+      let publicToken = await store.get(ns, 'publicToken', null);
+      if (!publicToken) {
+        publicToken = ns;
+        await store.set(ns, 'publicToken', publicToken);
+      }
+      res.json({ publicToken });
+    } catch (e) {
+      res.status(500).json({ error: 'failed_to_get_public_token', details: e?.message });
+    }
+  });
+
   let adminWriteLimiter = null;
   if (ENABLE_ADMIN_RL) {
     const max = parseInt(process.env.GETTY_ADMIN_RL_MAX || '30', 10);

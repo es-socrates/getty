@@ -85,7 +85,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
   }
 
-  app.get('/api/tip-notification-gif', (req, res) => {
+  app.get('/api/tip-notification-gif', async (req, res) => {
     try {
       const cfg = loadConfig();
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
@@ -106,17 +106,14 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         return res.json({ gifPath: '', width: 0, height: 0 });
       }
       if (store && hasNs) {
-        (async () => {
-          try {
-            const ns = req.ns.admin || req.ns.pub;
-            const st = await store.get(ns, 'tip-notification-gif', null);
-            if (st && typeof st === 'object') {
-              return res.json(st);
-            }
-          } catch {}
-          return res.json(cfg);
-        })();
-        return;
+        try {
+          const ns = req.ns.admin || req.ns.pub;
+          const st = await store.get(ns, 'tip-notification-gif', null);
+          if (st && typeof st === 'object') {
+            return res.json(st);
+          }
+        } catch {}
+        return res.json(cfg);
       }
       res.json(cfg);
     } catch {
@@ -142,7 +139,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
       next();
     });
-  }, (req, res) => {
+  }, async (req, res) => {
     try {
       const bodySchema = z.object({ position: z.enum(['left','right','top','bottom']).default('right') }).passthrough();
       const parsed = bodySchema.safeParse(req.body);
@@ -163,13 +160,11 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
       config.position = position;
       if (store && ns) {
-        (async () => {
-          try {
-            await store.set(ns, 'tip-notification-gif', config);
-          } catch {}
-          saveConfig(config);
-          res.json({ success: true, ...config });
-        })();
+        try {
+          await store.set(ns, 'tip-notification-gif', config);
+        } catch {}
+        saveConfig(config);
+        res.json({ success: true, ...config });
       } else {
         saveConfig(config);
         res.json({ success: true, ...config });

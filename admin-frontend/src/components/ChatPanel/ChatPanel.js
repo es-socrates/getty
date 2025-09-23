@@ -2,6 +2,7 @@ import { reactive, computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import api from '../../services/api';
 import { pushToast } from '../../services/toast';
 import { registerDirty } from '../../composables/useDirtyRegistry';
+import { usePublicToken } from '../../composables/usePublicToken';
 
 export function createChatPanel(t) {
   const colorHeadingId = 'chat-color-heading';
@@ -35,8 +36,9 @@ export function createChatPanel(t) {
   const testKind = ref('');
 
   const publicToken = ref('');
+  const { withToken } = usePublicToken();
   function buildWidgetBase(extraParams = '') {
-    const base = `${location.origin}/widgets/chat`;
+    const base = withToken(`${location.origin}/widgets/chat`);
     if (!extraParams) return base;
     return base + (extraParams.startsWith('?') ? extraParams : '?' + extraParams);
   }

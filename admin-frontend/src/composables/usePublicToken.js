@@ -1,16 +1,36 @@
 import { ref } from 'vue';
 
 export function usePublicToken() {
-  const supported = ref(false);
-  const active = ref(false);
-  const loaded = ref(true);
+  const supported = ref(true);
+  const token = ref('');
+  const loaded = ref(false);
 
-  async function refresh() { /* intentionally blank */ }
+  async function refresh() {
+    try {
+      const response = await fetch('/api/publicToken');
+      if (response.ok) {
+        const data = await response.json();
+        token.value = data.publicToken || '';
+      } else {
+        token.value = '';
+      }
+    } catch {
+      token.value = '';
+    } finally {
+      loaded.value = true;
+    }
+  }
 
-  function tokenQuery() { return ''; }
-  function withToken(urlBase) { return urlBase; }
+  function tokenQuery() {
+    return token.value ? `token=${encodeURIComponent(token.value)}` : '';
+  }
 
-  return { supported, active, loaded, refresh, tokenQuery, withToken };
+  function withToken(urlBase) {
+    const q = tokenQuery();
+    return q ? `${urlBase}?${q}` : urlBase;
+  }
+
+  return { supported, active: token, loaded, refresh, tokenQuery, withToken };
 }
 
 export default usePublicToken;
