@@ -400,7 +400,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         try { writeHybridConfig(LAST_TIP_CONFIG_FILE, newConfig); } catch { try { fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2)); } catch {} }
         const result = (lastTip && typeof lastTip.updateWalletAddress === 'function') ? lastTip.updateWalletAddress(newConfig.walletAddress) : {};
         if (typeof lastTip.broadcastConfig === 'function') {
-          lastTip.broadcastConfig(newConfig);
+          lastTip.broadcastConfig(newConfig, ns);
         }
         if (typeof tipWidget.updateWalletAddress === 'function') {
           tipWidget.updateWalletAddress(newConfig.walletAddress);
@@ -416,8 +416,10 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
     }
   });
 
-  app.get('/last-donation', async (_req, res) => {
+  app.get('/last-donation', async (req, res) => {
     try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      
       if (!lastTip || !lastTip.walletAddress) {
         return res.status(400).json({ error: 'No wallet configured for last tip' });
       }
@@ -426,7 +428,7 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       if (lastDonation) return res.json(lastDonation);
 
       if (typeof lastTip.updateLatestDonation === 'function') {
-        setTimeout(() => { try { lastTip.updateLatestDonation(); } catch {} }, 0);
+        setTimeout(() => { try { lastTip.updateLatestDonation(ns); } catch {} }, 0);
         res.set('X-Refresh-Triggered', '1');
       }
 

@@ -121,7 +121,7 @@ const dirty = ref(false);
 const saving = ref(false);
 
 const wallet = useWalletSession();
-const { withToken } = usePublicToken();
+const { withToken, refresh } = usePublicToken();
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/socialmedia`));
 
 function markDirty() {
@@ -235,6 +235,7 @@ async function save() {
 onMounted(async () => {
   try {
     await wallet.refresh();
+    await refresh();
   } catch {}
   await load();
 });

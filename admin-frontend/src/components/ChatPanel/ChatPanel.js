@@ -36,7 +36,7 @@ export function createChatPanel(t) {
   const testKind = ref('');
 
   const publicToken = ref('');
-  const { withToken } = usePublicToken();
+  const { withToken, refresh } = usePublicToken();
   function buildWidgetBase(extraParams = '') {
     const base = withToken(`${location.origin}/widgets/chat`);
     if (!extraParams) return base;
@@ -166,7 +166,12 @@ export function createChatPanel(t) {
   }
   registerDirty(isChatDirty);
   watch(form, () => {}, { deep: true });
-  onMounted(load);
+  onMounted(async () => {
+    try {
+      await refresh();
+    } catch {}
+    load();
+  });
 
   const autoSaveTimer = ref(null);
   function scheduleToggleAutosave() {

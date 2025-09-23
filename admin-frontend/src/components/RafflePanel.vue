@@ -213,7 +213,7 @@ const displayImageUrl = ref('');
 const locallyClearedImage = ref(false);
 
 const wallet = useWalletSession();
-const { withToken } = usePublicToken();
+const { withToken, refresh } = usePublicToken();
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/giveaway`));
 
 function connectWs() {
@@ -402,6 +402,7 @@ function openImageDialog() {
 onMounted(async () => {
   try {
     await wallet.refresh();
+    await refresh();
   } catch {}
   load();
   connectWs();

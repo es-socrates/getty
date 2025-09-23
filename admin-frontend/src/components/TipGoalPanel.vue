@@ -204,7 +204,7 @@ const colorFields = [
 ];
 
 const wallet = useWalletSession();
-const { withToken } = usePublicToken();
+const { withToken, refresh } = usePublicToken();
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/tip-goal`));
 
 function resetColors() {
@@ -386,6 +386,7 @@ watch(form, () => {}, { deep: true });
 onMounted(async () => {
   try {
     await wallet.refresh();
+    await refresh();
   } catch {}
   await load();
 });

@@ -329,4 +329,65 @@
     ensureEmpty('#chat-container', 'chat-empty');
     ensureEmpty('#raffleContentContainer', 'raffle-empty');
   } catch {}
+
+  // User-specific dashboard functionality
+  window.loadUserSpecificWidgets = async function() {
+    try {
+      const isLoggedIn = document.querySelector('#public-wallet-login[data-state="logged-in"]');
+      
+      if (isLoggedIn) {
+        // Load user namespace configuration
+        const config = await loadUserNamespaceConfig();
+        
+        // Apply user-specific configuration to widgets
+        applyUserConfigToWidgets(config);
+      }
+    } catch (e) {
+      console.warn('[index-ui] Failed to load user-specific widgets', e);
+    }
+  };
+
+  async function loadUserNamespaceConfig() {
+    try {
+      // Get user config from API
+      const response = await fetch('/api/user/config');
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (e) {
+      console.warn('[index-ui] Failed to load user config', e);
+    }
+    return {}; // Default config
+  }
+
+  function applyUserConfigToWidgets(config) {
+    // Apply custom titles, colors, etc. to widgets
+    if (config.lastTip?.title) {
+      const lastTipTitle = document.querySelector('#last-donation .os-panel-title span:last-child');
+      if (lastTipTitle) lastTipTitle.textContent = config.lastTip.title;
+    }
+
+    if (config.goal?.title) {
+      const goalTitle = document.querySelector('#goal-widget').closest('.os-card').querySelector('.os-panel-title span:last-child');
+      if (goalTitle) goalTitle.textContent = config.goal.title;
+    }
+
+    // Apply custom colors if specified
+    if (config.colors) {
+      applyCustomColors(config.colors);
+    }
+  }
+
+  function applyCustomColors(colors) {
+    // Apply custom CSS variables for user theme
+    const root = document.documentElement;
+    if (colors.primary) root.style.setProperty('--user-primary-color', colors.primary);
+    if (colors.secondary) root.style.setProperty('--user-secondary-color', colors.secondary);
+    
+    // Update header border color
+    const header = document.querySelector('.os-header');
+    if (header && colors.primary) {
+      header.style.borderBottomColor = colors.primary;
+    }
+  }
 })();

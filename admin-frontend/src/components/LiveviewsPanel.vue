@@ -141,7 +141,7 @@ const form = ref({
 const customFont = ref('');
 const errors = ref({ claimid: '' });
 const wallet = useWalletSession();
-const { withToken } = usePublicToken();
+const { withToken, refresh } = usePublicToken();
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/liveviews`));
 const initial = ref('');
 const dirty = ref(false);
@@ -255,6 +255,7 @@ function openIconDialog() {
 onMounted(async () => {
   try {
     await wallet.refresh();
+    await refresh();
   } catch {}
   await load();
 });
