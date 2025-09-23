@@ -1589,7 +1589,6 @@ registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOA
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });
-registerTipNotificationGifRoutes(app, strictLimiter);
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 registerAchievementsRoutes(app, achievements, strictLimiter, { store });
 registerUserRoutes(app, { store });
@@ -1782,7 +1781,7 @@ app.get('/widgets/tip-notification', (req, res, next) => {
 });
 
 try { registerTipNotificationRoutes(app, limiter, { wss, store }); } catch {}
-try { registerTipNotificationGifRoutes(app, limiter, { store }); } catch {}
+registerTipNotificationGifRoutes(app, limiter, { store });
 
 app.get('/widgets/chat', (req, res, next) => {
   try {
