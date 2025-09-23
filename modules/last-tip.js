@@ -169,12 +169,58 @@ class LastTipModule {
   }
   
   init() {
+    if (!this._bootLogged) this._bootLogged = { missing: false };
     if (!this.walletAddress) {
       const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-      const msg = hostedMode
-        ? '[LastTip] walletAddress not set. Hosted mode will stay idle until configured via Admin UI or import.'
-        : '❌ ERROR: walletAddress is missing in last-tip-config.json';
-      try { hostedMode ? console.warn(msg) : console.error(msg); } catch {}
+
+      if (hostedMode && !this.walletAddress) {
+        (async () => {
+          try {
+            const store = this._store || (global.__gettyStore || null);
+            if (!store && typeof global.getAppStore === 'function') {
+              try { this._store = global.getAppStore(); } catch {}
+            } else { this._store = store; }
+            const nsCandidates = [];
+            try { if (global.__lastAdminNamespace) nsCandidates.push(global.__lastAdminNamespace); } catch {}
+            try { if (global.__lastPublicNamespace) nsCandidates.push(global.__lastPublicNamespace); } catch {}
+            const seen = new Set();
+            for (const cand of nsCandidates) {
+              if (!cand || seen.has(cand)) continue; seen.add(cand);
+              let cfgObj = null;
+              if (this._store && typeof this._store.getConfig === 'function') {
+                try { cfgObj = await this._store.getConfig(cand, 'last-tip-config.json', null); } catch {}
+              }
+              if (!cfgObj && this._store && typeof this._store.get === 'function') {
+                try { cfgObj = await this._store.get(cand, 'last-tip-config', null); } catch {}
+              }
+              if (cfgObj) {
+                const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
+                if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+                  this.walletAddress = data.walletAddress.trim();
+                  if (typeof data.title === 'string' && data.title.trim()) this.title = data.title.trim();
+                  break;
+                }
+              }
+            }
+          } catch {}
+        })();
+      }
+      const msgHosted = '[LastTip] walletAddress not set at boot (hosted multi-tenant). Waiting for namespaced configuration.';
+      const msgSingle = '❌ ERROR: walletAddress is missing in last-tip-config.json';
+      if (!this._bootLogged.missing) {
+        try {
+          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1' || process.env.NODE_ENV !== 'production';
+          const isLocalhost = process.env.GETTY_LOCALHOST === '1' || !process.env.GETTY_FORCE_SINGLE_TENANT;
+          const shouldShowError = !hostedMode && !isLocalhost;
+          const dbg = process.env.GETTY_DEBUG_WALLET_BOOT === '1';
+          if (!shouldShowError) {
+            if (dbg) console.warn(msgHosted);
+          } else {
+            console.error(msgSingle);
+          }
+        } catch {}
+        this._bootLogged.missing = true;
+      }
       return;
     }
     this.updateLatestDonation();

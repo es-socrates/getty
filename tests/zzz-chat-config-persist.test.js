@@ -2,10 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const request = require('supertest');
 const { freshServer } = require('./helpers/freshServer');
+const { loadTenantConfig } = require('../lib/tenant-config');
 let appRef; let restoreBaseline;
 
 const CONFIG_DIR = process.env.GETTY_CONFIG_DIR ? process.env.GETTY_CONFIG_DIR : path.join(process.cwd(), 'config');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'chat-config.json');
+
+async function readConfigFile() {
+  const result = await loadTenantConfig({ ns: { admin: null } }, null, CONFIG_PATH, 'chat-config.json');
+  return result;
+}
 
 describe('Chat config hybrid persistence', () => {
   let server; let agent;
@@ -48,9 +54,9 @@ describe('Chat config hybrid persistence', () => {
     expect(typeof v1).toBe('number');
     expect(typeof c1).toBe('string');
 
-    const onDisk1 = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    expect(onDisk1).toHaveProperty('__version', v1);
-    expect(onDisk1).toHaveProperty('checksum', c1);
+    const onDisk1 = await readConfigFile();
+    expect(onDisk1.meta).toHaveProperty('__version', v1);
+    expect(onDisk1.meta).toHaveProperty('checksum', c1);
     expect(onDisk1).toHaveProperty('data');
     expect(onDisk1.data).toHaveProperty('chatUrl', basePayload.chatUrl);
 

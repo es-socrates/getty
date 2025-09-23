@@ -123,16 +123,18 @@ function buildItems(d) {
     const showActive = state === 'active' || state === 'configured';
     out.push({ key, label, active: showActive, uptime, extra, displayState: state });
   };
-  push('lastTip', 'Last Tip', d.lastTip, (o) => (o.active ? (o.lastDonation ? '✓ tip' : '') : ''));
+  push('lastTip', t('lastTipModule') || 'Last Tip', d.lastTip, (o) =>
+    o.active ? (o.lastDonation ? '✓ tip' : '') : ''
+  );
   push('tipWidget', t('tipWidget') || 'Tip Widget', d.tipWidget);
-  push('tipGoal', 'Tip Goal', d.tipGoal, (o) =>
+  push('tipGoal', t('tipGoalModule') || 'Tip Goal', d.tipGoal, (o) =>
     o.active ? (o.progress ? o.progress + '%' : '') : ''
   );
-  push('chat', 'Chat', d.chat, (o) => (o.connected ? 'connected' : ''));
-  push('announcement', 'Announcement', d.announcement, (o) =>
+  push('chat', t('chatModule') || 'Chat', d.chat, (o) => (o.connected ? 'connected' : ''));
+  push('announcement', t('announcementModule') || 'Announcement', d.announcement, (o) =>
     o.active ? `${o.enabledMessages}/${o.totalMessages}` : ''
   );
-  push('socialmedia', 'Social', d.socialmedia, (o) =>
+  push('socialmedia', t('socialModule') || 'Social', d.socialmedia, (o) =>
     o.configured ? `${o.entries} ${t('statusEntries') || 'entries'}` : ''
   );
   push(
@@ -141,7 +143,9 @@ function buildItems(d) {
     d.externalNotifications,
     (o) => (o.active && o.lastTips ? o.lastTips.length + ' tips' : '')
   );
-  push('liveviews', 'Liveviews', d.liveviews, (o) => (o.active ? o.viewersLabel || '' : ''));
+  push('liveviews', t('liveviewsModule') || 'Liveviews', d.liveviews, (o) =>
+    o.active ? o.viewersLabel || '' : ''
+  );
   push('raffle', t('raffleTitle') || 'Raffle', d.raffle, (o) =>
     o.active ? (o.participants?.length || 0) + ' ppl' : ''
   );

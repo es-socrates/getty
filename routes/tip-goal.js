@@ -79,7 +79,14 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           meta = wrapped.data ? { __version: wrapped.__version, checksum: wrapped.checksum } : null;
         }
       }
-      if (!cfg) cfg = readConfigRaw();
+
+      const multiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+      if (!cfg) {
+        if (multiTenant && (tenant && tenant.tenantEnabled(req))) {
+          return res.status(404).json({ error: 'No tip goal configured', tenant: true, strict: true });
+        }
+        cfg = readConfigRaw();
+      }
       if (!cfg) return res.status(404).json({ error: 'No tip goal configured' });
       const out = { ...cfg };
       try {
@@ -206,6 +213,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const currentAmountProvided = ['currentAmount','startingAmount','currentTips'].some(k => Object.prototype.hasOwnProperty.call(req.body, k));
       const currentAmount = currentAmountProvided ? (data.currentAmount ?? data.startingAmount ?? data.currentTips ?? 0)
         : (typeof prevCfg.currentAmount === 'number' ? prevCfg.currentAmount : (prevCfg.currentTips || 0));
+      const startingExplicit = Object.prototype.hasOwnProperty.call(req.body, 'startingAmount');
 
       const theme = Object.prototype.hasOwnProperty.call(req.body, 'theme') ? (data.theme || 'classic') : (prevCfg.theme || 'classic');
       const bgColor = Object.prototype.hasOwnProperty.call(req.body, 'bgColor') ? data.bgColor : (prevCfg.bgColor);
@@ -222,7 +230,13 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       if (!(tenant && tenant.tenantEnabled(req)) && !(store && ns)) {
         try { if (tipGoal && typeof tipGoal.updateWalletAddress === 'function') tipGoal.updateWalletAddress(walletAddress); } catch {}
         try { if (tipGoal) tipGoal.monthlyGoalAR = monthlyGoal; } catch {}
-        try { if (tipGoal) tipGoal.currentTipsAR = currentAmount; } catch {}
+        try {
+          if (tipGoal) {
+            if (startingExplicit || currentAmountProvided) {
+              tipGoal.currentTipsAR = currentAmount;
+            }
+          }
+        } catch {}
         try { if (tipGoal) tipGoal.theme = theme; } catch {}
       }
 
@@ -326,7 +340,11 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           if (process.env.NODE_ENV === 'test' && typeof tipGoal === 'object' && tipGoal) {
             if (walletAddress) { try { if (typeof tipGoal.updateWalletAddress === 'function') tipGoal.updateWalletAddress(walletAddress); else tipGoal.walletAddress = walletAddress; } catch {} }
             try { tipGoal.monthlyGoalAR = monthlyGoal; } catch {}
-            try { tipGoal.currentTipsAR = currentAmount; } catch {}
+            try {
+              if (startingExplicit || currentAmountProvided) {
+                tipGoal.currentTipsAR = currentAmount;
+              }
+            } catch {}
             if (theme) try { tipGoal.theme = theme; } catch {}
             if (bgColor) try { tipGoal.bgColor = bgColor; } catch {}
             if (fontColor) try { tipGoal.fontColor = fontColor; } catch {}

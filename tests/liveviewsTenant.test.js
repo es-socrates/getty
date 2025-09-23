@@ -3,6 +3,7 @@ const { describe, test, expect, beforeEach } = global;
 const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
+const { loadTenantConfig } = require('../lib/tenant-config');
 
 function makeApp() {
   jest.resetModules();
@@ -53,9 +54,9 @@ describe('liveviews tenant config', () => {
 
     const file = path.join(process.cwd(), 'tenant', '__forcewallet1', 'config', 'liveviews-config.json');
     expect(fs.existsSync(file)).toBe(true);
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-    expect(raw).toHaveProperty('__version');
-    expect(raw).toHaveProperty('data');
-    expect(raw.data.bg).toBe('#123456');
+    const result = await loadTenantConfig({ ns: { admin: '__forcewallet1' } }, null, file, 'liveviews-config.json');
+    expect(result.meta).toHaveProperty('__version');
+    expect(result).toHaveProperty('data');
+    expect(result.data.bg).toBe('#123456');
   });
 });

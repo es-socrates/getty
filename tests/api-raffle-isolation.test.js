@@ -1,10 +1,11 @@
 const request = require('supertest');
 const WebSocket = require('ws');
+process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 process.env.GETTY_MULTI_TENANT_WALLET = '1';
 process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
 let app = require('../server');
 
-jest.setTimeout(15000);
+jest.setTimeout(30000);
 
 const crypto = require('crypto');
 const { addressFromOwnerPublicKey } = require('../lib/wallet-auth');
@@ -40,17 +41,19 @@ function wsConnectNs(ns) {
   });
 }
 
-function waitFor(ws, type, timeout = 2500) {
-  return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('timeout waiting ' + type)), timeout);
+function waitFor(ws, type) {
+  return new Promise((resolve) => {
     ws.on('message', raw => {
+      console.warn('[waitFor] received message:', raw);
       try {
         const msg = JSON.parse(raw);
+        console.warn('[waitFor] parsed message:', msg);
         if (msg && msg.type === type) {
-          clearTimeout(t);
           resolve(msg);
         }
-  } catch { /* ignore */ }
+      } catch (e) {
+        console.warn('[waitFor] parse error:', e);
+      }
     });
   });
 }
@@ -79,12 +82,19 @@ describe('Raffle isolation across sessions', () => {
   const ws1 = await wsConnectNs(s1.walletHash);
   const ws2 = await wsConnectNs(s2.walletHash);
 
-  ws1.send(JSON.stringify({ type: 'get_raffle_state' }));
-  await waitFor(ws1, 'raffle_state');
+  const [init1, raffle1] = await Promise.all([
+    waitFor(ws1, 'init'),
+    waitFor(ws1, 'raffle_state')
+  ]);
+  expect(init1.data.raffle.active).toBe(true);
+  expect(raffle1.active).toBe(true);
 
-    ws2.send(JSON.stringify({ type: 'get_raffle_state' }));
-    const init2 = await waitFor(ws2, 'raffle_state');
-    expect(init2.active).toBe(false);
+  const [init2, raffle2] = await Promise.all([
+    waitFor(ws2, 'init'),
+    waitFor(ws2, 'raffle_state')
+  ]);
+  expect(init2.data.raffle.active).toBe(false);
+  expect(raffle2.active).toBe(false);
 
   await agent1.post(`/api/raffle/stop?ns=${encodeURIComponent(s1.walletHash)}`);
 

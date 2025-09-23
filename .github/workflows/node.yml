@@ -23,6 +23,8 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      REDIS_URL: ${{ secrets.REDIS_URL }}
     strategy:
       fail-fast: false
       matrix:

@@ -1,18 +1,20 @@
 const request = require('supertest');
+const { freshServer } = require('./helpers/freshServer');
 
 describe('wander session stale flow', () => {
-  let app; let server; let agent;
+  let app; let restore; let agent;
 
-  beforeAll((done) => {
-    process.env.GETTY_MULTI_TENANT_WALLET = '1';
-    process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
-    process.env.GETTY_WALLET_SESSION_SECRET = 'initial_secret_for_test';
-    jest.resetModules();
-    app = require('../server');
-    server = app.listen(0, () => { agent = request.agent(app); done(); });
+  beforeAll(() => {
+    ({ app, restore } = freshServer({
+      REDIS_URL: null,
+      GETTY_MULTI_TENANT_WALLET: '1',
+      GETTY_WALLET_AUTH_ALLOW_DUMMY: '1',
+      GETTY_WALLET_SESSION_SECRET: 'initial_secret_for_test'
+    }));
+    agent = request.agent(app);
   });
 
-  afterAll((done) => { try { server.close(() => done()); } catch { done(); } });
+  afterAll(() => { try { restore && restore(); } catch {} });
 
   it('marks session invalid after secret rotation (simulated)', async () => {
     const address = 'STAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALEXX';

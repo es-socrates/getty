@@ -11,6 +11,7 @@ describe('Public tip-goal masking preserves progress', () => {
 
   beforeAll(async () => {
     ({ app, restore } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null }));
+    try { delete require.cache[require.resolve('../modules/tip-goal')]; } catch {}
     if (app.startTestServer) server = await app.startTestServer();
     agent = request(server || app);
   });
@@ -18,6 +19,10 @@ describe('Public tip-goal masking preserves progress', () => {
 
   test('Data stays when wallet omitted', async () => {
     try { if (fs.existsSync(cfgFile)) fs.unlinkSync(cfgFile); } catch {}
+    const workerFile = path.join(cfgDir, `tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
+    try { if (fs.existsSync(workerFile)) fs.unlinkSync(workerFile); } catch {}
+    const tenantFile = path.join(process.cwd(), 'tenant', 'local', 'config', 'tip-goal-config.json');
+    try { if (fs.existsSync(tenantFile)) fs.unlinkSync(tenantFile); } catch {}
 
     const create = await agent.post('/api/tip-goal').field('walletAddress','').field('monthlyGoal','20').field('currentAmount','5').field('theme','modern-list');
     expect(create.status).toBe(200);

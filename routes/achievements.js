@@ -4,7 +4,11 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
   const router = express.Router();
 
   async function getNs(req) {
-    try { return req?.ns?.admin || req?.ns?.pub || null; } catch { return null; }
+    try {
+      let ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (!ns && req.query && req.query.ns) ns = String(req.query.ns);
+      return ns;
+    } catch { return null; }
   }
 
   router.get('/config', async (req, res) => {
@@ -92,6 +96,32 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
   });
 
   router.post('/test-notification', limiter, async (req, res) => {
+    try {
+      const ns = await getNs(req);
+      const defs = achievements.getDefinitions();
+      const pick = defs[Math.floor(Math.random() * defs.length)];
+      const now = Date.now();
+
+      const data = {
+        id: pick.id,
+        titleKey: pick.titleKey,
+        descKey: pick.descKey,
+        title: achievements._t('en', pick.titleKey, pick.title || ''),
+        desc: achievements._t('en', pick.descKey, pick.desc || ''),
+        category: pick.category,
+        ts: now,
+        test: true
+      };
+      const payload = { type: 'achievement', data };
+
+      achievements._broadcast(ns, payload);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: 'failed_to_test_notification', details: e?.message });
+    }
+  });
+
+  router.get('/test-notification', limiter, async (req, res) => {
     try {
       const ns = await getNs(req);
       const defs = achievements.getDefinitions();

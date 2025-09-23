@@ -21,6 +21,8 @@ function isValidArweaveAddress(addr) {
 }
 
 function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
+  // Optional tipGoal module can be passed in options for cross-propagation of wallet
+  const tipGoal = options.tipGoal || null;
   const store = options.store || null;
   const wss = options.wss || null;
   const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
@@ -66,6 +68,10 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         if (wrapped) cfg = wrapped.data ? wrapped.data : wrapped;
       }
       if (!cfg) {
+        const multiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+        if (multiTenant && (tenant && tenant.tenantEnabled(req))) {
+          return res.status(404).json({ error: 'No last tip config', tenant: true, strict: true });
+        }
         if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) return res.status(404).json({ error: 'No last tip config' });
         try {
           const hybrid = readHybridConfig(LAST_TIP_CONFIG_FILE);
@@ -211,6 +217,32 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
       }
 
       try {
+        if (hasNs && (!clone.walletAddress || !clone.active) && store) {
+          const ns = req?.ns?.admin || req?.ns?.pub || null;
+            if (ns) {
+              let cfg = null;
+              if (typeof store.getConfig === 'function') {
+                try { cfg = await store.getConfig(ns, 'last-tip-config.json', null); } catch {}
+              }
+              if (!cfg) {
+                try { cfg = await store.get(ns, 'last-tip-config', null); } catch {}
+              }
+              const data = cfg && cfg.data ? cfg.data : cfg;
+              if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+                clone.walletAddress = data.walletAddress.trim();
+                if (!clone.active) clone.active = true;
+
+                try {
+                  if (tipGoal && (!tipGoal.walletAddress || !tipGoal.walletAddress.trim())) {
+                    tipGoal.walletAddress = clone.walletAddress;
+                  }
+                } catch {}
+              }
+            }
+        }
+      } catch {}
+
+      try {
         if (clone.diagnostics && clone.diagnostics.lastFetchTs) {
           clone.diagnostics.lastFetchAgeSeconds = Math.round((Date.now() - clone.diagnostics.lastFetchTs) / 1000);
         }
@@ -347,7 +379,22 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         if (wss && typeof wss.broadcast === 'function') {
             try { wss.broadcast(ns, { type: 'lastTipConfig', data: newConfig }); } catch {}
         }
-        try { if (lastTip) { lastTip._lastReqForSave = req; lastTip.scheduleWriteThrough(newConfig); } } catch {}
+        try {
+          if (lastTip) {
+            lastTip._lastReqForSave = req;
+            // Ensure in-memory module reflects wallet immediately for status queries.
+            if (walletProvided && typeof effectiveWallet === 'string' && effectiveWallet && (!lastTip.walletAddress || lastTip.walletAddress !== effectiveWallet)) {
+              try { lastTip.walletAddress = effectiveWallet; } catch {}
+            }
+            lastTip.scheduleWriteThrough(newConfig);
+          }
+        } catch {}
+
+        try {
+          if (walletProvided && tipGoal && typeof effectiveWallet === 'string' && effectiveWallet && (!tipGoal.walletAddress || tipGoal.walletAddress !== effectiveWallet)) {
+            tipGoal.walletAddress = effectiveWallet;
+          }
+        } catch {}
         return res.json({ success: true, ...(meta ? { meta } : {}), ...newConfig });
       } else {
         try { writeHybridConfig(LAST_TIP_CONFIG_FILE, newConfig); } catch { try { fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(newConfig, null, 2)); } catch {} }

@@ -30,6 +30,13 @@
 
     const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
 
+    function getWidgetTokenParam() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('widgetToken') || '';
+        } catch { return ''; }
+    }
+
     function getNonce() {
         try {
             const m = document.querySelector('meta[property="csp-nonce"]');
@@ -256,7 +263,9 @@
     async function loadInitialData() {
         await loadAudioSettings();
         
-    fetch('/api/modules')
+        const widgetToken = getWidgetTokenParam();
+        const url = widgetToken ? `/api/modules?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/modules';
+    fetch(url)
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.json();
@@ -330,7 +339,9 @@
 
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${protocol}//${window.location.host}`);
+        const widgetToken = getWidgetTokenParam();
+        const wsUrl = widgetToken ? `${protocol}//${window.location.host}?widgetToken=${encodeURIComponent(widgetToken)}` : `${protocol}//${window.location.host}`;
+    ws = new WebSocket(wsUrl);
 
         ws.onopen = async () => {
             setTimeout(async () => {

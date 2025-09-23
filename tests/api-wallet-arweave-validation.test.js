@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
 
 function withSession(req) {
   return req.set('Cookie', ['getty_admin_token=dummy']);
@@ -17,6 +17,9 @@ const INVALID_ADDRS = [
 ];
 
 describe('Arweave wallet validation', () => {
+  let app; let restore;
+  beforeAll(() => { ({ app, restore } = freshServer({ REDIS_URL: null })); });
+  afterAll(() => { try { restore && restore(); } catch {} });
   test('tip-goal rejects non-Arweave wallets and accepts valid', async () => {
     for (const bad of INVALID_ADDRS) {
       const resBad = await withSession(request(app).post('/api/tip-goal')).send({ monthlyGoal: 10, walletAddress: bad });

@@ -92,13 +92,50 @@ class TipWidgetModule {
   
   init() {
     if (!this.walletAddress) {
-      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-      if (hostedMode) {
-        Logger.warn('walletAddress not set; hosted mode will remain idle until configured');
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1' || process.env.NODE_ENV !== 'production';
+      const isLocalhost = process.env.GETTY_LOCALHOST === '1' || !process.env.GETTY_FORCE_SINGLE_TENANT;
+      const shouldShowError = !hostedMode && !isLocalhost;
+      if (!shouldShowError) {
+        (async () => {
+          try {
+            const store = this._store || (global.__gettyStore || null);
+            if (!store && typeof global.getAppStore === 'function') {
+              try { this._store = global.getAppStore(); } catch {}
+            } else { this._store = store; }
+            const nsCandidates = [];
+            try { if (global.__lastAdminNamespace) nsCandidates.push(global.__lastAdminNamespace); } catch {}
+            try { if (global.__lastPublicNamespace) nsCandidates.push(global.__lastPublicNamespace); } catch {}
+            const seen = new Set();
+            for (const cand of nsCandidates) {
+              if (!cand || seen.has(cand)) continue; seen.add(cand);
+              let cfgObj = null;
+              if (this._store && typeof this._store.getConfig === 'function') {
+                try { cfgObj = await this._store.getConfig(cand, 'tip-goal-config.json', null); } catch {}
+              }
+              if (!cfgObj && this._store && typeof this._store.get === 'function') {
+                try { cfgObj = await this._store.get(cand, 'tip-goal-config', null); } catch {}
+              }
+              if (cfgObj) {
+                const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
+                if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+                  this.walletAddress = data.walletAddress.trim();
+                  break;
+                }
+              }
+            }
+          } catch {}
+          if (this.walletAddress) {
+            Logger.info('Recovered walletAddress from namespaced store', { wallet: this.walletAddress.slice(0,6)+'...' });
+          }
+          if (!this.walletAddress) {
+            Logger.warn('walletAddress not set; hosted mode will remain idle until configured');
+          }
+        })();
+        return;
       } else {
         Logger.error('walletAddress is missing in configuration file');
+        return;
       }
-      return;
     }
     Logger.info('Initializing Tip Widget Module', {
       walletAddress: this.walletAddress.slice(0, 6) + '...' + this.walletAddress.slice(-4),
@@ -205,36 +242,31 @@ class TipWidgetModule {
           return;
       }
 
-      // removed clientsNotified (was unused and triggered lint warning)
-
     const hosted = !!process.env.REDIS_URL;
-    if (!hosted) {
-    this.wss.clients.forEach(client => {
-      const isOpen = client.readyState === (client.OPEN || 1);
-      if (isOpen) {
-        try {
-          const notification = {
-            type: 'tipNotification',
-            data: {
-              from: data.from,
-              amount: data.amount,
-              txId: data.txId,
-              message: data.message,
-              timestamp: new Date().toISOString()
-            }
-          };
-                    
-          client.send(JSON.stringify(notification));
-                    
-          Logger.debug('Notification sent to client', {
-            notificationType: notification.type,
-            clientState: client.readyState
-          });
-        } catch (error) {
-          Logger.error('Error sending notification to client', error);
+    const multiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+    if (!hosted && !multiTenant) {
+
+      this.wss.clients.forEach(client => {
+        const isOpen = client.readyState === (client.OPEN || 1);
+        if (isOpen) {
+          try {
+            const notification = {
+              type: 'tipNotification',
+              data: {
+                from: data.from,
+                amount: data.amount,
+                txId: data.txId,
+                message: data.message,
+                timestamp: new Date().toISOString()
+              }
+            };
+            client.send(JSON.stringify(notification));
+            Logger.debug('Notification sent to client', { notificationType: notification.type, clientState: client.readyState });
+          } catch (error) { Logger.error('Error sending notification to client', error); }
         }
-      }
-    });
+      });
+    } else if (multiTenant) {
+      // (No global fan-out here to prevent cross-wallet leakage.)
     }
       
     try {

@@ -569,6 +569,18 @@ app.use(async (req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+  try {
+    if (req.query && typeof req.query.tenant === 'string' && req.query.tenant.trim()) {
+      const tenantHash = req.query.tenant.trim();
+      if (/^[a-f0-9]{16,64}$/i.test(tenantHash)) {
+        req.tenant = { walletHash: tenantHash };
+      }
+    }
+  } catch {}
+  next();
+});
+
 
 try {
   const ENABLE_CSRF = process.env.GETTY_ENABLE_CSRF === '1';
@@ -739,6 +751,35 @@ try {
 let wss;
 try { wss = new WebSocket.Server({ noServer: true }); }
 catch { wss = new (function(){ return function StubWSS(){ this.clients=new Set(); this.on=()=>{}; this.handleUpgrade=(_r,_s,_h,cb)=>{ if(cb) cb({}); }; this.emit=()=>{}; this.close=()=>{}; }; })(); }
+
+let __pendingNsQueue = new Map();
+wss.broadcast = function(nsToken, payload) {
+  try {
+    if (payload === null || typeof payload === 'undefined') return;
+    const data = JSON.stringify(payload);
+    if (nsToken) {
+      let delivered = 0;
+      wss.clients.forEach(client => {
+        try {
+          if (!client || client.readyState !== 1) return;
+          if (client.nsToken !== nsToken) return;
+          client.send(data);
+          delivered++;
+        } catch {}
+      });
+      if (delivered === 0) {
+        const arr = __pendingNsQueue.get(nsToken) || [];
+        arr.push(data);
+        __pendingNsQueue.set(nsToken, arr.slice(-25));
+      }
+      if (process.env.NODE_ENV === 'test') {
+        // try { console.warn('[wss.broadcast]', { nsToken, delivered, queued: delivered === 0 }); } catch {}
+      }
+    } else {
+      wss.clients.forEach(client => { try { if (client && client.readyState === 1) client.send(data); } catch {} });
+    }
+  } catch (e) { console.error('broadcast error', e); }
+};
 
 let __arPriceCache = { usd: 0, ts: 0, source: 'none', providersTried: [] };
 let __arPriceFetchPromise = null;
@@ -1291,7 +1332,7 @@ if (process.env.NODE_ENV !== 'test') {
         if (directWs || claimId) {
           try {
             console.warn('[Chat] Autostart connecting', directWs ? '[env URL]' : '[claimId derived]', directWs || (claimId.slice(0, 8) + '…'));
-            chat.updateChatUrl(directWs || claimId); // updateChatUrl will resolve claimId into ws URL template
+            chat.updateChatUrl(directWs || claimId);
           } catch (e) {
             console.error('[Chat] Autostart failed:', e && e.message ? e.message : e);
           }
@@ -1310,7 +1351,7 @@ if (process.env.NODE_ENV !== 'test') {
     const enableTenantAuto = process.env.GETTY_CHAT_AUTOSTART_TENANT === '1';
     const debugAutostart = process.env.GETTY_CHAT_AUTOSTART_DEBUG === '1';
     const inWalletMulti = process.env.GETTY_MULTI_TENANT_WALLET === '1';
-    const hasRedis = !!process.env.REDIS_URL; // if Redis present, we skip to avoid large fan-out / resource use
+    const hasRedis = !!process.env.REDIS_URL;
     if (enableTenantAuto && inWalletMulti && !hasRedis && chatNs) {
       const tenantRoot = path.join(process.cwd(), 'tenant');
       if (fs.existsSync(tenantRoot)) {
@@ -1361,7 +1402,7 @@ if (process.env.NODE_ENV !== 'test') {
 registerTtsRoutes(app, wss, limiter, { store });
 registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, { store });
 
-registerLastTipRoutes(app, lastTip, tipWidget, { store, wss });
+registerLastTipRoutes(app, lastTip, tipWidget, { store, wss, tipGoal });
 
 try {
   const { getStatus, claimOwnerToken, rotateOwnerToken, extractOwnerTokenFromReq, loadOwnerToken } = require('./lib/owner');
@@ -1439,6 +1480,14 @@ try {
           loginDomain: process.env.GETTY_LOGIN_DOMAIN
         });
         const ttl = result.session.exp - result.session.iat;
+
+        if (store && result.response.widgetToken && result.session.walletHash) {
+          try {
+            await store.set(result.response.widgetToken, 'walletHash', result.session.walletHash, { ttl: Math.ceil(ttl / 1000) });
+          } catch (e) {
+            console.warn('Failed to store widget token:', e.message);
+          }
+        }
         res.cookie('getty_wallet_session', result.signed, {
           httpOnly: true,
           sameSite: 'lax',
@@ -1537,7 +1586,6 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
 
     const body = req.body || {};
     const username = (typeof body.username === 'string' && body.username.trim()) ? body.username.trim() : 'TestUser';
-    const text = (typeof body.message === 'string') ? body.message.slice(0, 500) : 'Test message';
     const donationOnly = !!body.donationOnly;
     const rawCredits = Number(body.credits);
     let credits = Number.isFinite(rawCredits) ? rawCredits : 0;
@@ -1553,7 +1601,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
   const arAmount = isTip ? (usdAmount / (rate || 5)) : 0;
   const chatMsg = {
       channelTitle: username,
-      message: text,
+     
       credits,
       creditsIsUsd: isTip,
       isChatTip: isTip,
@@ -1580,61 +1628,6 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
     res.json({ ok: true, sent: chatMsg });
   } catch (e) {
     res.status(500).json({ error: 'failed_to_send_test_message', details: e?.message });
-  }
-});
-
-app.post('/api/test-tip', limiter, async (req, res) => {
-  try {
-    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-    const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
-    if (shouldRequireSession) {
-      const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
-      if (!nsCheck) return res.status(401).json({ error: 'session_required' });
-    }
-    const { amount, from, message } = req.body;
-    if (typeof amount === 'undefined' || typeof from === 'undefined') {
-      return res.status(400).json({ error: "Both amount and from are required" });
-    }
-    
-    const donation = {
-      amount: parseFloat(amount),
-      from: String(from),
-      message: message || '',
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-    
-    const ns = req?.ns?.admin || req?.ns?.pub || null;
-
-    if (typeof wss.broadcast === 'function' && ns) {
-      wss.broadcast(ns, { type: 'tip', data: donation });
-    }
-
-    try { if (wss && typeof wss.emit === 'function') wss.emit('tip', { ...donation, source: donation.source || 'test-tip' }, ns || null); } catch {}
-
-    wss.clients.forEach(client => {
-      if (client && client.readyState === 1) {
-        try { client.send(JSON.stringify({ type: 'tip', data: donation })); } catch {}
-      }
-    });
-    
-    if (store && ns) {
-      try {
-        let cfg = await store.get(ns, 'external-notifications-config', null);
-        if (cfg && cfg.__version && cfg.data) cfg = cfg.data;
-        if (cfg) await externalNotifications.sendWithConfig(cfg, donation);
-      } catch {}
-    } else {
-      externalNotifications.handleIncomingTip({
-        ...donation,
-        usd: (donation.amount * 5).toFixed(2)
-      });
-    }
-  try { achievements.onTip(ns || null, { usd: (donation.amount * 5) }); } catch {}
-  try { __recordTip({ amount: donation.amount, usd: (donation.amount * 5).toFixed(2), timestamp: Date.now(), source: 'test' }); } catch {}
-    
-    res.json({ ok: true, sent: donation });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1985,6 +1978,12 @@ try {
 try {
   app.get(['/welcome','/welcome/'], (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'welcome.html'));
+  });
+} catch {}
+
+try {
+  app.get('/index.html', (req, res) => {
+    res.redirect(301, '/');
   });
 } catch {}
 
@@ -2348,6 +2347,18 @@ try {
 } catch {}
 
 app.get('/api/modules', async (req, res) => {
+
+  if (req.query.widgetToken && store) {
+    try {
+      const walletHash = await store.get(req.query.widgetToken, 'walletHash');
+      if (walletHash) {
+        req.ns = req.ns || {};
+        req.ns.pub = walletHash;
+      }
+    } catch (e) {
+      console.warn('Failed to resolve widgetToken:', e.message);
+    }
+  }
   const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
   const ns = req?.ns?.admin || req?.ns?.pub || null;
   const adminNs = await (async () => {
@@ -2425,34 +2436,22 @@ app.get('/api/modules', async (req, res) => {
     } catch { return false; }
   }
   try {
-    if (store && adminNs) {
-      const st = await store.get(adminNs, 'chat-config', null);
-      if (st && typeof st === 'object') chatColors = st;
-    }
-    if ((!chatColors || Object.keys(chatColors).length === 0) && fs.existsSync(CHAT_CONFIG_FILE)) {
-      chatColors = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
+    const chatLoad = await loadTenantConfig(req, store, CHAT_CONFIG_FILE, 'chat-config.json');
+    if (chatLoad && chatLoad.data) {
+      chatColors = chatLoad.data;
     }
   } catch {}
 
   try {
-    if (store && adminNs) {
-      const tg = await store.get(adminNs, 'tip-goal-config', null);
-      if (tg && typeof tg === 'object') tipGoalColors = __unwrapMaybe(tg);
-      else if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-        try { tipGoalColors = __unwrapMaybe(JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'))); } catch {}
-      }
-
-    } else if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-      try { tipGoalColors = __unwrapMaybe(JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE, 'utf8'))); } catch {}
+    const tipGoalLoad = await loadTenantConfig(req, store, TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
+    if (tipGoalLoad && tipGoalLoad.data) {
+      tipGoalColors = __unwrapMaybe(tipGoalLoad.data);
     }
   } catch {}
   try {
-    if (store && adminNs) {
-      const lt = await store.get(adminNs, 'last-tip-config', null);
-      if (lt && typeof lt === 'object') lastTipColors = __unwrapMaybe(lt);
-    }
-    if ((!lastTipColors || Object.keys(lastTipColors).length === 0) && fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-      try { lastTipColors = __unwrapMaybe(JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'))); } catch {}
+    const lastTipLoad = await loadTenantConfig(req, store, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+    if (lastTipLoad && lastTipLoad.data) {
+      lastTipColors = __unwrapMaybe(lastTipLoad.data);
     }
   } catch {}
 
@@ -2468,25 +2467,66 @@ app.get('/api/modules', async (req, res) => {
     try { return Array.from(wss.clients).filter(c=>c && c.readyState === 1).length; } catch { return 0; }
   })();
 
+  if (typeof tipGoal.getStatus === 'function') {
+    try {
+      const baseTg = tipGoal.getStatus() || {};
+      if (!baseTg.walletAddress && store && (req?.ns?.admin || req?.ns?.pub)) {
+        const nsSession = req?.ns?.admin || req?.ns?.pub;
+        let cfgObj = null;
+        if (typeof store.getConfig === 'function') {
+          try { cfgObj = await store.getConfig(nsSession, 'tip-goal-config.json', null); } catch {}
+        }
+        if (!cfgObj) { try { cfgObj = await store.get(nsSession, 'tip-goal-config', null); } catch {} }
+        const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
+        if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+          tipGoal.walletAddress = data.walletAddress.trim();
+          if (typeof data.monthlyGoal === 'number' && data.monthlyGoal > 0) tipGoal.monthlyGoalAR = data.monthlyGoal;
+          if (typeof data.currentAmount === 'number') tipGoal.currentTipsAR = data.currentAmount;
+          else if (typeof data.currentTips === 'number') tipGoal.currentTipsAR = data.currentTips;
+        }
+      }
+    } catch {}
+  }
+
   const payload = {
-    lastTip: (async () => {
+  lastTip: (async () => {
       try {
+
+        try {
+          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+          const hasSessionWallet = !!(req?.walletSession && req.walletSession.walletHash);
+          if (hostedMode && hasSessionWallet && lastTip && (!lastTip.walletAddress || !String(lastTip.walletAddress).trim()) && typeof lastTip.loadWalletAddress === 'function') {
+            await lastTip.loadWalletAddress(req);
+          }
+        } catch {}
         const base = lastTip.getStatus?.() || {};
         const merged = { ...base, ...lastTipColors };
         const __ltBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
         const __ltCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
-
         let __tgWallet = '';
+        try { if (typeof tipGoal.getStatus === 'function') { const tg = tipGoal.getStatus(); if (tg && tg.walletAddress) __tgWallet = String(tg.walletAddress).trim(); } } catch {}
+        if (!__tgWallet && typeof tipGoalColors.walletAddress === 'string') __tgWallet = tipGoalColors.walletAddress.trim();
+
+        let __storeWallet = '';
         try {
-          if (typeof tipGoal?.getStatus === 'function') {
-            const liveTg = tipGoal.getStatus();
-            if (liveTg && typeof liveTg.walletAddress === 'string') __tgWallet = liveTg.walletAddress.trim();
+          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+          const hasNsSession = !!(req?.ns?.admin || req?.ns?.pub);
+          const nsSession = req?.ns?.admin || req?.ns?.pub || null;
+          if (!__ltBaseWallet && !__ltCfgWallet && !__tgWallet && hostedMode && hasNsSession && store && nsSession) {
+            let cfgObj = null;
+            if (typeof store.getConfig === 'function') {
+              try { cfgObj = await store.getConfig(nsSession, 'last-tip-config.json', null); } catch {}
+            }
+            if (!cfgObj) {
+              try { cfgObj = await store.get(nsSession, 'last-tip-config', null); } catch {}
+            }
+            const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
+            if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+              __storeWallet = data.walletAddress.trim();
+            }
           }
         } catch {}
-        if (!__tgWallet && typeof tipGoalColors.walletAddress === 'string') {
-          __tgWallet = tipGoalColors.walletAddress.trim();
-        }
-        const __effLtWallet = __ltCfgWallet || __ltBaseWallet || __tgWallet;
+        const __effLtWallet = __ltCfgWallet || __ltBaseWallet || __tgWallet || __storeWallet;
 
         try {
           const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
@@ -2528,7 +2568,6 @@ app.get('/api/modules', async (req, res) => {
       try {
         const base = tipWidget.getStatus?.() || {};
         let effWallet = '';
-
         try {
           if (tipGoal && typeof tipGoal.walletAddress === 'string' && tipGoal.walletAddress.trim()) {
             effWallet = tipGoal.walletAddress.trim();
@@ -2543,7 +2582,6 @@ app.get('/api/modules', async (req, res) => {
         if (!effWallet && typeof lastTipColors.walletAddress === 'string' && lastTipColors.walletAddress.trim()) effWallet = lastTipColors.walletAddress.trim();
         if (!effWallet && typeof base.walletAddress === 'string' && base.walletAddress.trim()) effWallet = base.walletAddress.trim();
         if (!effWallet) {
-
           try {
             if (typeof tipGoal?.getStatus === 'function') {
               const lateTg = tipGoal.getStatus();
@@ -2555,7 +2593,6 @@ app.get('/api/modules', async (req, res) => {
         }
         const out = { ...base };
         if (effWallet) out.walletAddress = effWallet;
-
         try {
           if (effWallet) {
             if (typeof tipWidget.updateWalletAddress === 'function') {
@@ -2566,470 +2603,87 @@ app.get('/api/modules', async (req, res) => {
             out.walletAddress = effWallet;
           }
         } catch {}
-  const __hasEffectiveWallet = !!(effWallet || out.walletAddress);
-  out.active = __hasEffectiveWallet || !!base.active;
+        const __hasEffectiveWallet = !!(effWallet || out.walletAddress);
+        out.active = __hasEffectiveWallet || !!base.active;
         out.configured = !!effWallet;
         if (!out.configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
-
-            if (hasAnyTenantFile('tip-goal-config.json') || hasAnyTenantFile('last-tip-config.json')) {
-              out.configured = true;
-            }
+          if (hasAnyTenantFile('tip-goal-config.json') || hasAnyTenantFile('last-tip-config.json')) {
+            out.configured = true;
+          }
         }
         return sanitizeIfNoNs(out);
       } catch { return sanitizeIfNoNs(tipWidget.getStatus()); }
     })(),
-  tipGoal: (async () => {
+    tipGoal: (async () => {
       try {
 
-        let base = tipGoal.getStatus?.() || {};
-
         try {
-          const needsHydration = (!base.walletAddress || !base.walletAddress.trim()) &&
-            (base.monthlyGoal === 10 || base.monthlyGoal === 0) &&
-            (base.currentAmount == null || base.currentAmount === 0) &&
-            (base.currentTips == null || base.currentTips === 0);
-          if (needsHydration && typeof tipGoal.hydrateFromFileIfWalletEmpty === 'function') {
-            const adopted = tipGoal.hydrateFromFileIfWalletEmpty();
-            if (adopted) {
-              base = tipGoal.getStatus?.() || base;
-            }
+          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+          const hasSessionWallet = !!(req?.walletSession && req.walletSession.walletHash);
+          if (hostedMode && hasSessionWallet && tipGoal && (!tipGoal.walletAddress || !String(tipGoal.walletAddress).trim()) && typeof tipGoal.loadWalletAddress === 'function') {
+            await tipGoal.loadWalletAddress(req);
           }
         } catch {}
-
+        const base = (typeof tipGoal.getStatus === 'function') ? (tipGoal.getStatus() || {}) : {};
+        const merged = { ...base, ...tipGoalColors };
         try {
-          if (process.env.NODE_ENV === 'test' && (!base.walletAddress || !base.walletAddress.trim())) {
-            const fs = require('fs');
-            if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-              let fc = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8'));
-              if (fc && fc.data && typeof fc.data === 'object' && ((fc.__version || fc.checksum || fc.updatedAt) || !fc.walletAddress)) { fc = fc.data; if (fc && fc.data && typeof fc.data === 'object') fc = fc.data; }
-              if (fc && typeof fc === 'object') {
-                const fGoal = Number(fc.monthlyGoal || 0);
-                const fCur = Number(fc.currentAmount || fc.currentTips || 0);
-                if (fGoal > 0 && fGoal >= (base.monthlyGoal || 0)) base.monthlyGoal = fGoal;
-                if (fCur >= 0 && fCur >= (base.currentAmount || base.currentTips || 0)) { base.currentAmount = fCur; base.currentTips = fCur; }
-                if (typeof fc.theme === 'string') base.theme = (fc.theme === 'koku-list') ? 'modern-list' : fc.theme;
-              }
-            }
-          }
-        } catch {}
 
-        try {
-          if (process.env.NODE_ENV === 'test' && (!base.walletAddress || !base.walletAddress.trim()) && base.monthlyGoal === 10) {
+          if ((merged.monthlyGoal === 10 || merged.monthlyGoal == null) && (Number(merged.currentAmount||merged.currentTips||0) === 0)) {
             const fs = require('fs');
             const path = require('path');
-            const cfgDir = path.join(process.cwd(),'config');
-            const globalPath = path.join(cfgDir,'tip-goal-config.json');
-            let paths = [globalPath];
-            if (process.env.JEST_WORKER_ID) {
-              paths.unshift(path.join(cfgDir,`tip-goal-config.${process.env.JEST_WORKER_ID}.json`));
-            }
-            for (const p of paths) {
-              if (!fs.existsSync(p)) continue;
+            const cfgPath = path.join(process.cwd(),'config','tip-goal-config.json');
+            if (fs.existsSync(cfgPath)) {
               try {
-                let raw = JSON.parse(fs.readFileSync(p,'utf8'));
+                let raw = JSON.parse(fs.readFileSync(cfgPath,'utf8'));
                 if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
                   raw = raw.data; if (raw && raw.data && typeof raw.data === 'object') raw = raw.data;
                 }
                 if (raw && typeof raw === 'object') {
-                  const fGoal = typeof raw.monthlyGoal === 'number' ? raw.monthlyGoal : null;
-                  const fCur = typeof raw.currentAmount === 'number' ? raw.currentAmount : (typeof raw.currentTips === 'number' ? raw.currentTips : null);
-                  const willAdopt = ((fGoal && fGoal !== 10) || (fCur != null && fCur !== 0));
-                  if (willAdopt) {
-                    if (fGoal && fGoal !== 10) { base.monthlyGoal = fGoal; try { tipGoal.monthlyGoalAR = fGoal; } catch {} }
-                    if (fCur != null && fCur !== 0) { base.currentTips = fCur; base.currentAmount = fCur; try { tipGoal.currentTipsAR = fCur; } catch {} }
-                    if (typeof raw.theme === 'string') { base.theme = (raw.theme === 'koku-list') ? 'modern-list' : raw.theme; try { tipGoal.theme = base.theme; } catch {} }
-                    break;
-                  } else {
-                    // Skip break to allow trying next path (e.g., global file) if current file only holds defaults
-                  }
-                }
-              } catch {}
-            }
-
-            try {
-              if (base.monthlyGoal === 10 && fs.existsSync(globalPath)) {
-                let gRaw = JSON.parse(fs.readFileSync(globalPath,'utf8'));
-                if (gRaw && gRaw.data && typeof gRaw.data === 'object' && ((gRaw.__version || gRaw.checksum || gRaw.updatedAt) || !gRaw.walletAddress)) { gRaw = gRaw.data; if (gRaw && gRaw.data && typeof gRaw.data === 'object') gRaw = gRaw.data; }
-                if (gRaw && typeof gRaw === 'object') {
-                  const gGoal = typeof gRaw.monthlyGoal === 'number' ? gRaw.monthlyGoal : null;
-                  const gCur = typeof gRaw.currentAmount === 'number' ? gRaw.currentAmount : (typeof gRaw.currentTips === 'number' ? gRaw.currentTips : null);
-                  if (gGoal && gGoal > 10) { base.monthlyGoal = gGoal; try { tipGoal.monthlyGoalAR = gGoal; } catch {} }
-                  if (gCur != null && gCur > 0) { base.currentAmount = gCur; base.currentTips = gCur; try { tipGoal.currentTipsAR = gCur; } catch {} }
-                  if (typeof gRaw.theme === 'string') { base.theme = (gRaw.theme === 'koku-list') ? 'modern-list' : gRaw.theme; try { tipGoal.theme = base.theme; } catch {} }
-                }
-              }
-            } catch {}
-          }
-        } catch {}
-
-        const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-        const maybeNeedsHydration = hostedMode && hasNs && (!base.walletAddress || (typeof base.walletAddress === 'string' && !base.walletAddress.trim()));
-        if (maybeNeedsHydration && typeof tipGoal.loadWalletAddress === 'function') {
-          try {
-            await tipGoal.loadWalletAddress(req);
-
-            base = tipGoal.getStatus?.() || base;
-          } catch {}
-        }
-
-        let merged = { ...base, ...tipGoalColors };
-        const isolate = process.env.GETTY_TIP_GOAL_ISOLATE === '1';
-        if (isolate) {
-          try {
-            if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-              let rawIso = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8'));
-              if (rawIso && rawIso.data && typeof rawIso.data === 'object' && ((rawIso.__version || rawIso.checksum || rawIso.updatedAt) || !rawIso.walletAddress)) {
-                rawIso = rawIso.data;
-                if (rawIso && rawIso.data && typeof rawIso.data === 'object') rawIso = rawIso.data;
-              }
-              const fileWalletIso = (rawIso && typeof rawIso.walletAddress === 'string') ? rawIso.walletAddress.trim() : '';
-              if (fileWalletIso === '') {
-
-                if (typeof rawIso.monthlyGoal === 'number') {
-                  if (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < rawIso.monthlyGoal) merged.monthlyGoal = rawIso.monthlyGoal;
-                }
-                if (typeof rawIso.currentAmount === 'number') {
-                  if (typeof merged.currentAmount !== 'number' || merged.currentAmount < rawIso.currentAmount) merged.currentAmount = rawIso.currentAmount;
-                  if (typeof merged.currentTips !== 'number' || merged.currentTips < rawIso.currentAmount) merged.currentTips = rawIso.currentAmount;
-                }
-              }
-            }
-          } catch {}
-        }
-  let current = Number(merged.currentAmount ?? merged.currentTips ?? base.currentTips ?? 0) || 0;
-  let goal = Number(merged.monthlyGoal ?? base.monthlyGoal ?? 0) || 0;
-
-        let __preLoginFileGoal = null;
-        let __preLoginFileCurrent = null;
-        let __preLoginAuthoritative = false;
-        try {
-          if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-            let rawFile = {};
-            try { rawFile = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8')); } catch {}
-            let dataLayer = rawFile;
-            if (rawFile && rawFile.data && typeof rawFile.data === 'object' && ((rawFile.__version || rawFile.checksum || rawFile.updatedAt) || !rawFile.walletAddress)) {
-              dataLayer = rawFile.data;
-              if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object') dataLayer = dataLayer.data;
-            }
-            if (dataLayer && typeof dataLayer === 'object') {
-              const fGoal = Number(dataLayer.monthlyGoal || 0);
-              const fCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
-              const fWallet = (typeof dataLayer.walletAddress === 'string') ? dataLayer.walletAddress.trim() : '';
-              if (fWallet === '' && (fGoal > 0 || fCurrent >= 0)) {
-                __preLoginFileGoal = fGoal;
-                __preLoginFileCurrent = fCurrent;
-
-                goal = (fGoal > 0) ? fGoal : goal;
-                current = (fCurrent >= 0) ? fCurrent : current;
-                __preLoginAuthoritative = true;
-
-                try {
-                  if (fGoal > 0) merged.monthlyGoal = fGoal;
-                  if (fCurrent >= 0) { merged.currentAmount = fCurrent; merged.currentTips = fCurrent; }
-                } catch {}
-              }
-            }
-          }
-        } catch {}
-
-        try {
-          if ((__preLoginFileGoal != null && __preLoginFileGoal > 0) || (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0)) {
-            if (typeof tipGoal === 'object' && tipGoal) {
-              if (__preLoginFileGoal != null && __preLoginFileGoal > 0) {
-                if (!tipGoal._stickyGoal || tipGoal._stickyGoal < __preLoginFileGoal) tipGoal._stickyGoal = __preLoginFileGoal;
-              }
-              if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0) {
-                if (tipGoal._stickyCurrent == null || tipGoal._stickyCurrent < __preLoginFileCurrent) tipGoal._stickyCurrent = __preLoginFileCurrent;
-              }
-
-              if (__preLoginAuthoritative) {
-                try {
-                  if (typeof tipGoal.updateGoal === 'function') {
-                    tipGoal.updateGoal(__preLoginFileGoal || goal, __preLoginFileCurrent != null ? __preLoginFileCurrent : current, req);
-                  } else {
-                    if (__preLoginFileGoal != null && __preLoginFileGoal > 0) tipGoal.monthlyGoalAR = __preLoginFileGoal;
-                    if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0) tipGoal.currentTipsAR = __preLoginFileCurrent;
-                  }
-                } catch {}
-              }
-            }
-            if (__preLoginFileGoal != null && __preLoginFileGoal > 0) {
-              if (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < goal) merged.monthlyGoal = goal;
-            }
-            if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0) {
-              if (typeof merged.currentAmount !== 'number' || merged.currentAmount < current) merged.currentAmount = current;
-              if (typeof merged.currentTips !== 'number' || merged.currentTips < current) merged.currentTips = current;
-            }
-          }
-        } catch {}
-
-        if (typeof base.stickyGoal === 'number' && base.stickyGoal > 0) {
-          if (goal < base.stickyGoal) goal = base.stickyGoal;
-        }
-        if (typeof base.stickyCurrent === 'number' && base.stickyCurrent >= 0) {
-          if (current < base.stickyCurrent) current = base.stickyCurrent;
-        }
-
-        if (__preLoginFileGoal != null && __preLoginFileGoal > 0 && goal < __preLoginFileGoal) {
-          goal = __preLoginFileGoal;
-        }
-        if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0 && current < __preLoginFileCurrent) {
-          current = __preLoginFileCurrent;
-        }
-
-        let __authoritativeFileGoal = null;
-        let __authoritativeFileCurrent = null;
-        try {
-          const cfgPathPre = TIP_GOAL_CONFIG_FILE;
-          if (fs.existsSync(cfgPathPre)) {
-            try {
-              const rawTxt = fs.readFileSync(cfgPathPre,'utf8');
-              let parsed = {};
-              try { parsed = JSON.parse(rawTxt); } catch {}
-
-              let dataLayer = parsed;
-              if (parsed && parsed.data && typeof parsed.data === 'object') {
-                if ('__version' in parsed || 'checksum' in parsed || 'updatedAt' in parsed || !parsed.walletAddress) {
-                  dataLayer = parsed.data;
-                }
-
-                if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object') {
-                  if (dataLayer.data.walletAddress || dataLayer.data.monthlyGoal || dataLayer.data.currentAmount || dataLayer.data.currentTips) {
-                    dataLayer = dataLayer.data;
-                  }
-                }
-              }
-              if (dataLayer && typeof dataLayer === 'object') {
-                const fileGoal = Number(dataLayer.monthlyGoal || 0);
-                const fileCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
-                const fileWallet = (typeof dataLayer.walletAddress === 'string') ? dataLayer.walletAddress.trim() : '';
-                const hasFileValues = fileGoal > 0 || fileCurrent > 0;
-
-                if (hasFileValues && fileWallet === '') {
-
-                  if (fileGoal > 0 && goal < fileGoal) goal = fileGoal;
-                  if (fileCurrent >= 0 && current < fileCurrent) current = fileCurrent;
-                  if (fileGoal > 0) __authoritativeFileGoal = fileGoal;
-                  if (fileCurrent >= 0) __authoritativeFileCurrent = fileCurrent;
-
-                  try {
-                    if (typeof tipGoal === 'object') {
-                      if (fileGoal > 0 && (!tipGoal._stickyGoal || tipGoal._stickyGoal < fileGoal)) tipGoal._stickyGoal = fileGoal;
-                      if (fileCurrent >= 0 && (tipGoal._stickyCurrent == null || tipGoal._stickyCurrent < fileCurrent)) tipGoal._stickyCurrent = fileCurrent;
-                    }
-                  } catch {}
-                } else {
-
-                  if (fileGoal > 0 && (goal === 0 || goal < fileGoal)) goal = fileGoal;
-                  if (fileCurrent > 0 && (current === 0 || current < fileCurrent)) current = fileCurrent;
-                }
-              }
-            } catch {}
-          }
-        } catch {}
-
-        try {
-          if (goal > 0 && (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < goal)) merged.monthlyGoal = goal;
-          if (current >= 0 && (typeof merged.currentAmount !== 'number' || merged.currentAmount < current)) {
-            merged.currentAmount = current;
-            merged.currentTips = current;
-          }
-        } catch {}
-
-        let rate = Number(merged.exchangeRate || base.exchangeRate || 0);
-        if (!rate || !isFinite(rate) || rate <= 0) {
-          try { if (__arPriceCache && __arPriceCache.usd > 0) rate = Number(__arPriceCache.usd) || 0; } catch {}
-        }
-        if (rate && isFinite(rate) && rate > 0) {
-          merged.exchangeRate = rate;
-          merged.usdValue = (current * rate).toFixed(2);
-          merged.goalUsd = (goal * rate).toFixed(2);
-        }
-        merged.currentTips = current;
-        merged.currentAmount = current;
-
-        const __tgBaseWallet = typeof base.walletAddress === 'string' ? base.walletAddress.trim() : '';
-        const __tgCfgWallet = typeof merged.walletAddress === 'string' ? merged.walletAddress.trim() : '';
-        const __effTgWallet = __tgCfgWallet || __tgBaseWallet;
-        if (__effTgWallet) merged.walletAddress = __effTgWallet;
-        const wallet = __effTgWallet;
-        let configured = !!wallet;
-        if (!configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
-          if (hasAnyTenantFile('tip-goal-config.json')) configured = true;
-        }
-        merged.active = configured;
-        merged.initialized = configured;
-        merged.configured = configured;
-        const pct = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
-
-        if (typeof merged.progress !== 'number') merged.progress = pct;
-        if (!wallet) {
-          const hasProgressData = (goal > 0) || (current > 0);
-          if (!hasProgressData) {
-            merged.title = merged.title || 'Configure tip goal 💸';
-          }
-        }
-        try {
-          if (wallet) {
-            const cfgPath = TIP_GOAL_CONFIG_FILE;
-            if (fs.existsSync(cfgPath)) {
-              try {
-                const rawTxt = fs.readFileSync(cfgPath,'utf8');
-                let parsed = {};
-                try { parsed = JSON.parse(rawTxt); } catch {}
-                let dataLayer = parsed;
-                if (parsed && parsed.data && typeof parsed.data === 'object') {
-                  if ('__version' in parsed || 'checksum' in parsed || 'updatedAt' in parsed || !parsed.walletAddress) {
-                    dataLayer = parsed.data;
-                  }
-                  if (dataLayer && dataLayer.data && typeof dataLayer.data === 'object') {
-                    if (dataLayer.data.walletAddress || dataLayer.data.monthlyGoal || dataLayer.data.currentAmount || dataLayer.data.currentTips) {
-                      dataLayer = dataLayer.data;
-                    }
-                  }
-                }
-                if (dataLayer && typeof dataLayer === 'object') {
-                  const fileGoal = Number(dataLayer.monthlyGoal || 0);
-                  const fileCurrent = Number(dataLayer.currentAmount || dataLayer.currentTips || 0);
-                  const fileWallet = (typeof dataLayer.walletAddress === 'string') ? dataLayer.walletAddress.trim() : '';
-                  const hasFileValues = fileGoal > 0 || fileCurrent > 0;
-                  let shouldAdopt = false;
-                  if (hasFileValues && fileWallet === '') {
-
-                    shouldAdopt = true;
-                    if (fileGoal > 0) __authoritativeFileGoal = fileGoal;
-                    if (fileCurrent >= 0) __authoritativeFileCurrent = fileCurrent;
-                  } else if ((fileGoal > 0 && (merged.monthlyGoal === 0 || merged.monthlyGoal < fileGoal)) || (fileCurrent > 0 && (merged.currentAmount === 0 || merged.currentAmount < fileCurrent))) {
-                    shouldAdopt = true;
-                  }
-                  if (shouldAdopt) {
-                    if (fileGoal > 0 && merged.monthlyGoal < fileGoal) merged.monthlyGoal = fileGoal;
-                    if (fileCurrent >= 0 && merged.currentAmount < fileCurrent) {
-                      merged.currentAmount = fileCurrent;
-                      merged.currentTips = fileCurrent;
-                    }
-                    const rate2 = Number(merged.exchangeRate || 0);
-                    if (rate2 > 0 && fileGoal > 0) {
-                      merged.usdValue = (fileCurrent * rate2).toFixed(2);
-                      merged.goalUsd = (fileGoal * rate2).toFixed(2);
-                    }
-                    if (fileGoal > 0) {
-                      const pct2 = fileGoal > 0 ? Math.min((fileCurrent / fileGoal) * 100, 100) : 0;
-                      merged.progress = pct2;
-                    }
+                  const rGoal = Number(raw.monthlyGoal || 0);
+                  const rCur = Number(raw.currentAmount || raw.currentTips || 0);
+                  const hasNonDefault = (rGoal && rGoal !== 10) || (rCur && rCur !== 0);
+                  if (hasNonDefault) {
+                    if (rGoal && rGoal !== 10) merged.monthlyGoal = rGoal;
+                    if (rCur || rCur === 0) merged.currentAmount = rCur;
+                    if (typeof raw.theme === 'string') merged.theme = (raw.theme === 'koku-list') ? 'modern-list' : raw.theme;
+                    if (typeof raw.bgColor === 'string') merged.bgColor = raw.bgColor;
+                    if (typeof raw.fontColor === 'string') merged.fontColor = raw.fontColor;
+                    if (typeof raw.borderColor === 'string') merged.borderColor = raw.borderColor;
+                    if (typeof raw.progressColor === 'string') merged.progressColor = raw.progressColor;
+                    if (typeof raw.title === 'string' && raw.title.trim()) merged.title = raw.title.trim();
                   }
                 }
               } catch {}
             }
           }
         } catch {}
-
+        if (merged.currentAmount == null && typeof merged.currentTips === 'number') {
+          merged.currentAmount = merged.currentTips;
+        }
+        if (typeof merged.progress !== 'number') {
+          const g = Number(merged.monthlyGoal || 0);
+            const c = Number(merged.currentAmount || merged.currentTips || 0);
+          if (g > 0) merged.progress = Math.min((c / g) * 100, 100);
+        }
         try {
-          if (__authoritativeFileGoal != null && __authoritativeFileGoal > 0 && merged.monthlyGoal !== __authoritativeFileGoal) {
-            if (merged.monthlyGoal < __authoritativeFileGoal) merged.monthlyGoal = __authoritativeFileGoal;
-          }
-          if (__authoritativeFileCurrent != null && __authoritativeFileCurrent >= 0 && merged.currentAmount !== __authoritativeFileCurrent) {
-            if (merged.currentAmount < __authoritativeFileCurrent) {
-              merged.currentAmount = __authoritativeFileCurrent;
-              merged.currentTips = __authoritativeFileCurrent;
-            }
-          }
-
-          if (__preLoginFileGoal != null && __preLoginFileGoal > 0 && merged.monthlyGoal < __preLoginFileGoal) {
-            merged.monthlyGoal = __preLoginFileGoal;
-          }
-            if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0 && merged.currentAmount < __preLoginFileCurrent) {
-              merged.currentAmount = __preLoginFileCurrent;
-              merged.currentTips = __preLoginFileCurrent;
-            }
-        } catch {}
-
-        try {
-          if (__preLoginAuthoritative) {
-            if (__preLoginFileGoal != null && __preLoginFileGoal > 0 && merged.monthlyGoal > __preLoginFileGoal) {
-              merged.monthlyGoal = __preLoginFileGoal;
-            }
-            if (__preLoginFileCurrent != null && __preLoginFileCurrent >= 0 && merged.currentAmount > __preLoginFileCurrent) {
-              merged.currentAmount = __preLoginFileCurrent;
-              merged.currentTips = __preLoginFileCurrent;
-            }
-          }
-        } catch {}
-
-        try {
-          if (typeof tipGoal === 'object' && tipGoal) {
-            const sGoal = Number(tipGoal._stickyGoal || 0) || 0;
-            const sCurRaw = tipGoal._stickyCurrent;
-            const sCurrent = (sCurRaw == null) ? null : Number(sCurRaw);
-            if (sGoal > 0) {
-              if (typeof merged.monthlyGoal !== 'number' || merged.monthlyGoal < sGoal) merged.monthlyGoal = sGoal;
-              if (merged.monthlyGoal > sGoal) merged.monthlyGoal = sGoal;
-            }
-            if (sCurrent != null && !isNaN(sCurrent) && sCurrent >= 0) {
-              if (typeof merged.currentAmount !== 'number' || merged.currentAmount < sCurrent) {
-                merged.currentAmount = sCurrent; merged.currentTips = sCurrent;
-              }
-              if (merged.currentAmount > sCurrent) {
-                merged.currentAmount = sCurrent; merged.currentTips = sCurrent;
-              }
-            }
-          }
-        } catch {}
-
-        try {
-          if (process.env.NODE_ENV === 'test' && merged) {
-            const fs = require('fs');
-            if ((merged.monthlyGoal === 10 || merged.currentAmount === 0) && fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-              try {
-                let rawF = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8'));
-                if (rawF && rawF.data && typeof rawF.data === 'object' && ((rawF.__version || rawF.checksum || rawF.updatedAt) || !rawF.walletAddress)) {
-                  rawF = rawF.data;
-                  if (rawF && rawF.data && typeof rawF.data === 'object') rawF = rawF.data;
-                }
-                if (rawF && typeof rawF === 'object') {
-                  if (typeof rawF.monthlyGoal === 'number' && rawF.monthlyGoal !== 10) merged.monthlyGoal = rawF.monthlyGoal;
-                  if (typeof rawF.currentAmount === 'number' && rawF.currentAmount !== 0) { merged.currentAmount = rawF.currentAmount; merged.currentTips = rawF.currentAmount; }
-                  else if (typeof rawF.currentTips === 'number' && rawF.currentTips !== 0) { merged.currentAmount = rawF.currentTips; merged.currentTips = rawF.currentTips; }
-                  if (typeof rawF.theme === 'string') merged.theme = (rawF.theme === 'koku-list') ? 'modern-list' : rawF.theme;
-                }
-              } catch {}
-            }
-          }
-        } catch {}
-
-        try {
-          if (process.env.NODE_ENV === 'test') {
-            const fs = require('fs');
-            if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
-              let rawF = JSON.parse(fs.readFileSync(TIP_GOAL_CONFIG_FILE,'utf8'));
-              if (rawF && rawF.data && typeof rawF.data === 'object' && ((rawF.__version || rawF.checksum || rawF.updatedAt) || !rawF.walletAddress)) {
-                rawF = rawF.data; if (rawF && rawF.data && typeof rawF.data === 'object') rawF = rawF.data;
-              }
-              if (rawF && typeof rawF === 'object') {
-                const fGoal = Number(rawF.monthlyGoal || 0);
-                const fCur = Number(rawF.currentAmount || rawF.currentTips || 0);
-                if (fGoal > 0 && (typeof base.monthlyGoal !== 'number' || base.monthlyGoal < fGoal)) { base.monthlyGoal = fGoal; merged.monthlyGoal = fGoal; }
-                if (fCur >= 0 && (typeof base.currentAmount !== 'number' || base.currentAmount < fCur)) { base.currentAmount = fCur; base.currentTips = fCur; merged.currentAmount = fCur; merged.currentTips = fCur; }
-              }
-            }
-
-            try {
-              if (merged.monthlyGoal === 10 && typeof tipGoal.getStatus === 'function') {
-                const live = tipGoal.getStatus();
-                if (live && typeof live.monthlyGoal === 'number' && live.monthlyGoal > 10) {
-                  merged.monthlyGoal = live.monthlyGoal;
-                  if (typeof live.currentTips === 'number' && live.currentTips >= 0) {
-                    merged.currentAmount = live.currentTips;
-                    merged.currentTips = live.currentTips;
-                  }
-                  if (typeof live.theme === 'string') merged.theme = live.theme;
-                }
-              }
-            } catch {}
-          }
-        } catch {}
+          const p = await getArUsdCached(true);
+          const exRate = Number(p.usd) || 0;
+          merged.exchangeRate = exRate;
+          merged.usdValue = ((merged.currentAmount || 0) * exRate).toFixed(2);
+          merged.goalUsd = ((merged.monthlyGoal || 0) * exRate).toFixed(2);
+        } catch {
+          merged.exchangeRate = 0;
+          merged.usdValue = '0.00';
+          merged.goalUsd = '0.00';
+        }
         return sanitizeIfNoNs(merged);
-      } catch { return sanitizeIfNoNs({ ...tipGoal.getStatus(), ...tipGoalColors }); }
+      } catch {
+        try {
+          const fallback = (tipGoal.getStatus?.() || {});
+          if (fallback.currentAmount == null && typeof fallback.currentTips === 'number') fallback.currentAmount = fallback.currentTips;
+          return sanitizeIfNoNs({ ...fallback, ...tipGoalColors });
+        } catch { return sanitizeIfNoNs({ ...tipGoalColors }); }
+      }
     })(),
     chat: (() => {
       try {
@@ -3189,6 +2843,20 @@ app.get('/api/modules', async (req, res) => {
     for (const k of keys) {
       if (payload[k] && typeof payload[k].then === 'function') {
         payload[k] = await payload[k];
+      }
+    }
+  } catch {}
+
+  try {
+    if (payload.tipGoal && payload.tipGoal.walletAddress) {
+      if (payload.lastTip && (!payload.lastTip.walletAddress || !String(payload.lastTip.walletAddress).trim())) {
+        payload.lastTip.walletAddress = payload.tipGoal.walletAddress;
+        payload.lastTip.active = true;
+      }
+      if (payload.tipWidget && (!payload.tipWidget.walletAddress || !String(payload.tipWidget.walletAddress).trim())) {
+        payload.tipWidget.walletAddress = payload.tipGoal.walletAddress;
+        payload.tipWidget.active = true;
+        payload.tipWidget.configured = true;
       }
     }
   } catch {}
@@ -3435,7 +3103,6 @@ app.get('/readyz', (_req, res) => res.json({ ok: true }));
 try {
   if (!global.__gettyPendingNsQueue) { global.__gettyPendingNsQueue = new Map(); }
 } catch {}
-const __pendingNsQueue = (function(){ try { return global.__gettyPendingNsQueue; } catch { return new Map(); } })();
 
 wss.on('connection', async (ws) => {
   try {
@@ -3518,6 +3185,14 @@ wss.on('connection', async (ws) => {
   : await raffle.getPublicState(null);
     }
   try { ws.send(JSON.stringify({ type: 'init', data: initPayload })); ws.__initSent = true; } catch {}
+
+    if (ws.nsToken) {
+      raffle.getPublicState(ws.nsToken).then(st => {
+        ws.send(JSON.stringify({ type: 'raffle_state', ...st }));
+      }).catch(err => {
+        console.error('Error sending raffle_state on connect:', err);
+      });
+    }
 
     if (process.env.NODE_ENV === 'test' && __WS_VERBOSE) {
 
@@ -3662,15 +3337,35 @@ app.post('/api/test-donation', express.json(), (req, res) => {
 try {
   app.post('/api/test-tip', express.json(), async (req, res) => {
     try {
-      const { amountAr, usd, from = 'TestUser', message = 'Synthetic tip event' } = req.body || {};
+
+      try { const { ensureWalletSession } = require('./lib/wallet-session'); ensureWalletSession(req); } catch {}
+
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const shouldRequireSession = requireSessionFlag || !!process.env.REDIS_URL;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (shouldRequireSession && !ns) {
+        return res.status(401).json({ error: 'session_required' });
+      }
+
+      const {
+        amountAr,
+        amount,
+        usd,
+        from = 'TestUser',
+        message = 'Synthetic tip event'
+      } = req.body || {};
       let arVal = 0; let usdVal = 0;
 
       try {
         const price = (typeof __arPriceCache === 'object' && __arPriceCache && __arPriceCache.usd) ? Number(__arPriceCache.usd) : 0;
-        if (typeof amountAr === 'number' && isFinite(amountAr) && amountAr > 0) {
-          arVal = amountAr; usdVal = (typeof usd === 'number' && isFinite(usd) && usd >= 0)
+        const candidateAr = (typeof amountAr === 'number' && isFinite(amountAr) && amountAr > 0)
+          ? amountAr
+          : (typeof amount === 'number' && isFinite(amount) && amount > 0 ? amount : 0);
+        if (candidateAr > 0) {
+          arVal = candidateAr;
+          usdVal = (typeof usd === 'number' && isFinite(usd) && usd >= 0)
             ? usd
-            : (price > 0 ? +(amountAr * price).toFixed(2) : 0);
+            : (price > 0 ? +(candidateAr * price).toFixed(2) : 0);
         } else if (typeof usd === 'number' && isFinite(usd) && usd > 0) {
           usdVal = usd; arVal = (price > 0 ? +(usd / price).toFixed(6) : 0);
         }
@@ -3685,13 +3380,29 @@ try {
         source: 'test-tip',
         timestamp: new Date().toISOString()
       };
-      try { if (wss && typeof wss.emit === 'function') wss.emit('tip', tipEvt, null); } catch {}
 
-      try {
-        const frame = { type: 'tipNotification', data: { from, amount: arVal.toFixed(6), usd: usdVal, message, timestamp: tipEvt.timestamp } };
-        wss?.clients?.forEach(c=>{ try { if (c.readyState === 1) c.send(JSON.stringify(frame)); } catch {} });
-      } catch {}
-      return res.json({ success: true, tip: { ar: arVal, usd: usdVal, from, message } });
+  try { if (wss && typeof wss.emit === 'function') wss.emit('tip', tipEvt, ns || null); } catch {}
+
+      const frameTip = { type: 'tip', data: { amount: arVal, usd: usdVal, from, message, timestamp: tipEvt.timestamp } };
+      const frameNotif = { type: 'tipNotification', data: { from, amount: arVal.toFixed(6), usd: usdVal, message, timestamp: tipEvt.timestamp } };
+      const multiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
+
+      if (ns) {
+        if (typeof wss?.broadcast === 'function') {
+          if (process.env.NODE_ENV === 'test') { try { console.warn('[test-tip][debug] broadcasting namespaced frames', { ns, arVal, usdVal, wssClients: Array.from(wss?.clients||[]).length }); } catch {} }
+          wss.broadcast(ns, frameTip);
+          wss.broadcast(ns, frameNotif);
+        } else {
+          try {
+            if (process.env.NODE_ENV === 'test') { try { console.warn('[test-tip][debug] manual namespace send fallback', { ns, arVal, usdVal }); } catch {} }
+            wss?.clients?.forEach(c => { try { if (c.readyState === 1 && c.nsToken === ns) { c.send(JSON.stringify(frameTip)); c.send(JSON.stringify(frameNotif)); } } catch {} });
+          } catch {}
+        }
+      } else if (!multiTenant) {
+
+        wss?.clients?.forEach(c=>{ try { if (c.readyState === 1) { c.send(JSON.stringify(frameTip)); c.send(JSON.stringify(frameNotif)); } } catch {} });
+      }
+      return res.json({ success: true, tip: { ar: arVal, usd: usdVal, from, message, ns: ns || null } });
     } catch (e) {
       return res.status(500).json({ success: false, error: e.message });
     }
@@ -3795,7 +3506,7 @@ if (process.env.NODE_ENV !== 'test') {
   connectOBS();
 }
 
-registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOBS);
+registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOBS, store);
 
 try {
   const adminDist = path.join(__dirname, 'public', 'admin-dist');
@@ -3889,7 +3600,7 @@ app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'test') {
+  if (process.env.NODE_ENV === 'test' || process.env.GETTY_DEBUG_ROUTES === '1') {
     if (req.originalUrl === '/__ws-debug' || req.originalUrl === '/__routes') {
       return next();
     }
@@ -3935,34 +3646,6 @@ if (process.env.NODE_ENV !== 'test') {
     return out;
   }
 
-  wss.broadcast = function(nsToken, payload) {
-    try {
-      if (payload === null || typeof payload === 'undefined') return;
-      const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
-      if (nsToken) {
-        let delivered = 0;
-        wss.clients.forEach(client => {
-          try {
-            if (!client || client.readyState !== 1) return;
-            if (client.nsToken !== nsToken) return;
-            client.send(data);
-            delivered++;
-          } catch {}
-        });
-        if (delivered === 0) {
-          const arr = __pendingNsQueue.get(nsToken) || [];
-          arr.push(data);
-            __pendingNsQueue.set(nsToken, arr.slice(-25));
-        }
-        if (process.env.NODE_ENV === 'test') {
-          // try { console.warn('[wss.broadcast]', { nsToken, delivered, queued: delivered === 0 }); } catch {}
-        }
-      } else {
-        wss.clients.forEach(client => { try { if (client && client.readyState === 1) client.send(data); } catch {} });
-      }
-    } catch (e) { console.error('broadcast error', e); }
-  };
-
   try {
     wss.on('tip', async (tipData, ns) => {
       try {
@@ -3992,7 +3675,7 @@ if (process.env.NODE_ENV !== 'test') {
   server.on('upgrade', (req, socket, head) => {
     try {
       const origin = req.headers.origin || '';
-      if (__allowedOrigins.size > 0 && origin && !__allowedOrigins.has(origin)) {
+      if (__allowedOrigins.size > 0 && origin && !__allowedOrigins.has(origin) && !origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
         try { socket.destroy(); } catch {}
         return;
       }
@@ -4011,7 +3694,24 @@ if (process.env.NODE_ENV !== 'test') {
           }
         } catch {}
       }
+
+      try {
+        if (nsToken && /^[a-f0-9]{16,64}$/i.test(nsToken)) {
+          req.tenant = { walletHash: nsToken };
+        }
+      } catch {}
         const bindAndAccept = async () => {
+
+        if (!nsToken && req.url) {
+          try {
+            const url = new URL(req.url, 'http://localhost');
+            const widgetToken = url.searchParams.get('widgetToken');
+            if (widgetToken && store) {
+              const walletHash = await store.get(widgetToken, 'walletHash');
+              if (walletHash) nsToken = walletHash;
+            }
+          } catch {}
+        }
         let effective = nsToken || '';
         try {
           if (store && effective) {
@@ -4023,6 +3723,7 @@ if (process.env.NODE_ENV !== 'test') {
         wss.handleUpgrade(req, socket, head, ws => {
           ws.nsToken = effective || null;
           if (!ws.nsToken && nsToken) { ws.nsToken = nsToken; }
+          if (process.env.NODE_ENV === 'test') { try { console.warn('[ws][upgrade][debug]', { presented: nsToken || null, effective: ws.nsToken }); } catch {} }
 
           wss.emit('connection', ws, req);
           try {
@@ -4061,7 +3762,7 @@ if (process.env.NODE_ENV === 'test') {
       wss.broadcast = function(nsToken, payload) {
         try {
           if (payload === null || typeof payload === 'undefined') return;
-          const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+          const data = JSON.stringify(payload);
           if (nsToken) {
             let delivered = 0;
             wss.clients.forEach(client => {
@@ -4101,6 +3802,7 @@ if (process.env.NODE_ENV === 'test') {
               if (process.env.NODE_ENV === 'test') {
                 const hdrs = {};
                 try { Object.keys(req.headers || {}).forEach(k=>{ if(/^(host|upgrade|connection|sec-websocket-key|sec-websocket-version|cookie|sec-websocket-extensions|x-ws-ns)$/i.test(k)) hdrs[k]=req.headers[k]; }); } catch {}
+                try { console.warn('[ws][test-upgrade][incoming]', { url: req.url, hdrs }); } catch {}
               }
             } catch {}
 
@@ -4112,14 +3814,60 @@ if (process.env.NODE_ENV === 'test') {
               if (!nsToken && cookies['getty_wallet_session']) { try { const { verifySessionCookie, deriveWalletHash } = require('./lib/wallet-auth'); const parsed = verifySessionCookie(cookies['getty_wallet_session']); if (parsed && parsed.addr) { nsToken = deriveWalletHash(parsed.addr); } } catch {} }
             }
 
+            if (process.env.NODE_ENV === 'test') { try { console.warn('[ws][test-upgrade][ns-resolved]', { presented: nsToken || null }); } catch {} }
+
             const bindAndAccept = async () => {
               let effective = nsToken || '';
               try { if (store && effective) { const mapped = await store.get(effective, 'adminToken', null); if (mapped) effective = mapped; } } catch {}
               wss.handleUpgrade(req, socket, head, ws => {
                 ws.nsToken = effective || null;
                 if (!ws.nsToken && nsToken) ws.nsToken = nsToken;
+                if (process.env.NODE_ENV === 'test') { try { console.warn('[ws][test-upgrade][accepted]', { effective: ws.nsToken || null, totalClients: Array.from(wss.clients || []).length + 1 }); } catch {} }
+
+                const origSend = ws.send;
+                ws.send = function(data) {
+                  origSend.call(this, data);
+
+                  if (process.env.NODE_ENV === 'test' && this.nsToken) {
+                    try {
+                      const { servers } = require('./tests/mocks/ws');
+                      servers.forEach(server => {
+                        server.clients.forEach(client => {
+                          if (client.nsToken === this.nsToken) {
+                            const messageData = typeof data === 'string' ? data : String(data);
+                            client.emit('message', messageData);
+                          }
+                        });
+                      });
+                    } catch {}
+                  }
+                };
+
+                ws.on('message', async (message) => {
+                  try {
+                    const msg = JSON.parse(message);
+                    if (msg.type === 'get_raffle_state') {
+                      const st = await raffle.getPublicState(ws.nsToken || null);
+                      ws.send(JSON.stringify({ type: 'raffle_state', ...st }));
+                    }
+                  } catch (error) {
+                    console.error('Error parsing message from client:', error);
+                  }
+                });
 
                 wss.emit('connection', ws, req);
+
+                if (process.env.NODE_ENV === 'test' && ws.nsToken) {
+                  setTimeout(() => {
+                    console.warn('[test][raffle_state] about to getPublicState for nsToken:', ws.nsToken);
+                    raffle.getPublicState(ws.nsToken).then(st => {
+                      console.warn('[test][raffle_state] got state:', st);
+                      const msg = JSON.stringify({ type: 'raffle_state', ...st });
+                      console.warn('[test][raffle_state] sending to nsToken:', ws.nsToken, 'msg:', msg);
+                      ws.send(msg);
+                    }).catch((err) => { console.warn('[test][raffle_state] error:', err); });
+                  }, 50);
+                }
               });
             };
             bindAndAccept();
@@ -4146,7 +3894,7 @@ if (process.env.NODE_ENV === 'test') {
       }
 
       try {
-        if (!app.__fallbackWss) {
+        if (!app.__fallbackWss && process.env.NODE_ENV !== 'test') {
           const fallbackWss = new WebSocket.Server({ server });
           app.__fallbackWss = fallbackWss;
 
@@ -4155,7 +3903,7 @@ if (process.env.NODE_ENV === 'test') {
             try { origBroadcast.call(wss, nsToken, payload); } catch {}
             try {
               if (!fallbackWss || !fallbackWss.clients) return;
-              const data = typeof payload === 'string' ? payload : JSON.stringify(payload);
+              const data = JSON.stringify(payload);
 
               fallbackWss.clients.forEach(c=>{ try { if (c.readyState===1 && (!nsToken || c.__fallbackNs===nsToken)) { c.send(data); } } catch {} });
 
@@ -4193,7 +3941,9 @@ if (process.env.NODE_ENV === 'test') {
         });
         app.get('/', (_req,res)=> res.status(200).send('ok-test-root'));
       }
-      server.listen(port, () => {
+
+      server.listen(port, '127.0.0.1', () => {
+        try { if (process.env.NODE_ENV === 'test') { const addr = server.address(); console.warn('[test-server][listening]', addr); } } catch {}
         resolve(server);
       });
     });

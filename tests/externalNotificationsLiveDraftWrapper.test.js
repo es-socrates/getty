@@ -3,6 +3,7 @@ const request = require('supertest');
 const fs = require('fs');
 const path = require('path');
 const { freshServer } = require('./helpers/freshServer');
+const { loadTenantConfig } = require('../lib/tenant-config');
 const { addressFromOwnerPublicKey } = require('../lib/wallet-auth');
 
 function fakePublicKey(seed) {
@@ -61,11 +62,11 @@ describe('live announcement draft tenant wrapper', () => {
 
     const tenantFile = path.join(process.cwd(), 'tenant', sess.walletHash, 'config', 'live-announcement-config.json');
     expect(fs.existsSync(tenantFile)).toBe(true);
-    const raw = JSON.parse(fs.readFileSync(tenantFile, 'utf8'));
-    expect(raw).toHaveProperty('__version');
-    expect(raw).toHaveProperty('checksum');
-    expect(raw).toHaveProperty('data');
-    expect(raw.data.title).toBe('My Live Title');
+    const result = await loadTenantConfig({ ns: { admin: sess.walletHash } }, null, tenantFile, 'live-announcement-config.json');
+    expect(result.meta).toHaveProperty('__version');
+    expect(result.meta).toHaveProperty('checksum');
+    expect(result).toHaveProperty('data');
+    expect(result.data.title).toBe('My Live Title');
 
     const r2 = await agent().get('/api/external-notifications/live/config')
       .set('Cookie', sess.cookie);

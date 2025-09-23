@@ -1,5 +1,6 @@
 const request = require('supertest');
 const WebSocket = require('ws');
+process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 process.env.GETTY_MULTI_TENANT_WALLET = '1';
 process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
 let app = require('../server');
