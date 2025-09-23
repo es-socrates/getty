@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const STORE_KEY = 'obs-ws-config';
+const STORE_KEY = 'obs-ws-config.json';
 
 function sanitizeConfig(raw) {
   const out = {};
@@ -26,7 +26,7 @@ function registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, 
       if (multiTenant) {
         if (ns && store) {
           try {
-            const stored = await store.get(ns, STORE_KEY, null);
+            const stored = await store.getConfig(ns, STORE_KEY, null);
             if (stored) return res.json(sanitizeConfig(stored));
           } catch {}
         }
@@ -58,7 +58,7 @@ function registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, 
       if (multiTenant) {
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
         if (store) {
-          try { await store.set(ns, STORE_KEY, newCfg); } catch {}
+          try { await store.setConfig(ns, STORE_KEY, newCfg); } catch {}
         }
 
         return res.json({ success: true });
