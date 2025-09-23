@@ -20,6 +20,22 @@ if (process.env.NODE_ENV === 'test') {
   jest.mock('ws', () => require('./tests/mocks/ws'));
   jest.mock('obs-websocket-js', () => ({ OBSWebSocket: class MockOBS { async connect(){ return { connected:true }; } async call(){ return {}; } on(){} off(){} } }));
 
+  jest.mock('./lib/arweave-gateways', () => ({
+    buildGatewayList: () => [
+      'https://arweave.net',
+      'https://ar-io.net',
+      'https://arweave.live',
+      'https://arweave-search.goldsky.com',
+      'https://permagate.io',
+      'https://ar-io.dev',
+      'https://ar.io',
+      'https://arweave-search.g8way.io',
+      'https://zigza.xyz',
+      'https://ario-gateway.nethermind.dev',
+      'https://zerosettle.online'
+    ]
+  }));
+
   jest.mock('ioredis', () => {
     const EventEmitter = require('events');
     class RedisMock extends EventEmitter {
@@ -51,11 +67,8 @@ if (process.env.NODE_ENV === 'test') {
     'arweave.live',
     'arweave-search.goldsky.com',
     'permagate.io',
-    'arweave-search.knonce.com',
     'ar-io.dev',
-    'ario-ny-mainnet.ams3.cdn.digitaloceanspaces.com',
     'ar.io',
-    'arweave-search.jinnfi.workers.dev',
     'arweave-search.g8way.io',
     'zigza.xyz',
     'ario-gateway.nethermind.dev',

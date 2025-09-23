@@ -35,6 +35,10 @@ describe('Modules hydration in hosted mode', () => {
     });
   });
 
+  afterAll(() => {
+    try { if (app && typeof app.disposeGetty === 'function') app.disposeGetty(); } catch { /* ignore */ }
+  });
+
   test('GET /api/modules returns hydrated wallets & progress', async () => {
     const res = await request(app)
       .get('/api/modules')

@@ -48,7 +48,7 @@ describe('GETTY_REQUIRE_SESSION flag enforcement', () => {
     let res = await agent.post('/api/tip-goal').send({ monthlyGoal: 3, currentAmount: 1, walletAddress: '' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
-    res = await agent.post('/api/last-tip').send({ title: 'T', walletAddress: '' });
+    res = await agent.post('/api/last-tip').send({ title: 'T' });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('success', true);
   });

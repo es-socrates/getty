@@ -3968,5 +3968,6 @@ if (process.env.NODE_ENV === 'test') {
     try { if (tipGoal.dispose) tipGoal.dispose(); } catch {}
     try { if (raffle.dispose) raffle.dispose(); } catch {}
     try { wss.clients.forEach(c=>{ try { c.terminate(); } catch {} }); } catch {}
+    try { if (wss.close) wss.close(); } catch {}
   };
 }
