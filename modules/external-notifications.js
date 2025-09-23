@@ -39,7 +39,7 @@ class ExternalNotifications {
         this.loadConfig();
         this.setupListeners();
 
-    if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Initialized with WebSocket support');
+    if (__VERBOSE_EXT_NOTIF) try { console.warn('[ExternalNotifications] Initialized with WebSocket support'); } catch {}
     }
 
     async sendWithConfig(cfg, tip) {
@@ -94,7 +94,7 @@ class ExternalNotifications {
                     }
                     fs.writeFileSync(this.configFile, JSON.stringify(legacyJson, null, 2));
                     try { fs.unlinkSync(this.legacyConfigFile); } catch {}
-                    if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Migrated config to /config');
+                    if (__VERBOSE_EXT_NOTIF) try { console.warn('[ExternalNotifications] Migrated config to /config'); } catch {}
                 } catch (e) {
                     console.error('[ExternalNotifications] Migration failed:', e.message);
                 }
@@ -105,7 +105,7 @@ class ExternalNotifications {
                     const raw = fs.readFileSync(this.fallbackProcessCwdConfigFile, 'utf8');
                     if (!fs.existsSync(path.dirname(this.configFile))) fs.mkdirSync(path.dirname(this.configFile), { recursive: true });
                     fs.writeFileSync(this.configFile, raw);
-                    if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Adopted legacy config from default ./config directory');
+                    if (__VERBOSE_EXT_NOTIF) try { console.warn('[ExternalNotifications] Adopted legacy config from default ./config directory'); } catch {}
                 } catch {}
             }
 
@@ -123,10 +123,10 @@ class ExternalNotifications {
                 this.lastTips = config.lastTips || [];
 
                 if (__VERBOSE_EXT_NOTIF) {
-                    console.warn('[ExternalNotifications] Config loaded:', {
+                    try { console.warn('[ExternalNotifications] Config loaded:', {
                         hasDiscord: !!this.discordWebhook,
                         hasTelegram: !!(this.telegramBotToken && this.telegramChatId)
-                    });
+                    }); } catch {}
                 }
             }
         } catch {
@@ -175,7 +175,7 @@ class ExternalNotifications {
             }
 
             fs.writeFileSync(this.configFile, JSON.stringify(filePayload, null, 2));
-            if (!IS_TEST && __VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets });
+            if (!IS_TEST && __VERBOSE_EXT_NOTIF) try { console.warn('[ExternalNotifications] Config saved', { persistedSecrets: persistSecrets }); } catch {}
         } catch {
             console.error('[ExternalNotifications] Error saving config');
             throw new Error('Save failed');
@@ -186,7 +186,7 @@ class ExternalNotifications {
         if (this.wss) {
             this.wss.removeAllListeners('tip');
             this.wss.on('tip', (tipData, ns) => {
-                if (__VERBOSE_EXT_NOTIF) console.warn('[ExternalNotifications] Processing tip from:', tipData.from, 'ns=', ns || null);
+                if (__VERBOSE_EXT_NOTIF) try { console.warn('[ExternalNotifications] Processing tip from:', tipData.from, 'ns=', ns || null); } catch {}
                 this.handleIncomingTip(tipData, ns || null).catch(err => {
                     console.error('Error processing tip:', err);
                 });
@@ -196,7 +196,7 @@ class ExternalNotifications {
 
     async handleIncomingTip(tipData, ns) {
         if (!tipData || !tipData.amount) {
-            console.warn('[ExternalNotifications] Invalid tip data received');
+            try { console.warn('[ExternalNotifications] Invalid tip data received'); } catch {}
             return;
         }
 
@@ -259,7 +259,7 @@ class ExternalNotifications {
     async sendToDiscord(tipData, overrideWebhook) {
         const webhook = overrideWebhook || this.discordWebhook;
         if (!webhook) {
-            console.warn('Discord webhook not configured');
+            try { console.warn('Discord webhook not configured'); } catch {}
             return false;
         }
 
@@ -345,7 +345,7 @@ class ExternalNotifications {
             const rate = response.data?.arweave?.usd || 5;
             return (amount * rate).toFixed(2);
         } catch {
-            if (!IS_TEST) console.warn('[ExternalNotifications] Using fallback AR price (5 USD)');
+            if (!IS_TEST) try { console.warn('[ExternalNotifications] Using fallback AR price (5 USD)'); } catch {}
             return (amount * 5).toFixed(2);
         }
     }
