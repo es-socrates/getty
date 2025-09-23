@@ -428,7 +428,7 @@ const savingTts = ref(false);
 const savingAudio = ref(false);
 const savingColors = ref(false);
 const wallet = useWalletSession();
-const { withToken } = usePublicToken();
+const { withToken, refresh } = usePublicToken();
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/tip-notification`));
 const hostedSupported = ref(false);
 const sessionActive = ref(false);
@@ -718,6 +718,7 @@ async function testRandomNotification() {
 onMounted(async () => {
   try {
     await wallet.refresh();
+    await refresh();
   } catch {}
 
   hostedSupported.value = true;

@@ -365,7 +365,7 @@ class LastTipModule {
     }
   }
 
-  async updateLatestDonation() {
+  async updateLatestDonation(ns = null) {
     let last = null;
     try {
       if (typeof this.refreshDonationsCache === 'function') {
@@ -377,41 +377,53 @@ class LastTipModule {
     } catch {}
     if (last && this.shouldUpdateDonation(last)) {
       this.lastDonation = last;
-      this.notifyFrontend(last);
+      this.notifyFrontend(last, ns);
       this.saveDonationCache();
     }
   }
   
-  notifyFrontend(data) {
+  notifyFrontend(data, ns = null) {
+    const payload = JSON.stringify({
+      type: 'lastTip',
+      data: {
+        from: data.from,
+        amount: data.amount,
+        txId: data.txId,
+        timestamp: data.timestamp
+      }
+    });
+    
     this.wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({
-          type: 'lastTip',
-          data: {
-            from: data.from,
-            amount: data.amount,
-            txId: data.txId,
-            timestamp: data.timestamp
-          }
-        }));
+        // Only send to clients with matching namespace, or to all if no namespace specified (for backward compatibility)
+        if (!ns || client.nsToken === ns) {
+          client.send(payload);
+        }
       }
     });
   }
 
-  broadcastConfig(config = {}) {
+  broadcastConfig(config = {}, ns = null) {
     try {
-      const payload = {
-        bgColor: config.bgColor,
-        fontColor: config.fontColor,
-        borderColor: config.borderColor,
-        amountColor: config.amountColor,
-        iconBgColor: config.iconBgColor,
-        fromColor: config.fromColor,
-        title: config.title
-      };
+      const payload = JSON.stringify({
+        type: 'lastTipConfig',
+        data: {
+          bgColor: config.bgColor,
+          fontColor: config.fontColor,
+          borderColor: config.borderColor,
+          amountColor: config.amountColor,
+          iconBgColor: config.iconBgColor,
+          fromColor: config.fromColor,
+          title: config.title
+        }
+      });
+      
       this.wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: 'lastTipConfig', data: payload }));
+          // Only send to clients with matching namespace, or to all if no namespace specified (for backward compatibility)
+          if (!ns || client.nsToken === ns) {
+            client.send(payload);
+          }
         }
       });
     } catch {}

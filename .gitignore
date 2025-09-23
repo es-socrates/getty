@@ -11,7 +11,7 @@ public/min/*.js
 *.log
 language-settings.json
 tts-settings.json
-config/*.json
+config/*
 .stylelintcache
 .eslintcache
 reports/
