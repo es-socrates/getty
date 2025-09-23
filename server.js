@@ -2612,7 +2612,7 @@ app.get('/api/modules', async (req, res) => {
         const base = (typeof tipGoal.getStatus === 'function') ? (tipGoal.getStatus() || {}) : {};
         const merged = { ...base, ...tipGoalColors };
 
-        if (!base.walletAddress && store && (req?.ns?.admin || req?.ns?.pub)) {
+        if (store && (req?.ns?.admin || req?.ns?.pub)) {
           const nsSession = req?.ns?.admin || req?.ns?.pub;
           let cfgObj = null;
           if (typeof store.getConfig === 'function') {
@@ -2620,12 +2620,17 @@ app.get('/api/modules', async (req, res) => {
           }
           if (!cfgObj) { try { cfgObj = await store.get(nsSession, 'tip-goal-config', null); } catch {} }
           const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
-          if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
-            tipGoal.walletAddress = data.walletAddress.trim();
-            if (typeof data.monthlyGoal === 'number' && data.monthlyGoal > 0) tipGoal.monthlyGoalAR = data.monthlyGoal;
-            if (typeof data.currentAmount === 'number') tipGoal.currentTipsAR = data.currentAmount;
-            else if (typeof data.currentTips === 'number') tipGoal.currentTipsAR = data.currentTips;
-
+          if (data) {
+            if (data.walletAddress) tipGoal.walletAddress = data.walletAddress.trim();
+            if (data.monthlyGoal) tipGoal.monthlyGoalAR = data.monthlyGoal;
+            if (data.currentAmount) tipGoal.currentTipsAR = data.currentAmount;
+            else if (data.currentTips) tipGoal.currentTipsAR = data.currentTips;
+            if (data.theme) tipGoal.theme = data.theme;
+            if (data.title) tipGoal.title = data.title;
+            if (data.bgColor) tipGoal.bgColor = data.bgColor;
+            if (data.fontColor) tipGoal.fontColor = data.fontColor;
+            if (data.borderColor) tipGoal.borderColor = data.borderColor;
+            if (data.progressColor) tipGoal.progressColor = data.progressColor;
             const updatedBase = (typeof tipGoal.getStatus === 'function') ? (tipGoal.getStatus() || {}) : {};
             Object.assign(merged, updatedBase);
           }
