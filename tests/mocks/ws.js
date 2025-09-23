@@ -28,9 +28,9 @@ class WebSocketClient extends EventEmitter {
   send(data) {
     if (this.readyState !== 1) return;
     console.warn('[mock][send] emitting message to client with nsToken:', this.nsToken, 'data:', data);
-    const messageData = typeof data === 'string' ? data : String(data);
+    const messageData = typeof data === 'string' ? data : JSON.stringify(data);
     this.emit('message', messageData);
-    // Also send to server ws with matching nsToken
+
     if (this.nsToken) {
       servers.forEach(server => {
         server.clients.forEach(client => {
