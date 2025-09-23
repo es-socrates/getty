@@ -559,7 +559,7 @@ const odyseeUrl = import.meta.env.VITE_ODYSEE_URL || 'https://odysee.com';
 const { locale, t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const SHOW_SETTINGS_SECTION = false;
+const SHOW_SETTINGS_SECTION = true;
 
 const isDark = ref(false);
 const menuOpen = ref(false);

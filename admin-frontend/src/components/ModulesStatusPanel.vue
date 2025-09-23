@@ -120,6 +120,8 @@ function buildItems(d) {
       else if (obj.configured || obj.initialized) state = 'configured';
       else state = 'inactive';
     }
+    if (key === 'socialmedia' && obj.entries > 0) state = 'configured';
+    if (key === 'liveviews' && obj.claimid) state = 'configured';
     const showActive = state === 'active' || state === 'configured';
     out.push({ key, label, active: showActive, uptime, extra, displayState: state });
   };
