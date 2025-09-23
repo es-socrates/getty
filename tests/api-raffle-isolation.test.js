@@ -1,23 +1,6 @@
 const request = require('supertest');
 const WebSocket = require('ws');
 
-// Mock Redis to avoid connection issues in tests
-const Redis = require('ioredis');
-jest.mock('ioredis');
-Redis.mockImplementation(() => ({
-  connect: jest.fn().mockResolvedValue(),
-  disconnect: jest.fn(),
-  on: jest.fn(),
-  get: jest.fn().mockResolvedValue(null),
-  set: jest.fn().mockResolvedValue('OK'),
-  del: jest.fn().mockResolvedValue(1),
-  hget: jest.fn().mockResolvedValue(null),
-  hset: jest.fn().mockResolvedValue(1),
-  hdel: jest.fn().mockResolvedValue(1),
-  expire: jest.fn().mockResolvedValue(1),
-  ttl: jest.fn().mockResolvedValue(-1),
-}));
-
 process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 process.env.GETTY_MULTI_TENANT_WALLET = '1';
 process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
@@ -49,21 +32,19 @@ beforeAll(async () => {
 afterAll(async () => {
   try { if (app && typeof app.disposeGetty === 'function') app.disposeGetty(); } catch { /* ignore dispose error */ }
   if (server) await new Promise(r => server.close(r));
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar para cerrar conexiones
+  await new Promise(resolve => setTimeout(resolve, 2000));
 });
 
 function waitFor(ws, type) {
   return new Promise((resolve) => {
     ws.on('message', raw => {
-      console.warn('[waitFor] received message:', raw);
       try {
         const msg = JSON.parse(raw);
-        console.warn('[waitFor] parsed message:', msg);
         if (msg && msg.type === type) {
           resolve(msg);
         }
-      } catch (e) {
-        console.warn('[waitFor] parse error:', e);
+      } catch {
+        // ignore parse errors
       }
     });
   });

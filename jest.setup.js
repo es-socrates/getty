@@ -18,7 +18,24 @@ if (typeof global.crypto === 'undefined') {
 if (process.env.NODE_ENV === 'test') {
   try {
   jest.mock('ws', () => require('./tests/mocks/ws'));
-    jest.mock('obs-websocket-js', () => ({ OBSWebSocket: class MockOBS { async connect(){ return { connected:true }; } async call(){ return {}; } on(){} off(){} } }));
+  jest.mock('obs-websocket-js', () => ({ OBSWebSocket: class MockOBS { async connect(){ return { connected:true }; } async call(){ return {}; } on(){} off(){} } }));
+
+  jest.mock('ioredis', () => {
+    const EventEmitter = require('events');
+    class RedisMock extends EventEmitter {
+      connect() { this.emit('ready'); return Promise.resolve(); }
+      disconnect() {}
+      get() { return Promise.resolve(null); }
+      set() { return Promise.resolve('OK'); }
+      del() { return Promise.resolve(1); }
+      hget() { return Promise.resolve(null); }
+      hset() { return Promise.resolve(1); }
+      hdel() { return Promise.resolve(1); }
+      expire() { return Promise.resolve(1); }
+      ttl() { return Promise.resolve(-1); }
+    }
+    return RedisMock;
+  });
 
     try {
       const fs = require('fs');
@@ -33,9 +50,7 @@ if (process.env.NODE_ENV === 'test') {
       }
     } catch { /* ignore cleanup errors */ }
   } catch { /* ignore */ }
-}
-
-let __configSandbox = null;
+}let __configSandbox = null;
 try {
   if (process.env.NODE_ENV === 'test') {
     const { setupConfigSandbox } = require('./tests/helpers/configSandbox');

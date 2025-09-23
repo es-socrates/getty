@@ -58,7 +58,7 @@ jobs:
         run: pnpm run build
 
       - name: Test
-        run: pnpm test
+        run: pnpm test -- --forceExit
 
       - name: Security audit (production only)
         if: matrix.node-version == '22.x'
