@@ -2827,6 +2827,15 @@ app.get('/api/modules', async (req, res) => {
     system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' }
   };
 
+  try {
+    const keys = Object.keys(payload);
+    for (const k of keys) {
+      if (payload[k] && typeof payload[k].then === 'function') {
+        payload[k] = await payload[k];
+      }
+    }
+  } catch {}
+
   if ((requireSessionFlag || hosted) && !hasNs) {
 
     const walletOnly = !requireSessionFlag;
@@ -2873,15 +2882,6 @@ app.get('/api/modules', async (req, res) => {
       payload.maskedReason = 'no_session_partial';
     }
   }
-
-  try {
-    const keys = Object.keys(payload);
-    for (const k of keys) {
-      if (payload[k] && typeof payload[k].then === 'function') {
-        payload[k] = await payload[k];
-      }
-    }
-  } catch {}
 
   try {
     if (payload.tipGoal && payload.tipGoal.walletAddress) {
