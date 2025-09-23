@@ -374,7 +374,7 @@
   "metricsRate1m": "Rate 1m",
   "metricsRate5m": "Last 5m",
   "metricsTipsCount": "tips",
-  "metricsLiveviews": "Number of viewers",
+  "metricsLiveviews": "Live viewers",
   "statusModules": "Modules",
   "statusSystem": "System",
   "statusLocale": "Locale",
@@ -751,5 +751,5 @@
   "chatModule": "Chat",
   "announcementModule": "Announcement",
   "socialModule": "Social Networks",
-  "liveviewsModule": "Liveviews"
+  "liveviewsModule": "Live viewers"
 }

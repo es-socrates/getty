@@ -4,6 +4,7 @@ import { pushToast } from '../../services/toast';
 import { confirmDialog } from '../../services/confirm';
 import { withinRange, MAX_ANNOUNCEMENT_IMAGE } from '../../utils/validation';
 import { useWalletSession } from '../../composables/useWalletSession';
+import { usePublicToken } from '../../composables/usePublicToken';
 
 export function useAnnouncementPanel(t) {
   const settings = ref({
@@ -80,7 +81,8 @@ export function useAnnouncementPanel(t) {
   const modalRef = ref(null);
   const lastTriggerEl = ref(null);
   const wallet = useWalletSession();
-  const widgetUrl = computed(() => `${location.origin}/widgets/announcement`);
+  const { withToken, refresh } = usePublicToken();
+  const widgetUrl = computed(() => withToken(`${location.origin}/widgets/announcement`));
   const activeTab = ref('settings');
 
   async function load() {
@@ -384,7 +386,7 @@ export function useAnnouncementPanel(t) {
     if (e.key === 'Escape') closeEdit();
   }
 
-  onMounted(async () => { try { await wallet.refresh(); } catch {} load(); document.addEventListener('keydown', trapFocus); });
+  onMounted(async () => { try { await wallet.refresh(); await refresh(); } catch {} load(); document.addEventListener('keydown', trapFocus); });
   onBeforeUnmount(() => document.removeEventListener('keydown', trapFocus));
 
   return { settings, cooldownMinutes, messages, newMsg, errors, editing, editForm, savingSettings, adding, updating, modalRef, widgetUrl, activeTab,

@@ -2740,11 +2740,17 @@ app.get('/api/modules', async (req, res) => {
         return (requireSessionFlag || hosted) && !hasNs ? { active: false, totalMessages: 0, enabledMessages: 0 } : base;
       } catch { return { active: false, totalMessages: 0, enabledMessages: 0 }; }
     })(),
-    socialmedia: (() => {
+    socialmedia: (async () => {
       try {
-        const cfg = socialMediaModule.loadConfig();
+        let cfg = null;
+        if (store && ns) {
+          try { cfg = await store.getConfig(ns, 'socialmedia-config.json', null) || await store.get(ns, 'socialmedia-config', null); } catch { cfg = null; }
+        }
+        if (!cfg) {
+          try { cfg = socialMediaModule.loadConfig(); } catch { cfg = null; }
+        }
         const count = Array.isArray(cfg) ? cfg.length : (cfg && typeof cfg === 'object' ? Object.keys(cfg).length : 0);
-        return { configured: count > 0, entries: count };
+        return { configured: !!cfg, entries: count };
       } catch { return { configured: false, entries: 0 }; }
     })(),
     externalNotifications: (() => {
@@ -2766,7 +2772,7 @@ app.get('/api/modules', async (req, res) => {
       try {
         let cfg = null;
         if (store && ns) {
-          try { cfg = await store.get(ns, 'liveviews-config', null); } catch { cfg = null; }
+          try { cfg = await store.getConfig(ns, 'liveviews-config.json', null) || await store.get(ns, 'liveviews-config', null); } catch { cfg = null; }
         }
         if (!cfg && fs.existsSync(LIVEVIEWS_CONFIG_FILE)) {
           try { cfg = JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')); } catch { cfg = null; }
@@ -2774,7 +2780,7 @@ app.get('/api/modules', async (req, res) => {
         if (!cfg) return { active: false };
         const full = getLiveviewsConfigWithDefaults(cfg || {});
         const active = !!(full.claimid || full.icon || full.viewersLabel);
-        return { active, claimid: hasNs ? full.claimid : undefined, viewersLabel: full.viewersLabel };
+        return { active, claimid: hasNs ? full.claimid : undefined, viewersLabel: full.viewersLabel, configured: !!cfg };
       } catch { return { active: false }; }
     })(),
   raffle: (async () => {

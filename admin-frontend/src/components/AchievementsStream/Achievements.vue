@@ -535,6 +535,7 @@ import {
   resetAchievement,
   testAchievementsNotification,
 } from './Achievements.js';
+import { usePublicToken } from '../../composables/usePublicToken';
 
 const cfg = reactive({
   enabled: true,
@@ -551,8 +552,9 @@ const saving = ref(false);
 const toasts = ref([]);
 let toastCounter = 0;
 const { t } = useI18n();
+const { withToken, refresh } = usePublicToken();
 const { walletHash } = useWalletSession();
-const widgetUrl = computed(() => `${location.origin}/widgets/achievements`);
+const widgetUrl = computed(() => withToken(`${location.origin}/widgets/achievements`));
 const channelAvatarUrl = ref('');
 const avatarError = ref(false);
 const avatarLoading = ref(false);
@@ -693,7 +695,10 @@ async function testNotif() {
   } catch {}
 }
 
-onMounted(loadAll);
+onMounted(async () => {
+  await refresh();
+  await loadAll();
+});
 onMounted(() => {
   settingsCollapsed.value = readCollapsed();
 });
