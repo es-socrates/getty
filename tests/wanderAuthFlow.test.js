@@ -5,6 +5,7 @@ describe('wander auth flow', () => {
   let app;
   let server;
   beforeAll((done) => {
+    process.env.REDIS_URL = '';
     process.env.GETTY_MULTI_TENANT_WALLET = '1';
     process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
     jest.resetModules();

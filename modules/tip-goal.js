@@ -63,75 +63,6 @@ class TipGoalModule {
         this.title = 'Monthly tip goal 🎖️';
         this._loadedMeta = null;
 
-    try {
-        if (process.env.NODE_ENV === 'test') {
-            const fs = require('fs');
-            const path = require('path');
-            const baseDir = path.join(process.cwd(),'config');
-            const globalPath = path.join(baseDir,'tip-goal-config.json');
-            let eff = globalPath;
-            if (process.env.JEST_WORKER_ID) {
-                const workerPath = path.join(baseDir,`tip-goal-config.${process.env.JEST_WORKER_ID}.json`);
-                if (fs.existsSync(workerPath)) {
-                    eff = workerPath;
-                } else if (fs.existsSync(globalPath)) {
-                    try { fs.copyFileSync(globalPath, workerPath); eff = workerPath; } catch {}
-                } else {
-                    eff = workerPath;
-                }
-            }
-            if (fs.existsSync(eff)) {
-                try {
-                    let raw = JSON.parse(fs.readFileSync(eff,'utf8'));
-                    if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
-                        raw = raw.data;
-                        if (raw && raw.data && typeof raw.data === 'object') raw = raw.data;
-                    }
-                    if (raw && typeof raw === 'object') {
-                        if (typeof raw.walletAddress === 'string') this.walletAddress = raw.walletAddress.trim();
-                        if (typeof raw.monthlyGoal === 'number') this.monthlyGoalAR = raw.monthlyGoal;
-                        if (typeof raw.currentAmount === 'number') this.currentTipsAR = raw.currentAmount;
-                        else if (typeof raw.currentTips === 'number') this.currentTipsAR = raw.currentTips;
-                        if (typeof raw.theme === 'string') this.theme = (raw.theme === 'koku-list') ? 'modern-list' : raw.theme;
-                        if (typeof raw.bgColor === 'string') this.bgColor = raw.bgColor;
-                        if (typeof raw.fontColor === 'string') this.fontColor = raw.fontColor;
-                        if (typeof raw.borderColor === 'string') this.borderColor = raw.borderColor;
-                        if (typeof raw.progressColor === 'string') this.progressColor = raw.progressColor;
-                        if (typeof raw.title === 'string' && raw.title.trim()) this.title = raw.title.trim();
-                    }
-                } catch {}
-            }
-
-            try {
-                const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-                if (hostedMode) {
-                    const fs = require('fs');
-                    const path = require('path');
-                    const workerPath = process.env.JEST_WORKER_ID ? path.join(baseDir,`tip-goal-config.${process.env.JEST_WORKER_ID}.json`) : eff;
-                    let wRaw = {}; let gRaw = {};
-                    try { if (fs.existsSync(workerPath)) wRaw = JSON.parse(fs.readFileSync(workerPath,'utf8')); } catch {}
-                    try { if (fs.existsSync(globalPath)) gRaw = JSON.parse(fs.readFileSync(globalPath,'utf8')); } catch {}
-                    const norm = (o) => {
-                        if (o && o.data && typeof o.data === 'object' && ((o.__version || o.checksum || o.updatedAt) || !o.walletAddress)) {
-                            o = o.data; if (o && o.data && typeof o.data === 'object') o = o.data;
-                        }
-                        return o || {};
-                    };
-                    wRaw = norm(wRaw); gRaw = norm(gRaw);
-                    const wGoal = Number(wRaw.monthlyGoal || 0); const wCur = Number(wRaw.currentAmount || wRaw.currentTips || 0); const wWallet = (wRaw.walletAddress||'').trim();
-                    const gGoal = Number(gRaw.monthlyGoal || 0); const gCur = Number(gRaw.currentAmount || gRaw.currentTips || 0); const gWallet = (gRaw.walletAddress||'').trim();
-                    const workerLooksDefault = (wGoal === 10 && wCur === 0 && !wWallet);
-                    const globalHasNonDefaults = (gGoal && gGoal !== 10) || (gCur && gCur !== 0) || (!gWallet && (gGoal>0 || gCur>=0));
-                    if (workerLooksDefault && globalHasNonDefaults) {
-                        if (gGoal && gGoal !== 10) { this.monthlyGoalAR = gGoal; }
-                        if (gCur || gCur === 0) { this.currentTipsAR = gCur; }
-                        if (typeof gRaw.theme === 'string') this.theme = (gRaw.theme === 'koku-list') ? 'modern-list' : gRaw.theme;
-                    }
-                }
-            } catch {}
-        }
-    } catch {}
-
     const __loadPromise = this.loadWalletAddress();
     try {
         if (__loadPromise && typeof __loadPromise.then === 'function') {
@@ -315,51 +246,51 @@ class TipGoalModule {
                 }
             }
 
-            if (hostedMode && (!config || !config.walletAddress)) {
-
+            const adoptionDisabled = process.env.GETTY_MULTI_TENANT_WALLET === '1' || process.env.GETTY_DISABLE_TIPGOAL_TENANT_ADOPTION === '1';
+            if (hostedMode && (!config || !config.walletAddress) && !adoptionDisabled) {
                 if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
-                    // Saltamos adopción cross-tenant.
+                    // Skip adoption during tests for determinism.
                 } else {
-                try {
-                    const tenantRoot = path.join(process.cwd(), 'tenant');
-                    if (fs.existsSync(tenantRoot)) {
-                        const dirs = fs.readdirSync(tenantRoot).filter(d => !d.startsWith('.') && fs.statSync(path.join(tenantRoot, d)).isDirectory());
-                        let best = null;
-                        const debugScan = process.env.GETTY_TIPGOAL_DEBUG === '1';
-                        for (const d of dirs) {
-                            const candidate = path.join(tenantRoot, d, 'config', 'tip-goal-config.json');
-                            if (!fs.existsSync(candidate)) continue;
-                            try {
-                                let raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
-                                if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
-                                    raw = raw.data;
-                                    if (raw && raw.data && typeof raw.data === 'object' && raw.data.walletAddress) raw = raw.data;
-                                }
-                                if (raw && typeof raw === 'object' && raw.walletAddress) {
-                                    const goalVal = typeof raw.monthlyGoal === 'number' ? raw.monthlyGoal : 0;
-                                    const currentVal = typeof raw.currentAmount === 'number' ? raw.currentAmount : (typeof raw.currentTips === 'number' ? raw.currentTips : 0);
-                                    if (!best) {
-                                        best = { raw, candidate, score: (goalVal * 1000) + currentVal };
-                                    } else {
-                                        const score = (goalVal * 1000) + currentVal;
-                                        if (score > best.score) {
-                                            best = { raw, candidate, score };
+                    try {
+                        const tenantRoot = path.join(process.cwd(), 'tenant');
+                        if (fs.existsSync(tenantRoot)) {
+                            const dirs = fs.readdirSync(tenantRoot).filter(d => !d.startsWith('.') && fs.statSync(path.join(tenantRoot, d)).isDirectory());
+                            let best = null;
+                            const debugScan = process.env.GETTY_TIPGOAL_DEBUG === '1';
+                            for (const d of dirs) {
+                                const candidate = path.join(tenantRoot, d, 'config', 'tip-goal-config.json');
+                                if (!fs.existsSync(candidate)) continue;
+                                try {
+                                    let raw = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+                                    if (raw && raw.data && typeof raw.data === 'object' && ((raw.__version || raw.checksum || raw.updatedAt) || !raw.walletAddress)) {
+                                        raw = raw.data;
+                                        if (raw && raw.data && typeof raw.data === 'object' && raw.data.walletAddress) raw = raw.data;
+                                    }
+                                    if (raw && typeof raw === 'object' && raw.walletAddress) {
+                                        const goalVal = typeof raw.monthlyGoal === 'number' ? raw.monthlyGoal : 0;
+                                        const currentVal = typeof raw.currentAmount === 'number' ? raw.currentAmount : (typeof raw.currentTips === 'number' ? raw.currentTips : 0);
+                                        if (!best) {
+                                            best = { raw, candidate, score: (goalVal * 1000) + currentVal };
+                                        } else {
+                                            const score = (goalVal * 1000) + currentVal;
+                                            if (score > best.score) {
+                                                best = { raw, candidate, score };
+                                            }
                                         }
                                     }
-                                }
-                            } catch {}
-                        }
-                        if (best && (!config || !config.walletAddress)) {
-                            config = best.raw;
-                            this._loadedMeta = { source: 'tenant-scan', tenantPath: best.candidate };
-                            if (debugScan) {
-                                try { console.warn('[TipGoal][TENANT_SCAN_ADOPT]', { wallet: (config.walletAddress||'').slice(0,8)+'...', goal: config.monthlyGoal, current: config.currentAmount, path: best.candidate }); } catch {}
+                                } catch {}
                             }
-                        } else if (debugScan) {
-                            try { console.warn('[TipGoal][TENANT_SCAN_NO_ADOPT]', { reason: best ? 'wallet_already_present' : 'no_candidates' }); } catch {}
+                            if (best && (!config || !config.walletAddress)) {
+                                config = best.raw;
+                                this._loadedMeta = { source: 'tenant-scan', tenantPath: best.candidate };
+                                if (debugScan) {
+                                    try { console.warn('[TipGoal][TENANT_SCAN_ADOPT]', { wallet: (config.walletAddress||'').slice(0,8)+'...', goal: config.monthlyGoal, current: config.currentAmount, path: best.candidate }); } catch {}
+                                }
+                            } else if (debugScan) {
+                                try { console.warn('[TipGoal][TENANT_SCAN_NO_ADOPT]', { reason: best ? 'wallet_already_present' : 'no_candidates' }); } catch {}
+                            }
                         }
-                    }
-                } catch {}
+                    } catch {}
                 }
             }
             const prevWallet = config.walletAddress || '';
@@ -420,12 +351,62 @@ class TipGoalModule {
     }
     
     async init() {
+        if (!this._bootLogged) this._bootLogged = { missing: false };
         if (!this.walletAddress) {
             const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-            const msg = hostedMode
-                ? '[TipGoal] walletAddress not set. Hosted mode will stay idle until configured via Admin UI or import.'
-                : '❌ ERROR: walletAddress is missing in tip-goal-config.json';
-            try { hostedMode ? console.warn(msg) : console.error(msg); } catch {}
+
+            if (hostedMode && !this.walletAddress) {
+                try {
+                    const store = this._store || (global.__gettyStore || null);
+
+                    if (!store && typeof global.getAppStore === 'function') {
+                        try { this._store = global.getAppStore(); } catch {}
+                    } else { this._store = store; }
+                    const nsCandidates = [];
+                    try { if (global.__lastAdminNamespace) nsCandidates.push(global.__lastAdminNamespace); } catch {}
+                    try { if (global.__lastPublicNamespace) nsCandidates.push(global.__lastPublicNamespace); } catch {}
+
+                    const seen = new Set();
+                    for (const cand of nsCandidates) {
+                        if (!cand || seen.has(cand)) continue; seen.add(cand);
+                        let cfgObj = null;
+                        if (this._store && typeof this._store.getConfig === 'function') {
+                            try { cfgObj = await this._store.getConfig(cand, 'tip-goal-config.json', null); } catch {}
+                        }
+                        if (!cfgObj && this._store && typeof this._store.get === 'function') {
+                            try { cfgObj = await this._store.get(cand, 'tip-goal-config', null); } catch {}
+                        }
+                        if (cfgObj) {
+                            const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
+                            if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
+                                this.walletAddress = data.walletAddress.trim();
+                                if (typeof data.monthlyGoal === 'number' && data.monthlyGoal > 0) this.monthlyGoalAR = data.monthlyGoal;
+                                if (typeof data.currentAmount === 'number') this.currentTipsAR = data.currentAmount;
+                                else if (typeof data.currentTips === 'number') this.currentTipsAR = data.currentTips;
+                                if (typeof data.theme === 'string') this.theme = (data.theme === 'koku-list') ? 'modern-list' : data.theme;
+                                break;
+                            }
+                        }
+                    }
+                } catch {}
+            }
+
+            const msgHosted = '[TipGoal] walletAddress not set at boot (hosted multi-tenant). Waiting for namespaced configuration.';
+            const msgSingle = '❌ ERROR: walletAddress is missing in tip-goal-config.json';
+            if (!this._bootLogged.missing) {
+                try {
+                    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1' || process.env.NODE_ENV !== 'production';
+                    const isLocalhost = process.env.GETTY_LOCALHOST === '1' || !process.env.GETTY_FORCE_SINGLE_TENANT;
+                    const shouldShowError = !hostedMode && !isLocalhost;
+                    const dbg = process.env.GETTY_DEBUG_WALLET_BOOT === '1';
+                    if (!shouldShowError) {
+                        if (dbg) console.warn(msgHosted);
+                    } else {
+                        console.error(msgSingle);
+                    }
+                } catch {}
+                this._bootLogged.missing = true;
+            }
             return;
         }
         
@@ -703,6 +684,12 @@ class TipGoalModule {
             this.walletAddress = existing.walletAddress;
             return this.getStatus();
         }
+        const prevHadWallet = !!(this.walletAddress && this.walletAddress.trim());
+        const adoptingFirstWallet = !prevHadWallet && !!incoming;
+
+        const prevGoal = this.monthlyGoalAR;
+        const prevCurrent = this.currentTipsAR;
+
         this.walletAddress = incoming;
         const merged = { ...existing, walletAddress: this.walletAddress };
         try {
@@ -723,9 +710,22 @@ class TipGoalModule {
                 } catch (e) { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[TipGoal][TENANT_SAVE_WALLET_ERROR]', e.message); }
             }
         } catch (e) { console.error('[TipGoal] Error writing wallet address to config:', e); }
-        this.processedTxs = new Set();
-        this.currentTipsAR = 0;
-        this.lastDonationTimestamp = null;
+        if (adoptingFirstWallet) {
+
+            const looksConfigured = (prevGoal && prevGoal !== 10) || (prevCurrent && prevCurrent > 0) || (existing && (existing.monthlyGoal || existing.currentAmount));
+            if (looksConfigured) {
+                if (prevGoal && prevGoal !== this.monthlyGoalAR) this.monthlyGoalAR = prevGoal;
+                if (prevCurrent >= 0 && prevCurrent !== this.currentTipsAR) this.currentTipsAR = prevCurrent;
+            } else {
+                this.currentTipsAR = 0;
+            }
+            this.processedTxs = new Set();
+            this.lastDonationTimestamp = null;
+        } else {
+            this.processedTxs = new Set();
+            this.currentTipsAR = 0;
+            this.lastDonationTimestamp = null;
+        }
         this.sendGoalUpdate();
 
         if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
@@ -736,7 +736,8 @@ class TipGoalModule {
     
     updateGoal(newGoal, startingAmount = 0, reqForTenant) {
         const parsedGoal = parseFloat(newGoal) || 10;
-        const parsedStarting = parseFloat(startingAmount) || 0;
+        const startingProvided = (startingAmount !== undefined && startingAmount !== null && startingAmount !== '');
+        const parsedStarting = startingProvided ? (parseFloat(startingAmount) || 0) : this.currentTipsAR;
         
         if (parsedGoal === this.monthlyGoalAR && parsedStarting === this.currentTipsAR) {
             return this.getStatus();

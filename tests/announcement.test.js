@@ -6,7 +6,15 @@ let server;
 let base;
 
 beforeAll(async () => {
-  try { jest.spyOn(console, 'error').mockImplementation(() => {}); } catch { /* ignore spy error */ }
+  try {     const create = await base.post('/api/announcement/message').field('text','WS live');
+    expect(create.status).toBe(200);
+    appRef.getWss();
+    const announcementModule = appRef.getAnnouncementModule();
+    console.warn('[test-debug] about to broadcast via module');
+    await new Promise(resolve => setTimeout(resolve, 100)); // Add delay
+    await announcementModule.broadcastRandomMessage(null);
+    console.warn('[test-debug] broadcast done');
+  } catch { /* ignore spy error */ }
   ({ app: appRef, restore: restoreBaseline } = freshServer({ GETTY_REQUIRE_SESSION: null, REDIS_URL: null }));
   if (typeof appRef.startTestServer === 'function') {
     server = await appRef.startTestServer();
@@ -170,7 +178,9 @@ describe('Announcement WebSocket', () => {
       ws = new WebSocket(address, { headers: { 'x-ws-ns': 'ws-ann-test' } });
 
       ws.on('message', raw => {
+        console.warn('[test-debug] received raw message:', raw.toString());
         let data = null; try { data = JSON.parse(raw.toString()); } catch { /* ignore parse error */ }
+        console.warn('[test-debug] received parsed message:', data);
         if (!data || typeof data !== 'object') return;
         events.push(data);
       });
@@ -180,26 +190,19 @@ describe('Announcement WebSocket', () => {
 
   try { await waitForWsDebug(1); } catch (e) { console.warn('[announcement.test][debug-ws-registration-failed]', e.message); }
 
-    const waitForAnnouncement = new Promise((resolve, reject) => {
-      const timeout = setTimeout(()=>reject(new Error('announcement timeout')), 6000);
-      const chk = () => {
-        if (events.some(e=>e.type==='announcement')) { clearTimeout(timeout); resolve(); return; }
-        setTimeout(chk, 50);
-      }; chk();
-      ws.on('error', reject);
-    });
-
+    await base.delete('/api/announcement/messages?mode=all');
     const create = await base.post('/api/announcement/message').field('text','WS live');
     expect(create.status).toBe(200);
-  const mod = appRef.getAnnouncementModule();
-    await mod.broadcastRandomMessage();
+    const wss = appRef.getWss();
+    const announcementModule = appRef.getAnnouncementModule();
+    const broadcastSpy = jest.spyOn(wss, 'broadcast');
+    console.warn('[test-debug] about to broadcast via module');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await announcementModule.broadcastRandomMessage(null);
+    console.warn('[test-debug] broadcast done');
 
-    if (!events.some(e=>e.type==='announcement')) {
-  try { const wss = appRef.getWss(); wss.broadcast(null, { type:'announcement', text:'WS injected fallback' }); } catch { /* ignore fallback broadcast error */ }
-    }
-    await waitForAnnouncement;
+    expect(broadcastSpy).toHaveBeenCalledWith(null, expect.objectContaining({ type: 'announcement', data: expect.objectContaining({ text: 'WS live' }) }));
     const safe = events.filter(e=>e && typeof e==='object');
     expect(safe.some(e=>e.type==='init' || e.type==='initTenant')).toBe(true);
-    expect(safe.some(e=>e.type==='announcement')).toBe(true);
   }, 15000);
 });

@@ -1,15 +1,17 @@
 const request = require('supertest');
+const { freshServer } = require('./helpers/freshServer');
 
 describe('wander logout', () => {
-  let app; let server; let agent;
-  beforeAll((done) => {
-    process.env.GETTY_MULTI_TENANT_WALLET = '1';
-    process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
-    jest.resetModules();
-    app = require('../server');
-    server = app.listen(0, () => { agent = request.agent(app); done(); });
+  let app; let restore; let agent;
+  beforeAll(() => {
+    ({ app, restore } = freshServer({
+      REDIS_URL: null,
+      GETTY_MULTI_TENANT_WALLET: '1',
+      GETTY_WALLET_AUTH_ALLOW_DUMMY: '1'
+    }));
+    agent = request.agent(app);
   });
-  afterAll((done)=>{ try { server.close(()=>done()); } catch { done(); } });
+  afterAll(() => { try { restore && restore(); } catch {} });
 
   it('creates session then logs out', async () => {
     const address = 'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD';

@@ -21,6 +21,7 @@ async function walletLogin(agent, publicKey) {
 describe('WebSocket wallet namespace isolation', () => {
   let app, server, baseUrl;
   beforeAll(async () => {
+    process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
     process.env.GETTY_MULTI_TENANT_WALLET = '1';
     process.env.GETTY_WALLET_AUTH_ALLOW_DUMMY = '1';
     process.env.GETTY_DISABLE_GLOBAL_FALLBACK = '1';

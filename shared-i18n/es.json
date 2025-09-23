@@ -147,7 +147,7 @@
   "tipGoalSettings": "Configuración de meta de propinas",
   "monthlyGoal": "Meta mensual (AR):",
   "initialAmount": "Cantidad inicial (AR):",
-  "tipWidget": "Widget de propinas",
+  "tipWidget": "Notificación de propinas",
   "refresh": "Actualizar",
   "connectionStatus": "Estado de la conexión",
   "notificationSettings": "Configuración de notificaciones",
@@ -744,5 +744,11 @@
   "walletPublic.walletNotConnected": "Wallet no conectada",
   "walletPublic.openInstallConfirm": "¿Abrir la página de instalación de Wander Wallet?",
   "walletPublic.alertSuffix": "Asegúrate de tener la extensión Wander Wallet instalada y habilitada.",
-  "walletPublic.errorPrefix": "Error"
+  "walletPublic.errorPrefix": "Error",
+  "lastTipModule": "Última propina",
+  "tipGoalModule": "Meta de propinas",
+  "chatModule": "Chat de Odysee",
+  "announcementModule": "Anuncios",
+  "socialModule": "Redes sociales",
+  "liveviewsModule": "Espectadores"
 }

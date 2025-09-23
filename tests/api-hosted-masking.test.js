@@ -29,6 +29,20 @@ describe('Hosted anonymous masking', () => {
   const origChat = readJson(CHAT_CONFIG_FILE);
   const origLive = readJson(LIVEVIEWS_CONFIG_FILE);
 
+  beforeAll(() => {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const CONFIG_DIR = process.env.GETTY_CONFIG_DIR ? (path.isAbsolute(process.env.GETTY_CONFIG_DIR) ? process.env.GETTY_CONFIG_DIR : path.join(process.cwd(), process.env.GETTY_CONFIG_DIR)) : path.join(process.cwd(), 'config');
+      const CHAT_CONFIG_FILE = path.join(CONFIG_DIR, 'chat-config.json');
+      if (fs.existsSync(CHAT_CONFIG_FILE)) fs.unlinkSync(CHAT_CONFIG_FILE);
+      const workerFile = path.join(CONFIG_DIR, `chat-config.${process.env.JEST_WORKER_ID}.json`);
+      if (fs.existsSync(workerFile)) fs.unlinkSync(workerFile);
+      const tenantFile = path.join(process.cwd(), 'tenant', 'local', 'config', 'chat-config.json');
+      if (fs.existsSync(tenantFile)) fs.unlinkSync(tenantFile);
+    } catch {}
+  });
+
   afterAll(() => {
     try {
       if (origChat === null) fs.existsSync(CHAT_CONFIG_FILE) && fs.unlinkSync(CHAT_CONFIG_FILE);

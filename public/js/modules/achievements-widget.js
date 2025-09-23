@@ -79,21 +79,23 @@ function applyPosition() {
 }
 
 function notify(item) {
-  if (!cfg.enabled || cfg.dnd) return;
+  if (!cfg.enabled || cfg.dnd) {
+    return;
+  }
   if (isEmbed) {
-  const card = buildCard(item);
-    if (!root) return;
+    const card = buildCard(item);
+    if (!root) {
+      return;
+    }
     if (root.firstChild) root.insertBefore(card, root.firstChild); else root.appendChild(card);
     if (cfg.sound && cfg.sound.enabled) playSound(cfg.sound.url, cfg.sound.volume);
-  try { trimEmbeddedOverflow(); } catch {}
+    try { trimEmbeddedOverflow(); } catch {}
     return;
   }
 
   queue.push(item);
   if (!showing) flush();
-}
-
-function flush() {
+}function flush() {
   if (!queue.length) { showing = false; return; }
   showing = true;
   const it = queue.shift();
@@ -160,7 +162,10 @@ function fadeOutAndRemoveLast() {
 
 async function boot() {
   await loadLang();
-  try { cfg = await getJson('/api/achievements/config'); } catch {}
+  try { 
+    const response = await getJson('/api/achievements/config');
+    cfg = response.data || {};
+  } catch {}
   await loadSharedAudio();
   applyPosition();
 
@@ -175,14 +180,54 @@ async function boot() {
     }
   } catch {}
 
-  let url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
-  url += '/';
+  connectWebSocket();
+
+  setInterval(async () => {
+    const currentNs = await getCurrentNamespace();
+    if (currentNs !== currentNamespace) {
+      console.log('Namespace changed, reconnecting WebSocket...');
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      connectWebSocket();
+    }
+  }, 5000);
+}
+
+let ws = null;
+let currentNamespace = null;
+
+async function getCurrentNamespace() {
   try {
-    const ws = new WebSocket(url);
+    const authResponse = await fetch('/api/auth/wander/me', { cache: 'no-store' });
+    if (authResponse.ok) {
+      const authData = await authResponse.json();
+      return authData.walletHash || null;
+    }
+  } catch {}
+  return null;
+}
+
+async function connectWebSocket() {
+  currentNamespace = await getCurrentNamespace();
+
+  let url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
+  if (currentNamespace) {
+    url += '/?ns=' + encodeURIComponent(currentNamespace);
+  } else {
+    url += '/';
+  }
+  
+  try {
+    ws = new WebSocket(url);
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
-        if (msg && msg.type === 'achievement' && msg.data) notify(msg.data);
+        if (msg && msg.type === 'achievement' && msg.data) {
+          notify(msg.data);
+        } else {
+        }
         if (msg && msg.type === 'achievement-clear' && msg.data && msg.data.id) {
           const clearId = String(msg.data.id);
 
@@ -208,10 +253,16 @@ async function boot() {
             };
           } catch {}
         }
-      } catch {}
+      } catch (e) {
+      }
     };
-    ws.onopen = () => {};
-    ws.onerror = () => {};
+    ws.onopen = () => {
+    };
+    ws.onerror = () => {
+    };
+    ws.onclose = () => {
+      setTimeout(connectWebSocket, 1000);
+    };
   } catch {}
 }
 

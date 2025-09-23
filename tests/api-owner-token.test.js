@@ -1,8 +1,10 @@
 const request = require('supertest');
-const app = require('../server');
+const { freshServer } = require('./helpers/freshServer');
 
 describe('Owner Token Lifecycle', () => {
-  let claimedToken = null;
+  let app; let restore; let claimedToken = null;
+  beforeAll(() => { ({ app, restore } = freshServer({ REDIS_URL: null })); });
+  afterAll(() => { try { restore && restore(); } catch {} });
 
   test('status before claim shows claimable and not claimed', async () => {
     const res = await request(app).get('/api/owner/status');

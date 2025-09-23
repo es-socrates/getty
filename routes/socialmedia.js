@@ -32,7 +32,9 @@ function registerSocialMediaRoutes(app, socialMediaModule, strictLimiter, option
       const ns = await resolveNsFromReq(req);
       const trustedLocalAdmin = isTrustedLocalAdmin(req);
       const conceal = shouldMaskSensitive(req);
-      if (conceal && !trustedLocalAdmin) {
+
+      const isAdminSession = !!(req?.auth && req.auth.isAdmin);
+      if (conceal && !trustedLocalAdmin && !isAdminSession) {
         return res.json({ success: true, config: [] });
       }
       let config = null;

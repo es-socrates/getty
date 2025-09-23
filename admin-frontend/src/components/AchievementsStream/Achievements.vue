@@ -527,6 +527,7 @@ import OsCard from '../os/OsCard.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';
+import { useWalletSession } from '../../composables/useWalletSession';
 import {
   fetchAchievementsConfig,
   saveAchievementsConfig,
@@ -550,6 +551,7 @@ const saving = ref(false);
 const toasts = ref([]);
 let toastCounter = 0;
 const { t } = useI18n();
+const { walletHash } = useWalletSession();
 const widgetUrl = computed(() => `${location.origin}/widgets/achievements`);
 const channelAvatarUrl = ref('');
 const avatarError = ref(false);
@@ -686,7 +688,7 @@ async function reset(id) {
 
 async function testNotif() {
   try {
-    await testAchievementsNotification();
+    await testAchievementsNotification(walletHash.value);
     pushToast('info', 'toastTestSent');
   } catch {}
 }

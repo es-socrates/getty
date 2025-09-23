@@ -744,5 +744,11 @@
   "walletPublic.walletNotConnected": "Wallet not connected",
   "walletPublic.openInstallConfirm": "Open the Wander Wallet installation page?",
   "walletPublic.alertSuffix": "Make sure you have the Wander Wallet extension installed and enabled.",
-  "walletPublic.errorPrefix": "Error"
+  "walletPublic.errorPrefix": "Error",
+  "lastTipModule": "Last Tip",
+  "tipGoalModule": "Tip Goal",
+  "chatModule": "Chat",
+  "announcementModule": "Announcement",
+  "socialModule": "Social Networks",
+  "liveviewsModule": "Liveviews"
 }

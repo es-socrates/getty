@@ -8,6 +8,12 @@ class WebSocketClient extends EventEmitter {
     super();
     this.url = url;
     this.readyState = 0;
+
+    try {
+      const u = new URL(url);
+      const ns = u.searchParams.get('ns');
+      if (ns) this.nsToken = ns;
+    } catch {}
     setTimeout(() => {
       this.readyState = 1;
       servers.forEach(s => {
@@ -21,9 +27,19 @@ class WebSocketClient extends EventEmitter {
   }
   send(data) {
     if (this.readyState !== 1) return;
-    const { Buffer } = require('buffer');
-    const payload = Buffer.isBuffer(data) ? data : Buffer.from(String(data));
-    setTimeout(() => this.emit('message', payload), 0);
+    console.warn('[mock][send] emitting message to client with nsToken:', this.nsToken, 'data:', data);
+    const messageData = typeof data === 'string' ? data : String(data);
+    this.emit('message', messageData);
+    // Also send to server ws with matching nsToken
+    if (this.nsToken) {
+      servers.forEach(server => {
+        server.clients.forEach(client => {
+          if (client.nsToken === this.nsToken) {
+            client.emit('message', messageData);
+          }
+        });
+      });
+    }
   }
   close() { if (this.readyState === 3) return; this.readyState = 3; this.emit('close'); }
 }
@@ -31,8 +47,15 @@ class WebSocketClient extends EventEmitter {
 class Server extends EventEmitter {
   constructor() { super(); this.clients = new Set(); servers.push(this); }
   handleUpgrade(req, _socket, _head, cb) {
+    console.warn('[mock][handleUpgrade] called');
     const client = new WebSocketClient(req?.url || 'ws://test');
     client.readyState = 1;
+
+    try {
+      const url = new URL(req.url, 'http://localhost');
+      const ns = url.searchParams.get('ns');
+      if (ns) client.nsToken = ns;
+    } catch {}
     if (!this.clients.has(client)) this.clients.add(client);
     if (cb) cb(client);
   }

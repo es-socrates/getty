@@ -1,7 +1,7 @@
 const request = require('supertest');
-const fs = require('fs');
 const path = require('path');
 const { freshServer } = require('./helpers/freshServer');
+const { loadTenantConfig } = require('../lib/tenant-config');
 let appRef; let restoreBaseline;
 beforeAll(() => { ({ app: appRef, restore: restoreBaseline } = freshServer({ REDIS_URL: null, GETTY_REQUIRE_SESSION: null, GETTY_ENFORCE_OWNER_WRITES: '0', GETTY_REQUIRE_ADMIN_WRITE: '0' })); });
 afterAll(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
@@ -9,24 +9,24 @@ afterAll(() => { try { restoreBaseline && restoreBaseline(); } catch {} });
 const CONFIG_DIR = process.env.GETTY_CONFIG_DIR ? (path.isAbsolute(process.env.GETTY_CONFIG_DIR) ? process.env.GETTY_CONFIG_DIR : path.join(process.cwd(), process.env.GETTY_CONFIG_DIR)) : path.join(process.cwd(), 'config');
 const CHAT_CONFIG_FILE = path.join(CONFIG_DIR, 'chat-config.json');
 
-function readConfig() {
-  if (fs.existsSync(CHAT_CONFIG_FILE)) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-      if (raw && typeof raw === 'object') {
-        if (raw.data && typeof raw.data === 'object') return raw.data; // hybrid wrapper
-        return raw;
-      }
-    } catch {}
+async function readConfig() {
+  try {
+    const result = await loadTenantConfig({ ns: { admin: null } }, null, CHAT_CONFIG_FILE, 'chat-config.json');
+    return result.data || {};
+  } catch {
     return {};
   }
-  return {};
 }
 
 describe('Chat themeCSS API', () => {
-  const existing = readConfig();
+  let existing;
+  beforeAll(async () => {
+    existing = await readConfig();
+    if (!existing) existing = {};
+  });
+
   const basePayload = {
-    chatUrl: existing.chatUrl || 'wss://localhost',
+    chatUrl: (existing && existing.chatUrl) || 'wss://localhost',
     bgColor: '#000',
     msgBgColor: '#0a0e12'
   };
@@ -37,7 +37,7 @@ describe('Chat themeCSS API', () => {
     expect(res.status).toBe(200);
     const returnedCss = res.body.themeCSS || (res.body.data && res.body.data.themeCSS) || '';
     expect(returnedCss).toContain('color: red');
-    const stored = readConfig();
+    const stored = await readConfig();
     expect(stored.themeCSS).toContain('color: red');
   });
 

@@ -3,7 +3,7 @@ const { freshServer } = require('./helpers/freshServer');
 
 describe('Hosted concealment (masking) behavior', () => {
   let app; let restore;
-  beforeAll(() => { ({ app, restore } = freshServer({ REDIS_URL: 'redis://localhost:6379', GETTY_REQUIRE_SESSION: '1', GETTY_STRICT_LOCAL_ADMIN: '1' })); });
+  beforeAll(() => { ({ app, restore } = freshServer({ REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379', GETTY_REQUIRE_SESSION: '1', GETTY_STRICT_LOCAL_ADMIN: '1' })); });
   afterAll(() => { try { restore && restore(); } catch {} });
 
   test('Chat config concealed without namespace', async () => {
