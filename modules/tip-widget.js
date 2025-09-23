@@ -85,6 +85,7 @@ class TipWidgetModule {
     this.GRAPHQL_TIMEOUT = Number(process.env.TIP_WIDGET_GRAPHQL_TIMEOUT_MS || 10000);
     this.walletAddress = getWalletAddress() || process.env.WALLET_ADDRESS || '';
     this.processedTxs = new Set();
+    this._checkInterval = null;
     if (process.env.NODE_ENV !== 'test') {
       this.init();
     }
@@ -143,7 +144,7 @@ class TipWidgetModule {
     });
     this.checkTransactions();
     if (process.env.NODE_ENV !== 'test') {
-      setInterval(() => this.checkTransactions(), 30000);
+      this._checkInterval = setInterval(() => this.checkTransactions(), 30000);
     }
   }
   
@@ -350,6 +351,13 @@ class TipWidgetModule {
     
     Logger.debug('Current module status', status);
     return status;
+  }
+
+  dispose() {
+    if (this._checkInterval) {
+      clearInterval(this._checkInterval);
+      this._checkInterval = null;
+    }
   }
 }
 
