@@ -106,6 +106,24 @@ if (process.env.NODE_ENV === 'test') {
       }
     });
 
+  nock('http://127.0.0.1:3000')
+    .persist()
+    .get('/api/ar-price')
+    .reply(200, {
+      arweave: {
+        usd: 10.0
+      }
+    });
+
+  nock('http://[::1]:3000')
+    .persist()
+    .get('/api/ar-price')
+    .reply(200, {
+      arweave: {
+        usd: 10.0
+      }
+    });
+
     try {
       const fs = require('fs');
       const path = require('path');
@@ -145,6 +163,10 @@ try {
     __origErr(...args);
   };
 } catch { /* ignore console patch */ }
+
+try {
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+} catch { /* ignore */ }
 
 if (typeof globalThis.setImmediate === 'undefined') {
   globalThis.setImmediate = (fn, ...args) => setTimeout(fn, 0, ...args);
