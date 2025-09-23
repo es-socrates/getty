@@ -23,11 +23,15 @@ if (process.env.NODE_ENV === 'test') {
   jest.mock('ioredis', () => {
     const EventEmitter = require('events');
     class RedisMock extends EventEmitter {
+      constructor() {
+        super();
+        this.data = new Map();
+      }
       connect() { this.emit('ready'); return Promise.resolve(); }
       disconnect() {}
-      get() { return Promise.resolve(null); }
-      set() { return Promise.resolve('OK'); }
-      del() { return Promise.resolve(1); }
+      async get(key) { return this.data.get(key) || null; }
+      async set(key, value) { this.data.set(key, value); return 'OK'; }
+      async del(key) { return this.data.delete(key) ? 1 : 0; }
       hget() { return Promise.resolve(null); }
       hset() { return Promise.resolve(1); }
       hdel() { return Promise.resolve(1); }
@@ -36,6 +40,50 @@ if (process.env.NODE_ENV === 'test') {
     }
     return RedisMock;
   });
+
+  const nock = require('nock');
+  nock.disableNetConnect();
+  nock.enableNetConnect('127.0.0.1');
+
+  const arweaveHosts = [
+    'arweave.net',
+    'ar-io.net',
+    'arweave.live',
+    'arweave-search.goldsky.com',
+    'permagate.io',
+    'arweave-search.knonce.com',
+    'ar-io.dev',
+    'ario-ny-mainnet.ams3.cdn.digitaloceanspaces.com',
+    'ar.io',
+    'arweave-search.jinnfi.workers.dev',
+    'arweave-search.g8way.io',
+    'zigza.xyz',
+    'ario-gateway.nethermind.dev',
+    'zerosettle.online'
+  ];
+
+  arweaveHosts.forEach(host => {
+    nock(`https://${host}`)
+      .persist()
+      .post('/graphql')
+      .reply(200, {
+        data: {
+          transactions: {
+            edges: []
+          }
+        }
+      });
+  });
+
+  nock('https://api.coingecko.com')
+    .persist()
+    .get('/api/v3/simple/price')
+    .query(true)
+    .reply(200, {
+      arweave: {
+        usd: 10.0
+      }
+    });
 
     try {
       const fs = require('fs');
