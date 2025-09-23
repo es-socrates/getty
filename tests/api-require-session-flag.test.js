@@ -3,11 +3,16 @@ const request = require('supertest');
 
 process.env.NODE_ENV = 'test';
 
+beforeAll(() => {
+  delete process.env.GETTY_TEST_FORCE_OPEN;
+});
+
 const registerTipGoalRoutes = require('../routes/tip-goal');
 const registerLastTipRoutes = require('../routes/last-tip');
 
 function makeApp(requireNs = false, withNs = false) {
   if (requireNs) process.env.GETTY_REQUIRE_SESSION = '1';
+  if (withNs) process.env.GETTY_TEST_FORCE_OPEN = '1';
   const app = express();
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));

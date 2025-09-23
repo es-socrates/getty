@@ -15,6 +15,14 @@ if (typeof global.crypto === 'undefined') {
   };
 }
 
+// Reset environment variables to ensure test isolation
+process.env.GETTY_REQUIRE_SESSION = undefined;
+process.env.GETTY_REQUIRE_ADMIN_WRITE = undefined;
+process.env.GETTY_TENANT_DEBUG = undefined;
+process.env.REDIS_URL = undefined;
+process.env.GETTY_TEST_FORCE_OPEN = undefined;
+process.env.GETTY_TEST_OPEN_MODE = undefined;
+
 if (process.env.NODE_ENV === 'test') {
   try {
   jest.mock('ws', () => require('./tests/mocks/ws'));

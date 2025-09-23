@@ -2,6 +2,7 @@ const express = require('express');
 const request = require('supertest');
 
 process.env.NODE_ENV = 'test';
+process.env.GETTY_TEST_FORCE_OPEN = '1';
 
 const registerTipGoalRoutes = require('../routes/tip-goal');
 const registerLastTipRoutes = require('../routes/last-tip');
