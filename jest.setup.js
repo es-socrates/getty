@@ -98,6 +98,15 @@ if (process.env.NODE_ENV === 'test') {
       }
     });
 
+  nock('http://localhost:3000')
+    .persist()
+    .get('/api/ar-price')
+    .reply(200, {
+      arweave: {
+        usd: 10.0
+      }
+    });
+
     try {
       const fs = require('fs');
       const path = require('path');
