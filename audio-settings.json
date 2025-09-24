@@ -3,6 +3,7 @@
   "hasCustomAudio": false,
   "audioFileName": null,
   "audioFileSize": 0,
+  "audioFileUrl": null,
   "enabled": true,
   "volume": 0.85
 }

@@ -1,11 +1,9 @@
-const fs = require('fs');
-const path = require('path');
 const multer = require('multer');
 const axios = require('axios');
 const { z } = require('zod');
-const { UPLOAD_DIR } = require('../modules/announcement');
 const __faviconCache = Object.create(null);
 const { isOpenTestMode } = require('../lib/test-open-mode');
+const { getStorage } = require('../lib/supabase-storage');
 const FAVICON_TTL_MS = 60 * 60 * 1000;
 
 function registerAnnouncementRoutes(app, announcementModule, limiters) {
@@ -56,30 +54,9 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     if (limiters && typeof limiters[key] === 'function') return limiters[key];
     return (_req,_res,next)=>next();
   };
-  if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-  const storage = multer.diskStorage({
-    destination: (req, _file, cb) => {
-      try {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        let target = UPLOAD_DIR;
-        if (ns) {
-          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-          target = path.join(UPLOAD_DIR, safe);
-        }
-        if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
-        cb(null, target);
-      } catch {
-        cb(null, UPLOAD_DIR);
-      }
-    },
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, 'ann-' + Date.now() + '-' + Math.random().toString(36).slice(2) + ext);
-    }
-  });
   const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 512 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ok = ['image/png', 'image/jpeg', 'image/gif'].includes(file.mimetype);
@@ -165,12 +142,24 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       let imageUrl = null;
       if (req.file) {
+
+        const storage = getStorage();
+        if (!storage) {
+          return res.status(500).json({ success: false, error: 'Storage service not configured' });
+        }
+
         const ns = await resolveNsFromReq(req);
-        if (ns) {
-          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-          imageUrl = '/uploads/announcement/' + safe + '/' + req.file.filename;
-        } else {
-          imageUrl = '/uploads/announcement/' + req.file.filename;
+        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+        const filePath = `${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
+
+        try {
+          const uploadResult = await storage.uploadFile('announcement-images', filePath, req.file.buffer, {
+            contentType: req.file.mimetype
+          });
+          imageUrl = uploadResult.publicUrl;
+        } catch (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return res.status(500).json({ success: false, error: 'Failed to upload file' });
         }
       }
       const ns = await resolveNsFromReq(req);
@@ -244,8 +233,20 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       const patch = { ...parsed.data };
       if (patch.linkUrl === '') patch.linkUrl = null;
       if (patch.removeImage) {
-        if (existing.imageUrl && existing.imageUrl.startsWith('/uploads/announcement/')) {
-          try { fs.unlinkSync(path.join(process.cwd(), 'public', existing.imageUrl)); } catch {}
+        if (existing.imageUrl && existing.imageUrl.includes('supabase')) {
+          try {
+            const storage = getStorage();
+            if (storage) {
+
+              const urlParts = existing.imageUrl.split('/storage/v1/object/public/');
+              if (urlParts.length === 2) {
+                const filePath = urlParts[1].split('/').slice(1).join('/'); // Remove bucket name
+                await storage.deleteFile('announcement-images', filePath);
+              }
+            }
+          } catch (deleteError) {
+            console.warn('Failed to delete image from Supabase:', deleteError.message);
+          }
         }
         patch.imageUrl = null;
         delete patch.removeImage;
@@ -269,14 +270,40 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       const patch = { ...parsed.data };
       if (req.file) {
-        if (existing.imageUrl && existing.imageUrl.startsWith('/uploads/announcement/')) {
-          try { fs.unlinkSync(path.join(process.cwd(), 'public', existing.imageUrl)); } catch {}
+
+        if (existing.imageUrl && existing.imageUrl.includes('supabase')) {
+          try {
+            const storage = getStorage();
+            if (storage) {
+
+              const urlParts = existing.imageUrl.split('/storage/v1/object/public/');
+              if (urlParts.length === 2) {
+                const filePath = urlParts[1].split('/').slice(1).join('/');
+                await storage.deleteFile('announcement-images', filePath);
+              }
+            }
+          } catch (deleteError) {
+            console.warn('Failed to delete old image from Supabase:', deleteError.message);
+          }
         }
-        if (ns) {
-          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-          patch.imageUrl = '/uploads/announcement/' + safe + '/' + req.file.filename;
-        } else {
-          patch.imageUrl = '/uploads/announcement/' + req.file.filename;
+
+        const storage = getStorage();
+        if (!storage) {
+          return res.status(500).json({ success: false, error: 'Storage service not configured' });
+        }
+
+        const ns = await resolveNsFromReq(req);
+        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+        const filePath = `${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
+
+        try {
+          const uploadResult = await storage.uploadFile('announcement-images', filePath, req.file.buffer, {
+            contentType: req.file.mimetype
+          });
+          patch.imageUrl = uploadResult.publicUrl;
+        } catch (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return res.status(500).json({ success: false, error: 'Failed to upload file' });
         }
       }
       const updated = await announcementModule.updateMessage(req.params.id, patch, ns);

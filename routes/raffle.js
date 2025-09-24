@@ -4,6 +4,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const { z } = require('zod');
 const { resolveAdminNamespace } = require('../lib/namespace');
+const { getStorage } = require('../lib/supabase-storage');
 
 function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const store = opts.store || null;
@@ -11,7 +12,25 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
   const { isOpenTestMode } = require('../lib/test-open-mode');
-  const raffleImageUpload = multer({ dest: './public/uploads/raffle/' });
+  const BUCKET_NAME = 'raffle-images';
+  const storage = getStorage();
+
+  const raffleImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 1024 * 1024 * 1 }, // 1MB limit
+    fileFilter: (_req, file, cb) => {
+      const allowedMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+      const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+      const isValidMime = allowedMimes.includes(file.mimetype);
+      const isValidExt = allowedExtensions.some(ext => file.originalname.toLowerCase().endsWith(ext));
+      
+      if (isValidMime && isValidExt) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only PNG, JPEG, GIF, and WebP images are allowed'));
+      }
+    }
+  });
 
   app.get('/api/raffle/settings', async (req, res) => {
     try {
@@ -234,16 +253,25 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     let adminNs = resolveAdminNamespace(req);
   if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ error: 'session_required' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const imageUrl = `/uploads/raffle/${req.file.filename}`;
-    const { canWriteConfig } = require('../lib/authz');
+    
+    try {
+      const { canWriteConfig } = require('../lib/authz');
   if (!isOpenTestMode() && shouldRequireSession) {
-      const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
-      if (!allowRemoteWrites && !canWriteConfig(req)) {
-        return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+        }
       }
+
+      const fileName = `${Date.now()}-${req.file.originalname}`;
+      const publicUrl = await storage.uploadFile(BUCKET_NAME, req.file.buffer, fileName, req.file.mimetype);
+      
+      await raffle.setImage(adminNs, publicUrl);
+      res.json({ imageUrl: publicUrl });
+    } catch (error) {
+      console.error('Error uploading raffle image:', error);
+      res.status(500).json({ error: 'Failed to upload image', details: error.message });
     }
-    await raffle.setImage(adminNs, imageUrl);
-    res.json({ imageUrl });
   });
 
   app.post('/api/raffle/clear-image', async (req, res) => {
@@ -266,7 +294,20 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       }
       await raffle.setImage(adminNs, '');
 
-      if (typeof currentUrl === 'string' && currentUrl.startsWith('/uploads/raffle/')) {
+      if (typeof currentUrl === 'string' && currentUrl.includes('supabase') && currentUrl.includes('/storage/v1/object/public/')) {
+        try {
+          const urlParts = currentUrl.split('/storage/v1/object/public/');
+          if (urlParts.length === 2) {
+            const pathParts = urlParts[1].split('/');
+            if (pathParts.length >= 2) {
+              const fileName = pathParts.slice(1).join('/');
+              await storage.deleteFile(BUCKET_NAME, fileName);
+            }
+          }
+        } catch (deleteError) {
+          console.error('Error deleting raffle image from Supabase:', deleteError);
+        }
+      } else if (typeof currentUrl === 'string' && currentUrl.startsWith('/uploads/raffle/')) {
         const uploadsDir = path.resolve('./public/uploads/raffle');
         const rel = currentUrl.replace(/^\/+/, '');
         const abs = path.resolve(path.join('./public', rel));

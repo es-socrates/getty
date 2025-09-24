@@ -5,6 +5,7 @@ const { z } = require('zod');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
+const { getStorage } = require('../lib/supabase-storage');
 
 const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
 function isValidArweaveAddress(addr) {
@@ -246,10 +247,35 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       let audioFileSize = 0;
 
       if (audioSource === 'custom' && req.file) {
-        audioFile = '/uploads/goal-audio/' + req.file.filename;
-        hasCustomAudio = true;
-        audioFileName = req.file.originalname;
-        audioFileSize = req.file.size;
+        try {
+          if (prevCfg.customAudioUrl && typeof prevCfg.customAudioUrl === 'string' && prevCfg.customAudioUrl.includes('supabase')) {
+            try {
+              const urlParts = prevCfg.customAudioUrl.split('/');
+              const fileName = urlParts[urlParts.length - 1];
+              if (fileName) {
+                const storage = getStorage();
+                if (storage) {
+                  await storage.deleteFile('tip-goal-audio', fileName);
+                }
+              }
+            } catch (deleteError) {
+              console.warn('Failed to delete previous tip goal audio from Supabase:', deleteError.message);
+            }
+          }
+
+          const storage = getStorage();
+          if (!storage) {
+            throw new Error('Supabase storage not configured');
+          }
+          const uploadResult = await storage.uploadFile('tip-goal-audio', req.file.originalname, req.file.buffer, { contentType: req.file.mimetype });
+          audioFile = uploadResult.publicUrl;
+          hasCustomAudio = true;
+          audioFileName = req.file.originalname;
+          audioFileSize = req.file.size;
+        } catch (uploadError) {
+          console.error('Failed to upload tip goal audio to Supabase:', uploadError.message);
+          return res.status(500).json({ error: 'Failed to upload audio file' });
+        }
       }
 
       const config = {

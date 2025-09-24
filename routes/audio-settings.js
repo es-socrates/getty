@@ -1,6 +1,6 @@
 const fs = require('fs');
-const path = require('path');
 const WebSocket = require('ws');
+const { SupabaseStorage } = require('../lib/supabase-storage');
 
 function loadAudioSettings(AUDIO_CONFIG_FILE) {
   try {
@@ -11,6 +11,7 @@ function loadAudioSettings(AUDIO_CONFIG_FILE) {
         hasCustomAudio: settings.hasCustomAudio || false,
         audioFileName: settings.audioFileName || null,
         audioFileSize: settings.audioFileSize || 0,
+        audioFileUrl: settings.audioFileUrl || null,
         enabled: typeof settings.enabled === 'boolean' ? settings.enabled : true,
         volume:
           typeof settings.volume === 'number' && settings.volume >= 0 && settings.volume <= 1
@@ -26,6 +27,7 @@ function loadAudioSettings(AUDIO_CONFIG_FILE) {
     hasCustomAudio: false,
     audioFileName: null,
     audioFileSize: 0,
+    audioFileUrl: null,
     enabled: true,
     volume: 0.5,
   };
@@ -78,7 +80,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
     }
   });
 
-  app.post('/api/audio-settings', audioUpload.single('audioFile'), (req, res) => {
+  app.post('/api/audio-settings', audioUpload.single('audioFile'), async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
@@ -91,7 +93,6 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
       const { audioSource } = req.body;
       if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
         return res.status(400).json({ error: 'Invalid audio source' });
@@ -107,16 +108,40 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         if (!isNaN(vol)) settings.volume = Math.max(0, Math.min(1, vol));
       }
       if (audioSource === 'custom' && req.file) {
-        settings.hasCustomAudio = true;
-        settings.audioFileName = req.file.originalname;
-        settings.audioFileSize = req.file.size;
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        const fileName = `custom-notification-audio-${ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global'}-${Date.now()}.mp3`;
+        
+        try {
+          const supabaseStorage = new SupabaseStorage();
+          const publicUrl = await supabaseStorage.uploadFile('tip-goal-audio', fileName, req.file.buffer, { contentType: 'audio/mpeg' });
+          
+          settings.hasCustomAudio = true;
+          settings.audioFileName = req.file.originalname;
+          settings.audioFileSize = req.file.size;
+          settings.audioFileUrl = publicUrl;
+        } catch (uploadError) {
+          console.error('Error uploading audio to Supabase:', uploadError);
+          return res.status(500).json({ error: 'Error uploading audio file' });
+        }
       } else if (audioSource === 'remote') {
+
+        const currentSettings = loadAudioSettings(AUDIO_CONFIG_FILE);
+        if (currentSettings.audioFileUrl) {
+          try {
+            const urlParts = currentSettings.audioFileUrl.split('/');
+            const fileName = urlParts[urlParts.length - 1];
+            if (fileName) {
+              const supabaseStorage = new SupabaseStorage();
+              await supabaseStorage.deleteFile('tip-goal-audio', fileName);
+            }
+          } catch (deleteError) {
+            console.warn('Error deleting old audio file from Supabase:', deleteError);
+          }
+        }
         settings.hasCustomAudio = false;
         settings.audioFileName = null;
         settings.audioFileSize = 0;
-        const targetDir = ns ? path.join(AUDIO_UPLOADS_DIR, safeNs) : AUDIO_UPLOADS_DIR;
-        const customAudioPath = path.join(targetDir, 'custom-notification-audio.mp3');
-        try { if (fs.existsSync(customAudioPath)) fs.unlinkSync(customAudioPath); } catch {}
+        settings.audioFileUrl = null;
       }
 
       const success = saveAudioSettings(AUDIO_CONFIG_FILE, settings);
@@ -153,7 +178,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
     }
   });
 
-  app.delete('/api/audio-settings', (req, res) => {
+  app.delete('/api/audio-settings', async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
@@ -166,15 +191,28 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
-      const targetDir = ns ? path.join(AUDIO_UPLOADS_DIR, safeNs) : AUDIO_UPLOADS_DIR;
-      const customAudioPath = path.join(targetDir, 'custom-notification-audio.mp3');
-      try { if (fs.existsSync(customAudioPath)) fs.unlinkSync(customAudioPath); } catch {}
+      const currentSettings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      
+      // Delete from Supabase if there's a file URL
+      if (currentSettings.audioFileUrl) {
+        try {
+          // Extract filename from Supabase URL
+          const urlParts = currentSettings.audioFileUrl.split('/');
+          const fileName = urlParts[urlParts.length - 1];
+          if (fileName) {
+            const supabaseStorage = new SupabaseStorage();
+            await supabaseStorage.deleteFile('tip-goal-audio', fileName);
+          }
+        } catch (deleteError) {
+          console.warn('Error deleting audio file from Supabase:', deleteError);
+        }
+      }
       const success = saveAudioSettings(AUDIO_CONFIG_FILE, {
         audioSource: 'remote',
         hasCustomAudio: false,
         audioFileName: null,
         audioFileSize: 0,
+        audioFileUrl: null,
       });
       if (!success) return res.status(500).json({ error: 'Error deleting audio configuration' });
       const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
@@ -202,25 +240,13 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
 
   app.get('/api/custom-audio', (req, res) => {
     try {
-      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-      const hosted = !!process.env.REDIS_URL;
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
-      const targetDir = ns ? path.join(AUDIO_UPLOADS_DIR, safeNs) : AUDIO_UPLOADS_DIR;
-      const customAudioPath = path.join(targetDir, 'custom-notification-audio.mp3');
-      const exists = fs.existsSync(customAudioPath);
-      if (!ns && (requireSessionFlag || hosted)) {
+      const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      
+      if (!settings.audioFileUrl) {
         return res.status(404).json({ error: 'Custom audio not found' });
       }
-      const fallBackPath = path.join(AUDIO_UPLOADS_DIR, 'custom-notification-audio.mp3');
-      const finalPath = exists ? customAudioPath : (ns ? null : (fs.existsSync(fallBackPath) ? fallBackPath : null));
-      if (finalPath) {
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.sendFile(path.resolve(finalPath));
-      } else {
-        res.status(404).json({ error: 'Custom audio not found' });
-      }
+      
+      res.redirect(302, settings.audioFileUrl);
     } catch (error) {
       console.error('Error serving custom audio:', error);
       res.status(500).json({ error: 'Error serving custom audio' });

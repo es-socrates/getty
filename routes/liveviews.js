@@ -4,6 +4,7 @@ const multer = require('multer');
 const axios = require('axios');
 
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
+const { getStorage } = require('../lib/supabase-storage');
 
 function getLiveviewsConfigWithDefaults(partial) {
   return {
@@ -50,26 +51,9 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     } catch { return 'unknown'; }
   }
 
-  const liveviewsStorage = multer.diskStorage({
-    destination: function (req, _file, cb) {
-      try {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        if (ns) {
-          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-          const dir = path.join(LIVEVIEWS_UPLOADS_DIR, safe);
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          return cb(null, dir);
-        }
-      } catch {}
-      cb(null, LIVEVIEWS_UPLOADS_DIR);
-    },
-    filename: function (_req, file, cb) {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, 'icon' + ext);
-    }
-  });
+  // Use memory storage for multer - files will be uploaded to Supabase
   const liveviewsUpload = multer({
-    storage: liveviewsStorage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -99,18 +83,44 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
 
       let iconUrl = '';
       if (req.file) {
-        const nsPart = (ns && typeof ns === 'string') ? (ns.replace(/[^a-zA-Z0-9_-]/g, '_') + '/') : '';
-        iconUrl = '/uploads/liveviews/' + nsPart + req.file.filename;
+
+        const storage = getStorage();
+        if (!storage) {
+          return res.status(500).json({ error: 'Storage service not configured' });
+        }
+
+        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+        const filePath = `${safeNs}/liveviews-icon-${Date.now()}.${req.file.mimetype.split('/')[1]}`;
+
+        try {
+          const uploadResult = await storage.uploadFile('liveviews-icons', filePath, req.file.buffer, {
+            contentType: req.file.mimetype
+          });
+          iconUrl = uploadResult.publicUrl;
+        } catch (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return res.status(500).json({ error: 'Failed to upload file' });
+        }
       } else if (!removeIcon && prev.icon) {
         iconUrl = prev.icon;
       }
       if (removeIcon && prev.icon) {
-        try {
-          const iconPath = path.join(process.cwd(), 'public', prev.icon.replace(/^\//, ''));
-          if (fs.existsSync(iconPath)) {
-            try { fs.unlinkSync(iconPath); } catch {}
+
+        if (prev.icon && prev.icon.includes('supabase')) {
+          try {
+            const storage = getStorage();
+            if (storage) {
+
+              const urlParts = prev.icon.split('/storage/v1/object/public/');
+              if (urlParts.length === 2) {
+                const filePath = urlParts[1].split('/').slice(1).join('/');
+                await storage.deleteFile('liveviews-icons', filePath);
+              }
+            }
+          } catch (deleteError) {
+            console.warn('Failed to delete icon from Supabase:', deleteError.message);
           }
-        } catch {}
+        }
         iconUrl = '';
       }
 
