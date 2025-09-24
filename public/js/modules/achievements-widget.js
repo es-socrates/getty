@@ -199,14 +199,29 @@ let ws = null;
 let currentNamespace = null;
 
 async function getCurrentNamespace() {
-  try {
-    const authResponse = await fetch('/api/auth/wander/me', { cache: 'no-store' });
-    if (authResponse.ok) {
-      const authData = await authResponse.json();
-      return authData.walletHash || null;
-    }
-  } catch {}
-  return null;
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/auth/wander/me', true);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            const authData = JSON.parse(xhr.responseText);
+            resolve(authData.walletHash || null);
+          } catch {
+            resolve(null);
+          }
+        } else {
+          resolve(null);
+        }
+      }
+    };
+    xhr.onerror = function() {
+      resolve(null);
+    };
+    xhr.send();
+  });
 }
 
 async function connectWebSocket() {

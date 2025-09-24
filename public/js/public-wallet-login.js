@@ -146,6 +146,24 @@ class WanderWalletLogin {
                 }
             });
         } catch {}
+
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('logout') === 'true') {
+                try { console.info('[wander-login] detected logout parameter in URL, performing logout'); } catch {}
+                
+                this.isConnected = false;
+                this.arweaveAddress = null;
+                this.session = null;
+                localStorage.removeItem('wanderWalletConnected');
+                localStorage.removeItem('arweaveAddress');
+                
+                const newUrl = window.location.pathname + (window.location.hash || '');
+                window.history.replaceState({}, document.title, newUrl);
+            }
+        } catch (e) {
+            console.warn('[wander-login] failed to check logout URL parameter', e);
+        }
     }
 
     safeAttach(el, ev, fn) { if (el) try { el.addEventListener(ev, fn); } catch {} }
@@ -560,11 +578,29 @@ class WanderWalletLogin {
     }
 
     async fetchMe() {
-        try {
-            const res = await fetch('/api/auth/wander/me', { method: 'GET', headers: { 'Accept': 'application/json' } });
-            if (res.status === 401) return null;
-            return await res.json();
-        } catch { return null; }
+        return new Promise((resolve) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/auth/wander/me', true);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            resolve(data);
+                        } catch {
+                            resolve(null);
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                }
+            };
+            xhr.onerror = function() {
+                resolve(null);
+            };
+            xhr.send();
+        });
     }
 
     async logout() {

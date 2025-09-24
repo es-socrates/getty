@@ -143,7 +143,9 @@ function forceFullReset(reason = 'force_reset') {
     fetchJson('/api/auth/wander/logout', { method: 'POST' }).catch(()=>{});
   } catch {}
 
-  try { window.location.replace('/'); } catch { window.location.href = '/'; }
+  try { localStorage.setItem('getty_logout', String(Date.now())); } catch {}
+
+  try { window.location.replace('/?logout=true'); } catch { window.location.href = '/?logout=true'; }
 }
 
 export function useWanderSession() { return { state: readonly(state), refreshSession, logout, markWsConnected, attemptReconnect, markSessionStale, forceFullReset }; }

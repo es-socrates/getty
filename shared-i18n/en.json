@@ -751,5 +751,18 @@
   "chatModule": "Chat",
   "announcementModule": "Announcement",
   "socialModule": "Social Networks",
-  "liveviewsModule": "Live viewers"
+  "liveviewsModule": "Live viewers",
+  "raffleModule": "Raffle",
+  "achievementsModule": "Achievements",
+  "configImportSuccess": "Success",
+  "configImportFailed": "Failed",
+  "configImportSkipped": "Skipped",
+  "invalidJsonFormat": "Invalid JSON format",
+  "missingConfigs": "Missing configs section in JSON",
+  "noValidConfigs": "No valid configuration sections found",
+  "tenantConfigManagement": "User Configuration",
+  "tenantConfigDescription": "Export or import your user configuration settings. This includes all module configurations for your wallet session.",
+  "exporting": "Exporting...",
+  "configImportSuccessTitle": "Import Successful",
+  "configImportFailedTitle": "Import Failed"
 }

@@ -1,14 +1,14 @@
 # getty (λ)
 
-Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.
+Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee. Now integrated with **Wander Wallet** for login and encrypted data isolation with security tokens for your widgets and overlays.
 
-🔥 Demo online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **Please be kind and patient; resources on the server are limited.**
+🔥 Online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **Please be kind and patient; resources on the test server are limited and it may not be as fast.**
 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
 ![getty](https://thumbs.odycdn.com/a3a2b6dfa1498257a7c37ea4050e217b.webp)
 
-## Not familiar with Odysee?
+## Live streaming on Odysee?
 
 Odysee is a blockchain-based media platform. We host all kinds of media such as images, articles, PDFs, audio files, etc., but we're best known for hosting videos. Odysee seeks to recapture the spirit of the early 2000s era internet. Rather than favouring corporate content such as late night talk shows, network television, and TV news, Odysee is a place for everyone, including independent creators.
 
@@ -90,30 +90,6 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 5. You're done! The widgets will appear in your stream. Let's stream!
 
 getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
-
-## Hosted mode (MVP)
-
-Here it goes in "hosted" mode so you don't have to deal with the local stuff.
-
-**Personally, it's easier on localhost, but it's up to you if you want to set up your own server.**
-
-If you are going to host your own server, define the **REDIS_URL** environment variable to enable hosted mode and isolate your session. Without REDIS_URL, **data is stored globally** in that deployment.
-
-Set REDIS_URL (for example, a Redis on Render) and then visit `app.getty.sh/new-session` to create your **isolated session**. You can check in `app.getty.sh/api/session/status` that `supported=true` and, after creating it, `active=true`.
-
-**What does all this mean?**
-
-Everything you do in the admin and API calls are stored in Redis by "namespace" based on your token, so each session is separate; widgets use the public token without exposing anything sensitive.
-
-If you want, adjust SESSION_TTL_SECONDS to decide how long each session lasts (default 259200 seconds = 72 hours).
-
-### Important
-
-If you want to share your widget publicly, use the widget link and add the parameter ?token=YOUR_PUBLIC_TOKEN.
-
-**Example:** `/widgets/last-tip?token=YOUR_PUBLIC_TOKEN`.
-
-Anyone with that link will see the widget data in real time; you can revoke access by regenerating the public token from the dashboard.
 
 **This is an independent project; it is not an official Odysee product.** Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
 
