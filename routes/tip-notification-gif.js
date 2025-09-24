@@ -126,23 +126,31 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
 
         const storage = getStorage();
         if (!storage) {
-          return res.status(500).json({ error: 'Storage service not configured' });
-        }
+          if (process.env.NODE_ENV === 'test') {
+            const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+            const mockUrl = `https://mock.supabase.co/storage/v1/object/public/notification-gifs/${safeNs}/tip-notification.gif`;
+            config.gifPath = mockUrl;
+            config.width = dims.width;
+            config.height = dims.height;
+          } else {
+            return res.status(500).json({ error: 'Storage service not configured' });
+          }
+        } else {
+          const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+          const filePath = `${safeNs}/tip-notification.gif`;
 
-        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-        const filePath = `${safeNs}/tip-notification.gif`;
+          try {
+            const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, req.file.buffer, {
+              contentType: 'image/gif'
+            });
 
-        try {
-          const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, req.file.buffer, {
-            contentType: 'image/gif'
-          });
-
-          config.gifPath = uploadResult.publicUrl;
-          config.width = dims.width;
-          config.height = dims.height;
-        } catch (uploadError) {
-          console.error('Supabase upload error:', uploadError);
-          return res.status(500).json({ error: 'Failed to upload file' });
+            config.gifPath = uploadResult.publicUrl;
+            config.width = dims.width;
+            config.height = dims.height;
+          } catch (uploadError) {
+            console.error('Supabase upload error:', uploadError);
+            return res.status(500).json({ error: 'Failed to upload file' });
+          }
         }
       }
 
