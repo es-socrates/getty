@@ -17,3 +17,4 @@ config/*
 reports/
 tenant/
 data/*
+docs/ROUTES_INTERNAL.md
