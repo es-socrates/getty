@@ -1538,40 +1538,8 @@ if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
 
-const goalAudioStorage = multer.diskStorage({
-  destination: function (req, _file, cb) {
-    try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let target = GOAL_AUDIO_UPLOADS_DIR;
-      if (ns) {
-        const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-        target = path.join(GOAL_AUDIO_UPLOADS_DIR, safe);
-      }
-      if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
-      try {
-        const files = fs.readdirSync(target);
-        files.forEach(oldFile => {
-          if (oldFile.startsWith('goal-audio')) {
-            fs.unlinkSync(path.join(target, oldFile));
-          }
-        });
-      } catch (error) {
-        console.error('Error cleaning old audio files:', error);
-      }
-      cb(null, target);
-    } catch (e) {
-      console.error('Error preparing goal audio upload dir:', e);
-      cb(null, GOAL_AUDIO_UPLOADS_DIR);
-    }
-  },
-  filename: function (_req, file, cb) {
-    const extension = path.extname(file.originalname);
-    cb(null, `goal-audio${extension}`);
-  }
-});
-
 const goalAudioUpload = multer({
-  storage: goalAudioStorage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 1024 * 1024 * 1, // 1MB limit
     files: 1
@@ -1928,30 +1896,8 @@ if (!fs.existsSync(AUDIO_UPLOADS_DIR)) {
   fs.mkdirSync(AUDIO_UPLOADS_DIR, { recursive: true });
 }
 
-const audioStorage = multer.diskStorage({
-  destination: function (req, _file, cb) {
-    try {
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const safe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : '';
-      const target = ns ? path.join(AUDIO_UPLOADS_DIR, safe) : AUDIO_UPLOADS_DIR;
-      if (!fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
-      try {
-        const existing = path.join(target, 'custom-notification-audio.mp3');
-        if (fs.existsSync(existing)) fs.unlinkSync(existing);
-      } catch {}
-      cb(null, target);
-    } catch {
-      cb(null, AUDIO_UPLOADS_DIR);
-    }
-  },
-  filename: function (_req, _file, cb) {
-    const uniqueName = 'custom-notification-audio.mp3';
-    cb(null, uniqueName);
-  }
-});
-
 const audioUpload = multer({
-  storage: audioStorage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 1024 * 1024
   },

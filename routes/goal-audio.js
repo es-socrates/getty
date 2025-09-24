@@ -1,70 +1,35 @@
-const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const SupabaseStorage = require('../lib/supabase-storage');
 
-function calculateFileHash(filePath) {
-  try {
-    const fileBuffer = fs.readFileSync(filePath);
-    return crypto.createHash('md5').update(fileBuffer).digest('hex');
-  } catch (error) {
-    console.error('Error calculating file hash:', error);
-    return Date.now().toString();
-  }
-}
-
-function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
+function registerGoalAudioRoutes(app, strictLimiter, _GOAL_AUDIO_UPLOADS_DIR) {
   const { isOpenTestMode } = require('../lib/test-open-mode');
   const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
   app.get('/api/goal-audio', (req, res) => {
     try {
-      const baseDir = path.join(process.cwd(), 'public/uploads/goal-audio');
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
       if (hosted && !ns) {
         return res.status(404).json({ error: 'No audio file found' });
       }
-      const dir = (ns && typeof ns === 'string') ? path.join(baseDir, ns.replace(/[^a-zA-Z0-9_-]/g, '_')) : baseDir;
-      const dirAlt = baseDir;
-      let audioFile = null;
-      let audioDir = dir;
+
+      const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+      let customAudioUrl = null;
+
       try {
-        const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
-        audioFile = files.find(file => file.startsWith('goal-audio')) || null;
-      } catch {}
-      if (!audioFile) {
-        try {
-          const files = fs.existsSync(dirAlt) ? fs.readdirSync(dirAlt) : [];
-          audioFile = files.find(file => file.startsWith('goal-audio')) || null;
-          audioDir = dirAlt;
-        } catch {}
+        const loaded = loadTenantConfig(req, req.app?.get('store'), TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
+        const data = loaded.data?.data ? loaded.data.data : loaded.data;
+        if (data && data.customAudioUrl) {
+          customAudioUrl = data.customAudioUrl;
+        }
+      } catch (e) {
+        console.warn('Error loading tip-goal config for audio URL:', e.message);
       }
 
-      if (audioFile) {
-        const filePath = path.join(audioDir, audioFile);
-        const stats = fs.statSync(filePath);
-        const fileHash = calculateFileHash(filePath);
+      if (customAudioUrl && typeof customAudioUrl === 'string' && customAudioUrl.includes('supabase')) {
 
-        res.set({
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'ETag': `"${fileHash}"`,
-          'Last-Modified': stats.mtime.toUTCString()
-        });
-
-        const clientEtag = req.headers['if-none-match'];
-        if (clientEtag && clientEtag === `"${fileHash}"`) {
-          return res.status(304).end();
-        }
-
-        const ifModifiedSince = req.headers['if-modified-since'];
-        if (ifModifiedSince && new Date(ifModifiedSince) >= new Date(stats.mtime)) {
-          return res.status(304).end();
-        }
-
-        res.sendFile(filePath);
+        return res.redirect(302, customAudioUrl);
       } else {
-        res.status(404).json({ error: 'No audio file found' });
+        return res.status(404).json({ error: 'No audio file found' });
       }
     } catch (error) {
       console.error('Error serving goal audio:', error);
@@ -132,19 +97,17 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
       }
 
       try {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        let target = GOAL_AUDIO_UPLOADS_DIR;
-        if (ns) {
-          const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-          target = path.join(GOAL_AUDIO_UPLOADS_DIR, safe);
+        const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+        const loaded = loadTenantConfig(req, req.app?.get('store'), TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
+        const data = loaded.data?.data ? loaded.data.data : loaded.data;
+        if (data && data.customAudioUrl && typeof data.customAudioUrl === 'string' && data.customAudioUrl.includes('supabase')) {
+          SupabaseStorage.deleteFile('tip-goal-audio', data.customAudioUrl).catch(deleteError => {
+            console.warn('Failed to delete tip goal audio from Supabase:', deleteError.message);
+          });
         }
-        const files = fs.existsSync(target) ? fs.readdirSync(target) : [];
-        files.forEach(f => {
-          if (f.startsWith('goal-audio')) {
-            try { fs.unlinkSync(path.join(target, f)); } catch {}
-          }
-        });
-      } catch {}
+      } catch (configError) {
+        console.warn('Error loading config for audio deletion:', configError.message);
+      }
 
       (async () => {
         try {
@@ -174,33 +137,26 @@ function registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR) {
   if (!isOpenTestMode() && hosted && !ns) {
         return res.status(404).json({ error: 'Custom goal audio not found' });
       }
-      const base = GOAL_AUDIO_UPLOADS_DIR;
-      const dir = (ns && typeof ns === 'string') ? path.join(base, ns.replace(/[^a-zA-Z0-9_-]/g, '_')) : base;
-      let audioFile = null;
-      let audioDir = dir;
+
+      const TIP_GOAL_CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+      let customAudioUrl = null;
+
       try {
-        const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
-        audioFile = files.find(f => f.startsWith('goal-audio')) || null;
-      } catch {}
-      if (!audioFile) {
-        const files = fs.existsSync(base) ? fs.readdirSync(base) : [];
-        audioFile = files.find(f => f.startsWith('goal-audio')) || null;
-        audioDir = base;
+        const loaded = loadTenantConfig(req, req.app?.get('store'), TIP_GOAL_CONFIG_FILE, 'tip-goal-config.json');
+        const data = loaded.data?.data ? loaded.data.data : loaded.data;
+        if (data && data.customAudioUrl) {
+          customAudioUrl = data.customAudioUrl;
+        }
+      } catch (e) {
+        console.warn('Error loading tip-goal config for custom audio URL:', e.message);
       }
-      if (!audioFile) return res.status(404).json({ error: 'Custom goal audio not found' });
 
-      const filePath = path.join(audioDir, audioFile);
-      const stats = fs.statSync(filePath);
-      res.setHeader('Content-Type', 'audio/mpeg');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Last-Modified', stats.mtime.toUTCString());
+      if (customAudioUrl && typeof customAudioUrl === 'string' && customAudioUrl.includes('supabase')) {
 
-      const etag = '"' + crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex') + '"';
-      res.setHeader('ETag', etag);
-      const inm = req.headers['if-none-match'];
-      if (inm && inm === etag) return res.status(304).end();
-
-      res.sendFile(path.resolve(filePath));
+        return res.redirect(302, customAudioUrl);
+      } else {
+        return res.status(404).json({ error: 'Custom goal audio not found' });
+      }
     } catch (error) {
       console.error('Error serving custom goal audio:', error);
       res.status(500).json({ error: 'Error serving custom goal audio' });

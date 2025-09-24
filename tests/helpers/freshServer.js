@@ -1,12 +1,31 @@
 /* eslint-env node */
 /* global require, module */
 const process = require('node:process');
+const fs = require('fs');
+const path = require('path');
 
 function freshServer(envOverrides = {}) {
   const originalEnv = { ...process.env };
 
   try { delete require.cache[require.resolve('../../server')]; } catch {}
   try { delete require.cache[require.resolve('../../lib/test-open-mode')]; } catch {}
+
+  const envPath = path.join(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      const supabaseUrlMatch = envContent.match(/^SUPABASE_URL=(.+)$/m);
+      const supabaseKeyMatch = envContent.match(/^SUPABASE_ANON_KEY=(.+)$/m);
+      if (supabaseUrlMatch && !process.env.SUPABASE_URL) {
+        process.env.SUPABASE_URL = supabaseUrlMatch[1];
+      }
+      if (supabaseKeyMatch && !process.env.SUPABASE_ANON_KEY) {
+        process.env.SUPABASE_ANON_KEY = supabaseKeyMatch[1];
+      }
+    } catch {
+      // Ignore .env parsing errors
+    }
+  }
 
   for (const [k,v] of Object.entries(envOverrides)) {
     if (v === null) {

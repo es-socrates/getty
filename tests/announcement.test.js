@@ -108,7 +108,7 @@ describe('Announcement API', () => {
       .field('text','Image test message updated');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.message.imageUrl).toMatch(/\/uploads\/announcement\/ann-/);
+    expect(res.body.message.imageUrl).toMatch(/https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/announcement-images\//);
   });
 
   it('PUT /api/announcement/message/:id/removeImage clears existing image', async () => {

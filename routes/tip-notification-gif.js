@@ -4,62 +4,30 @@ const multer = require('multer');
 const { z } = require('zod');
 const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 const { isOpenTestMode } = require('../lib/test-open-mode');
+const { getStorage } = require('../lib/supabase-storage');
 
-function readGifDimensions(filePath) {
-  const fd = fs.openSync(filePath, 'r');
-  try {
-    const header = Buffer.alloc(10);
-    fs.readSync(fd, header, 0, 10, 0);
-    const signature = header.toString('ascii', 0, 6);
-    if (signature !== 'GIF87a' && signature !== 'GIF89a') {
-      throw new Error('Invalid GIF signature');
-    }
-    const width = header.readUInt16LE(6);
-    const height = header.readUInt16LE(8);
-    return { width, height };
-  } finally {
-    fs.closeSync(fd);
+
+function readGifDimensionsFromBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 10) {
+    throw new Error('Invalid buffer');
   }
+
+  const signature = buffer.toString('ascii', 0, 6);
+  if (signature !== 'GIF87a' && signature !== 'GIF89a') {
+    throw new Error('Invalid GIF signature');
+  }
+
+  const width = buffer.readUInt16LE(6);
+  const height = buffer.readUInt16LE(8);
+  return { width, height };
 }
 
 function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-notification-config.json');
-  const BASE_UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'notification-gif');
-
-  if (!fs.existsSync(BASE_UPLOAD_DIR)) fs.mkdirSync(BASE_UPLOAD_DIR, { recursive: true });
-
-  function nsDir(ns) {
-    if (!ns) return BASE_UPLOAD_DIR;
-    const safe = ns.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const dir = path.join(BASE_UPLOAD_DIR, safe);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    return dir;
-  }
-
-  const storage = multer.diskStorage({
-    destination: function (req, _file, cb) {
-      try {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
-        const target = nsDir(ns);
-        try {
-          for (const f of fs.readdirSync(target)) {
-            if (f.endsWith('.gif')) {
-              fs.unlinkSync(path.join(target, f));
-            }
-          }
-        } catch {}
-        cb(null, target);
-      } catch {
-        cb(null, BASE_UPLOAD_DIR);
-      }
-    },
-    filename: function (_req, file, cb) {
-      cb(null, 'tip-notification.gif');
-    }
-  });
+  const BUCKET_NAME = 'notification-gifs';
 
   const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 1024 * 1024 * 2 },
     fileFilter: (_req, file, cb) => {
       if (file.mimetype === 'image/gif' || file.originalname.toLowerCase().endsWith('.gif')) {
@@ -146,17 +114,38 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       const position = parsed.data.position;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       let config = loadConfig();
+
       if (req.file) {
-        const filePath = path.join(nsDir(ns), req.file.filename);
+
         let dims;
-  try { dims = readGifDimensions(filePath); } catch {
-          fs.unlinkSync(filePath);
+        try {
+          dims = readGifDimensionsFromBuffer(req.file.buffer);
+        } catch {
           return res.status(400).json({ error: 'Invalid GIF file' });
         }
-        config.gifPath = ns ? `/uploads/notification-gif/${ns.replace(/[^a-zA-Z0-9_-]/g, '_')}/${req.file.filename}` : `/uploads/notification-gif/${req.file.filename}`;
-        config.width = dims.width;
-        config.height = dims.height;
+
+        const storage = getStorage();
+        if (!storage) {
+          return res.status(500).json({ error: 'Storage service not configured' });
+        }
+
+        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+        const filePath = `${safeNs}/tip-notification.gif`;
+
+        try {
+          const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, req.file.buffer, {
+            contentType: 'image/gif'
+          });
+
+          config.gifPath = uploadResult.publicUrl;
+          config.width = dims.width;
+          config.height = dims.height;
+        } catch (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return res.status(500).json({ error: 'Failed to upload file' });
+        }
       }
+
       config.position = position;
       const hosted = !!process.env.REDIS_URL;
       if (store && ns) {
@@ -202,12 +191,22 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           if (st && typeof st === 'object') cfgToUse = st;
         } catch {}
       }
-      if (cfgToUse.gifPath) {
-        try {
-          const fp = path.join(process.cwd(), 'public', cfgToUse.gifPath.replace(/^\/+/, ''));
-          if (fs.existsSync(fp)) fs.unlinkSync(fp);
-  } catch { /* ignore */ }
+
+      if (cfgToUse.gifPath && cfgToUse.gifPath.includes('supabase')) {
+        const storage = getStorage();
+        if (storage) {
+          try {
+            const urlParts = cfgToUse.gifPath.split('/storage/v1/object/public/');
+            if (urlParts.length === 2) {
+              const filePath = urlParts[1].split('/').slice(1).join('/');
+              await storage.deleteFile(BUCKET_NAME, filePath);
+            }
+          } catch (deleteError) {
+            console.warn('Failed to delete file from Supabase:', deleteError.message);
+          }
+        }
       }
+
       const cleared = { gifPath: '', position: 'right', width: 0, height: 0 };
       const hosted = !!process.env.REDIS_URL;
       if (store && ns) {

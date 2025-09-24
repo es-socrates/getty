@@ -3,6 +3,7 @@ const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const path = require('path');
 const GLOBAL_EXT_NOTIF_PATH = path.join(process.cwd(), 'config', 'external-notifications-config.json');
 const { isOpenTestMode } = require('../lib/test-open-mode');
+const { getStorage } = require('../lib/supabase-storage');
 
 function registerExternalNotificationsRoutes(app, externalNotifications, limiter, options = {}) {
   const store = options.store || null;
@@ -350,18 +351,52 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
       let cfg = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (store && ns) {
+      
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+          if (loaded && loaded.data) {
+            cfg = loaded.data;
+          }
+        } catch {}
+      }
+      
+      if (!cfg && store && ns) {
         try { cfg = await store.get(ns, 'external-notifications-config', null); } catch {}
       }
+      
       if (!cfg) {
         const statusCfg = externalNotifications.getStatus()?.config || {};
-
         cfg = {
           ...statusCfg,
           liveDiscordWebhook: externalNotifications.liveDiscordWebhook || '',
           liveTelegramBotToken: externalNotifications.liveTelegramBotToken || '',
           liveTelegramChatId: externalNotifications.liveTelegramChatId || ''
         };
+      }
+
+      const hasLiveDiscordWebhook = !!(cfg.liveDiscordWebhook && String(cfg.liveDiscordWebhook).trim());
+      const hasLiveTelegramBotToken = !!(cfg.liveTelegramBotToken && String(cfg.liveTelegramBotToken).trim());
+      const hasLiveTelegramChatId = !!(cfg.liveTelegramChatId && String(cfg.liveTelegramChatId).trim());
+      
+      cfg.hasLiveDiscord = hasLiveDiscordWebhook;
+      cfg.hasLiveTelegram = !!(hasLiveTelegramBotToken && hasLiveTelegramChatId);
+
+      let liveDraft = null;
+      if (store && ns) {
+        try { liveDraft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else {
+        try {
+          const fs = require('fs'); const path = require('path');
+          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+          if (fs.existsSync(file)) liveDraft = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {}
+      }
+
+      if (!cfg.liveDiscordWebhook && liveDraft && typeof liveDraft.discordWebhook === 'string' && liveDraft.discordWebhook.trim()) {
+        cfg.liveDiscordWebhook = liveDraft.discordWebhook.trim();
+        cfg.hasLiveDiscord = true;
       }
 
       let draft = null;
@@ -470,9 +505,21 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
 
       let cfg = null;
-      if (store && ns) {
+      
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+          if (loaded && loaded.data) {
+            cfg = loaded.data;
+          }
+        } catch {}
+      }
+      
+      if (!cfg && store && ns) {
         try { cfg = await store.get(ns, 'external-notifications-config', null); } catch {}
       }
+      
       if (!cfg) {
         const statusCfg = externalNotifications.getStatus()?.config || {};
         cfg = {
@@ -481,6 +528,29 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
           liveTelegramBotToken: externalNotifications.liveTelegramBotToken || '',
           liveTelegramChatId: externalNotifications.liveTelegramChatId || ''
         };
+      }
+
+      const hasLiveDiscordWebhook = !!(cfg.liveDiscordWebhook && String(cfg.liveDiscordWebhook).trim());
+      const hasLiveTelegramBotToken = !!(cfg.liveTelegramBotToken && String(cfg.liveTelegramBotToken).trim());
+      const hasLiveTelegramChatId = !!(cfg.liveTelegramChatId && String(cfg.liveTelegramChatId).trim());
+      
+      cfg.hasLiveDiscord = hasLiveDiscordWebhook;
+      cfg.hasLiveTelegram = !!(hasLiveTelegramBotToken && hasLiveTelegramChatId);
+
+      let liveDraft = null;
+      if (store && ns) {
+        try { liveDraft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else {
+        try {
+          const fs = require('fs'); const path = require('path');
+          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+          if (fs.existsSync(file)) liveDraft = JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {}
+      }
+
+      if (!cfg.liveDiscordWebhook && liveDraft && typeof liveDraft.discordWebhook === 'string' && liveDraft.discordWebhook.trim()) {
+        cfg.liveDiscordWebhook = liveDraft.discordWebhook.trim();
+        cfg.hasLiveDiscord = true;
       }
 
       try {
@@ -659,21 +729,11 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
       }
       const multer = require('multer');
-      const fs = require('fs');
-      const path = require('path');
       const { imageSize } = require('image-size');
-      const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'live-announcements');
-      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-      const storage = multer.diskStorage({
-        destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-        filename: (_req, file, cb) => {
-          const ext = path.extname(file.originalname).toLowerCase();
-          const base = `live-${Date.now()}${ext}`;
-          cb(null, base);
-        }
-      });
+
+      // Use memory storage for multer - files will be uploaded to Supabase
       const upload = multer({
-        storage,
+        storage: multer.memoryStorage(),
         limits: { fileSize: 2 * 1024 * 1024, files: 1 },
         fileFilter: (_req, file, cb) => {
           const ok = /^image\/(png|jpe?g|webp)$/i.test(file.mimetype);
@@ -681,21 +741,36 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         }
       }).single('image');
 
-      upload(req, res, (err) => {
+      upload(req, res, async (err) => {
         if (err) return res.status(400).json({ success: false, error: String(err.message || err) });
         if (!req.file) return res.status(400).json({ success: false, error: 'no_file' });
+
         try {
-          const filePath = path.join(UPLOAD_DIR, req.file.filename);
-          const dim = imageSize(filePath);
+          // Validate image dimensions from buffer
+          const dim = imageSize(req.file.buffer);
           if (!dim || !dim.width || !dim.height) throw new Error('invalid_image');
           if (dim.width > 1920 || dim.height > 1080) {
-            try { fs.unlinkSync(filePath); } catch {}
             return res.status(400).json({ success: false, error: 'too_large_dimensions' });
           }
-          const url = `/uploads/live-announcements/${req.file.filename}`;
-          res.json({ success: true, url, width: dim.width, height: dim.height });
-        } catch {
-          return res.status(400).json({ success: false, error: 'invalid_image' });
+
+          // Upload to Supabase Storage
+          const storage = getStorage();
+          if (!storage) {
+            return res.status(500).json({ success: false, error: 'Storage service not configured' });
+          }
+
+          const ns = req?.ns?.admin || req?.ns?.pub || null;
+          const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+          const filePath = `${safeNs}/live-announcement-${Date.now()}.${req.file.mimetype.split('/')[1]}`;
+
+          const uploadResult = await storage.uploadFile('live-announcements', filePath, req.file.buffer, {
+            contentType: req.file.mimetype
+          });
+
+          res.json({ success: true, url: uploadResult.publicUrl, width: dim.width, height: dim.height });
+        } catch (uploadError) {
+          console.error('Supabase upload error:', uploadError);
+          return res.status(500).json({ success: false, error: 'Failed to upload file' });
         }
       });
     } catch {
