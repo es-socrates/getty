@@ -2205,6 +2205,140 @@ try {
   });
 } catch {}
 
+try {
+  app.get('/api/admin/tenant/config-export', async (req, res) => {
+    try {
+      if (!process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+        return res.status(400).json({ error: 'multi_tenant_disabled' });
+      }
+      const adminNs = await resolveAdminNsFromReq(req);
+      if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
+
+      if (!req.auth || !req.auth.isAdmin) return res.status(401).json({ error: 'admin_required' });
+
+      const { loadTenantConfig } = require('./lib/tenant-config');
+      const path = require('path');
+
+      const configFiles = [
+        'announcement-config.json',
+        'socialmedia-config.json',
+        'tip-goal-config.json',
+        'last-tip-config.json',
+        'raffle-config.json',
+        'achievements-config.json',
+        'chat-config.json',
+        'liveviews-config.json'
+      ];
+
+      const globalPaths = {
+        'announcement-config.json': path.join(process.cwd(), 'config', 'announcement-config.json'),
+        'socialmedia-config.json': path.join(process.cwd(), 'config', 'socialmedia-config.json'),
+        'tip-goal-config.json': path.join(process.cwd(), 'config', 'tip-goal-config.json'),
+        'last-tip-config.json': path.join(process.cwd(), 'config', 'last-tip-config.json'),
+        'raffle-config.json': path.join(process.cwd(), 'config', 'raffle-config.json'),
+        'achievements-config.json': path.join(process.cwd(), 'config', 'achievements-config.json'),
+        'chat-config.json': path.join(process.cwd(), 'config', 'chat-config.json'),
+        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json')
+      };
+
+      const exportData = {
+        namespace: adminNs,
+        timestamp: new Date().toISOString(),
+        version: '1.0',
+        configs: {}
+      };
+
+      for (const filename of configFiles) {
+        try {
+          const loadResult = await loadTenantConfig({ ns: { admin: adminNs } }, store, globalPaths[filename], filename);
+          if (loadResult && loadResult.data) {
+            exportData.configs[filename.replace('-config.json', '')] = loadResult.data;
+          }
+        } catch {
+          // Skip files that can't be loaded
+        }
+      }
+
+      const filename = `tenant-config-${adminNs}-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.json(exportData);
+    } catch (e) {
+      return res.status(500).json({ error: 'config_export_failed', details: e?.message });
+    }
+  });
+} catch {}
+
+try {
+  app.post('/api/admin/tenant/config-import', express.json({ limit: '10mb' }), async (req, res) => {
+    try {
+      if (!process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+        return res.status(400).json({ error: 'multi_tenant_disabled' });
+      }
+      const adminNs = await resolveAdminNsFromReq(req);
+      if (!adminNs) return res.status(401).json({ error: 'admin_session_required' });
+
+      if (!req.auth || !req.auth.isAdmin) return res.status(401).json({ error: 'admin_required' });
+
+      const { saveTenantConfig } = require('./lib/tenant-config');
+
+      const importData = req.body;
+      if (!importData || typeof importData !== 'object' || !importData.configs) {
+        return res.status(400).json({ error: 'invalid_import_data' });
+      }
+
+      const configFiles = [
+        'announcement-config.json',
+        'socialmedia-config.json',
+        'tip-goal-config.json',
+        'last-tip-config.json',
+        'raffle-config.json',
+        'achievements-config.json',
+        'chat-config.json',
+        'liveviews-config.json'
+      ];
+
+      const globalPaths = {
+        'announcement-config.json': path.join(process.cwd(), 'config', 'announcement-config.json'),
+        'socialmedia-config.json': path.join(process.cwd(), 'config', 'socialmedia-config.json'),
+        'tip-goal-config.json': path.join(process.cwd(), 'config', 'tip-goal-config.json'),
+        'last-tip-config.json': path.join(process.cwd(), 'config', 'last-tip-config.json'),
+        'raffle-config.json': path.join(process.cwd(), 'config', 'raffle-config.json'),
+        'achievements-config.json': path.join(process.cwd(), 'config', 'achievements-config.json'),
+        'chat-config.json': path.join(process.cwd(), 'config', 'chat-config.json'),
+        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json')
+      };
+
+      const results = {};
+
+      for (const filename of configFiles) {
+        const configKey = filename.replace('-config.json', '');
+        const configData = importData.configs[configKey];
+
+        if (configData !== undefined) {
+          try {
+            await saveTenantConfig({ ns: { admin: adminNs } }, store, globalPaths[filename], filename, configData);
+            results[configKey] = { success: true };
+          } catch (e) {
+            results[configKey] = { success: false, error: e.message };
+          }
+        } else {
+          results[configKey] = { success: true, skipped: true };
+        }
+      }
+
+      return res.json({
+        success: true,
+        namespace: adminNs,
+        timestamp: new Date().toISOString(),
+        results
+      });
+    } catch (e) {
+      return res.status(500).json({ error: 'config_import_failed', details: e?.message });
+    }
+  });
+} catch {}
+
 const __tipEvents = [];
 function __recordTip(evt) {
   try {

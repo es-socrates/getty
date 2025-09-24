@@ -751,5 +751,18 @@
   "chatModule": "Chat de Odysee",
   "announcementModule": "Anuncios",
   "socialModule": "Redes sociales",
-  "liveviewsModule": "Espectadores"
+  "liveviewsModule": "Espectadores",
+  "raffleModule": "Sorteos",
+  "achievementsModule": "Logros",
+  "configImportSuccess": "Éxito",
+  "configImportFailed": "Falló",
+  "configImportSkipped": "Omitido",
+  "invalidJsonFormat": "Formato JSON inválido",
+  "missingConfigs": "Falta la sección de configuraciones en el JSON",
+  "noValidConfigs": "No se encontraron secciones de configuración válidas",
+  "tenantConfigManagement": "Configuración de usuario",
+  "tenantConfigDescription": "Exporta o importa la configuración de tu usuario. Esto incluye todas las configuraciones de módulos para tu sesión de wallet.",
+  "exporting": "Exportando...",
+  "configImportSuccessTitle": "Importación Exitosa",
+  "configImportFailedTitle": "Importación Fallida"
 }
