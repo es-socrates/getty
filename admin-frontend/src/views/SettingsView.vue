@@ -62,7 +62,6 @@
       </div>
     </div>
 
-    <!-- Configuration Status Panels -->
     <div v-if="importResult && importResult.results" class="mt-6">
       <h3 class="text-lg font-semibold mb-4">
         {{ t('tenantConfigManagement') || 'Configuration Status' }}
@@ -115,13 +114,11 @@ const exporting = ref(false);
 const importResult = ref(null);
 const error = ref(null);
 
-// Helper function to convert kebab-case to camelCase
 const kebabToCamel = (str) => {
   return str.replace(/-([a-z])/g, (match, letter) => letter.toUpperCase());
 };
 
 const getConfigLabel = (key) => {
-  // Convert kebab-case to camelCase if needed
   const normalizedKey = kebabToCamel(key);
 
   const labels = {
@@ -164,7 +161,6 @@ const exportConfig = async () => {
       throw new Error(errorData.error || 'Export failed');
     }
 
-    // Create download
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -194,7 +190,6 @@ const handleFileSelect = async (event) => {
     const text = await file.text();
     const importData = JSON.parse(text);
 
-    // Basic validation
     if (!importData || typeof importData !== 'object') {
       throw new Error(t('invalidJsonFormat') || 'Invalid JSON format');
     }
@@ -203,7 +198,6 @@ const handleFileSelect = async (event) => {
       throw new Error(t('missingConfigs') || 'Missing configs section in JSON');
     }
 
-    // Check for expected config keys
     const expectedKeys = [
       'announcement',
       'socialmedia',
@@ -238,7 +232,6 @@ const handleFileSelect = async (event) => {
 
     importResult.value = result;
 
-    // Clear the file input
     event.target.value = '';
   } catch (err) {
     error.value = err.message;

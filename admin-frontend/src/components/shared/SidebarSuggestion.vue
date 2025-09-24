@@ -185,7 +185,7 @@ function updateProgress() {
 function tick() {
   const beforeHour = hourId();
   updateProgress();
-  // If hour rolled over, pick a new template and reopen if not disabled
+
   const afterHour = hourId();
   if (afterHour !== beforeHour) {
     chooseTemplateForHour();

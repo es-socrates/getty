@@ -190,7 +190,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
-  if (!isOpenTestMode() && (hosted || requireSessionFlag) && !isTrustedLocalAdmin(req)) {
+  if (!isOpenTestMode() && !hosted && !requireSessionFlag && !isTrustedLocalAdmin(req)) {
       return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }
     try {
