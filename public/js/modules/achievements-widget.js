@@ -48,17 +48,33 @@ function resolveAchievementSound(urlFromCfg) {
   return urlFromCfg || REMOTE_SOUND_URL;
 }
 
+async function getAchievementAudioUrl(urlFromCfg) {
+  const baseUrl = resolveAchievementSound(urlFromCfg);
+  if (baseUrl === '/api/custom-audio') {
+    try {
+      const response = await fetch(baseUrl);
+      if (response.ok) {
+        const data = await response.json();
+        return data.url;
+      }
+    } catch (error) {
+      console.error('Error fetching custom audio URL:', error);
+    }
+  }
+  return baseUrl;
+}
+
 function perceptual(vol) { return Math.pow(vol, 2); }
 
-function playSound(urlFromCfg, volOverride) {
+async function playSound(urlFromCfg, volOverride) {
   try {
     if (!sharedAudio.enabled) return;
-    const baseUrl = resolveAchievementSound(urlFromCfg);
+    const audioUrl = await getAchievementAudioUrl(urlFromCfg);
     const linear = typeof volOverride === 'number'
       ? Math.max(0, Math.min(1, volOverride))
       : (typeof sharedAudio.volume === 'number' ? Math.max(0, Math.min(1, sharedAudio.volume)) : 0.5);
     const effective = perceptual(linear);
-    const a = new Audio(baseUrl);
+    const a = new Audio(audioUrl);
     a.volume = effective;
     a.play().catch(()=>{});
   } catch {}
@@ -78,7 +94,7 @@ function applyPosition() {
   root.classList.add(map[cfg.position] || 'ach-pos-top-right');
 }
 
-function notify(item) {
+async function notify(item) {
   if (!cfg.enabled || cfg.dnd) {
     return;
   }
@@ -88,20 +104,20 @@ function notify(item) {
       return;
     }
     if (root.firstChild) root.insertBefore(card, root.firstChild); else root.appendChild(card);
-    if (cfg.sound && cfg.sound.enabled) playSound(cfg.sound.url, cfg.sound.volume);
+    if (cfg.sound && cfg.sound.enabled) await playSound(cfg.sound.url, cfg.sound.volume);
     try { trimEmbeddedOverflow(); } catch {}
     return;
   }
 
   queue.push(item);
   if (!showing) flush();
-}function flush() {
+}async function flush() {
   if (!queue.length) { showing = false; return; }
   showing = true;
   const it = queue.shift();
   const card = buildCard(it);
   if (root) root.appendChild(card);
-  if (cfg.sound && cfg.sound.enabled) playSound(cfg.sound.url, cfg.sound.volume);
+  if (cfg.sound && cfg.sound.enabled) await playSound(cfg.sound.url, cfg.sound.volume);
   const duration = 8000;
   setTimeout(() => {
     try { card.classList.add('ach-hide'); } catch {}
@@ -175,7 +191,9 @@ async function boot() {
       const recent = st.notifications.slice(-Math.max(1, Math.min(cfg.historySize || 10, 20)));
 
       const old = cfg.sound?.enabled; if (old) cfg.sound.enabled = false;
-      recent.forEach(n => notify(n));
+      for (const n of recent) {
+        await notify(n);
+      }
       cfg.sound.enabled = !!old;
     }
   } catch {}

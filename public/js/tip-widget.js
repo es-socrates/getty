@@ -119,8 +119,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         let audioUrl;
         let logMessage;
         if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
-            audioUrl = '/api/custom-audio';
-            logMessage = '🎵 Custom audio played';
+            try {
+                const response = await fetch('/api/custom-audio');
+                if (response.ok) {
+                    const data = await response.json();
+                    audioUrl = data.url;
+                    logMessage = '🎵 Custom audio played';
+                } else {
+                    console.error('Failed to fetch custom audio URL:', response.status);
+                    audioUrl = REMOTE_SOUND_URL;
+                    logMessage = '🎵 Remote audio played (fallback)';
+                }
+            } catch (error) {
+                console.error('Error fetching custom audio URL:', error);
+                audioUrl = REMOTE_SOUND_URL;
+                logMessage = '🎵 Remote audio played (fallback)';
+            }
         } else {
             audioUrl = REMOTE_SOUND_URL;
             logMessage = '🎵 Remote audio played';

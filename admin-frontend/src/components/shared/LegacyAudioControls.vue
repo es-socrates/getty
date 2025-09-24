@@ -184,7 +184,7 @@ function perceptual(vol) {
   return Math.pow(v, 2);
 }
 
-function testPlayback() {
+async function testPlayback() {
   try {
     if (!props.enabled) return;
     const linear = Math.max(0, Math.min(1, Number(props.volume) || 0));
@@ -192,7 +192,18 @@ function testPlayback() {
     const useCustom = props.audioSource === 'custom' && props.hasCustomAudio;
     const fallbackRemote =
       'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
-    const url = useCustom ? '/api/custom-audio' : props.remoteUrl || fallbackRemote;
+
+    let url = props.remoteUrl || fallbackRemote;
+    if (useCustom) {
+      try {
+        const response = await api.get('/api/custom-audio');
+        url = response.data.url;
+      } catch (error) {
+        console.error('Error fetching custom audio URL:', error);
+        return;
+      }
+    }
+
     const a = new Audio(url);
     a.volume = eff;
     a.play().catch(() => {});

@@ -284,6 +284,7 @@ try {
         'blob:',
         'https://arweave.net', 'https://*.arweave.net',
         'https://ardrive.net', 'https://*.ardrive.net',
+        'https://*.supabase.co',
         ...mediaExtra
       ],
       connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
@@ -1886,7 +1887,7 @@ app.get('/widgets/liveviews', (req, res, next) => {
   } catch { return next(); }
 });
 
-const AUDIO_CONFIG_FILE = './audio-settings.json';
+const AUDIO_CONFIG_FILE = path.join(__CONFIG_DIR, 'audio-settings.json');
 const AUDIO_UPLOADS_DIR = './public/uploads/audio';
 
 if (!fs.existsSync('./public/uploads')) {

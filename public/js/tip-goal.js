@@ -83,12 +83,35 @@
         } catch {}
     }
 
-    function playGoalSound() {
+    async function playGoalSound() {
         let audioUrl;
         let logMessage;
         if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
-            audioUrl = '/api/goal-audio';
-            logMessage = '🎵 Custom goal audio played';
+
+            if (currentData && currentData.customAudioUrl) {
+                audioUrl = currentData.customAudioUrl;
+                logMessage = '🎵 Custom goal audio played';
+            } else {
+
+                try {
+                    const widgetToken = getWidgetTokenParam();
+                    const url = widgetToken ? `/api/goal-audio?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/goal-audio';
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        const data = await response.json();
+                        audioUrl = data.url;
+                        logMessage = '🎵 Custom goal audio played';
+                    } else {
+
+                        audioUrl = REMOTE_SOUND_URL;
+                        logMessage = '🎵 Remote goal sound played (fallback)';
+                    }
+                } catch (error) {
+                    console.error('Error fetching custom goal audio URL:', error);
+                    audioUrl = REMOTE_SOUND_URL;
+                    logMessage = '🎵 Remote goal sound played (fallback)';
+                }
+            }
         } else {
             audioUrl = REMOTE_SOUND_URL;
             logMessage = '🎵 Remote goal sound played';
@@ -184,12 +207,44 @@
             customRadio.addEventListener('change', updateAudioUI);
         }
 
+        const audioForm = document.getElementById('goal-audio-form');
+        if (audioForm) {
+            audioForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(audioForm);
+                const audioSource = formData.get('audioSource');
+
+                try {
+                    const response = await fetch('/api/goal-audio-settings', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        audioSettings = {
+                            audioSource: result.audioSource || 'remote',
+                            hasCustomAudio: result.hasCustomAudio || false
+                        };
+                        updateAudioUI();
+                        alert('Audio settings saved successfully!');
+                    } else {
+                        alert('Error saving audio settings: ' + (result.error || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error saving audio settings:', error);
+                    alert('Error saving audio settings');
+                }
+            });
+        }
+
         setTimeout(updateAudioUI, 300);
     }
 
     async function loadAudioSettings() {
         try {
-            const response = await fetch('/api/goal-audio-settings');
+            const widgetToken = getWidgetTokenParam();
+            const url = widgetToken ? `/api/goal-audio-settings?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/goal-audio-settings';
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 audioSettings = {
@@ -318,7 +373,8 @@
             bgColor: data.bgColor,
             fontColor: data.fontColor,
             borderColor: data.borderColor,
-            progressColor: data.progressColor
+            progressColor: data.progressColor,
+            customAudioUrl: data.customAudioUrl
         };
     }
 

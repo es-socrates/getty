@@ -242,9 +242,9 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       }
 
       let audioFile = null;
-      let hasCustomAudio = false;
-      let audioFileName = null;
-      let audioFileSize = 0;
+      let hasCustomAudio = prevCfg.hasCustomAudio || false;
+      let audioFileName = prevCfg.audioFileName || null;
+      let audioFileSize = prevCfg.audioFileSize || 0;
 
       if (audioSource === 'custom' && req.file) {
         try {
@@ -276,6 +276,10 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           console.error('Failed to upload tip goal audio to Supabase:', uploadError.message);
           return res.status(500).json({ error: 'Failed to upload audio file' });
         }
+      } else if (audioSource === 'remote') {
+        hasCustomAudio = false;
+        audioFileName = null;
+        audioFileSize = 0;
       }
 
       const config = {

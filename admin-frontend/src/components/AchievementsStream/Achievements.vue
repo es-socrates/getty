@@ -651,7 +651,17 @@ async function loadAll() {
     audioState.audioFileName = data.audioFileName || '';
     audioState.audioFileSize = data.audioFileSize || 0;
 
-    cfg.sound.url = audio.audioSource === 'custom' ? '/api/custom-audio' : REMOTE_ACH_SOUND_URL;
+    if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
+      try {
+        const response = await api.get('/api/custom-audio');
+        cfg.sound.url = response.data.url;
+      } catch (error) {
+        console.error('Error fetching custom audio URL:', error);
+        cfg.sound.url = REMOTE_ACH_SOUND_URL;
+      }
+    } else {
+      cfg.sound.url = REMOTE_ACH_SOUND_URL;
+    }
   } catch {}
   try {
     await refreshChannelAvatar();
@@ -705,8 +715,18 @@ onMounted(() => {
 
 watch(
   () => audio.audioSource,
-  (src) => {
-    cfg.sound.url = src === 'custom' ? '/api/custom-audio' : REMOTE_ACH_SOUND_URL;
+  async (src) => {
+    if (src === 'custom' && audioState.hasCustomAudio) {
+      try {
+        const response = await api.get('/api/custom-audio');
+        cfg.sound.url = response.data.url;
+      } catch (error) {
+        console.error('Error fetching custom audio URL:', error);
+        cfg.sound.url = REMOTE_ACH_SOUND_URL;
+      }
+    } else {
+      cfg.sound.url = REMOTE_ACH_SOUND_URL;
+    }
   }
 );
 

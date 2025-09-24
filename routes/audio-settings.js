@@ -12,6 +12,7 @@ function loadAudioSettings(AUDIO_CONFIG_FILE) {
         audioFileName: settings.audioFileName || null,
         audioFileSize: settings.audioFileSize || 0,
         audioFileUrl: settings.audioFileUrl || null,
+        audioFilePath: settings.audioFilePath || null,
         enabled: typeof settings.enabled === 'boolean' ? settings.enabled : true,
         volume:
           typeof settings.volume === 'number' && settings.volume >= 0 && settings.volume <= 1
@@ -28,6 +29,7 @@ function loadAudioSettings(AUDIO_CONFIG_FILE) {
     audioFileName: null,
     audioFileSize: 0,
     audioFileUrl: null,
+    audioFilePath: null,
     enabled: true,
     volume: 0.5,
   };
@@ -48,13 +50,12 @@ function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
 function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json', { store } = {}) {
   const { isOpenTestMode } = require('../lib/test-open-mode');
   const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
-  app.get('/api/audio-settings', (req, res) => {
+  app.get('/api/audio-settings', async (req, res) => {
     try {
-      const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+      if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.json({
           audioSource: 'remote',
           hasCustomAudio: false,
@@ -62,17 +63,32 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           volume: 0.5,
         });
       }
+
       if (store && hasNs) {
-        (async () => {
-          try {
-            const ns = req.ns.admin || req.ns.pub;
-            const st = await store.get(ns, 'audio-settings', null);
-            if (st && typeof st === 'object') return res.json(st);
-          } catch {}
-          return res.json(settings);
-        })();
-        return;
+        const ns = req.ns.admin || req.ns.pub;
+        try {
+          const st = await store.get(ns, 'audio-settings', null);
+          if (st && typeof st === 'object') {
+            return res.json(st);
+          }
+        } catch (error) {
+          console.error('Error loading tenant audio settings:', error);
+        }
+
+        return res.json({
+          audioSource: 'remote',
+          hasCustomAudio: false,
+          audioFileName: null,
+          audioFileSize: 0,
+          audioFileUrl: null,
+          audioFilePath: null,
+          enabled: true,
+          volume: 0.5,
+        });
       }
+
+      // For non-tenant mode, use global file
+      const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
       res.json(settings);
     } catch (error) {
       console.error('Error getting audio settings:', error);
@@ -107,33 +123,63 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         const vol = parseFloat(req.body.volume);
         if (!isNaN(vol)) settings.volume = Math.max(0, Math.min(1, vol));
       }
+
+      let currentSettings = null;
+      if (ns && store) {
+        try {
+          currentSettings = await store.get(ns, 'audio-settings', null);
+          if (!currentSettings) {
+            currentSettings = {
+              audioSource: 'remote',
+              hasCustomAudio: false,
+              audioFileName: null,
+              audioFileSize: 0,
+              audioFileUrl: null,
+              audioFilePath: null,
+              enabled: true,
+              volume: 0.5,
+            };
+          }
+        } catch (error) {
+          console.error('Error loading current tenant audio settings:', error);
+          currentSettings = {
+            audioSource: 'remote',
+            hasCustomAudio: false,
+            audioFileName: null,
+            audioFileSize: 0,
+            audioFileUrl: null,
+            audioFilePath: null,
+            enabled: true,
+            volume: 0.5,
+          };
+        }
+      } else {
+        currentSettings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      }
+
       if (audioSource === 'custom' && req.file) {
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         const fileName = `custom-notification-audio-${ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global'}-${Date.now()}.mp3`;
         
         try {
           const supabaseStorage = new SupabaseStorage();
-          const publicUrl = await supabaseStorage.uploadFile('tip-goal-audio', fileName, req.file.buffer, { contentType: 'audio/mpeg' });
+          const uploadResult = await supabaseStorage.uploadFile('tip-goal-audio', fileName, req.file.buffer, { contentType: 'audio/mpeg' });
           
           settings.hasCustomAudio = true;
           settings.audioFileName = req.file.originalname;
           settings.audioFileSize = req.file.size;
-          settings.audioFileUrl = publicUrl;
+          settings.audioFileUrl = uploadResult.publicUrl;
+          settings.audioFilePath = uploadResult.path;
         } catch (uploadError) {
           console.error('Error uploading audio to Supabase:', uploadError);
           return res.status(500).json({ error: 'Error uploading audio file' });
         }
       } else if (audioSource === 'remote') {
 
-        const currentSettings = loadAudioSettings(AUDIO_CONFIG_FILE);
-        if (currentSettings.audioFileUrl) {
+        if (currentSettings.audioFilePath) {
           try {
-            const urlParts = currentSettings.audioFileUrl.split('/');
-            const fileName = urlParts[urlParts.length - 1];
-            if (fileName) {
-              const supabaseStorage = new SupabaseStorage();
-              await supabaseStorage.deleteFile('tip-goal-audio', fileName);
-            }
+            const supabaseStorage = new SupabaseStorage();
+            await supabaseStorage.deleteFile('tip-goal-audio', currentSettings.audioFilePath);
           } catch (deleteError) {
             console.warn('Error deleting old audio file from Supabase:', deleteError);
           }
@@ -142,30 +188,48 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         settings.audioFileName = null;
         settings.audioFileSize = 0;
         settings.audioFileUrl = null;
+        settings.audioFilePath = null;
       }
 
-      const success = saveAudioSettings(AUDIO_CONFIG_FILE, settings);
-      if (!success) return res.status(500).json({ error: 'Error saving audio configuration' });
+      let success = false;
+      let payload = null;
 
-      const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
-      if (store && ns) {
-        (async () => {
-          try { await store.set(ns, 'audio-settings', payload); } catch {}
-          try {
-            if (typeof wss.broadcast === 'function') {
-              wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
-            } else {
-              wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
-            }
-          } catch {}
-          res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
-        })();
-      } else {
+      if (ns && store) {
         try {
-          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
-        } catch {}
-        res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
+          const merged = { ...currentSettings, ...settings };
+          await store.set(ns, 'audio-settings', merged);
+          payload = merged;
+          success = true;
+        } catch (error) {
+          console.error('Error saving tenant audio settings:', error);
+          return res.status(500).json({ error: 'Error saving audio configuration' });
+        }
+      } else {
+
+        const merged = { ...currentSettings, ...settings };
+        success = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
+        if (success) {
+          payload = loadAudioSettings(AUDIO_CONFIG_FILE);
+        } else {
+          return res.status(500).json({ error: 'Error saving audio configuration' });
+        }
       }
+
+      try {
+        if (ns && store) {
+          if (typeof wss.broadcast === 'function') {
+            wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
+          } else {
+            wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+          }
+        } else {
+          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+        }
+      } catch (broadcastError) {
+        console.warn('Error broadcasting audio settings update:', broadcastError);
+      }
+
+      res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload });
     } catch (error) {
       console.error('Error saving audio settings:', error);
       if (error.code === 'LIMIT_FILE_SIZE') {
@@ -191,62 +255,125 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      const currentSettings = loadAudioSettings(AUDIO_CONFIG_FILE);
       
-      // Delete from Supabase if there's a file URL
-      if (currentSettings.audioFileUrl) {
+      let currentSettings = null;
+      if (ns && store) {
         try {
-          // Extract filename from Supabase URL
-          const urlParts = currentSettings.audioFileUrl.split('/');
-          const fileName = urlParts[urlParts.length - 1];
-          if (fileName) {
-            const supabaseStorage = new SupabaseStorage();
-            await supabaseStorage.deleteFile('tip-goal-audio', fileName);
+          currentSettings = await store.get(ns, 'audio-settings', null);
+          if (!currentSettings) {
+            currentSettings = {
+              audioSource: 'remote',
+              hasCustomAudio: false,
+              audioFileName: null,
+              audioFileSize: 0,
+              audioFileUrl: null,
+              audioFilePath: null,
+              enabled: true,
+              volume: 0.5,
+            };
           }
+        } catch (error) {
+          console.error('Error loading current tenant audio settings for delete:', error);
+          currentSettings = {
+            audioSource: 'remote',
+            hasCustomAudio: false,
+            audioFileName: null,
+            audioFileSize: 0,
+            audioFileUrl: null,
+            audioFilePath: null,
+            enabled: true,
+            volume: 0.5,
+          };
+        }
+      } else {
+        currentSettings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      }
+      
+      if (currentSettings.audioFilePath) {
+        try {
+          const supabaseStorage = new SupabaseStorage();
+          await supabaseStorage.deleteFile('tip-goal-audio', currentSettings.audioFilePath);
         } catch (deleteError) {
           console.warn('Error deleting audio file from Supabase:', deleteError);
         }
       }
-      const success = saveAudioSettings(AUDIO_CONFIG_FILE, {
+
+      const resetSettings = {
         audioSource: 'remote',
         hasCustomAudio: false,
         audioFileName: null,
         audioFileSize: 0,
         audioFileUrl: null,
-      });
-      if (!success) return res.status(500).json({ error: 'Error deleting audio configuration' });
-      const payload = loadAudioSettings(AUDIO_CONFIG_FILE);
-      if (store && ns) {
-        (async () => {
-          try { await store.set(ns, 'audio-settings', payload); } catch {}
-          try {
-            if (typeof wss.broadcast === 'function') {
-              wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
-            } else {
-              wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
-            }
-          } catch {}
-          return res.json({ success: true });
-        })();
+        audioFilePath: null,
+      };
+
+      let success = false;
+      let payload = null;
+
+      if (ns && store) {
+
+        try {
+          const merged = { ...currentSettings, ...resetSettings };
+          await store.set(ns, 'audio-settings', merged);
+          payload = merged;
+          success = true;
+        } catch (error) {
+          console.error('Error resetting tenant audio settings:', error);
+          return res.status(500).json({ error: 'Error deleting audio configuration' });
+        }
       } else {
-        try { wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); }); } catch {}
-        return res.json({ success: true });
+
+        success = saveAudioSettings(AUDIO_CONFIG_FILE, resetSettings);
+        if (success) {
+          payload = loadAudioSettings(AUDIO_CONFIG_FILE);
+        } else {
+          return res.status(500).json({ error: 'Error deleting audio configuration' });
+        }
       }
+
+      try {
+        if (ns && store) {
+          if (typeof wss.broadcast === 'function') {
+            wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
+          } else {
+            wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+          }
+        } else {
+          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+        }
+      } catch (broadcastError) {
+        console.warn('Error broadcasting audio settings reset:', broadcastError);
+      }
+
+      return res.json({ success: true });
     } catch (error) {
       console.error('Error deleting audio settings:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  app.get('/api/custom-audio', (req, res) => {
+  app.get('/api/custom-audio', async (req, res) => {
     try {
-      const settings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      let settings = null;
+
+      if (ns && store) {
+        try {
+          settings = await store.get(ns, 'audio-settings', null);
+        } catch (error) {
+          console.error('Error loading tenant audio settings for custom audio:', error);
+        }
+      }
+
+      if (!settings) {
+        settings = loadAudioSettings(AUDIO_CONFIG_FILE);
+      }
       
-      if (!settings.audioFileUrl) {
+      if (!settings || !settings.audioFileUrl) {
         return res.status(404).json({ error: 'Custom audio not found' });
       }
       
-      res.redirect(302, settings.audioFileUrl);
+      res.json({ url: settings.audioFileUrl });
     } catch (error) {
       console.error('Error serving custom audio:', error);
       res.status(500).json({ error: 'Error serving custom audio' });
