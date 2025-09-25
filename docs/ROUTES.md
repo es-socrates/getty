@@ -21,7 +21,7 @@ The following widget URLs are available for embedding:
 
 ### Stream Status & Information
 
-- `GET /api/modules` - Get module status information
+- `GET /api/modules` - Get module status information (requires `widgetToken` query parameter or `public=1` for sanitized landing payload)
 - `GET /api/ar-price` - Get AR/USD exchange rate
 - `GET /api/status` - Basic server status check
 - `GET /healthz` - Health check endpoint
@@ -31,11 +31,13 @@ The following widget URLs are available for embedding:
 
 - `GET /obs/widgets` - Get widget URLs and recommended dimensions for OBS
 
+- `GET /user/:widgetToken` - Authenticated dashboard view (redirect target after login)
+
 ### Static Pages
 
-- `GET /` - Main landing page
+- `GET /` - Landing page (redirects to `/welcome` for first-time visitors)
 - `GET /index.html` - Main page (alias)
-- `GET /welcome` - Welcome page
+- `GET /welcome` - Welcome and login helper
 - `GET /obs-help` - OBS integration help page
 
 ## Integration Notes

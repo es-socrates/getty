@@ -18,6 +18,7 @@ class WanderWalletLogin {
         this.lastBalance = null;
         this.balanceFetchInFlight = false;
         this.balanceLastFetchTs = 0;
+        this.widgetToken = null;
 
         this.arweave = (typeof Arweave !== 'undefined') ?
             Arweave.init({ host: 'arweave.net', port: 443, protocol: 'https' }) :
@@ -49,6 +50,62 @@ class WanderWalletLogin {
         this.init();
     }
 
+    persistWidgetToken(widgetToken, expiresAt) {
+        if (!widgetToken) return;
+        this.widgetToken = widgetToken;
+        if (!this.session) this.session = {};
+        this.session.widgetToken = widgetToken;
+        try { localStorage.setItem('getty_widget_token', widgetToken); } catch {}
+        try {
+            let expiresAtDate = null;
+            if (expiresAt) {
+                try {
+                    const parsed = new Date(expiresAt);
+                    if (Number.isFinite(parsed.getTime())) expiresAtDate = parsed;
+                } catch {}
+            }
+            const expiry = (expiresAtDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)).toUTCString();
+            const secure = location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = `getty_widget_token=${encodeURIComponent(widgetToken)}; expires=${expiry}; Path=/; SameSite=Lax${secure}`;
+        } catch {}
+    }
+
+    clearWidgetToken() {
+        this.widgetToken = null;
+        if (this.session) {
+            try { delete this.session.widgetToken; } catch {}
+        }
+        try { localStorage.removeItem('getty_widget_token'); } catch {}
+        try {
+            const secure = location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = `getty_widget_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; SameSite=Lax${secure}`;
+        } catch {}
+    }
+
+    readPersistedWidgetToken() {
+        try {
+            const match = window.location.pathname && window.location.pathname.match(/\/user\/([A-Za-z0-9_-]{12,120})/);
+            if (match && match[1]) return match[1];
+        } catch {}
+        try {
+            const stored = localStorage.getItem('getty_widget_token');
+            if (stored) return stored;
+        } catch {}
+        try {
+            const cookieMatch = document.cookie.match(/(?:^|;)\s*getty_widget_token=([^;]+)/);
+            if (cookieMatch && cookieMatch[1]) return decodeURIComponent(cookieMatch[1]);
+        } catch {}
+        return null;
+    }
+
+    getWidgetToken() {
+        if (this.session && this.session.widgetToken) return this.session.widgetToken;
+        if (this.widgetToken) return this.widgetToken;
+        const persisted = this.readPersistedWidgetToken();
+        if (persisted) this.widgetToken = persisted;
+        return persisted;
+    }
+
     init() {
         this.elements.loginBtn = document.getElementById('public-wallet-login') || document.getElementById('wanderLoginBtn');
         this.elements.logoutBtn = document.getElementById('logoutBtn');
@@ -71,41 +128,7 @@ class WanderWalletLogin {
             try { window.open('/admin/', '_self'); } catch { window.location.href = '/admin/'; }
         });
 
-            this.safeAttach(this.elements.langBtn, 'click', (e) => {
-                e.preventDefault();
-                const m = this.elements.langMenu;
-                if (!m) return;
-                const isHidden = m.classList.contains('hidden');
-                if (isHidden) {
-                    m.classList.remove('hidden');
-                    this.elements.langBtn.setAttribute('aria-expanded','true');
-
-                    const closer = (ev) => {
-                        if (!m.contains(ev.target) && ev.target !== this.elements.langBtn) {
-                            m.classList.add('hidden');
-                            this.elements.langBtn.setAttribute('aria-expanded','false');
-                            window.removeEventListener('click', closer);
-                        }
-                    };
-                    setTimeout(() => window.addEventListener('click', closer), 0);
-                } else {
-                    m.classList.add('hidden');
-                    this.elements.langBtn.setAttribute('aria-expanded','false');
-                }
-            });
-            if (this.elements.langMenu) {
-                this.elements.langMenu.querySelectorAll('[data-lang]').forEach(btn => {
-                    this.safeAttach(btn, 'click', () => {
-                        const lang = btn.getAttribute('data-lang');
-                        try { localStorage.setItem('lang', lang); localStorage.setItem('admin_locale', lang); } catch {}
-
-                        if (this.elements.langBtnLabel) {
-                            this.elements.langBtnLabel.textContent = lang.toUpperCase();
-                        }
-                        window.location.reload();
-                    });
-                });
-            }
+        this.setupLangMenuBridge();
 
             if (this.elements.langBtn && this.elements.langBtn.classList.contains('hidden')) {
                 const origFn = this.updateUI.bind(this);
@@ -142,7 +165,7 @@ class WanderWalletLogin {
                     localStorage.removeItem('wanderWalletConnected');
                     localStorage.removeItem('arweaveAddress');
 
-                    setTimeout(() => { window.location.reload(); }, 100);
+                    setTimeout(() => { window.location.href = '/'; }, 100);
                 }
             });
         } catch {}
@@ -160,10 +183,120 @@ class WanderWalletLogin {
                 
                 const newUrl = window.location.pathname + (window.location.hash || '');
                 window.history.replaceState({}, document.title, newUrl);
+                window.location.href = '/';
             }
         } catch (e) {
             console.warn('[wander-login] failed to check logout URL parameter', e);
         }
+    }
+
+    setupLangMenuBridge() {
+    const { langBtn, langMenu, langBtnLabel } = this.elements;
+    if (!langBtn) return;
+
+        const revealButton = () => {
+            try {
+                langBtn.classList.remove('hidden');
+                langBtn.dataset.visible = 'true';
+                if (!langBtn.classList.contains('flex') && !langBtn.classList.contains('inline-flex')) {
+                    langBtn.classList.add('flex');
+                }
+            } catch {}
+        };
+
+        const updateLabel = (lang) => {
+            if (!langBtnLabel || !lang) return;
+            try { langBtnLabel.textContent = lang.toUpperCase(); } catch {}
+        };
+
+        if (!langMenu) {
+            revealButton();
+            return;
+        }
+
+        const bindLegacyMenu = () => {
+            if (!langMenu) return;
+            // Skip legacy binding if another owner already marked it as bound
+            if (langBtn.dataset.langMenuBound === 'true' || langMenu.dataset.langMenuBound === 'true') return;
+            if (langBtn.dataset.langMenuBridge === 'legacy') return;
+            langBtn.dataset.langMenuBridge = 'legacy';
+            langBtn.dataset.langMenuBound = 'true';
+            langMenu.dataset.langMenuBound = 'true';
+            revealButton();
+
+            this.safeAttach(langBtn, 'click', (e) => {
+                e.preventDefault();
+                const isHidden = langMenu.classList.contains('hidden');
+                if (isHidden) {
+                    langMenu.classList.remove('hidden');
+                    langBtn.setAttribute('aria-expanded', 'true');
+                    const closer = (ev) => {
+                        if (!langMenu.contains(ev.target) && ev.target !== langBtn) {
+                            langMenu.classList.add('hidden');
+                            langBtn.setAttribute('aria-expanded', 'false');
+                            window.removeEventListener('click', closer);
+                        }
+                    };
+                    setTimeout(() => window.addEventListener('click', closer), 0);
+                } else {
+                    langMenu.classList.add('hidden');
+                    langBtn.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            langMenu.querySelectorAll('[data-lang]').forEach((btn) => {
+                this.safeAttach(btn, 'click', () => {
+                    const lang = btn.getAttribute('data-lang');
+                    if (!lang) return;
+                    try {
+                        localStorage.setItem('lang', lang);
+                        localStorage.setItem('admin_locale', lang);
+                    } catch {}
+                    updateLabel(lang);
+                    window.location.reload();
+                });
+            });
+        };
+
+        const applyController = (controller) => {
+            if (!controller) {
+                bindLegacyMenu();
+                return;
+            }
+
+            revealButton();
+            try { controller.refresh?.(); } catch {}
+
+            const currentLang = (typeof controller.getCurrentLanguage === 'function') ? controller.getCurrentLanguage() : null;
+            if (currentLang) updateLabel(currentLang);
+
+            langBtn.dataset.langMenuBound = 'true';
+            if (langMenu) langMenu.dataset.langMenuBound = 'true';
+        };
+
+        const handleReady = (event) => {
+            applyController(event?.detail || window.__gettyLangMenu);
+        };
+
+        const changeListener = (event) => {
+            const lang = event?.detail?.language;
+            if (lang) updateLabel(lang);
+        };
+
+        window.addEventListener('getty:lang-menu-change', changeListener);
+
+        if (window.__gettyLangMenu) {
+            applyController(window.__gettyLangMenu);
+            return;
+        }
+
+        window.addEventListener('getty:lang-menu-ready', handleReady, { once: true });
+
+        setTimeout(() => {
+            if (!window.__gettyLangMenu) {
+                bindLegacyMenu();
+            }
+        }, 1500);
     }
 
     safeAttach(el, ev, fn) { if (el) try { el.addEventListener(ev, fn); } catch {} }
@@ -195,8 +328,14 @@ class WanderWalletLogin {
 
     async bootstrapSession() {
         try {
-            const me = await this.fetchMe();
-            if (me && me.address) {
+            const meResponse = await this.fetchMe();
+            if (meResponse && meResponse.status === 200 && meResponse.data && meResponse.data.address) {
+                const me = { ...meResponse.data };
+                const storedToken = this.readPersistedWidgetToken();
+                if (storedToken) {
+                    this.widgetToken = storedToken;
+                    me.widgetToken = me.widgetToken || storedToken;
+                }
                 this.session = me;
                 this.arweaveAddress = me.address;
                 this.isConnected = true;
@@ -204,6 +343,11 @@ class WanderWalletLogin {
                 await this.updateUI();
 
                 this.scheduleBalanceFetch();
+                return;
+            }
+
+            if (meResponse && meResponse.status === 401) {
+                this.resetSessionState(false);
                 return;
             }
         } catch {}
@@ -217,6 +361,13 @@ class WanderWalletLogin {
         if (isConn && addr) {
             this.isConnected = true;
             this.arweaveAddress = addr;
+            const storedToken = this.readPersistedWidgetToken();
+            if (!this.session) this.session = {};
+            this.session.address = addr;
+            if (storedToken) {
+                this.widgetToken = storedToken;
+                this.session.widgetToken = storedToken;
+            }
             this.getBalance().then(b => this.updateUI(b));
         } else {
             this.updateUI();
@@ -225,7 +376,15 @@ class WanderWalletLogin {
 
     async handleLoginClick() {
         if (!this.elements.loginBtn) return;
-        if (this.isConnected) return;
+        if (this.isConnected) {
+            const token = this.getWidgetToken();
+            if (token) {
+                this.navigateToDashboard(token);
+            } else {
+                this.showUserDashboard();
+            }
+            return;
+        }
         try {
             this.setLoading(true, this.t('connecting'));
             await this.loginFlow();
@@ -245,7 +404,13 @@ class WanderWalletLogin {
             if (this.elements.btnLabel) this.elements.btnLabel.textContent = label || '...';
         } else {
             btn.classList.remove('loading');
-            if (this.elements.btnLabel) this.elements.btnLabel.textContent = this.t('loginLabel');
+            if (this.elements.btnLabel) {
+                if (this.isConnected && this.arweaveAddress) {
+                    this.elements.btnLabel.textContent = this.truncateAddress(this.arweaveAddress);
+                } else {
+                    this.elements.btnLabel.textContent = this.t('loginLabel');
+                }
+            }
         }
     }
 
@@ -309,6 +474,10 @@ class WanderWalletLogin {
         this.isConnected = true;
         localStorage.setItem('wanderWalletConnected', 'true');
         localStorage.setItem('arweaveAddress', address);
+
+        if (verifyResp && verifyResp.widgetToken) {
+            this.persistWidgetToken(verifyResp.widgetToken, verifyResp.expiresAt);
+        }
 
         await this.updateUI();
         this.scheduleBalanceFetch();
@@ -571,7 +740,9 @@ class WanderWalletLogin {
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
+            body: JSON.stringify(body),
+            credentials: 'include',
+            mode: 'same-origin'
         });
         let json; try { json = await res.json(); } catch { json = { error: 'bad_json' }; }
         return json;
@@ -581,26 +752,46 @@ class WanderWalletLogin {
         return new Promise((resolve) => {
             const xhr = new XMLHttpRequest();
             xhr.open('GET', '/api/auth/wander/me', true);
+            xhr.withCredentials = true;
             xhr.setRequestHeader('Accept', 'application/json');
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
                     if (xhr.status === 200) {
                         try {
                             const data = JSON.parse(xhr.responseText);
-                            resolve(data);
+                            resolve({ status: xhr.status, data });
                         } catch {
-                            resolve(null);
+                            resolve({ status: xhr.status, data: null });
                         }
                     } else {
-                        resolve(null);
+                        resolve({ status: xhr.status || 0, data: null });
                     }
                 }
             };
             xhr.onerror = function() {
-                resolve(null);
+                resolve({ status: 0, data: null });
             };
             xhr.send();
         });
+    }
+
+    resetSessionState(broadcast) {
+        this.isConnected = false;
+        this.arweaveAddress = null;
+        this.session = null;
+        this.lastBalance = null;
+        this.balanceFetchInFlight = false;
+        this.balanceLastFetchTs = 0;
+
+        try { localStorage.removeItem('wanderWalletConnected'); } catch {}
+        try { localStorage.removeItem('arweaveAddress'); } catch {}
+        if (broadcast) {
+            try { localStorage.setItem('getty_logout', String(Date.now())); } catch {}
+        }
+
+    this.clearWidgetToken();
+
+        try { this.updateUI(); } catch {}
     }
 
     async logout() {
@@ -611,15 +802,8 @@ class WanderWalletLogin {
             if (w && typeof w.disconnect === 'function') w.disconnect();
         } catch {}
 
-        this.isConnected = false;
-        this.arweaveAddress = null;
-        this.session = null;
-        localStorage.removeItem('wanderWalletConnected');
-        localStorage.removeItem('arweaveAddress');
-
-        try { localStorage.setItem('getty_logout', String(Date.now())); } catch {}
- 
-        this.updateUI();
+        this.resetSessionState(true);
+        window.location.href = '/';
     }
     
     async connectWallet() { return this.loginFlow(); }
@@ -669,6 +853,11 @@ class WanderWalletLogin {
                 loginBtn.dataset.state = 'logged-in';
                 if (btnLabel) btnLabel.textContent = truncated;
                 loginBtn.title = this.arweaveAddress || '';
+                const widgetToken = this.getWidgetToken();
+                if (widgetToken) {
+                    loginBtn.dataset.widgetToken = widgetToken;
+                    loginBtn.setAttribute('aria-label', `${this.t('walletLogin')}: ${truncated}`);
+                }
             }
             if (inlineBalance) {
                 let displayBalance = typeof balance === 'string' ? balance : (this.lastBalance || '');
@@ -711,6 +900,8 @@ class WanderWalletLogin {
                 loginBtn.dataset.state = 'logged-out';
                 if (btnLabel) btnLabel.textContent = this.t('loginLabel');
                 loginBtn.title = this.t('loginLabel');
+                if (loginBtn.dataset.widgetToken) delete loginBtn.dataset.widgetToken;
+                loginBtn.removeAttribute('aria-label');
             }
             if (inlineBalance) {
                 inlineBalance.textContent = '';
@@ -998,6 +1189,12 @@ class WanderWalletLogin {
 
     showUserDashboard() {
 
+        const widgetToken = this.getWidgetToken();
+        if (widgetToken) {
+            this.navigateToDashboard(widgetToken);
+            return;
+        }
+
         const userToken = this.session?.userToken || this.arweaveAddress?.slice(0, 8);
         const welcomeEl = document.getElementById('user-welcome-message');
         if (welcomeEl) {
@@ -1012,6 +1209,22 @@ class WanderWalletLogin {
         
         if (typeof window.loadUserSpecificWidgets === 'function') {
             window.loadUserSpecificWidgets();
+        }
+    }
+
+    navigateToDashboard(widgetToken) {
+        if (!widgetToken) return;
+        const encoded = encodeURIComponent(widgetToken);
+        const targetPath = `/user/${encoded}`;
+        try {
+            if (window.location.pathname === targetPath) {
+                return;
+            }
+        } catch {}
+        try {
+            window.location.assign(targetPath);
+        } catch {
+            window.location.href = targetPath;
         }
     }
 

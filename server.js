@@ -103,6 +103,34 @@ const LAST_TIP_CONFIG_FILE = path.join(__CONFIG_DIR, 'last-tip-config.json');
 const CHAT_CONFIG_FILE = path.join(__CONFIG_DIR, 'chat-config.json');
 const RAFFLE_CONFIG_FILE = path.join(__CONFIG_DIR, 'raffle-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
+const DASHBOARD_TEMPLATE_PATH = path.join(__dirname, 'public', 'dashboard.html');
+const DASHBOARD_TEMPLATE_FALLBACK = path.join(process.cwd(), 'src', 'dashboard-shell.html');
+
+let __dashboardTemplateCache = { html: null, mtimeMs: 0, file: null };
+function loadDashboardTemplate() {
+  const loadFrom = (filePath) => {
+    try {
+      const stat = fs.statSync(filePath);
+      if (!__dashboardTemplateCache.html || stat.mtimeMs !== __dashboardTemplateCache.mtimeMs || __dashboardTemplateCache.file !== filePath) {
+        __dashboardTemplateCache = {
+          html: fs.readFileSync(filePath, 'utf8'),
+          mtimeMs: stat.mtimeMs,
+          file: filePath
+        };
+      }
+      return __dashboardTemplateCache.html;
+    } catch {
+      return null;
+    }
+  };
+
+  const built = loadFrom(DASHBOARD_TEMPLATE_PATH);
+  if (built) return built;
+  const fallback = loadFrom(DASHBOARD_TEMPLATE_FALLBACK);
+  if (fallback) return fallback;
+  try { console.warn('[dashboard] template unavailable in public or src directories'); } catch {}
+  return null;
+}
 
 const app = express();
 const cookieParser = require('cookie-parser');
@@ -388,7 +416,23 @@ try {
 
 const ADMIN_COOKIE = 'getty_admin_token';
 const PUBLIC_COOKIE = 'getty_public_token';
-const SECURE_COOKIE = () => (process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production');
+function SECURE_COOKIE(req) {
+  try {
+    if (process.env.COOKIE_SECURE === '1') return true;
+    if (process.env.COOKIE_SECURE === '0') return false;
+
+    const forwardedProto = req?.headers?.['x-forwarded-proto'];
+    const forwardedVal = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+    const viaForwardedHttps = typeof forwardedVal === 'string' && forwardedVal.split(',')[0].trim().toLowerCase() === 'https';
+    const requestSecure = !!(req?.secure || viaForwardedHttps);
+    if (requestSecure) return true;
+
+    if (!req) return process.env.NODE_ENV === 'production';
+    return false;
+  } catch {
+    return process.env.NODE_ENV === 'production';
+  }
+}
 
 try {
   const rawAllowed = (process.env.GETTY_ALLOWED_ORIGINS || '').split(',').map(s=>s.trim()).filter(Boolean);
@@ -523,7 +567,7 @@ app.use(async (req, res, next) => {
               const cookieOpts = {
                 httpOnly: true,
                 sameSite: 'Lax',
-                secure: SECURE_COOKIE(),
+                secure: SECURE_COOKIE(req),
                 path: '/',
                 maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
               };
@@ -539,7 +583,7 @@ app.use(async (req, res, next) => {
         const cookieOpts = {
           httpOnly: true,
           sameSite: 'Lax',
-          secure: SECURE_COOKIE(),
+          secure: SECURE_COOKIE(req),
           path: '/',
           maxAge: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) * 1000
         };
@@ -945,7 +989,7 @@ app.get('/api/ar-price', async (req, res) => {
   }
 });
 const __hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-if (!__hostedMode) try {
+if (!store || !store.redis) try {
   const DATA_DIR = path.join(process.cwd(), 'data');
   const DATA_FILE = path.join(DATA_DIR, 'stream-history.json');
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -983,32 +1027,52 @@ if (!__hostedMode) try {
 
   async function checkLiveOnce() {
     try {
-      const shCfgPath = path.join(process.cwd(), 'config', 'stream-history-config.json');
+      const __verboseAuto = process.env.GETTY_VERBOSE_AUTO_LIVE === '1';
+      const { loadTenantConfig } = require('./lib/tenant-config');
+      let reqCtx = (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)
+        ? { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH }
+        : {};
       let claim = '';
       try {
-        if (fs.existsSync(shCfgPath)) {
-          const c = JSON.parse(fs.readFileSync(shCfgPath, 'utf8'));
-          if (typeof c.claimid === 'string' && c.claimid.trim()) claim = c.claimid.trim();
-        }
+        const shWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'stream-history-config.json'), 'stream-history-config.json');
+        const c = shWrap && shWrap.data ? shWrap.data : {};
+        if (typeof c.claimid === 'string' && c.claimid.trim()) claim = c.claimid.trim();
       } catch {}
       if (!claim) {
         try {
-          const lv = fs.existsSync(LIVEVIEWS_CONFIG_FILE) ? JSON.parse(fs.readFileSync(LIVEVIEWS_CONFIG_FILE, 'utf8')) : {};
+          const lvWrap = await loadTenantConfig(reqCtx, null, LIVEVIEWS_CONFIG_FILE, 'liveviews-config.json');
+          const lv = lvWrap && lvWrap.data ? lvWrap.data : {};
           if (typeof lv.claimid === 'string' && lv.claimid.trim()) claim = lv.claimid.trim();
         } catch {}
       }
-      if (!claim) return;
+      if (!claim) {
+        console.warn('[auto-live][local] no ClaimID configured; skipping poll');
+        return;
+      }
+      console.warn('[auto-live][local] using claimId', claim.slice(0,8)+'…');
 
       if (claim !== lastClaimId) {
         lastClaimId = claim;
         lastLive = null;
       }
+
+      const cfgWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+      let draft = cfgWrap?.data || null;
+      if (!draft || !draft.auto) return;
+      const livePostClaimId = typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : null;
+      if (!livePostClaimId) {
+        if (__verboseAuto) try { console.warn('[auto-live][local] no livePostClaimId configured', { claim }); } catch {}
+        return;
+      }
+
       const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
       const resp = await axios.get(url, { timeout: 7000 });
-      const nowLive = !!resp?.data?.data?.Live;
+      const activeClaim = resp?.data?.data?.ActiveClaim;
+      const activeClaimId = activeClaim?.ClaimID;
+      const nowLive = !!(activeClaimId && activeClaimId === livePostClaimId);
       const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
 
-      try {
+      console.warn('[auto-live][local] API response', { claim, activeClaimId, livePostClaimId, nowLive, viewerCount });      try {
         achievements.onLiveStatusSample(null, nowLive, CHECK_LIVE_MS);
       } catch {}
 
@@ -1023,41 +1087,116 @@ if (!__hostedMode) try {
       } catch {}
 
       if (lastLive === null) {
-        if (nowLive) await recordHistoryEvent(true);
         lastLive = nowLive;
+        if (nowLive === true) {
+          const payload = {
+            title: typeof draft.title === 'string' ? draft.title : undefined,
+            description: typeof draft.description === 'string' ? draft.description : undefined,
+            channelUrl: typeof draft.channelUrl === 'string' ? draft.channelUrl : undefined,
+            signature: typeof draft.signature === 'string' ? draft.signature : undefined,
+            discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined
+          };
+          Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+
+          try {
+            const statusCfg = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus().config || {}) : {};
+            let tenantExt = {};
+            try {
+              const extWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json');
+              tenantExt = extWrap?.data || {};
+            } catch {}
+            const cfg = {
+              ...statusCfg,
+              ...tenantExt,
+              liveDiscordWebhook: (tenantExt.liveDiscordWebhook || externalNotifications?.liveDiscordWebhook || ''),
+              liveTelegramBotToken: (tenantExt.liveTelegramBotToken || externalNotifications?.liveTelegramBotToken || ''),
+              liveTelegramChatId: (tenantExt.liveTelegramChatId || externalNotifications?.liveTelegramChatId || '')
+            };
+            const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
+            if (hasAny) {
+              try {
+                const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
+                console.warn('[auto-live][local] attempted send', {
+                  claim,
+                  sent,
+                  nowLive,
+                  prev: lastLive,
+                  hasAny,
+                  override: !!payload.discordWebhook,
+                  globalDiscord: !!cfg.liveDiscordWebhook,
+                  globalTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId)
+                });
+              } catch (e) {
+                console.error('[auto-live][local] send error', e?.message || e);
+              }
+            } else if (__verboseAuto) {
+              try { console.warn('[auto-live][local] no live targets configured', {
+                claim,
+                hasAny,
+                override: !!payload.discordWebhook,
+                globalDiscord: !!cfg.liveDiscordWebhook,
+                globalTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId)
+              }); } catch {}
+            }
+          } catch {}
+        }
+        if (__verboseAuto) try { console.warn('[auto-live][local] initialize state', { claim, nowLive }); } catch {}
       } else if (nowLive !== lastLive) {
         const prev = lastLive;
         await recordHistoryEvent(nowLive);
 
         try {
           if (nowLive === true && prev === false) {
-            const cfgPath = path.join(process.cwd(), 'config', 'live-announcement-config.json');
-            let draft = null;
-            try { if (fs.existsSync(cfgPath)) draft = JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch {}
-            if (draft && draft.auto) {
-              const payload = {
-                title: typeof draft.title === 'string' ? draft.title : undefined,
-                description: typeof draft.description === 'string' ? draft.description : undefined,
-                channelUrl: typeof draft.channelUrl === 'string' ? draft.channelUrl : undefined,
-                signature: typeof draft.signature === 'string' ? draft.signature : undefined,
-                discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined
-              };
-              Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+            const payload = {
+              title: typeof draft.title === 'string' ? draft.title : undefined,
+              description: typeof draft.description === 'string' ? draft.description : undefined,
+              channelUrl: typeof draft.channelUrl === 'string' ? draft.channelUrl : undefined,
+              signature: typeof draft.signature === 'string' ? draft.signature : undefined,
+              discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined
+            };
+            Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
 
+            try {
+              const statusCfg = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus().config || {}) : {};
+              let tenantExt = {};
               try {
-                const statusCfg = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus().config || {}) : {};
-                const cfg = {
-                  ...statusCfg,
-                  liveDiscordWebhook: externalNotifications?.liveDiscordWebhook || '',
-                  liveTelegramBotToken: externalNotifications?.liveTelegramBotToken || '',
-                  liveTelegramChatId: externalNotifications?.liveTelegramChatId || ''
-                };
-                const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
-                if (hasAny) {
-                  try { await externalNotifications.sendLiveWithConfig(cfg, payload); } catch {}
-                }
+                const extWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json');
+                tenantExt = extWrap?.data || {};
               } catch {}
-            }
+              const cfg = {
+                ...statusCfg,
+                ...tenantExt,
+                liveDiscordWebhook: (tenantExt.liveDiscordWebhook || externalNotifications?.liveDiscordWebhook || ''),
+                liveTelegramBotToken: (tenantExt.liveTelegramBotToken || externalNotifications?.liveTelegramBotToken || ''),
+                liveTelegramChatId: (tenantExt.liveTelegramChatId || externalNotifications?.liveTelegramChatId || '')
+              };
+              const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
+              if (hasAny) {
+                try {
+                  const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
+                  console.warn('[auto-live][local] attempted send', {
+                    claim,
+                    sent,
+                    nowLive,
+                    prev: lastLive,
+                    hasAny,
+                    override: !!payload.discordWebhook,
+                    globalDiscord: !!cfg.liveDiscordWebhook,
+                    globalTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId)
+                  });
+                } catch (e) {
+                  console.error('[auto-live][local] send error', e?.message || e);
+                }
+              } else if (__verboseAuto) {
+                try { console.warn('[auto-live][local] no live targets configured', {
+                  claim,
+                  hasAny,
+                  override: !!payload.discordWebhook,
+                  globalDiscord: !!cfg.liveDiscordWebhook,
+                  globalTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId)
+                }); } catch {}
+              }
+            } catch {}
           }
         } catch {}
         lastLive = nowLive;
@@ -1092,6 +1231,7 @@ if (!__hostedMode) try {
   }
 
   if (process.env.NODE_ENV !== 'test') {
+    console.warn('[auto-live] starting local live check timers');
     [2000, 8000, 20000].forEach(d => setTimeout(() => { checkLiveOnce(); }, d));
 
   setInterval(() => { checkLiveOnce(); }, CHECK_LIVE_MS);
@@ -1105,6 +1245,7 @@ if (!__hostedMode) try {
 
 try {
   if (__hostedMode && store && store.redis && process.env.NODE_ENV !== 'test') {
+    console.warn('[auto-live] starting hosted mode live check');
     const AUTO_SET = 'getty:auto-live:namespaces';
     const LAST_STATE_KEY = 'getty:auto-live:laststate';
     const LAST_POLL_KEY = 'getty:auto-live:lastpoll';
@@ -1159,7 +1300,10 @@ try {
             }
             const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
             const resp = await axios.get(url, { timeout: 7000 });
-            const nowLive = !!resp?.data?.data?.Live;
+            const activeClaim = resp?.data?.data?.ActiveClaim;
+            const activeClaimId = activeClaim?.ClaimID;
+            const livePostClaimId = typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : null;
+            const nowLive = livePostClaimId ? !!(activeClaimId && activeClaimId === livePostClaimId) : !!activeClaim;
             const prev = !!lastState[ns];
             try { achievements.onLiveStatusSample(ns, nowLive, POLL_MS); } catch {}
             lastState[ns] = nowLive;
@@ -1505,10 +1649,12 @@ try {
             console.warn('Failed to store widget token:', e.message);
           }
         }
+  const secureCookie = SECURE_COOKIE(req);
+
         res.cookie('getty_wallet_session', result.signed, {
           httpOnly: true,
           sameSite: 'lax',
-            secure: process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production',
+          secure: secureCookie,
           maxAge: ttl
         });
         return res.json(result.response);
@@ -1521,6 +1667,9 @@ try {
 
     app.get('/api/auth/wander/me', (req,res)=>{
       try {
+        if (!req.walletSession) {
+          try { const { ensureWalletSession } = require('./lib/wallet-session'); ensureWalletSession(req); } catch {}
+        }
         if (!req.walletSession) return res.status(401).json({ error: 'no_session' });
         const s = req.walletSession;
         return res.json({ address: s.addr, walletHash: s.walletHash, expiresAt: new Date(s.exp).toISOString(), capabilities: s.caps, mode: 'wander-bridge' });
@@ -1586,7 +1735,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
   const arAmount = isTip ? (usdAmount / (rate || 5)) : 0;
   const chatMsg = {
       channelTitle: username,
-     
+      message: username,
       credits,
       creditsIsUsd: isTip,
       isChatTip: isTip,
@@ -1915,9 +2064,21 @@ const audioUpload = multer({
 registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE, { store });
 
 try {
-  app.get(['/', '/index.html'], (req, res, next) => {
+  app.get(['/', '/index.html'], async (req, res, next) => {
     try {
-  if (process.env.NODE_ENV === 'test') return next();
+  if (process.env.NODE_ENV === 'test' && process.env.GETTY_WELCOME_TEST_REDIRECT !== '1') return next();
+      const widgetCookie = (typeof req.cookies?.getty_widget_token === 'string' && req.cookies.getty_widget_token.trim()) ? req.cookies.getty_widget_token.trim() : '';
+      if (widgetCookie && store) {
+        try {
+          const mappedHash = await store.get(widgetCookie, 'walletHash', null);
+          if (mappedHash) {
+            return res.redirect(302, `/user/${encodeURIComponent(widgetCookie)}`);
+          }
+          res.clearCookie('getty_widget_token', { httpOnly: false, sameSite: 'Lax', secure: SECURE_COOKIE(req), path: '/' });
+        } catch (e) {
+          console.warn('[welcome-redirect] failed to resolve widget token', e?.message || e);
+        }
+      }
       const wantsHtml = req.accepts(['html','json']) === 'html';
       const hasNsCookie = !!(req.cookies?.[ADMIN_COOKIE] || req.cookies?.[PUBLIC_COOKIE]);
       const seen = req.cookies?.['getty_seen_welcome'] === '1';
@@ -1926,7 +2087,7 @@ try {
         const cookieOpts = {
           httpOnly: false,
           sameSite: 'Lax',
-          secure: SECURE_COOKIE(),
+          secure: SECURE_COOKIE(req),
           path: '/',
           maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
         };
@@ -2433,6 +2594,81 @@ app.get('/api/activity/export', (req, res) => {
 });
 
 try {
+  app.get('/user/:widgetToken', async (req, res, next) => {
+    try {
+      const rawToken = (req.params?.widgetToken || '').trim();
+      if (!rawToken || rawToken.length < 12 || rawToken.length > 120) {
+        return res.redirect(302, '/?reason=invalid-token');
+      }
+      if (!/^[A-Za-z0-9_-]+$/.test(rawToken)) {
+        return res.redirect(302, '/?reason=invalid-token');
+      }
+
+      if (!req.walletSession) {
+        try { const { ensureWalletSession } = require('./lib/wallet-session'); ensureWalletSession(req); } catch {}
+      }
+
+      let walletHash = null;
+      if (store) {
+        try {
+          walletHash = await store.get(rawToken, 'walletHash', null);
+        } catch (e) {
+          console.warn('[dashboard] failed to resolve widget token', e?.message || e);
+        }
+      }
+
+      if (!walletHash) {
+        return res.redirect(302, '/?reason=expired-token');
+      }
+
+      req.ns = req.ns || {};
+      req.ns.pub = walletHash;
+      if (!req.ns.admin && req.walletSession?.walletHash === walletHash) {
+        req.ns.admin = walletHash;
+        if (!req.auth || !req.auth.isAdmin) {
+          req.auth = {
+            ...(req.auth || {}),
+            isAdmin: true,
+            source: (req.auth && req.auth.source) || 'wallet-session',
+            tokenRole: (req.auth && req.auth.tokenRole) || 'admin'
+          };
+        }
+      }
+
+      const template = loadDashboardTemplate();
+      if (!template) {
+        return res.status(500).send('Dashboard template missing. Please rebuild assets.');
+      }
+
+      const nonce = res.locals?.cspNonce || '';
+      const bootstrap = {
+        widgetToken: rawToken,
+        hasAdminSession: !!(req.auth?.isAdmin),
+        preferredLanguage: typeof req.cookies?.lang === 'string' ? req.cookies.lang : null
+      };
+
+      const safeBootstrap = JSON.stringify(bootstrap).replace(/</g, '\\u003c');
+      let html = template.replace('__DASHBOARD_BOOTSTRAP__', safeBootstrap);
+      if (nonce) {
+        html = html.replace(/__CSP_NONCE__/g, nonce);
+      } else {
+        html = html.replace(/\snonce="__CSP_NONCE__"/g, '');
+      }
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      if (nonce) {
+        try { res.setHeader('X-CSP-Nonce', nonce); } catch {}
+      }
+      return res.send(html);
+    } catch (err) {
+      console.error('[dashboard] failed to serve dashboard', err);
+      return next(err);
+    }
+  });
+} catch {}
+
+try {
   app.get('/shared-i18n/:lang.json', (req, res) => {
     try {
       const lang = String(req.params.lang || '').toLowerCase();
@@ -2450,9 +2686,13 @@ try {
 
 app.get('/api/modules', async (req, res) => {
 
-  if (req.query.widgetToken && store) {
+  const queryWidgetToken = typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+    ? req.query.widgetToken.trim()
+    : (typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '');
+
+  if (queryWidgetToken && store) {
     try {
-      const walletHash = await store.get(req.query.widgetToken, 'walletHash');
+      const walletHash = await store.get(queryWidgetToken, 'walletHash');
       if (walletHash) {
         req.ns = req.ns || {};
         req.ns.pub = walletHash;
@@ -2462,6 +2702,10 @@ app.get('/api/modules', async (req, res) => {
     }
   }
   const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+  const allowPublicFallback = req.query.public === '1';
+  if (!hasNs && !allowPublicFallback) {
+    return res.status(401).json({ error: 'widget_token_required' });
+  }
   const ns = req?.ns?.admin || req?.ns?.pub || null;
   const adminNs = await (async () => {
     try {
@@ -3846,7 +4090,7 @@ if (process.env.NODE_ENV !== 'test') {
         if (!nsToken && req.url) {
           try {
             const url = new URL(req.url, 'http://localhost');
-            const widgetToken = url.searchParams.get('widgetToken');
+            const widgetToken = url.searchParams.get('widgetToken') || url.searchParams.get('token');
             if (widgetToken && store) {
               const walletHash = await store.get(widgetToken, 'walletHash');
               if (walletHash) nsToken = walletHash;

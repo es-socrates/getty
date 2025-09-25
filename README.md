@@ -76,8 +76,11 @@ npm i -g pnpm@9.12.3
 
 ## Visit getty in the browser:
 
-1. Dashboard: http://localhost:3000/
-2. Admin: http://localhost:3000/admin/status
+1. Welcome & landing: http://localhost:3000/ (first-time visits redirect to `/welcome` so you can choose a language and connect your wallet).
+2. Dashboard: `http://localhost:3000/user/<your-widget-token>`
+   - After you log in with Wander Wallet, getty issues a **widget token** and stores it in the `getty_widget_token` cookie/localStorage. Subsequent visits to `/` automatically redirect to your dashboard route.
+   - If a token expires or is removed, the welcome page makes it clear and prompts you to sign in again.
+3. Admin: http://localhost:3000/admin/status
 
 The app's admin page has all the widget links for OBS. I recommend saving the changes on the admin page and checking that all of them are active, or the ones you need.
 

@@ -249,6 +249,9 @@ export async function initChat() {
       const isDashboard = /index\.html$|\/$/.test(window.location.pathname);
       if (isDashboard) { chatContainer.insertBefore(messageEl, chatContainer.firstChild); if (isAutoScroll) chatContainer.scrollTop = 0; }
       else { chatContainer.appendChild(messageEl); if (isAutoScroll) chatContainer.scrollTop = chatContainer.scrollHeight; }
+
+      const skeleton = chatContainer.querySelector('[data-empty-state="chat-empty"]');
+      if (skeleton) skeleton.remove();
       const themeStyle = document.getElementById('chat-theme-style');
       const isMinimalista = themeStyle && typeof themeStyle.textContent === 'string' && themeStyle.textContent.includes('THEME_ID:MINIMALISTA_AUTO10S');
       if (isMinimalista) {

@@ -31,7 +31,7 @@ describe('Public tip-goal masking preserves progress', () => {
     if (raw.data) raw.data.walletAddress = ''; else raw.walletAddress='';
     fs.writeFileSync(cfgFile, JSON.stringify(raw,null,2));
 
-    const res = await agent.get('/api/modules');
+  const res = await agent.get('/api/modules?public=1');
     expect(res.status).toBe(200);
     expect(res.body.tipGoal).toBeTruthy();
 

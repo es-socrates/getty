@@ -6,7 +6,7 @@ let app;
 describe('Modules tipGoal derived fields stability', () => {
   beforeAll(() => {
       process.env.GETTY_REQUIRE_SESSION = '0';
-      process.env.REDIS_URL = ''; // Disable Redis for this test
+      process.env.REDIS_URL = '';
       delete require.cache[require.resolve('../server')];
       try { delete require.cache[require.resolve('../modules/tip-goal')]; } catch {}
       app = require('../server');
@@ -31,7 +31,7 @@ describe('Modules tipGoal derived fields stability', () => {
     });
     expect(post.status).toBe(200);
 
-    const mod1 = await request(app).get('/api/modules');
+  const mod1 = await request(app).get('/api/modules?public=1');
     expect(mod1.status).toBe(200);
     const tg1 = mod1.body.tipGoal || {};
     expect(typeof tg1.progress).toBe('number');
@@ -39,7 +39,7 @@ describe('Modules tipGoal derived fields stability', () => {
     expect(tg1.currentAmount).toBe(2);
     expect(tg1.monthlyGoal).toBe(5);
 
-    const mod2 = await request(app).get('/api/modules');
+  const mod2 = await request(app).get('/api/modules?public=1');
     const tg2 = mod2.body.tipGoal || {};
     expect(tg2.currentTips).toBe(2);
     expect(tg2.currentAmount).toBe(2);

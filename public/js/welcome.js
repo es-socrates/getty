@@ -155,63 +155,161 @@ window.addEventListener('DOMContentLoaded', function () {
       return null;
     }
 
+    function clearStoredWidgetToken() {
+      try { localStorage.removeItem('getty_widget_token'); } catch {}
+      setCookie('getty_widget_token', '', -1);
+    }
+
+    function getStoredWidgetToken() {
+      let token = null;
+      try { token = localStorage.getItem('getty_widget_token'); } catch {}
+      if (token && token.trim()) return token.trim();
+      const cookieToken = getCookie('getty_widget_token');
+      return cookieToken && cookieToken.trim() ? cookieToken.trim() : '';
+    }
+
     const langBtn = document.getElementById('lang-btn');
     const langMenu = document.getElementById('lang-menu');
     const langBtnLabel = document.getElementById('lang-btn-label');
     if (langBtn && langMenu && langBtnLabel) {
-      function closeMenu() {
-        langMenu.classList.add('hidden');
-        langBtn.setAttribute('aria-expanded', 'false');
-      }
-      function openMenu() {
-        langMenu.classList.remove('hidden');
-        langBtn.setAttribute('aria-expanded', 'true');
-      }
-      function toggleMenu() {
-        if (langMenu.classList.contains('hidden')) openMenu(); else closeMenu();
-      }
-      langBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        toggleMenu();
-      });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeMenu();
-      });
-      document.addEventListener('click', (e) => {
-        if (!langMenu.contains(e.target) && !langBtn.contains(e.target)) closeMenu();
-      });
-
-      function applyLangLabel(lang) {
-        langBtnLabel.textContent = (lang || 'en').toUpperCase();
-      }
-
-      let saved = null;
-      let cookieLang = getCookie('getty_lang');
-      try { saved = localStorage.getItem('lang'); } catch {}
-      const current = (cookieLang || saved || (window.__i18n && window.__i18n.getLanguage && window.__i18n.getLanguage()) || 'en');
-      applyLangLabel(current);
-
-      try {
-        if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
-          window.__i18n.setLanguage(current);
+      if (langBtn.dataset.langMenuBound === 'true') {
+        const existing = window.__gettyLangMenu;
+        if (existing && typeof existing.applyLabel === 'function') {
+          try {
+            existing.applyLabel(existing.getCurrentLanguage ? existing.getCurrentLanguage() : undefined);
+          } catch (_) {}
         }
-      } catch (_) {}
+      } else {
+        langBtn.dataset.langMenuBound = 'true';
+        langMenu.dataset.langMenuBound = 'true';
 
-      langMenu.querySelectorAll('button[data-lang]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const lang = btn.getAttribute('data-lang');
-          if (!lang) return;
-            try { localStorage.setItem('lang', lang); } catch {}
-            setCookie('getty_lang', lang, 365);
-            try {
-              if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
-                window.__i18n.setLanguage(lang);
-              }
-            } catch (_) {}
-            applyLangLabel(lang);
-            closeMenu();
+        function closeMenu() {
+          langMenu.classList.add('hidden');
+          langBtn.setAttribute('aria-expanded', 'false');
+        }
+        function openMenu() {
+          langMenu.classList.remove('hidden');
+          langBtn.setAttribute('aria-expanded', 'true');
+        }
+        function toggleMenu() {
+          if (langMenu.classList.contains('hidden')) openMenu(); else closeMenu();
+        }
+        langBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          toggleMenu();
         });
-      });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeMenu();
+        });
+        document.addEventListener('click', (e) => {
+          if (!langMenu.contains(e.target) && !langBtn.contains(e.target)) closeMenu();
+        });
+
+        function applyLangLabel(lang) {
+          langBtnLabel.textContent = (lang || 'en').toUpperCase();
+        }
+
+        function persistLanguage(lang) {
+          if (!lang) return;
+          try { localStorage.setItem('lang', lang); } catch {}
+          setCookie('getty_lang', lang, 365);
+          try {
+            if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+              window.__i18n.setLanguage(lang);
+            }
+          } catch (_) {}
+        }
+
+        let saved = null;
+        let cookieLang = getCookie('getty_lang');
+        try { saved = localStorage.getItem('lang'); } catch {}
+        let current = (cookieLang || saved || (window.__i18n && window.__i18n.getLanguage && window.__i18n.getLanguage()) || 'en');
+        applyLangLabel(current);
+
+        try {
+          if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+            window.__i18n.setLanguage(current);
+          }
+        } catch (_) {}
+
+        function setLanguage(lang) {
+          if (!lang) return;
+          persistLanguage(lang);
+          current = lang;
+          applyLangLabel(current);
+          closeMenu();
+        }
+
+        langMenu.querySelectorAll('button[data-lang]').forEach(btn => {
+          btn.dataset.langMenuBound = 'true';
+          btn.addEventListener('click', () => {
+            setLanguage(btn.getAttribute('data-lang'));
+          });
+        });
+
+        if (!window.__gettyLangMenu) {
+          window.__gettyLangMenu = {
+            open: openMenu,
+            close: closeMenu,
+            toggle: toggleMenu,
+            applyLabel: applyLangLabel,
+            persistLanguage,
+            setLanguage,
+            getCurrentLanguage: () => current
+          };
+        }
+      }
     }
+
+    function handleWidgetTokenFlow() {
+      const statusEl = document.getElementById('welcome-status');
+      const loginLink = document.getElementById('welcome-login-link');
+      const labelEl = loginLink ? loginLink.querySelector('.btn-label') : null;
+      const params = new URLSearchParams(window.location.search);
+      const reason = params.get('reason');
+
+      if (statusEl) {
+        statusEl.classList.add('hidden');
+        statusEl.textContent = '';
+      }
+
+      if (reason === 'invalid-token' || reason === 'expired-token') {
+        clearStoredWidgetToken();
+        if (statusEl) {
+          statusEl.classList.remove('hidden');
+          statusEl.textContent = reason === 'expired-token'
+            ? tr('welcomeTokenExpired', 'Session expired. Please log in again to refresh your dashboard link.')
+            : tr('welcomeTokenInvalid', 'We could not open your dashboard. Please log in again.');
+        }
+        if (labelEl) {
+          labelEl.textContent = tr('welcomeLogin', 'Login');
+        }
+        params.delete('reason');
+        const nextUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '') + (window.location.hash || '');
+        window.history.replaceState({}, document.title, nextUrl);
+        return;
+      }
+
+      const storedToken = getStoredWidgetToken();
+      if (storedToken && loginLink) {
+        const destination = `/user/${encodeURIComponent(storedToken)}`;
+        loginLink.href = destination;
+        loginLink.setAttribute('data-state', 'continue');
+        if (labelEl) {
+          labelEl.textContent = tr('welcomeContinue', 'Open dashboard');
+        }
+        if (statusEl) {
+          statusEl.classList.remove('hidden');
+          statusEl.textContent = tr('welcomeRedirecting', 'Redirecting to your dashboard…');
+        }
+        setTimeout(() => {
+          try { window.location.replace(destination); } catch { window.location.href = destination; }
+        }, 800);
+      } else if (loginLink) {
+        loginLink.href = '/';
+      }
+    }
+
+    handleWidgetTokenFlow();
   } catch (_) {}
 });

@@ -36,7 +36,8 @@ function toWsUrl(httpUrl) {
 }
 
 async function verifyModules(baseUrl, token) {
-  const res = await http(`${baseUrl}/api/modules?token=${encodeURIComponent(token)}`);
+  const qsToken = encodeURIComponent(token);
+  const res = await http(`${baseUrl}/api/modules?widgetToken=${qsToken}`);
   const m = res.data || {};
   const lastTip = m.lastTip || {};
   const raffle = m.raffle || {};
@@ -50,7 +51,7 @@ async function verifyModules(baseUrl, token) {
 
 async function wsProbe(baseUrl, token, { start, draw, admin }) {
   return new Promise((resolve) => {
-    const wsUrl = `${toWsUrl(baseUrl)}/?token=${encodeURIComponent(token)}`;
+  const wsUrl = `${toWsUrl(baseUrl)}/?widgetToken=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     let gotInit = false;
     let gotRaffleState = false;
@@ -63,7 +64,7 @@ async function wsProbe(baseUrl, token, { start, draw, admin }) {
 
     ws.on('open', async () => {
   try { console.warn('ws: connected'); } catch {}
-      // Optionally start/draw to test broadcasts
+
       if (admin && start) {
         try {
           await http(`${baseUrl}/api/raffle/start`, token, 'POST', {}, admin);

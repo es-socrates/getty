@@ -6,16 +6,16 @@
   <title>Welcome to getty</title>
   <link rel="icon" href="https://f6kxms722ekygyfrhqnuhegs7czgujfu4mnklpl3wfldfpo5c6fq.arweave.net/L5V2S_rRFYNgsTwbQ5DS-LJqJLTjGqW9e7FWMr3dF4s" />
   <script src="/js/head-theme-init.js" integrity="sha384-sg4ZGX1HIe2yy5wrH4yjXf6+kJVXEwLlH+nJ85vo7ropVY/grxssN1pAA2vmig89" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/css/welcome.css" integrity="sha384-mW928g3/3w+fSI3ON8LPf1BUr6U07+wPMIwfoQVmDOyBeoU3SoQSgOiZLQHAFiNU" crossorigin="anonymous">
-  <link rel="stylesheet" href="/css/output.css" integrity="sha384-xTNU8tTbGODM6zZ9ON54TYdUFv054UIIydplUczcU2NfqITOHWx0+pUpXetZmMW2" crossorigin="anonymous">
+  <link rel="stylesheet" href="/css/welcome.css" integrity="sha384-ZIRiq7qMIP2wVsJYsYRYrhtN9c5k6/9poXYnK3hrF3F4eqo5mV2xPvazMx4/OBhs" crossorigin="anonymous">
+  <link rel="stylesheet" href="/css/output.css" integrity="sha384-LVTcUisafKRguebcYz71uZ3n8jgPzNyhsbQzcQtuJdy9pVvAy/ZvxjV9F7D24Opd" crossorigin="anonymous">
   <meta property="og:title" content="Welcome to getty" />
   <meta property="og:site_name" content="getty" />
   <meta name="description" content="Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee." />
   <link rel="preload" href="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" as="image">
   <link rel="preload" href="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" as="image">
-  <link rel="modulepreload" href="/js/min/i18n-runtime.js?v=5e3ec6e3">
-  <script src="/js/min/i18n-runtime.js?v=5e3ec6e3" integrity="sha384-G0bpJ7PhFy0l0KCwYqtooQV3rLjyWJ+rPZiZSRvQ61j1xm3KJvOatJ6Zh6Xv+CrB" crossorigin="anonymous" defer></script>
-  <script src="/js/welcome.js" integrity="sha384-wQOnFD4Ux2etUT80gomliWFdfz9GQPNl/YNVf55e4BQoqcfzDwq6p3DzwvPVQhdS" crossorigin="anonymous" defer></script>
+  <link rel="modulepreload" href="/js/min/i18n-runtime.js?v=c65256c3">
+  <script src="/js/min/i18n-runtime.js?v=c65256c3" integrity="sha384-hq8X9p+5Y/8YRwRY+A0OFlwoWTJikIGslFG3DhppGLSZWThNule1AVVc1Wh8rdOc" crossorigin="anonymous" defer></script>
+  <script src="/js/welcome.js" integrity="sha384-3vp5JtFgrAHwSD8prk2d4n55AIZ26bU1iWAeItkfTj9vEcwOcNfjG8rp1mDIXz3c" crossorigin="anonymous" defer></script>
   </head>
 <body>
   <header class="header">
@@ -33,7 +33,7 @@
         </ul>
       </div>
     </div>
-    <a href="/index.html" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out" data-i18n="walletLogin" aria-label="Login">
+    <a href="/" id="welcome-login-link" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out" data-i18n="walletLogin" aria-label="Login">
       <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="2" y="6" width="20" height="12" rx="2" />
         <path d="M16 12h.01" />
@@ -55,6 +55,7 @@
       <img src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" alt="getty" class="logo light-logo" />
       <div id="caption" class="subtitle">&nbsp;</div>
     </div>
+  <p id="welcome-status" class="welcome-status hidden" role="status" aria-live="polite"></p>
   </div>
   
 </body>

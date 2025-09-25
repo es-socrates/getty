@@ -35,7 +35,7 @@ describe('externalNotifications configured (live-only discord webhook)', () => {
   });
 
   test('GET /api/modules marks externalNotifications.configured=true with live-only discord webhook', async () => {
-    const res = await request(app).get('/api/modules');
+  const res = await request(app).get('/api/modules?public=1');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('externalNotifications');
     const mod = res.body.externalNotifications;
