@@ -10,6 +10,9 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = (requireSessionFlag || hostedWithRedis);
+  const isTestEnv = process.env.NODE_ENV === 'test';
+  const allowRealSupabaseInTests = process.env.SUPABASE_TEST_USE_REAL === '1';
+  const shouldMockStorage = isTestEnv && !allowRealSupabaseInTests;
   async function resolveNsFromReq(req) {
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -142,30 +145,30 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       let imageUrl = null;
       if (req.file) {
-
-        const storage = getStorage();
-        if (!storage) {
-          if (process.env.NODE_ENV === 'test') {
-            const ns = await resolveNsFromReq(req);
-            const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-            const mockUrl = `https://mock.supabase.co/storage/v1/object/public/announcement-images/${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
-            imageUrl = mockUrl;
-          } else {
-            return res.status(500).json({ success: false, error: 'Storage service not configured' });
-          }
+        const ns = await resolveNsFromReq(req);
+        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+        if (shouldMockStorage) {
+          imageUrl = `https://mock.supabase.co/storage/v1/object/public/announcement-images/${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
         } else {
-          const ns = await resolveNsFromReq(req);
-          const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-          const filePath = `${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
+          const storage = getStorage();
+          if (!storage) {
+            if (isTestEnv) {
+              imageUrl = `https://mock.supabase.co/storage/v1/object/public/announcement-images/${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
+            } else {
+              return res.status(500).json({ success: false, error: 'Storage service not configured' });
+            }
+          } else {
+            const filePath = `${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
 
-          try {
-            const uploadResult = await storage.uploadFile('announcement-images', filePath, req.file.buffer, {
-              contentType: req.file.mimetype
-            });
-            imageUrl = uploadResult.publicUrl;
-          } catch (uploadError) {
-            console.error('Supabase upload error:', uploadError);
-            return res.status(500).json({ success: false, error: 'Failed to upload file' });
+            try {
+              const uploadResult = await storage.uploadFile('announcement-images', filePath, req.file.buffer, {
+                contentType: req.file.mimetype
+              });
+              imageUrl = uploadResult.publicUrl;
+            } catch (uploadError) {
+              console.error('Supabase upload error:', uploadError);
+              return res.status(500).json({ success: false, error: 'Failed to upload file' });
+            }
           }
         }
       }
@@ -240,7 +243,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       const patch = { ...parsed.data };
       if (patch.linkUrl === '') patch.linkUrl = null;
       if (patch.removeImage) {
-        if (existing.imageUrl && existing.imageUrl.includes('supabase')) {
+        if (!shouldMockStorage && existing.imageUrl && existing.imageUrl.includes('supabase')) {
           try {
             const storage = getStorage();
             if (storage) {
@@ -277,8 +280,7 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
       const patch = { ...parsed.data };
       if (req.file) {
-
-        if (existing.imageUrl && existing.imageUrl.includes('supabase')) {
+        if (!shouldMockStorage && existing.imageUrl && existing.imageUrl.includes('supabase')) {
           try {
             const storage = getStorage();
             if (storage) {
@@ -294,30 +296,30 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
           }
         }
 
-        const storage = getStorage();
-        if (!storage) {
-          // In test mode without Supabase, simulate successful upload
-          if (process.env.NODE_ENV === 'test') {
-            const ns = await resolveNsFromReq(req);
-            const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-            const mockUrl = `https://mock.supabase.co/storage/v1/object/public/announcement-images/${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
-            patch.imageUrl = mockUrl;
-          } else {
-            return res.status(500).json({ success: false, error: 'Storage service not configured' });
-          }
+        const ns = await resolveNsFromReq(req);
+        const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+        if (shouldMockStorage) {
+          patch.imageUrl = `https://mock.supabase.co/storage/v1/object/public/announcement-images/${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
         } else {
-          const ns = await resolveNsFromReq(req);
-          const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-          const filePath = `${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
+          const storage = getStorage();
+          if (!storage) {
+            if (isTestEnv) {
+              patch.imageUrl = `https://mock.supabase.co/storage/v1/object/public/announcement-images/${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
+            } else {
+              return res.status(500).json({ success: false, error: 'Storage service not configured' });
+            }
+          } else {
+            const filePath = `${safeNs}/announcement-${Date.now()}-${Math.random().toString(36).slice(2)}.${req.file.mimetype.split('/')[1]}`;
 
-          try {
-            const uploadResult = await storage.uploadFile('announcement-images', filePath, req.file.buffer, {
-              contentType: req.file.mimetype
-            });
-            patch.imageUrl = uploadResult.publicUrl;
-          } catch (uploadError) {
-            console.error('Supabase upload error:', uploadError);
-            return res.status(500).json({ success: false, error: 'Failed to upload file' });
+            try {
+              const uploadResult = await storage.uploadFile('announcement-images', filePath, req.file.buffer, {
+                contentType: req.file.mimetype
+              });
+              patch.imageUrl = uploadResult.publicUrl;
+            } catch (uploadError) {
+              console.error('Supabase upload error:', uploadError);
+              return res.status(500).json({ success: false, error: 'Failed to upload file' });
+            }
           }
         }
       }

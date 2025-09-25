@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 function registerUserRoutes(app, _options = {}) {
+  const { store } = _options;
   const USER_CONFIG_DIR = path.join(process.cwd(), 'config', 'user-configs');
 
   try {
@@ -14,6 +15,21 @@ function registerUserRoutes(app, _options = {}) {
 
   app.get('/api/user/config', async (req, res) => {
     try {
+      const queryWidgetToken = typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+        ? req.query.widgetToken.trim()
+        : null;
+      if (queryWidgetToken && store) {
+        try {
+          const walletHash = await store.get(queryWidgetToken, 'walletHash');
+          if (walletHash) {
+            req.session = req.session || {};
+            req.session.userToken = walletHash;
+          }
+        } catch (e) {
+          console.warn('Failed to resolve widgetToken:', e.message);
+        }
+      }
+
       const userId = req.session?.userToken || req.query?.address;
 
       if (!userId) {
@@ -56,6 +72,21 @@ function registerUserRoutes(app, _options = {}) {
 
   app.post('/api/user/config', async (req, res) => {
     try {
+      const queryWidgetToken = typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+        ? req.query.widgetToken.trim()
+        : null;
+      if (queryWidgetToken && store) {
+        try {
+          const walletHash = await store.get(queryWidgetToken, 'walletHash');
+          if (walletHash) {
+            req.session = req.session || {};
+            req.session.userToken = walletHash;
+          }
+        } catch (e) {
+          console.warn('Failed to resolve widgetToken:', e.message);
+        }
+      }
+
       const userId = req.session?.userToken || req.body?.address;
 
       if (!userId) {

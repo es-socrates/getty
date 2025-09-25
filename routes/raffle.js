@@ -264,7 +264,8 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       }
 
       const fileName = `${Date.now()}-${req.file.originalname}`;
-      const publicUrl = await storage.uploadFile(BUCKET_NAME, req.file.buffer, fileName, req.file.mimetype);
+      const uploadResult = await storage.uploadFile(BUCKET_NAME, fileName, req.file.buffer, req.file.mimetype);
+      const publicUrl = uploadResult.publicUrl;
       
       await raffle.setImage(adminNs, publicUrl);
       res.json({ imageUrl: publicUrl });

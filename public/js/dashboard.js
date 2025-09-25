@@ -1,0 +1,491 @@
+// src/index.js
+var DASHBOARD_INLINE_STYLES = `
+body.user-dashboard-mode #main-content {
+  padding-top: 1rem;
+}
+
+body.user-dashboard-mode .os-header {
+  border-bottom-color: var(--text-primary);
+}
+
+#user-welcome-message {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+:root {
+  --border-color: #e2e8f0;
+  --user-secondary-color: #1f2937;
+}
+`;
+var LEGACY_SCRIPTS = [
+  { src: "/js/index-ui.js", defer: true },
+  { src: "/js/public-wallet-login.js", defer: true },
+  { src: "/js/modules/achievements-widget.js", module: true, defer: true }
+];
+function shouldAugmentUrl(url) {
+  try {
+    if (url.origin !== window.location.origin) return false;
+    return url.pathname.startsWith("/api/");
+  } catch {
+    return false;
+  }
+}
+function formatUrlForInput(original, url) {
+  try {
+    if (typeof original !== "string") return url.toString();
+    if (/^https?:/i.test(original) || original.startsWith("//")) {
+      return url.toString();
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return url.toString();
+  }
+}
+function setupWidgetTokenAdapters(widgetToken) {
+  const normalizedToken = typeof widgetToken === "string" && widgetToken.trim() ? widgetToken.trim() : null;
+  const enablePublicFallback = !normalizedToken;
+  if (!window.__GETTY_FETCH_PATCHED__ && typeof window.fetch === "function") {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      try {
+        if (typeof input === "string") {
+          const url = new URL(input, window.location.origin);
+          if (shouldAugmentUrl(url)) {
+            if (normalizedToken && !url.searchParams.has("widgetToken")) {
+              url.searchParams.set("widgetToken", normalizedToken);
+              input = formatUrlForInput(input, url);
+            } else if (enablePublicFallback && !url.searchParams.has("public")) {
+              url.searchParams.set("public", "1");
+              input = formatUrlForInput(input, url);
+            }
+          }
+        } else if (input instanceof Request) {
+          const requestUrl = new URL(input.url, window.location.origin);
+          if (shouldAugmentUrl(requestUrl)) {
+            if (normalizedToken && !requestUrl.searchParams.has("widgetToken")) {
+              requestUrl.searchParams.set("widgetToken", normalizedToken);
+              input = new Request(requestUrl.toString(), input);
+            } else if (enablePublicFallback && !requestUrl.searchParams.has("public")) {
+              requestUrl.searchParams.set("public", "1");
+              input = new Request(requestUrl.toString(), input);
+            }
+          }
+        }
+      } catch {
+      }
+      return originalFetch(input, init);
+    };
+    window.__GETTY_FETCH_PATCHED__ = true;
+  }
+  if (!normalizedToken) return;
+  if (!window.__GETTY_WS_PATCHED__ && typeof window.WebSocket === "function") {
+    const OriginalWebSocket = window.WebSocket;
+    const patchedWebSocket = function(resource, protocols) {
+      try {
+        let originalString = null;
+        if (typeof resource === "string") {
+          originalString = resource;
+        } else if (resource && typeof resource.url === "string") {
+          originalString = resource.url;
+        }
+        if (originalString) {
+          const url = new URL(originalString, window.location.href.replace(/\/$/, "/"));
+          const isWs = url.protocol === "ws:" || url.protocol === "wss:";
+          const sameOrigin = url.host === window.location.host;
+          if (sameOrigin && !url.searchParams.has("widgetToken")) {
+            url.searchParams.set("widgetToken", normalizedToken);
+            if (typeof resource === "string") {
+              resource = isWs ? url.toString() : `${url.pathname}${url.search}`;
+            } else if (resource && typeof resource.url === "string") {
+              resource = url.toString();
+            }
+          }
+        }
+      } catch {
+      }
+      return new OriginalWebSocket(resource, protocols);
+    };
+    patchedWebSocket.prototype = OriginalWebSocket.prototype;
+    try {
+      Object.setPrototypeOf(patchedWebSocket, OriginalWebSocket);
+    } catch {
+    }
+    window.WebSocket = patchedWebSocket;
+    window.__GETTY_WS_PATCHED__ = true;
+  }
+}
+function ensureInlineStyles(nonce) {
+  if (document.getElementById("dashboard-inline-style")) return;
+  const style = document.createElement("style");
+  style.id = "dashboard-inline-style";
+  style.textContent = DASHBOARD_INLINE_STYLES;
+  if (nonce) style.setAttribute("nonce", nonce);
+  document.head.appendChild(style);
+}
+function persistWidgetToken(widgetToken) {
+  if (!widgetToken) return;
+  try {
+    const url = new URL(window.location.href);
+    const pathMatch = url.pathname.match(/^\/user\/([A-Za-z0-9_-]{12,120})/);
+    if (pathMatch && pathMatch[1]) {
+      if (url.searchParams.has("widgetToken")) {
+        url.searchParams.delete("widgetToken");
+        const cleaned = url.pathname + (url.search ? url.search : "") + url.hash;
+        window.history.replaceState({}, document.title, cleaned);
+      }
+      return;
+    }
+    if (url.searchParams.get("widgetToken") === widgetToken) return;
+    url.searchParams.set("widgetToken", widgetToken);
+    window.history.replaceState({}, document.title, url.toString());
+  } catch {
+  }
+}
+function clampToken(token) {
+  if (!token || typeof token !== "string") return "";
+  if (token.length <= 10) return token;
+  return `${token.slice(0, 4)}\u2026${token.slice(-4)}`;
+}
+function buildLayout() {
+  return `
+<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2">Skip to main content</a>
+<div class="max-w-7xl mx-auto p-6">
+  <header class="os-header flex justify-between items-center pb-5 mb-8 border-b border-border">
+    <div class="flex items-center gap-4">
+      <a href="/" class="logo-link" aria-label="getty home">
+        <img src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ" alt="getty" class="h-10 w-auto dark-logo" decoding="async" fetchpriority="high" height="40">
+        <img src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak" alt="getty" class="h-10 w-auto light-logo" decoding="async" height="40">
+      </a>
+      <div id="user-welcome-message" class="hidden text-sm text-gray-300">Welcome, [User Token]</div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="connection-status" title="Wallet connection status">
+        <span class="status-dot disconnected"></span>
+      </div>
+      <button id="public-wallet-login" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out">
+        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+          <path d="M16 12h.01"></path>
+        </svg>
+        <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
+        <span class="balance-label hidden text-xs font-mono" id="login-balance"></span>
+      </button>
+      <button id="open-admin" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false">Admin</button>
+      <button id="logout-inline" class="hidden px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-visible="false" title="Logout" aria-label="Logout">
+        <span data-i18n="walletLogout">Logout</span>
+      </button>
+      <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-pressed="false" aria-label="Toggle dark mode">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z"></path>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 user-dashboard-grid" role="main">
+    <section class="os-card overflow-hidden flex flex-col md:order-1 lg:order-1">
+      <h2 class="os-panel-title">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 1v22"></path>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+        </span>
+        <span data-i18n="lastTipTitle"></span>
+      </h2>
+      <div class="flex-1 flex flex-col justify-center">
+        <div id="last-donation" class="last-donation" role="status" aria-live="polite" aria-busy="true">
+          <div class="skeleton p-3" data-skeleton="last-tip">
+            <div class="skeleton-lg skeleton"></div>
+            <div class="skeleton-line skeleton w-[60%]"></div>
+            <div class="skeleton-line skeleton w-[40%]"></div>
+          </div>
+          <div class="last-donation-content">
+            <div class="notification-icon-lasttip">
+              <svg width="100" height="100" viewBox="0 0 32 32" fill="#191919" stroke="#191919" stroke-width="0.608" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <g id="USDC_x2C__usd_coin">
+                  <g>
+                    <circle cx="16" cy="16" r="14.5" fill="#ffffff"></circle>
+                  </g>
+                  <g>
+                    <g>
+                      <path d="M16,31C7.73,31,1,24.27,1,16S7.73,1,16,1s15,6.73,15,15S24.27,31,16,31z M16,2 C8.28,2,2,8.28,2,16s6.28,14,14,14s14-6.28,14-14S23.72,2,16,2z"></path>
+                    </g>
+                    <g>
+                      <path d="M17.22,21.5h-2.44c-1.53,0-2.78-1.25-2.78-2.78V18.5c0-0.28,0.22-0.5,0.5-0.5 s0.5,0.22,0.5,0.5v0.22c0,0.98,0.8,1.78,1.78,1.78h2.44c0.98,0,1.78-0.8,1.78-1.78c0-0.79-0.53-1.49-1.29-1.71l-3.69-1.05 C12.83,15.61,12,14.51,12,13.28c0-1.53,1.25-2.78,2.78-2.78h2.44c1.53,0,2.78,1.25,2.78,2.78v0.22c0,0.28-0.22,0.5-0.5,0.5 S19,13.78,19,13.5v-0.22c0-0.98-0.8-1.78-1.78-1.78h-2.44c-0.98,0-1.78,0.8-1.78,1.78c0,0.79,0.53,1.49,1.29,1.71l3.69,1.05 c1.19,0.34,2.02,1.44,2.02,2.67C20,20.25,18.75,21.5,17.22,21.5z"></path>
+                    </g>
+                    <g>
+                      <path d="M16,23.5c-0.28,0-0.5-0.22-0.5-0.5v-2c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5v2 C16.5,23.28,16.28,23.5,16,23.5z"></path>
+                    </g>
+                    <g>
+                      <path d="M16,11.5c-0.28,0-0.5-0.22-0.5-0.5V9c0-0.28,0.22-0.5,0.5-0.5s0.5,0.22,0.5,0.5v2 C16.5,11.28,16.28,11.5,16,11.5z"></path>
+                    </g>
+                    <g>
+                      <path d="M12.5,26.39c-0.06,0-0.11-0.01-0.17-0.03C7.95,24.81,5,20.64,5,16s2.95-8.81,7.33-10.36 c0.26-0.09,0.54,0.04,0.64,0.3c0.09,0.26-0.04,0.55-0.3,0.64C8.68,7.99,6,11.78,6,16s2.68,8.01,6.67,9.42 c0.26,0.09,0.4,0.38,0.3,0.64C12.9,26.26,12.71,26.39,12.5,26.39z"></path>
+                    </g>
+                    <g>
+                      <path d="M19.5,26.39c-0.21,0-0.4-0.13-0.47-0.33c-0.09-0.26,0.04-0.55,0.3-0.64 C23.32,24.01,26,20.22,26,16s-2.68-8.01-6.67-9.42c-0.26-0.09-0.4-0.38-0.3-0.64c0.09-0.26,0.38-0.4,0.64-0.3 C24.05,7.19,27,11.36,27,16s-2.95,8.81-7.33,10.36C19.61,26.38,19.56,26.39,19.5,26.39z"></path>
+                    </g>
+                  </g>
+                </g>
+              </svg>
+            </div>
+            <div class="notification-text">
+              <div class="notification-title" data-i18n="loading"></div>
+              <div class="notification-amount">
+                <div class="amount-container">
+                  <span class="ar-amount">--</span>
+                  <span class="ar-symbol">AR</span>
+                </div>
+                <div class="usd-value"></div>
+              </div>
+              <div class="notification-from-lasttip" data-i18n="connectingToWallet"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="os-card overflow-hidden flex flex-col md:order-2 lg:order-2">
+      <h2 class="os-panel-title">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 6v6l4 2"></path>
+          </svg>
+        </span>
+        <span data-i18n="monthlyGoalTitle"></span>
+      </h2>
+      <div class="flex-1 flex flex-col justify-center">
+        <div id="goal-widget" class="p-4" aria-busy="true">
+          <div class="skeleton skeleton-lg mb-2" data-skeleton="goal"></div>
+          <div class="goal-container"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="os-card overflow-hidden flex flex-col md:order-3 lg:order-3">
+      <h2 class="os-panel-title">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </span>
+        <span data-i18n="notificationsTitle"></span>
+      </h2>
+      <div class="flex-1 flex flex-col justify-center">
+        <div class="skeleton skeleton-line mx-4 mb-2" data-skeleton="notification"></div>
+        <div id="notification" class="mb-2" role="status" aria-live="polite" aria-busy="true"></div>
+      </div>
+    </section>
+
+    <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-4 lg:order-4">
+      <h2 class="os-panel-title">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8.5 8.5Z"></path>
+          </svg>
+        </span>
+        <span data-i18n="liveChatTitle"></span>
+      </h2>
+      <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
+        <div class="skeleton h-[240px] m-3" data-skeleton="chat"></div>
+        <div id="chat-container" aria-busy="true"></div>
+      </div>
+    </section>
+
+    <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-5 lg:order-5">
+      <h2 class="os-panel-title">
+        <span class="icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+            <path d="M2 10h20"></path>
+            <path d="M8 15h.01"></path>
+            <path d="M12 15h.01"></path>
+            <path d="M16 15h.01"></path>
+          </svg>
+        </span>
+        <span data-i18n="raffleTitle"></span>
+      </h2>
+      <div class="flex-1 flex flex-col justify-center p-4">
+        <div class="raffle-embed bg-[#080c10] rounded-[6px] p-3 h-full" aria-busy="true">
+          <div class="skeleton h-[120px]" data-skeleton="raffle"></div>
+          <div id="raffleContentContainer" class="-mt-0"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="os-card overflow-hidden flex flex-col h-[450px] md:order-6 lg:order-6">
+      <h2 class="os-panel-title">
+        <span class="icon os-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 21h8"></path>
+            <path d="M12 17v4"></path>
+            <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"></path>
+            <path d="M17 9a5 5 0 0 0 5-5h-5"></path>
+            <path d="M7 9a5 5 0 0 1-5-5h5"></path>
+          </svg>
+        </span>
+        <span data-i18n="achievementsTitle"></span>
+      </h2>
+      <div class="flex-1 flex flex-col max-h-[calc(100%-44px)] overflow-hidden">
+        <div id="achievements-embed" class="h-full" aria-live="polite" aria-atomic="true">
+          <div data-ach-embed data-ach-max="4" class="ach-root ach-embed"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="py-6 border-[var(--background)] text-center text-xs">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <p class="font-bold" data-i18n="copyright">
+            \xA9 2025 <a href="https://getty.sh/" target="_blank" class="hover:text-primary-200 transition-colors font-bold">\u03BB getty</a> \xB7
+            <a href="https://opensource.org/licenses/MIT" target="_blank" class="hover:text-primary-200 transition-colors font-bold">MIT License</a>
+          </p>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="https://getty.sh/" target="_blank" aria-label="getty.sh" class="hover:text-primary-200 transition-colors">
+            <img src="/favicon.ico" alt="getty" width="18" height="18" class="rounded" loading="lazy" decoding="async">
+          </a>
+          <a href="https://odysee.com" target="_blank" aria-label="Odysee" class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 192 192" width="20" height="20" fill="none" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="12.096" d="M98.612 39.193c7.085.276 9.76 4.503 12.192 10.124 3.249 7.494.988 10.141-12.192 13.85-13.187 3.74-19.535-1.171-20.404-10.115-.976-10.115 11.684-12.729 11.684-12.729 3.495-.876 6.36-1.226 8.72-1.13zm65.362 107.42c2.54-9.665-6.121-19.201-11.2-27.806-4.998-8.467-11.972-17.925-18.629-22.87a4.832 4.832 0 0 1-.378-7.376c6.57-6.21 18.15-18.329 21.813-24.725 3.413-6.664 7.628-14.488 5.34-21.513-2.058-6.317-8.8-14.298-15.274-12.806-7.342 1.692-6.837 10.98-9.216 20.638-3.222 13.187-10.86 11.697-13.968 11.697-3.108 0-1.24-4.658-8.46-25.377-7.217-20.72-26.002-15.526-40.27-6.985-18.14 10.874-10.046 34.054-5.562 48.992-2.546 2.453-12.118 4.368-20.834 9.06-10.75 5.78-21.645 9.363-24.66 19.372-1.883 6.254.172 15.997 6.162 18.602 6.645 2.889 12.633-1.694 19.751-9.073a36.226 36.226 0 0 1 7.089-5.482 75.994 75.994 0 0 1 18.276-8.59s6.97 10.707 13.432 23.393c6.457 12.686-6.968 16.918-8.459 16.918-1.497 0-22.675-1.973-17.95 15.926 4.726 17.9 30.598 11.437 43.785 2.728 13.187-8.708 9.947-37.06 9.947-37.06 12.94-1.985 16.915 11.684 18.158 18.628 1.243 6.944 4.06 18.052 11.449 19.412 8.248 1.517 17.528-7.593 19.659-15.705z"></path>
+            </svg>
+          </a>
+          <a href="https://getty.sh/en/guide/privacypolicy/" target="_blank" aria-label="Privacy Policy" class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" class="text-[#1d1d1d] dark:text-white transition-colors">
+              <path d="M17 9.99V7A5 5 0 0 0 7 7v2.99A4.482 4.482 0 0 0 4.5 14v3A4.507 4.507 0 0 0 9 21.5h6a4.507 4.507 0 0 0 4.5-4.5v-3A4.482 4.482 0 0 0 17 9.99ZM13 16a1 1 0 0 1-2 0v-1a1 1 0 0 1 2,0Zm2-6.5H9V7a3 3 0 0 1 6,0Z"></path>
+            </svg>
+          </a>
+          <a href="https://getty.sh/en/guide/terms/" target="_blank" aria-label="Terms" class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"></path>
+              <path d="M14 2v6h6"></path>
+              <path d="M9 13h6"></path>
+              <path d="M9 17h3"></path>
+            </svg>
+          </a>
+          <a href="https://github.com/es-socrates/getty" target="_blank" aria-label="GitHub" class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.68 7.68 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path>
+            </svg>
+          </a>
+          <a href="https://x.com/getty_sh" target="_blank" aria-label="X" class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 1024 1024" width="20" height="20" aria-hidden="true">
+              <g fill="none" fill-rule="evenodd" stroke="none" stroke-width="1" transform="translate(112 112)">
+                <path class="footer-x-bg" d="M711.111 800H88.89C39.8 800 0 760.2 0 711.111V88.89C0 39.8 39.8 0 88.889 0H711.11C760.2 0 800 39.8 800 88.889V711.11C800 760.2 760.2 800 711.111 800"></path>
+                <path class="footer-x-fg" fill-rule="nonzero" d="M628 623H484.942L174 179h143.058zm-126.012-37.651h56.96L300.013 216.65h-56.96z"></path>
+                <path class="footer-x-fg" fill-rule="nonzero" d="M219.296885 623 379 437.732409 358.114212 410 174 623z"></path>
+                <path class="footer-x-fg" fill-rule="nonzero" d="M409 348.387347 429.212986 377 603 177 558.330417 177z"></path>
+              </g>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <noscript>
+    <div class="max-w-7xl mx-auto p-6 text-center text-sm text-gray-300">
+      JavaScript is required for widgets to load.
+    </div>
+  </noscript>
+</div>
+`;
+}
+function updateWelcomeMessage(root, widgetToken) {
+  const welcome = root.querySelector("#user-welcome-message");
+  if (!welcome) return;
+  if (!widgetToken) {
+    welcome.classList.add("hidden");
+    welcome.textContent = "Welcome, stream friend";
+    return;
+  }
+  welcome.classList.remove("hidden");
+  welcome.textContent = `Your ID \u2022 ${clampToken(widgetToken)}`;
+}
+function toggleAdminControls(root, hasAdminSession) {
+  const adminButton = root.querySelector("#open-admin");
+  if (!adminButton) return;
+  if (hasAdminSession) {
+    adminButton.dataset.visible = "true";
+    adminButton.classList.remove("hidden");
+  } else {
+    adminButton.dataset.visible = "false";
+    adminButton.classList.add("hidden");
+  }
+}
+function loadLegacyScript(entry, nonce) {
+  const existing = document.querySelector(`script[src="${entry.src}"]`);
+  if (existing) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = entry.src;
+    script.crossOrigin = "anonymous";
+    if (entry.module) script.type = "module";
+    if (entry.defer) script.defer = true;
+    if (nonce) script.setAttribute("nonce", nonce);
+    script.onload = () => resolve();
+    script.onerror = (err) => reject(err);
+    document.head.appendChild(script);
+  });
+}
+async function loadLegacyAssets(nonce) {
+  await Promise.allSettled(LEGACY_SCRIPTS.map((entry) => loadLegacyScript(entry, nonce)));
+  try {
+    if (typeof window.loadUserSpecificWidgets === "function") {
+      window.loadUserSpecificWidgets();
+    }
+  } catch (err) {
+    console.warn("[dashboard] failed to load user-specific widgets", err);
+  }
+}
+async function bootstrapDashboard() {
+  const root = document.getElementById("app-root");
+  if (!root) {
+    console.error("[dashboard] Missing #app-root container");
+    return;
+  }
+  const entryScript = document.querySelector("script[data-dashboard-entry]");
+  const nonce = entryScript?.nonce || entryScript?.getAttribute("nonce") || "";
+  document.body.classList.add("landing", "user-dashboard-mode");
+  ensureInlineStyles(nonce);
+  let bootstrap = window.__GETTY_DASHBOARD_BOOTSTRAP__ || {};
+  const bootstrapSource = document.getElementById("dashboard-bootstrap");
+  if (bootstrapSource) {
+    try {
+      const raw = bootstrapSource.textContent || bootstrapSource.innerText || "";
+      if (raw.trim()) {
+        bootstrap = JSON.parse(raw);
+        window.__GETTY_DASHBOARD_BOOTSTRAP__ = bootstrap;
+      }
+    } catch (err) {
+      console.warn("[dashboard] Failed to parse bootstrap payload", err);
+    }
+  }
+  const widgetToken = typeof bootstrap.widgetToken === "string" ? bootstrap.widgetToken : "";
+  if (widgetToken) {
+    root.dataset.widgetToken = widgetToken;
+    window.__GETTY_WIDGET_TOKEN__ = widgetToken;
+    persistWidgetToken(widgetToken);
+    setupWidgetTokenAdapters(widgetToken);
+  }
+  try {
+    if (bootstrap.preferredLanguage && !localStorage.getItem("lang")) {
+      localStorage.setItem("lang", bootstrap.preferredLanguage);
+    }
+  } catch {
+  }
+  root.innerHTML = buildLayout();
+  updateWelcomeMessage(root, widgetToken);
+  toggleAdminControls(root, !!bootstrap.hasAdminSession);
+  await loadLegacyAssets(nonce);
+}
+bootstrapDashboard();

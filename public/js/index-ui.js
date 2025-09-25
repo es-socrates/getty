@@ -1,27 +1,28 @@
 // Index page UI behavior
 
 ;(function() {
+  function getCookie(name) {
+    try {
+      const cname = name + '=';
+      const parts = document.cookie.split(';');
+      for (let i = 0; i < parts.length; i++) {
+        let c = parts[i].trim();
+        if (c.indexOf(cname) === 0) return decodeURIComponent(c.substring(cname.length));
+      }
+    } catch (_) {}
+    return null;
+  }
+  function setCookie(name, value, days) {
+    try {
+      const d = new Date();
+      d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+      const expires = 'expires=' + d.toUTCString();
+      const secure = location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = name + '=' + encodeURIComponent(value) + '; ' + expires + '; Path=/' + '; SameSite=Lax' + secure;
+    } catch (_) {}
+  }
+
   try {
-    function getCookie(name) {
-      try {
-        const cname = name + '=';
-        const parts = document.cookie.split(';');
-        for (let i = 0; i < parts.length; i++) {
-          let c = parts[i].trim();
-          if (c.indexOf(cname) === 0) return decodeURIComponent(c.substring(cname.length));
-        }
-      } catch (_) {}
-      return null;
-    }
-    function setCookie(name, value, days) {
-      try {
-        const d = new Date();
-        d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-        const expires = 'expires=' + d.toUTCString();
-        const secure = location.protocol === 'https:' ? '; Secure' : '';
-        document.cookie = name + '=' + encodeURIComponent(value) + '; ' + expires + '; Path=/' + '; SameSite=Lax' + secure;
-      } catch (_) {}
-    }
     const langSel = document.getElementById('language-selector');
     let savedLang = null;
     try { savedLang = localStorage.getItem('lang'); } catch {}
@@ -52,6 +53,9 @@
   const userMenuButton = document.getElementById('user-menu-button');
   const userMenu = document.getElementById('user-menu');
   const themeToggle = document.getElementById('theme-toggle');
+  const langBtn = document.getElementById('lang-btn');
+  const langMenu = document.getElementById('lang-menu');
+  const langBtnLabel = document.getElementById('lang-btn-label');
   const chatContainer = document.getElementById('chat-container');
   const raffleRoot = document.getElementById('raffleContentContainer');
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -78,6 +82,75 @@
     });
 
     try { themeToggle.setAttribute('aria-pressed', (document.documentElement.classList.contains('dark')).toString()); } catch(_) {}
+  }
+
+  if (langBtn && langMenu && langBtnLabel) {
+    try {
+      langBtn.dataset.langMenuBound = 'true';
+      langMenu.dataset.langMenuBound = 'true';
+      langBtn.dataset.langMenuOwner = 'index-ui';
+    } catch(_) {}
+
+    function closeMenu() {
+      langMenu.classList.add('hidden');
+      langBtn.setAttribute('aria-expanded', 'false');
+    }
+    function openMenu() {
+      langMenu.classList.remove('hidden');
+      langBtn.setAttribute('aria-expanded', 'true');
+    }
+    function toggleMenu() {
+      if (langMenu.classList.contains('hidden')) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    }
+    langBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
+    document.addEventListener('click', (e) => {
+      if (!langMenu.contains(e.target) && !langBtn.contains(e.target)) closeMenu();
+    });
+
+    function applyLangLabel(lang) {
+      langBtnLabel.textContent = (lang || 'en').toUpperCase();
+    }
+
+    let saved = null;
+    let cookieLang = getCookie('getty_lang');
+    try { saved = localStorage.getItem('lang'); } catch {}
+    const current = (cookieLang || saved || (window.__i18n && window.__i18n.getLanguage && window.__i18n.getLanguage()) || 'en');
+    applyLangLabel(current);
+
+    try {
+      if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+        window.__i18n.setLanguage(current);
+      }
+    } catch (_) {}
+
+    langBtn.classList.remove('hidden');
+    langBtn.setAttribute('data-visible', 'true');
+
+    langMenu.querySelectorAll('button[data-lang]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const lang = btn.getAttribute('data-lang');
+        if (!lang) return;
+        try { localStorage.setItem('lang', lang); } catch {}
+        setCookie('getty_lang', lang, 365);
+        try {
+          if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+            window.__i18n.setLanguage(lang);
+          }
+        } catch (_) {}
+        applyLangLabel(lang);
+        closeMenu();
+      });
+    });
   }
 
   if (userMenuButton && userMenu) {
@@ -329,6 +402,26 @@
     ensureEmpty('#chat-container', 'chat-empty');
     ensureEmpty('#raffleContentContainer', 'raffle-empty');
   } catch {}
+
+  try {
+    const primaryLoginButton = document.getElementById('public-wallet-login');
+    if (primaryLoginButton) {
+      const delegateButtons = [
+        document.getElementById('public-wallet-login-hero'),
+        document.getElementById('public-wallet-login-cta')
+      ];
+      const triggerLogin = (event) => {
+        if (event && typeof event.preventDefault === 'function') {
+          event.preventDefault();
+        }
+        try { primaryLoginButton.click(); } catch (_) {}
+      };
+      delegateButtons.forEach((btn) => {
+        if (!btn) return;
+        btn.addEventListener('click', triggerLogin);
+      });
+    }
+  } catch (_) {}
 
   window.loadUserSpecificWidgets = async function() {
     try {

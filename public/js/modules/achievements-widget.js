@@ -177,6 +177,22 @@ function fadeOutAndRemoveLast() {
 }
 
 async function boot() {
+  try {
+    const authResponse = await fetch('/api/auth/wander/me', { cache: 'no-store' });
+    if (!authResponse.ok || authResponse.status !== 200) {
+      console.log('User not authenticated, skipping achievements widget initialization');
+      return;
+    }
+    const authData = await authResponse.json();
+    if (!authData || !authData.address) {
+      console.log('User not authenticated, skipping achievements widget initialization');
+      return;
+    }
+  } catch (error) {
+    console.log('Error checking authentication, skipping achievements widget initialization', error);
+    return;
+  }
+
   await loadLang();
   try { 
     const response = await getJson('/api/achievements/config');

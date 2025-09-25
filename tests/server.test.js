@@ -13,8 +13,14 @@ describe('API smoke tests', () => {
     expect([200, 304, 404]).toContain(res.status);
   });
 
-  it('GET /api/modules returns JSON without secrets', async () => {
-    const res = await request(app).get('/api/modules');
+  it('GET /api/modules requires widget token by default', async () => {
+    const unauth = await request(app).get('/api/modules');
+    expect(unauth.status).toBe(401);
+    expect(unauth.body).toHaveProperty('error', 'widget_token_required');
+  });
+
+  it('GET /api/modules?public=1 returns JSON without secrets', async () => {
+    const res = await request(app).get('/api/modules?public=1');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('externalNotifications');
     const cfg = res.body.externalNotifications?.config || {};

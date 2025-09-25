@@ -8,9 +8,12 @@ function registerGoalAudioRoutes(app, strictLimiter, _GOAL_AUDIO_UPLOADS_DIR) {
   app.get('/api/goal-audio', (req, res) => {
     try {
 
-      if (req.query.widgetToken && req.app?.get('store')) {
+      const tokenParam = (typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim())
+        ? req.query.widgetToken.trim()
+        : (typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '');
+      if (tokenParam && req.app?.get('store')) {
         try {
-          const walletHash = req.app.get('store').get(req.query.widgetToken, 'walletHash');
+          const walletHash = req.app.get('store').get(tokenParam, 'walletHash');
           if (walletHash) {
             req.ns = req.ns || {};
             req.ns.pub = walletHash;
@@ -68,9 +71,12 @@ function registerGoalAudioRoutes(app, strictLimiter, _GOAL_AUDIO_UPLOADS_DIR) {
 
   app.get('/api/goal-audio-settings', (req, res) => {
     try {
-      if (req.query.widgetToken && req.app?.get('store')) {
+      const tokenParam = (typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim())
+        ? req.query.widgetToken.trim()
+        : (typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '');
+      if (tokenParam && req.app?.get('store')) {
         try {
-          const walletHash = req.app.get('store').get(req.query.widgetToken, 'walletHash');
+          const walletHash = req.app.get('store').get(tokenParam, 'walletHash');
           if (walletHash) {
             req.ns = req.ns || {};
             req.ns.pub = walletHash;

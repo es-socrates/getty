@@ -64,8 +64,14 @@ describe('Masking secrets and sensitive fields when GETTY_REQUIRE_SESSION=1', ()
     expect(typeof res.body.claimid === 'string').toBe(true);
   });
 
-  test('GET /api/modules masks socialmedia status when unauthenticated', async () => {
-    const res = await request(app).get('/api/modules');
+  test('GET /api/modules rejects unauthenticated without public flag', async () => {
+    const unauth = await request(app).get('/api/modules');
+    expect(unauth.status).toBe(401);
+    expect(unauth.body.error).toBe('widget_token_required');
+  });
+
+  test('GET /api/modules?public=1 masks socialmedia status when unauthenticated', async () => {
+    const res = await request(app).get('/api/modules?public=1');
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('socialmedia');
     expect(res.body.socialmedia.configured).toBe(false);
@@ -73,8 +79,8 @@ describe('Masking secrets and sensitive fields when GETTY_REQUIRE_SESSION=1', ()
     expect(res.body.masked).toBe(true);
   });
 
-  test('GET /api/modules masks external notifications for unauthenticated', async () => {
-    const res = await request(app).get('/api/modules');
+  test('GET /api/modules?public=1 masks external notifications for unauthenticated', async () => {
+    const res = await request(app).get('/api/modules?public=1');
     expect(res.status).toBe(200);
     const ext = res.body.externalNotifications;
     expect(ext.active).toBe(false);
@@ -85,8 +91,8 @@ describe('Masking secrets and sensitive fields when GETTY_REQUIRE_SESSION=1', ()
     expect(ext.config.template).toBe('');
   });
 
-  test('GET /api/modules omits raffle section when unauthenticated', async () => {
-    const res = await request(app).get('/api/modules');
+  test('GET /api/modules?public=1 omits raffle section when unauthenticated', async () => {
+    const res = await request(app).get('/api/modules?public=1');
     expect(res.status).toBe(200);
     expect(res.body).not.toHaveProperty('raffle');
   });

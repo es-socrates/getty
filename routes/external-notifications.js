@@ -352,9 +352,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       let cfg = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       
-      if (ns) {
+      if (ns || (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)) {
         try {
-          const reqLike = { ns: { admin: ns } };
+          const reqLike = ns ? { ns: { admin: ns } } : { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
           const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
           if (loaded && loaded.data) {
             cfg = loaded.data;
@@ -402,6 +402,12 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       let draft = null;
       if (store && ns) {
         try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH) {
+        try {
+          const reqLike = { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
+          const loaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+          if (loaded && loaded.data) draft = loaded.data;
+        } catch {}
       } else {
         try {
           const fs = require('fs'); const path = require('path');
@@ -474,6 +480,12 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (store && ns) {
         try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH) {
+        try {
+          const reqLike = { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
+          const loaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+          if (loaded && loaded.data) draft = loaded.data;
+        } catch {}
       } else {
         try {
           const fs = require('fs'); const path = require('path');
@@ -506,9 +518,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
       let cfg = null;
       
-      if (ns) {
+      if (ns || (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)) {
         try {
-          const reqLike = { ns: { admin: ns } };
+          const reqLike = ns ? { ns: { admin: ns } } : { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
           const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
           if (loaded && loaded.data) {
             cfg = loaded.data;
@@ -610,9 +622,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const data = parsed.data || {};
 
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      if (ns) {
+      if (ns || (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)) {
         try {
-          const reqLike = { ns: { admin: ns } };
+          const reqLike = ns ? { ns: { admin: ns } } : { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
           const saved = await saveTenantConfig(reqLike, null,
             path.join(process.cwd(), 'config', 'live-announcement-config.json'),
             'live-announcement-config.json',
@@ -650,6 +662,22 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         if (!fs.existsSync(cfgDir)) fs.mkdirSync(cfgDir, { recursive: true });
         fs.writeFileSync(file, JSON.stringify(data, null, 2));
       }
+
+      try {
+        if (store && store.redis && typeof data.auto === 'boolean') {
+          const SET_KEY = 'getty:auto-live:namespaces';
+          const ns = req?.ns?.admin || req?.ns?.pub || null;
+          if (ns) {
+            if (data.auto) {
+              await store.redis.sadd(SET_KEY, ns);
+              try { console.warn('[auto-live] registered namespace for auto (fallback)', ns); } catch {}
+            } else {
+              await store.redis.srem(SET_KEY, ns);
+              try { console.warn('[auto-live] unregistered namespace for auto (fallback)', ns); } catch {}
+            }
+          }
+        }
+      } catch {}
       res.json({ success: true, meta: null });
     } catch (e) {
       console.error('Error saving live draft:', e);
@@ -689,6 +717,12 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!draft) {
         if (store && ns) {
           try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+        } else if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH) {
+          try {
+            const reqLike = { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
+            const loaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+            if (loaded && loaded.data) draft = loaded.data;
+          } catch {}
         }
         if (!draft) {
             try {
@@ -845,6 +879,64 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const can = hosted && !!store && !!ns && !!store.redis;
       if (!can) {
+        if (!hosted) {
+          try {
+            const { loadTenantConfig } = require('../lib/tenant-config');
+            const reqCtx = (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)
+              ? { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH }
+              : {};
+            const draftWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+            const extWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json');
+            const shWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'stream-history-config.json'), 'stream-history-config.json');
+            const lvWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'liveviews-config.json'), 'liveviews-config.json');
+            const draft = draftWrap?.data || null;
+            const ext = extWrap?.data || null;
+            let claim = '';
+            try { const c = shWrap?.data || {}; if (typeof c.claimid === 'string' && c.claimid.trim()) claim = c.claimid.trim(); } catch {}
+            if (!claim) { try { const lv = lvWrap?.data || {}; if (typeof lv.claimid === 'string' && lv.claimid.trim()) claim = lv.claimid.trim(); } catch {} }
+
+            const hasDiscord = !!(ext && typeof ext.liveDiscordWebhook === 'string' && ext.liveDiscordWebhook.trim());
+            const hasTelegram = !!(ext && typeof ext.liveTelegramBotToken === 'string' && ext.liveTelegramBotToken.trim() && typeof ext.liveTelegramChatId === 'string' && ext.liveTelegramChatId.trim());
+            const hasDiscordOverride = !!(draft && typeof draft.discordWebhook === 'string' && draft.discordWebhook.trim());
+            const hasAnyLiveTarget = !!(hasDiscord || hasTelegram || hasDiscordOverride);
+
+            const imageUrl = (draft && typeof draft.imageUrl === 'string' && draft.imageUrl.trim()) ? draft.imageUrl.trim() : '';
+            const channelUrl = (draft && typeof draft.channelUrl === 'string' && draft.channelUrl.trim()) ? draft.channelUrl.trim() : '';
+            const hasImageUrl = !!imageUrl;
+            const ogCandidate = (() => {
+              try { const u = new URL(channelUrl); return /^https?:$/i.test(u.protocol) && /^(www\.)?odysee\.com$/i.test(u.hostname); } catch { return false; }
+            })();
+            const claimFromUrl = channelUrl ? extractClaimIdFromUrl(channelUrl) : '';
+            const livePostClaimId = (draft && typeof draft.livePostClaimId === 'string' && draft.livePostClaimId.trim()) ? draft.livePostClaimId.trim() : '';
+            const claimMatch = (function() {
+              try {
+                if (!livePostClaimId || !claimFromUrl) return null;
+                const a = livePostClaimId.toLowerCase();
+                const b = claimFromUrl.toLowerCase();
+                return a.startsWith(b) || b.startsWith(a);
+              } catch { return null; }
+            })();
+            return res.json({
+              ok: true,
+              hosted: false,
+              ns: null,
+              autoEnabled: !!draft?.auto,
+              registered: false,
+              lastPoll: null,
+              hasDiscord,
+              hasTelegram,
+              hasDiscordOverride,
+              hasAnyLiveTarget,
+              hasImageUrl,
+              imageUrl,
+              ogCandidate,
+              livePostClaimId,
+              claimFromUrl,
+              claimMatch,
+              claimFromConfig: claim
+            });
+          } catch {}
+        }
         const reason = !hosted ? 'not_hosted' : (!store ? 'no_store' : (!store.redis ? 'no_redis' : (!ns ? 'no_session' : 'unavailable')));
         return res.json({ ok: false, hosted, reason });
       }
@@ -918,6 +1010,12 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       let draft = null;
       if (store && ns) {
         try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      } else if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH) {
+        try {
+          const reqLike = { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
+          const loaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+          if (loaded && loaded.data) draft = loaded.data;
+        } catch {}
       } else {
         try {
           const fs = require('fs'); const path = require('path');
@@ -935,6 +1033,11 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
 
       if (store && ns) {
         await store.set(ns, 'live-announcement-draft', draft);
+      } else if (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH) {
+        try {
+          const reqLike = { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH };
+          await saveTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json', draft);
+        } catch {}
       } else {
         try {
           const fs = require('fs'); const path = require('path');
