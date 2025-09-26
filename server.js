@@ -1252,17 +1252,67 @@ try {
     const POLL_MS = 30000;
     const jitter = () => Math.floor(Math.random() * 5000);
 
-    function extractChannelClaimIdFromUrl(url) {
+    function parseChannelHandleFromUrl(url) {
       try {
         const u = new URL(url);
-        if (!/^https?:$/i.test(u.protocol)) return '';
-        if (!/^(www\.)?odysee\.com$/i.test(u.hostname)) return '';
+        if (!/^https?:$/i.test(u.protocol)) return { name: '', short: '' };
+        if (!/^(www\.)?odysee\.com$/i.test(u.hostname)) return { name: '', short: '' };
         const parts = u.pathname.split('/').filter(Boolean);
-        if (parts.length < 1) return '';
-        const channelPart = parts[0];
-        const m = channelPart.match(/@[^:]+:([^/]+)/i);
-        return m && m[1] ? m[1] : '';
-      } catch { return ''; }
+        if (parts.length < 1) return { name: '', short: '' };
+        const channelPart = parts[0]; // e.g. @spaceman:f
+        const nameMatch = channelPart.match(/^@([^:]+):?([^/]*)/i);
+        if (!nameMatch) return { name: '', short: '' };
+        const name = nameMatch[1] || '';
+        const short = nameMatch[2] || '';
+        return { name, short };
+      } catch { return { name: '', short: '' }; }
+    }
+
+    async function resolveFullChannelClaimIdFromUrl(url) {
+      try {
+        const { name, short } = parseChannelHandleFromUrl(url);
+        if (!name) return '';
+
+        const lbryUrl = `lbry://@${name}${short ? ('#' + short) : ''}`;
+        try {
+          const r = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', {
+            method: 'resolve',
+            params: { urls: [lbryUrl] }
+          }, { timeout: 7000 });
+          const result = r?.data?.result || r?.data?.data?.result || {};
+          const entry = result[lbryUrl];
+          const claimId = entry?.value?.claim_id || entry?.claim_id || '';
+          if (claimId && /^[a-f0-9]{40}$/i.test(claimId)) return claimId;
+        } catch {}
+
+        try {
+          const r2 = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', {
+            method: 'claim_search',
+            params: { name: `@${name}`, claim_type: 'channel', page_size: 1, no_totals: true }
+          }, { timeout: 7000 });
+          const items = r2?.data?.result?.items || r2?.data?.data?.result?.items || [];
+          const first = Array.isArray(items) && items[0] ? items[0] : null;
+          const claimId = first?.claim_id || '';
+          if (claimId && /^[a-f0-9]{40}$/i.test(claimId)) return claimId;
+        } catch {}
+      } catch {}
+      return '';
+    }
+
+    async function resolveChannelClaimIdFromStreamClaimId(streamClaimId) {
+      try {
+        if (!streamClaimId || !/^[a-f0-9]{6,40}$/i.test(streamClaimId)) return '';
+        const r = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', {
+          method: 'claim_search',
+          params: { claim_ids: [streamClaimId], page_size: 1, no_totals: true }
+        }, { timeout: 7000 });
+        const items = r?.data?.result?.items || r?.data?.data?.result?.items || [];
+        const it = Array.isArray(items) && items[0] ? items[0] : null;
+        const channel = it?.signing_channel || it?.publisher || it?.value?.signing_channel || null;
+        const claimId = channel?.claim_id || channel?.claimId || '';
+        if (claimId && /^[a-f0-9]{40}$/i.test(claimId)) return claimId;
+      } catch {}
+      return '';
     }
 
     async function loadNsDraft(ns) {
@@ -1338,30 +1388,57 @@ try {
         const nsList = await store.redis.smembers(AUTO_SET);
         if (!Array.isArray(nsList) || nsList.length === 0) return;
         const lastState = await getLastState();
+        const __verboseAuto = process.env.GETTY_VERBOSE_AUTO_LIVE === '1';
         for (const ns of nsList) {
           try {
 
             const draft = await loadNsDraft(ns);
-            let claim = await loadNsClaim(ns);
-            if (!claim && draft && draft.channelUrl) {
-              claim = extractChannelClaimIdFromUrl(draft.channelUrl);
-            }
             if (!draft || !draft.auto) {
 
               try { await store.redis.srem(AUTO_SET, ns); } catch {}
               try { if (lastState && Object.prototype.hasOwnProperty.call(lastState, ns)) delete lastState[ns]; } catch {}
               continue;
             }
-            if (!claim) {
-              console.warn('[auto-live] ns has auto enabled but no ClaimID configured', ns);
+
+            let channelClaimId = '';
+            if (draft?.channelUrl) {
+              channelClaimId = await resolveFullChannelClaimIdFromUrl(draft.channelUrl);
+            }
+            if (!channelClaimId) {
+
+              const possibleStreamClaim = await loadNsClaim(ns);
+              if (possibleStreamClaim) {
+                channelClaimId = await resolveChannelClaimIdFromStreamClaimId(possibleStreamClaim);
+              }
+            }
+            if (!channelClaimId) {
+              console.warn('[auto-live] ns has auto enabled but could not resolve channel ClaimID', ns);
               continue;
             }
-            const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
-            const resp = await axios.get(url, { timeout: 7000 });
+            const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(channelClaimId)}`;
+            if (__verboseAuto) {
+              try { console.warn('[auto-live] polling', { ns, channelClaimId: channelClaimId.slice(0,8)+'…', livePostClaimId: (draft?.livePostClaimId ? (draft.livePostClaimId.slice(0,8)+'…') : null) }); } catch {}
+            }
+            const resp = await axios.get(url, { timeout: 7000 }).catch((e) => {
+              if (__verboseAuto) {
+                try {
+                  const status = e?.response?.status;
+                  const data = e?.response?.data;
+                  console.warn('[auto-live] is_live request failed', { ns, status, data: (typeof data === 'object' ? Object.keys(data) : String(data).slice(0,120)) });
+                } catch {}
+              }
+              throw e;
+            });
             const activeClaim = resp?.data?.data?.ActiveClaim;
             const activeClaimId = activeClaim?.ClaimID;
             const livePostClaimId = typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : null;
             const nowLive = livePostClaimId ? !!(activeClaimId && activeClaimId === livePostClaimId) : !!activeClaim;
+            if (__verboseAuto) {
+              try {
+                const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : undefined;
+                console.warn('[auto-live] poll result', { ns, activeClaimId: activeClaimId ? (activeClaimId.slice(0,8)+'…') : null, nowLive, viewerCount });
+              } catch {}
+            }
             const prev = !!lastState[ns];
             try { await store.redis.hset(LAST_POLL_KEY, ns, String(Date.now())); await store.redis.expire(LAST_POLL_KEY, 24 * 3600); } catch {}
             if (nowLive && !prev) {
@@ -1406,7 +1483,11 @@ try {
               try { lastState[ns] = nowLive; } catch {}
             }
           } catch (e) {
-            console.error('[auto-live] error polling ns', ns, e?.message || e);
+            try {
+              const status = e?.response?.status;
+              const msg = e?.message || String(e);
+              console.error('[auto-live] error polling ns', ns, status ? `status ${status}` : '', msg);
+            } catch { console.error('[auto-live] error polling ns', ns, e?.message || e); }
           }
         }
         await setLastState(lastState);

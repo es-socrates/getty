@@ -84,7 +84,7 @@
               autocomplete="off" />
             <button
               type="button"
-              @click="reveal.discord = !reveal.discord"
+              @click="onToggleRevealDiscord()"
               :aria-pressed="reveal.discord ? 'true' : 'false'"
               :aria-label="reveal.discord ? 'Hide' : 'Show'">
               <svg
@@ -120,6 +120,11 @@
             </button>
           </div>
           <small class="small">{{ t('liveDiscordOverrideHint') }}</small>
+          <small
+            v-if="serverHasOverride && !form.discordWebhook"
+            class="small opacity-70 block mt-1">
+            {{ t('liveOverrideSetOnServer') || 'An override is saved on the server (hidden).' }}
+          </small>
 
           <div class="mt-3 flex items-center gap-3 flex-wrap">
             <div class="inline-flex items-center gap-2">
@@ -231,6 +236,7 @@ const wallet = useWalletSession();
 const DRAFT_KEY = 'live_announcement_draft_v1';
 const masked = ref(false);
 const reveal = reactive({ discord: false });
+const MASK = '................';
 const form = ref({
   title: '',
   description: '',
@@ -246,6 +252,7 @@ const saving = ref(false);
 const previewImage = ref('');
 const previewLoading = ref(false);
 const resolving = ref(false);
+const serverHasOverride = ref(false);
 const hasErrors = computed(() => !!errors.value.channelUrl || claimMatchState.value === 'mismatch');
 const liveTargets = ref({ discord: false, telegram: false });
 const targets = computed(() => {
@@ -343,7 +350,10 @@ async function send() {
       description: (f.description || '').trim() || undefined,
       channelUrl: (f.channelUrl || '').trim() || undefined,
       signature: (f.signature || '').trim() || undefined,
-      discordWebhook: (f.discordWebhook || '').trim() || undefined,
+      discordWebhook: (() => {
+        const v = (f.discordWebhook || '').trim();
+        return v === '' || v === MASK ? undefined : v;
+      })(),
       livePostClaimId: (f.livePostClaimId || '').trim() || undefined,
     };
     Object.keys(payload).forEach((k) => {
@@ -376,7 +386,10 @@ async function testSend() {
       description: (f.description || '').trim() || undefined,
       channelUrl: (f.channelUrl || '').trim() || undefined,
       signature: (f.signature || '').trim() || undefined,
-      discordWebhook: (f.discordWebhook || '').trim() || undefined,
+      discordWebhook: (() => {
+        const v = (f.discordWebhook || '').trim();
+        return v === '' || v === MASK ? undefined : v;
+      })(),
       livePostClaimId: (f.livePostClaimId || '').trim() || undefined,
     };
     Object.keys(payload).forEach((k) => {
@@ -463,7 +476,12 @@ async function saveServerDraft() {
       description: (f.description || '').trim() || undefined,
       channelUrl: (f.channelUrl || '').trim() || undefined,
       signature: (f.signature || '').trim() || undefined,
-      discordWebhook: (f.discordWebhook || '').trim() || undefined,
+
+      discordWebhook: (() => {
+        const v = (f.discordWebhook || '').trim();
+        if (v === MASK) return undefined;
+        return v === '' ? '' : v;
+      })(),
       auto: !!f.auto,
       livePostClaimId: (f.livePostClaimId || '').trim() || undefined,
     };
@@ -489,12 +507,28 @@ async function loadServerDraft() {
     form.value.channelUrl = c.channelUrl || '';
     form.value.signature = c.signature || '';
 
-    if (c.discordWebhook) form.value.discordWebhook = c.discordWebhook;
+    serverHasOverride.value = !!c.hasDiscordOverride;
+    form.value.discordWebhook = serverHasOverride.value ? MASK : '';
     form.value.auto = !!c.auto;
     form.value.livePostClaimId = c.livePostClaimId || '';
     pushToast({ type: 'success', message: 'Draft loaded' });
   } catch {
     pushToast({ type: 'error', message: 'Failed to load draft' });
+  }
+}
+
+async function onToggleRevealDiscord() {
+  try {
+    const next = !reveal.discord;
+    if (next && form.value.discordWebhook === MASK) {
+      const r = await api.get('/api/external-notifications/live/reveal', {
+        params: { field: 'discordWebhook' },
+      });
+      if (r?.data?.success) form.value.discordWebhook = r.data.value || '';
+    }
+    reveal.discord = next;
+  } catch {
+    reveal.discord = !reveal.discord;
   }
 }
 

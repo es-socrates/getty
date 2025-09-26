@@ -151,7 +151,8 @@ const adminExtra = {
     announcementSectionContent: 'Content',
     announcementSectionStyle: 'Style',
     announcementSectionCTA: 'Button',
-    announcementSectionMediaTiming: 'Media & Timing'
+    announcementSectionMediaTiming: 'Media & Timing',
+    liveOverrideSetOnServer: 'An override is saved on the server (hidden).'
   },
   es: {
     valMax120: 'Máx 120 caracteres',
@@ -314,7 +315,8 @@ const adminExtra = {
     announcementSectionContent: 'Contenido',
     announcementSectionStyle: 'Estilos',
     announcementSectionCTA: 'Botón',
-    announcementSectionMediaTiming: 'Duración e Imagen'
+    announcementSectionMediaTiming: 'Duración e Imagen',
+    liveOverrideSetOnServer: 'Hay un override guardado en el servidor (oculto).'
   }
 };
 
