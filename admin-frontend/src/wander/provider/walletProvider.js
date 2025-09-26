@@ -133,96 +133,53 @@ function adaptWindowProvider(raw) {
       }
 
       let signed = null;
-      const cached = win.localStorage ? win.localStorage.getItem(cacheKey) : null;
-      async function runCached(label) {
-        switch(label) {
-          case 'signMessage(Uint8Array)': return provider.signMessage(data);
-          case 'signMessage(ArrayBuffer)': return provider.signMessage(dataBuffer);
-          case 'signMessage(string)': return provider.signMessage(String(originalMessage));
-          case 'signMessage({message})': return provider.signMessage({ message: String(originalMessage) });
-          case 'signMessage({data})': return provider.signMessage({ data });
-          case 'signature({data},alg)': return provider.signature({ data }, { name:'RSA-PSS', saltLength:32 });
-          case 'signature(data,alg)': return provider.signature(data, { name:'RSA-PSS', saltLength:32 });
-          case 'signature(string,alg)': return provider.signature(String(originalMessage), { name:'RSA-PSS', saltLength:32 });
-          case 'signature({data})': return provider.signature({ data });
-          case 'signature(string)': return provider.signature(String(originalMessage));
-          case 'sign(string)': return provider.sign(String(originalMessage));
-        }
-        return null;
-      }
-      if (cached) {
-        try { if (debug) console.warn('[walletProvider] trying cached strategy', cached); signed = await runCached(cached); successLabel = cached; } catch { /* ignore cached failure */ }
+
+      if (!signed && typeof provider.signMessage === 'function') {
+        signed = await attempt('signMessage(ArrayBuffer)', () => provider.signMessage(dataBuffer));
+        if (signed) successLabel = 'signMessage(ArrayBuffer)';
       }
 
       if (!signed && typeof provider.signMessage === 'function') {
         signed = await attempt('signMessage(Uint8Array)', () => provider.signMessage(data));
         if (signed) successLabel = 'signMessage(Uint8Array)';
       }
+
       if (!signed && typeof provider.signMessage === 'function') {
-        signed = await attempt('signMessage(ArrayBuffer)', () => provider.signMessage(dataBuffer));
-        if (signed) successLabel = 'signMessage(ArrayBuffer)';
+        signed = await attempt('signMessage({data})', () => provider.signMessage({ data: dataBuffer }));
+        if (signed) successLabel = 'signMessage({data})';
       }
+
       if (!signed && typeof provider.signMessage === 'function') {
         signed = await attempt('signMessage(string)', () => provider.signMessage(String(originalMessage)));
         if (signed) successLabel = 'signMessage(string)';
       }
-      if (!signed && typeof provider.signMessage === 'function') {
-        signed = await attempt('signMessage({message})', () => provider.signMessage({ message: String(originalMessage) }));
-        if (signed) successLabel = 'signMessage({message})';
-      }
-      if (!signed && typeof provider.signMessage === 'function') {
-        signed = await attempt('signMessage({data})', () => provider.signMessage({ data }));
-        if (signed) successLabel = 'signMessage({data})';
-      }
 
-      if (!signed && typeof provider.signature === 'function') {
-        const algVariants = [ { name:'RSA-PSS', saltLength:0 }, { name:'RSA-PSS', saltLength:32 } ];
-        for (const alg of algVariants) {
-          if (signed) break;
-            signed = await attempt('signature({data},alg:'+alg.saltLength+')', () => provider.signature({ data }, alg)) || signed;
-            if (signed && !successLabel) successLabel = 'signature({data},alg)';
-            if (signed) break;
-            signed = await attempt('signature(data,alg:'+alg.saltLength+')', () => provider.signature(data, alg)) || signed;
-            if (signed && !successLabel) successLabel = 'signature(data,alg)';
-            if (signed) break;
-            signed = await attempt('signature(string,alg:'+alg.saltLength+')', () => provider.signature(String(originalMessage), alg)) || signed;
-            if (signed && !successLabel) successLabel = 'signature(string,alg)';
-        }
-      }
-
-      if (!signed && typeof provider.signature === 'function') {
-        signed = await attempt('signature({data})', () => provider.signature({ data }));
-        if (signed && !successLabel) successLabel = 'signature({data})';
-      }
-      if (!signed && typeof provider.signature === 'function') {
-        signed = await attempt('signature(string)', () => provider.signature(String(originalMessage)));
-        if (signed && !successLabel) successLabel = 'signature(string)';
-      }
-      if (!signed && typeof provider.sign === 'function') {
-        signed = await attempt('sign(string)', () => provider.sign(String(originalMessage)));
-        if (signed && !successLabel) successLabel = 'sign(string)';
-      }
       if (!signed) {
         win.__wanderDebug.lastSignatureAttempts = errors.slice();
-        throw new Error('Proveedor no soporta firma: '+errors.join(' | '));
+        throw new Error('Wander signMessage API failed: '+errors.join(' | '));
       }
-      const sigRaw = signed.signature || signed.sig || signed;
-      let ownerRaw = signed.owner || signed.publicKey || signed.pubkey || signed.key || signed.ownerPublicKey;
-      if (!ownerRaw) {
-        try { if (provider.getActivePublicKey) ownerRaw = await provider.getActivePublicKey(); } catch {}
-        if (!ownerRaw) { try { if (provider.getPublicKey) ownerRaw = await provider.getPublicKey(); } catch {} }
-        if (!ownerRaw) { try { if (provider.getOwner) ownerRaw = await provider.getOwner(); } catch {} }
-      }
+
+      const sigRaw = signed;
+      let ownerRaw = null;
+
+      try { if (provider.getActivePublicKey) ownerRaw = await provider.getActivePublicKey(); } catch {}
+      if (!ownerRaw) { try { if (provider.getPublicKey) ownerRaw = await provider.getPublicKey(); } catch {} }
+      if (!ownerRaw) { try { if (provider.getOwner) ownerRaw = await provider.getOwner(); } catch {} }
+
       const signature = typeof sigRaw === 'string' ? b64ToUrl(sigRaw) : bytesToB64Url(sigRaw);
       const publicKey = typeof ownerRaw === 'string' ? b64ToUrl(ownerRaw) : bytesToB64Url(ownerRaw);
-      if (!signature || !publicKey) throw new Error('Firma incompleta (faltan signature/publicKey)');
+
+      if (!signature || !publicKey) throw new Error('Incomplete signature (missing signature or publicKey)');
+
       if (successLabel && win.localStorage) {
         try { win.localStorage.setItem(cacheKey, successLabel); } catch {}
       }
+
       win.__wanderDebug.signatureSuccess = true;
       win.__wanderDebug.signatureErrors = errors.slice();
       win.__wanderDebug.successStrategy = successLabel;
       if (import.meta.env.DEV && debug) console.warn('[walletProvider] sign success via', successLabel, 'errors=', errors.length);
+
       return { signature, publicKey, strategy: successLabel, method: successLabel };
     }
   };

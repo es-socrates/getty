@@ -25,7 +25,7 @@ function addSriToHtml(htmlPath, rootDir) {
     return `<script ${newPre}src="${src}" integrity="${sri}" crossorigin="anonymous"${newPost}></script>`;
   });
   html = html.replace(/<(link)\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi, (m, tag, pre, href, post) => {
-    if (!/rel=["']stylesheet["']/i.test(m)) return m;
+    if (!/rel=["'](?:stylesheet|preload)["']/i.test(m)) return m;
     if (!href.startsWith('/')) return m;
     const cleanPath = href.split('?')[0];
     const fileFs = path.join(rootDir, cleanPath.replace(/^\//, ''));
