@@ -7,6 +7,7 @@ public/css/output.css
 public/index.html
 public/admin-dist/*
 public/min/*.js
+public/vendor/
 .DS_Store
 *.log
 language-settings.json

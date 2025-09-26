@@ -1252,10 +1252,38 @@ try {
     const POLL_MS = 30000;
     const jitter = () => Math.floor(Math.random() * 5000);
 
+    function extractChannelClaimIdFromUrl(url) {
+      try {
+        const u = new URL(url);
+        if (!/^https?:$/i.test(u.protocol)) return '';
+        if (!/^(www\.)?odysee\.com$/i.test(u.hostname)) return '';
+        const parts = u.pathname.split('/').filter(Boolean);
+        if (parts.length < 1) return '';
+        const channelPart = parts[0];
+        const m = channelPart.match(/@[^:]+:([^/]+)/i);
+        return m && m[1] ? m[1] : '';
+      } catch { return ''; }
+    }
+
     async function loadNsDraft(ns) {
+      try {
+        const { loadTenantConfig } = require('./lib/tenant-config');
+        const reqLike = { ns: { admin: ns } };
+        const loaded = await loadTenantConfig(reqLike, null,
+          path.join(process.cwd(), 'config', 'live-announcement-config.json'),
+          'live-announcement-config.json'
+        );
+        if (loaded && loaded.data) return loaded.data;
+      } catch {}
       try { return await store.get(ns, 'live-announcement-draft', null); } catch { return null; }
     }
     async function loadNsExtCfg(ns) {
+      try {
+        const { loadTenantConfig } = require('./lib/tenant-config');
+        const reqLike = { ns: { admin: ns } };
+        const loaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json');
+        if (loaded && loaded.data) return loaded.data;
+      } catch {}
       try {
         const raw = await store.get(ns, 'external-notifications-config', null);
         if (raw && typeof raw === 'object' && raw.__version && raw.data && typeof raw.data === 'object') return raw.data;
@@ -1263,6 +1291,18 @@ try {
       } catch { return null; }
     }
     async function loadNsClaim(ns) {
+      try {
+        const { loadTenantConfig } = require('./lib/tenant-config');
+        const reqLike = { ns: { admin: ns } };
+        const shLoaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'stream-history-config.json'), 'stream-history-config.json');
+        if (shLoaded && shLoaded.data && typeof shLoaded.data.claimid === 'string' && shLoaded.data.claimid.trim()) return shLoaded.data.claimid.trim();
+      } catch {}
+      try {
+        const { loadTenantConfig } = require('./lib/tenant-config');
+        const reqLike = { ns: { admin: ns } };
+        const lvLoaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'liveviews-config.json'), 'liveviews-config.json');
+        if (lvLoaded && lvLoaded.data && typeof lvLoaded.data.claimid === 'string' && lvLoaded.data.claimid.trim()) return lvLoaded.data.claimid.trim();
+      } catch {}
       try {
         const sh = await store.get(ns, 'stream-history-config', null);
         if (sh && typeof sh.claimid === 'string' && sh.claimid.trim()) return sh.claimid.trim();
@@ -1274,10 +1314,23 @@ try {
       return '';
     }
     async function getLastState() {
-      try { const j = await store.redis.get(LAST_STATE_KEY); return j ? JSON.parse(j) : {}; } catch { return {}; }
+      try {
+        const j = await store.redis.get(LAST_STATE_KEY);
+        const obj = j ? JSON.parse(j) : {};
+        console.warn('[auto-live] getLastState loaded', Object.keys(obj));
+        return obj;
+      } catch (e) {
+        console.error('[auto-live] getLastState failed', e?.message || e);
+        return {};
+      }
     }
     async function setLastState(obj) {
-      try { await store.redis.set(LAST_STATE_KEY, JSON.stringify(obj), 'EX', 24 * 3600); } catch {}
+      try {
+        await store.redis.set(LAST_STATE_KEY, JSON.stringify(obj), 'EX', 24 * 3600);
+        console.warn('[auto-live] setLastState saved', Object.keys(obj));
+      } catch (e) {
+        console.error('[auto-live] setLastState failed', e?.message || e);
+      }
     }
 
     async function pollHostedOnce() {
@@ -1289,11 +1342,16 @@ try {
           try {
 
             const draft = await loadNsDraft(ns);
+            let claim = await loadNsClaim(ns);
+            if (!claim && draft && draft.channelUrl) {
+              claim = extractChannelClaimIdFromUrl(draft.channelUrl);
+            }
             if (!draft || !draft.auto) {
+
               try { await store.redis.srem(AUTO_SET, ns); } catch {}
+              try { if (lastState && Object.prototype.hasOwnProperty.call(lastState, ns)) delete lastState[ns]; } catch {}
               continue;
             }
-            const claim = await loadNsClaim(ns);
             if (!claim) {
               console.warn('[auto-live] ns has auto enabled but no ClaimID configured', ns);
               continue;
@@ -1305,8 +1363,6 @@ try {
             const livePostClaimId = typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : null;
             const nowLive = livePostClaimId ? !!(activeClaimId && activeClaimId === livePostClaimId) : !!activeClaim;
             const prev = !!lastState[ns];
-            try { achievements.onLiveStatusSample(ns, nowLive, POLL_MS); } catch {}
-            lastState[ns] = nowLive;
             try { await store.redis.hset(LAST_POLL_KEY, ns, String(Date.now())); await store.redis.expire(LAST_POLL_KEY, 24 * 3600); } catch {}
             if (nowLive && !prev) {
 
@@ -1330,9 +1386,11 @@ try {
               };
               const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
 
+              console.warn('[auto-live] sending for ns', ns, 'hasAny', hasAny, 'cfg.liveDiscordWebhook', !!cfg.liveDiscordWebhook, 'payload.discordWebhook', !!payload.discordWebhook, 'lastState[ns]', lastState[ns]);
               if (hasAny) {
                 try {
                   const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
+                  console.warn('[auto-live] send result for ns', ns, 'sent', sent);
                   if (!sent) console.warn('[auto-live] sendLiveWithConfig returned false for ns', ns);
                 } catch (e) {
                   console.error('[auto-live] send failed for ns', ns, e?.message || e);
@@ -1340,11 +1398,21 @@ try {
               } else {
                 console.warn('[auto-live] no live targets configured for ns', ns);
               }
+
+              lastState[ns] = nowLive;
             }
-          } catch {}
+
+            if (!nowLive || prev !== nowLive) {
+              try { lastState[ns] = nowLive; } catch {}
+            }
+          } catch (e) {
+            console.error('[auto-live] error polling ns', ns, e?.message || e);
+          }
         }
         await setLastState(lastState);
-      } catch {}
+      } catch (e) {
+        console.error('[auto-live] pollHostedOnce error', e?.message || e);
+      }
     }
 
     setTimeout(() => { pollHostedOnce(); }, 5000 + jitter());
