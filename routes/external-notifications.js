@@ -41,23 +41,24 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       }
 
       const body = req.body || {};
+      const norm = (v) => (typeof v === 'string' ? v.trim() : undefined);
       const normalized = {
-        discordWebhook: typeof body.discordWebhook === 'string' && body.discordWebhook.trim() ? body.discordWebhook.trim() : undefined,
-        telegramBotToken: typeof body.telegramBotToken === 'string' && body.telegramBotToken.trim() ? body.telegramBotToken.trim() : undefined,
-        telegramChatId: typeof body.telegramChatId === 'string' && body.telegramChatId.trim() ? body.telegramChatId.trim() : undefined,
+        discordWebhook: norm(body.discordWebhook), // '' means clear
+        telegramBotToken: norm(body.telegramBotToken), // '' means clear
+        telegramChatId: norm(body.telegramChatId), // '' means clear
         template: typeof body.template === 'string' ? body.template : undefined,
-        liveDiscordWebhook: typeof body.liveDiscordWebhook === 'string' && body.liveDiscordWebhook.trim() ? body.liveDiscordWebhook.trim() : undefined,
-        liveTelegramBotToken: typeof body.liveTelegramBotToken === 'string' && body.liveTelegramBotToken.trim() ? body.liveTelegramBotToken.trim() : undefined,
-        liveTelegramChatId: typeof body.liveTelegramChatId === 'string' && body.liveTelegramChatId.trim() ? body.liveTelegramChatId.trim() : undefined
+        liveDiscordWebhook: norm(body.liveDiscordWebhook), // '' means clear
+        liveTelegramBotToken: norm(body.liveTelegramBotToken), // '' means clear
+        liveTelegramChatId: norm(body.liveTelegramChatId) // '' means clear
       };
       const schema = z.object({
-        discordWebhook: z.string().url().optional(),
-        telegramBotToken: z.string().optional(),
-        telegramChatId: z.string().optional(),
+        discordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
+        telegramBotToken: z.union([z.string(), z.literal('')]).optional(),
+        telegramChatId: z.union([z.string(), z.literal('')]).optional(),
         template: z.string().optional(),
-        liveDiscordWebhook: z.string().url().optional(),
-        liveTelegramBotToken: z.string().optional(),
-        liveTelegramChatId: z.string().optional()
+        liveDiscordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
+        liveTelegramBotToken: z.union([z.string(), z.literal('')]).optional(),
+        liveTelegramChatId: z.union([z.string(), z.literal('')]).optional()
       });
       const parsed = schema.safeParse(normalized);
       if (!parsed.success) return res.status(400).json({ success: false, error: 'Invalid payload' });
@@ -235,7 +236,6 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     }
 
   const status = externalNotifications.getStatus();
-  const allowRevealLocal = !shouldRequireSession;
   const sanitized = {
       active: !!status.active,
   lastTips: (hostedWithRedis || requireSessionFlag) && !hasNs ? [] : status.lastTips,
@@ -246,17 +246,17 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         hasTelegramBotToken: !!(externalNotifications.telegramBotToken),
         hasTelegramChatId: !!(externalNotifications.telegramChatId),
         template: status.config?.template || '',
-        discordWebhook: allowRevealLocal ? (externalNotifications.discordWebhook || '') : '',
-        telegramBotToken: allowRevealLocal ? (externalNotifications.telegramBotToken || '') : '',
-        telegramChatId: allowRevealLocal ? (externalNotifications.telegramChatId || '') : '',
+        discordWebhook: '',
+        telegramBotToken: '',
+        telegramChatId: '',
         hasLiveDiscord: !!status.config?.hasLiveDiscord,
         hasLiveTelegram: !!status.config?.hasLiveTelegram,
         hasLiveDiscordWebhook: !!status.config?.hasLiveDiscord,
         hasLiveTelegramBotToken: !!(externalNotifications.liveTelegramBotToken),
         hasLiveTelegramChatId: !!(externalNotifications.liveTelegramChatId),
-        liveDiscordWebhook: allowRevealLocal ? (externalNotifications.liveDiscordWebhook || '') : '',
-        liveTelegramBotToken: allowRevealLocal ? (externalNotifications.liveTelegramBotToken || '') : '',
-        liveTelegramChatId: allowRevealLocal ? (externalNotifications.liveTelegramChatId || '') : ''
+        liveDiscordWebhook: '',
+        liveTelegramBotToken: '',
+        liveTelegramChatId: ''
       },
       lastUpdated: status.lastUpdated
     };
@@ -302,6 +302,66 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     }
   });
 
+  app.get('/api/external-notifications/live/reveal', async (req, res) => {
+    try {
+      const field = String(req.query.field || 'discordWebhook').trim();
+      if (field !== 'discordWebhook') return res.status(400).json({ success: false, error: 'invalid_field' });
+
+      // Require session in hosted or require-session mode
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const shouldRequireSession = (requireSessionFlag || hosted) && !isOpenTestMode();
+      let ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (!ns && process.env.GETTY_TENANT_DEBUG === '1') {
+        try {
+          const ua = (req.get && req.get('user-agent')) || '';
+          const ip = (req.ip || req.connection?.remoteAddress || '') + '';
+          const seed = `${ua}::${ip}`.trim() || 'fallback';
+          const crypto = require('crypto');
+          const hash = crypto.createHash('sha1').update(seed).digest('hex').slice(0, 16);
+          ns = `__earlydbg_${hash}`;
+          if (!req.ns) req.ns = {}; req.ns.admin = ns;
+        } catch {}
+      }
+      if (shouldRequireSession && !ns) return res.status(401).json({ success: false, error: 'session_required' });
+
+      const requireAdminWrites = ((process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted) && !isOpenTestMode();
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin && process.env.GETTY_TENANT_DEBUG !== '1') return res.status(401).json({ success: false, error: 'admin_required' });
+      }
+
+      let value = '';
+      try {
+        if (ns) {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null,
+            path.join(process.cwd(), 'config', 'live-announcement-config.json'),
+            'live-announcement-config.json'
+          );
+          if (loaded && loaded.data && typeof loaded.data.discordWebhook === 'string') {
+            value = loaded.data.discordWebhook;
+          } else if (store) {
+            try {
+              const draft = await store.get(ns, 'live-announcement-draft', null);
+              if (draft && typeof draft.discordWebhook === 'string') value = draft.discordWebhook;
+            } catch {}
+          }
+        } else {
+          const fs = require('fs');
+          const file = path.join(process.cwd(), 'config', 'live-announcement-config.json');
+          if (fs.existsSync(file)) {
+            try { const draft = JSON.parse(fs.readFileSync(file, 'utf8')); if (draft && draft.discordWebhook) value = draft.discordWebhook; } catch {}
+          }
+        }
+      } catch {}
+
+      return res.json({ success: true, field, value });
+    } catch {
+      return res.status(500).json({ success: false, error: 'reveal_failed' });
+    }
+  });
+
   function extractClaimIdFromUrl(url) {
     try {
       const u = new URL(url);
@@ -333,12 +393,15 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         channelUrl: z.string().url().optional(),
         imageUrl: z.string().url().or(z.string().regex(/^\/(?:uploads\/live-announcements\/).+/)).optional(),
         signature: z.string().max(80).optional(),
-        discordWebhook: z.string().url().optional(),
+        discordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
         livePostClaimId: z.string().min(1).max(80).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
       const payload = parsed.data;
+      if (Object.prototype.hasOwnProperty.call(payload, 'discordWebhook') && payload.discordWebhook === '') {
+        delete payload.discordWebhook; // treat empty as clearing override for this call
+      }
 
       try {
         if (payload.livePostClaimId && payload.channelUrl) {
@@ -478,6 +541,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       });
       const parsed = schema.safeParse(req.body || {});
       let payload = parsed.success ? parsed.data : {};
+      if (payload && Object.prototype.hasOwnProperty.call(payload, 'discordWebhook') && payload.discordWebhook === '') {
+        delete payload.discordWebhook; // treat empty as clearing override for test call
+      }
 
       let draft = null;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -616,13 +682,18 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         channelUrl: z.string().url().optional(),
         imageUrl: z.string().url().or(z.string().regex(/^\/(?:uploads\/live-announcements\/).+/)).optional(),
         signature: z.string().max(80).optional(),
-        discordWebhook: z.string().url().optional(),
+        discordWebhook: z.union([z.string().url(), z.literal('')]).optional(),
         auto: z.boolean().optional(),
         livePostClaimId: z.string().min(1).max(80).optional()
       });
       const parsed = schema.safeParse(req.body || {});
       if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
       const data = parsed.data || {};
+
+      const clientIncludedDiscord = Object.prototype.hasOwnProperty.call(req.body || {}, 'discordWebhook');
+      if (clientIncludedDiscord && (!data.discordWebhook || data.discordWebhook === '')) {
+        data.discordWebhook = '';
+      }
 
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       if (ns || (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)) {
@@ -700,7 +771,6 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         const ns = req?.ns?.admin || req?.ns?.pub || null;
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
       }
-      const hostedWithRedis = !!process.env.REDIS_URL;
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       let draft = null; let meta = null;
       if (ns) {
@@ -745,7 +815,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         channelUrl: draft.channelUrl || '',
         imageUrl: draft.imageUrl || '',
         signature: draft.signature || '',
-        discordWebhook: (hostedWithRedis ? '' : (draft.discordWebhook || '')),
+        discordWebhook: '',
         hasDiscordOverride: !!draft.discordWebhook,
         auto: !!draft.auto,
         livePostClaimId: typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : ''
@@ -975,7 +1045,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!draft && store && ns) {
         try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
       }
-      let ext = null;
+  let ext = null;
       if (ns) {
         try {
           const reqLike = { ns: { admin: ns } };
@@ -986,7 +1056,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!ext && store && ns) {
         try { ext = await store.get(ns, 'external-notifications-config', null); } catch {}
       }
-      const hasDiscord = !!(ext?.liveDiscordWebhook);
+  const hasDiscord = !!(ext?.liveDiscordWebhook);
       const hasTelegram = !!(ext?.liveTelegramBotToken && ext?.liveTelegramChatId);
       const hasDiscordOverride = !!(draft && typeof draft.discordWebhook === 'string' && draft.discordWebhook.trim());
       const hasAnyLiveTarget = !!(hasDiscord || hasTelegram || hasDiscordOverride);
@@ -998,6 +1068,62 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         try { const u = new URL(channelUrl); return /^https?:$/i.test(u.protocol) && /^(www\.)?odysee\.com$/i.test(u.hostname); } catch { return false; }
       })();
       const claimFromUrl = channelUrl ? extractClaimIdFromUrl(channelUrl) : '';
+      let claimFromConfig = '';
+      try {
+        const reqLike = { ns: { admin: ns } };
+        const shLoaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'stream-history-config.json'), 'stream-history-config.json');
+        if (shLoaded && shLoaded.data && typeof shLoaded.data.claimid === 'string' && shLoaded.data.claimid.trim()) claimFromConfig = shLoaded.data.claimid.trim();
+      } catch {}
+      if (!claimFromConfig) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const lvLoaded = await loadTenantConfig(reqLike, null, path.join(process.cwd(), 'config', 'liveviews-config.json'), 'liveviews-config.json');
+          if (lvLoaded && lvLoaded.data && typeof lvLoaded.data.claimid === 'string' && lvLoaded.data.claimid.trim()) claimFromConfig = lvLoaded.data.claimid.trim();
+        } catch {}
+      }
+      if (!claimFromConfig && store && ns) {
+        try { const sh = await store.get(ns, 'stream-history-config', null); if (sh && typeof sh.claimid === 'string' && sh.claimid.trim()) claimFromConfig = sh.claimid.trim(); } catch {}
+        if (!claimFromConfig) { try { const lv = await store.get(ns, 'liveviews-config', null); if (lv && typeof lv.claimid === 'string' && lv.claimid.trim()) claimFromConfig = lv.claimid.trim(); } catch {} }
+      }
+      let resolvedChannelClaimId = '';
+      try {
+        const axios = require('axios');
+        const parse = (url) => {
+          try {
+            const u = new URL(url);
+            if (!/^https?:$/i.test(u.protocol)) return { name: '', short: '' };
+            if (!/^(www\.)?odysee\.com$/i.test(u.hostname)) return { name: '', short: '' };
+            const parts = u.pathname.split('/').filter(Boolean);
+            if (!parts.length) return { name: '', short: '' };
+            const m = parts[0].match(/^@([^:]+):?([^/]*)/i);
+            if (!m) return { name: '', short: '' };
+            return { name: m[1] || '', short: m[2] || '' };
+          } catch { return { name: '', short: '' }; }
+        };
+        if (channelUrl) {
+          const { name, short } = parse(channelUrl);
+          if (name) {
+            const lbry = `lbry://@${name}${short ? ('#' + short) : ''}`;
+            try {
+              const r = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', { method: 'resolve', params: { urls: [lbry] } }, { timeout: 5000 });
+              const result = r?.data?.result || r?.data?.data?.result || {};
+              const entry = result[lbry];
+              const cid = entry?.value?.claim_id || entry?.claim_id || '';
+              if (cid && /^[a-f0-9]{40}$/i.test(cid)) resolvedChannelClaimId = cid;
+            } catch {}
+          }
+        }
+        if (!resolvedChannelClaimId && claimFromConfig) {
+          try {
+            const r2 = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', { method: 'claim_search', params: { claim_ids: [claimFromConfig], no_totals: true, page_size: 1 } }, { timeout: 5000 });
+            const items = r2?.data?.result?.items || r2?.data?.data?.result?.items || [];
+            const it = Array.isArray(items) && items[0] ? items[0] : null;
+            const ch = it?.signing_channel || it?.publisher || it?.value?.signing_channel || null;
+            const cid = ch?.claim_id || ch?.claimId || '';
+            if (cid && /^[a-f0-9]{40}$/i.test(cid)) resolvedChannelClaimId = cid;
+          } catch {}
+        }
+      } catch {}
       const livePostClaimId = (draft && typeof draft.livePostClaimId === 'string' && draft.livePostClaimId.trim()) ? draft.livePostClaimId.trim() : '';
       const claimMatch = (function() {
         try {
@@ -1023,7 +1149,8 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         ogCandidate,
         livePostClaimId,
         claimFromUrl,
-        claimMatch
+        claimMatch,
+        resolvedChannelClaimId
       });
     } catch (e) {
       res.json({ ok: false, error: e?.message || String(e) });

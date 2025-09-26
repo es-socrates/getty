@@ -585,15 +585,21 @@ async function save() {
   try {
     saving.value = true;
 
-    const payload = {
-      discordWebhook: (form.value.discordWebhook || '').trim() || undefined,
-      telegramBotToken: (form.value.telegramBotToken || '').trim() || undefined,
-      telegramChatId: (form.value.telegramChatId || '').trim() || undefined,
-      template: (form.value.template || '').toString(),
-      liveDiscordWebhook: (form.value.liveDiscordWebhook || '').trim() || undefined,
-      liveTelegramBotToken: (form.value.liveTelegramBotToken || '').trim() || undefined,
-      liveTelegramChatId: (form.value.liveTelegramChatId || '').trim() || undefined,
+    const secretOrEmpty = (val) => {
+      if (val === MASK) return undefined;
+      const trimmed = (val || '').trim();
+      return trimmed === '' ? '' : trimmed;
     };
+    const payload = {
+      discordWebhook: secretOrEmpty(form.value.discordWebhook),
+      telegramBotToken: secretOrEmpty(form.value.telegramBotToken),
+      telegramChatId: secretOrEmpty(form.value.telegramChatId),
+      template: (form.value.template || '').toString(),
+      liveDiscordWebhook: secretOrEmpty(form.value.liveDiscordWebhook),
+      liveTelegramBotToken: secretOrEmpty(form.value.liveTelegramBotToken),
+      liveTelegramChatId: secretOrEmpty(form.value.liveTelegramChatId),
+    };
+
     Object.keys(payload).forEach((k) => {
       if (payload[k] === MASK || payload[k] === undefined) delete payload[k];
     });
