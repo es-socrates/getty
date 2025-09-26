@@ -110,6 +110,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
           const reqLike = { ns: { admin: ns } };
           const saved = await saveTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json', merged);
           if (saved && saved.meta) meta = { __version: saved.meta.__version, checksum: saved.meta.checksum, updatedAt: saved.meta.updatedAt, source: 'tenant-disk' };
+          if (store && ns) {
+            await store.set(ns, 'external-notifications-config', merged);
+          }
         } catch (e) { console.error('Error saving external notifications config:', e); return res.status(500).json({ success:false, error:'save_failed' }); }
       } else if (store) {
         await store.set(ns, 'external-notifications-config', merged);
@@ -630,6 +633,9 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
             'live-announcement-config.json',
             data
           );
+          if (store && ns) {
+            await store.set(ns, 'live-announcement-draft', data);
+          }
 
           try {
             if (store && store.redis && typeof data.auto === 'boolean') {
@@ -944,8 +950,42 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const LAST_POLL_KEY = 'getty:auto-live:lastpoll';
       const inSet = await store.redis.sismember(AUTO_SET, ns);
       const lastPoll = await store.redis.hget(LAST_POLL_KEY, ns);
-      const draft = await store.get(ns, 'live-announcement-draft', null);
-      const ext = await store.get(ns, 'external-notifications-config', null);
+
+      let prevLive = null;
+      try {
+        const lastStateRaw = await store.redis.get('getty:auto-live:laststate');
+        if (lastStateRaw) {
+          const obj = JSON.parse(lastStateRaw);
+          if (Object.prototype.hasOwnProperty.call(obj || {}, ns)) {
+            prevLive = !!obj[ns];
+          }
+        }
+      } catch {}
+      let draft = null;
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null,
+            path.join(process.cwd(), 'config', 'live-announcement-config.json'),
+            'live-announcement-config.json'
+          );
+          if (loaded && loaded.data) draft = loaded.data;
+        } catch {}
+      }
+      if (!draft && store && ns) {
+        try { draft = await store.get(ns, 'live-announcement-draft', null); } catch {}
+      }
+      let ext = null;
+      if (ns) {
+        try {
+          const reqLike = { ns: { admin: ns } };
+          const loaded = await loadTenantConfig(reqLike, null, GLOBAL_EXT_NOTIF_PATH, 'external-notifications-config.json');
+          if (loaded && loaded.data) ext = loaded.data;
+        } catch {}
+      }
+      if (!ext && store && ns) {
+        try { ext = await store.get(ns, 'external-notifications-config', null); } catch {}
+      }
       const hasDiscord = !!(ext?.liveDiscordWebhook);
       const hasTelegram = !!(ext?.liveTelegramBotToken && ext?.liveTelegramChatId);
       const hasDiscordOverride = !!(draft && typeof draft.discordWebhook === 'string' && draft.discordWebhook.trim());
@@ -973,6 +1013,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
         autoEnabled: !!draft?.auto,
         registered: inSet === 1 || inSet === true,
         lastPoll: lastPoll ? Number(lastPoll) : null,
+        lastKnownLive: prevLive,
         hasDiscord,
         hasTelegram,
         hasDiscordOverride,
@@ -1055,6 +1096,32 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
     } catch (e) {
       console.error('[live/clear-override] error', e?.message || e);
       res.status(500).json({ success: false, error: 'internal_error' });
+    }
+  });
+
+  app.post('/api/external-notifications/live/reset-state', limiter, async (req, res) => {
+    try {
+      const hosted = !!process.env.REDIS_URL;
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      if (!hosted || !store || !store.redis) return res.status(400).json({ success: false, error: 'not_hosted' });
+      if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
+      }
+      try {
+        const key = 'getty:auto-live:laststate';
+        const raw = await store.redis.get(key);
+        let obj = raw ? JSON.parse(raw) : {};
+        if (obj && Object.prototype.hasOwnProperty.call(obj, ns)) delete obj[ns];
+        await store.redis.set(key, JSON.stringify(obj), 'EX', 24 * 3600);
+        try { console.warn('[auto-live] reset-state for ns', ns); } catch {}
+        return res.json({ success: true });
+      } catch (e) {
+        return res.status(500).json({ success: false, error: 'reset_failed', details: e?.message || String(e) });
+      }
+    } catch (e) {
+      return res.status(500).json({ success: false, error: 'internal_error', details: e?.message || String(e) });
     }
   });
 }
