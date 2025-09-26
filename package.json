@@ -74,6 +74,7 @@
     "@vitejs/plugin-vue": "^5.1.0",
     "@vue/eslint-config-standard": "^9.0.1",
     "@vue/test-utils": "^2.4.6",
+    "arconnect": "^1.0.4",
     "autoprefixer": "^10.4.21",
     "axios-mock-adapter": "^2.1.0",
     "cross-env": "^10.0.0",

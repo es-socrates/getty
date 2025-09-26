@@ -1409,7 +1409,7 @@ try {
             });
             const activeClaim = resp?.data?.data?.ActiveClaim;
             const activeClaimId = activeClaim?.ClaimID;
-            // Channel-level detection: consider live if any active claim is present
+
             const nowLive = !!resp?.data?.data?.Live;
             if (__verboseAuto) {
               try {
@@ -1455,7 +1455,7 @@ try {
                 console.warn('[auto-live] no live targets configured for ns', ns);
               }
             }
-            // Always update lastState, but avoid startup burst by not sending when no previous entry exists
+
             try { lastState[ns] = nowLive; } catch {}
           } catch (e) {
             try {
@@ -2459,7 +2459,8 @@ try {
         'raffle-config.json',
         'achievements-config.json',
         'chat-config.json',
-        'liveviews-config.json'
+        'liveviews-config.json',
+        'external-notifications-config.json'
       ];
 
       const globalPaths = {
@@ -2470,7 +2471,8 @@ try {
         'raffle-config.json': path.join(process.cwd(), 'config', 'raffle-config.json'),
         'achievements-config.json': path.join(process.cwd(), 'config', 'achievements-config.json'),
         'chat-config.json': path.join(process.cwd(), 'config', 'chat-config.json'),
-        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json')
+        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json'),
+        'external-notifications-config.json': path.join(process.cwd(), 'config', 'external-notifications-config.json')
       };
 
       const exportData = {
@@ -2527,7 +2529,8 @@ try {
         'raffle-config.json',
         'achievements-config.json',
         'chat-config.json',
-        'liveviews-config.json'
+        'liveviews-config.json',
+        'external-notifications-config.json'
       ];
 
       const globalPaths = {
@@ -2538,7 +2541,8 @@ try {
         'raffle-config.json': path.join(process.cwd(), 'config', 'raffle-config.json'),
         'achievements-config.json': path.join(process.cwd(), 'config', 'achievements-config.json'),
         'chat-config.json': path.join(process.cwd(), 'config', 'chat-config.json'),
-        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json')
+        'liveviews-config.json': path.join(process.cwd(), 'config', 'liveviews-config.json'),
+        'external-notifications-config.json': path.join(process.cwd(), 'config', 'external-notifications-config.json')
       };
 
       const results = {};
@@ -3019,13 +3023,42 @@ app.get('/api/modules', async (req, res) => {
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }); }
     })(),
-    externalNotifications: (() => {
+    externalNotifications: (async () => {
       try {
         const st = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus() || {}) : {};
         const cfg = st.config || {};
+
+        let tenantConfigured = false;
+        if (ns) {
+          try {
+
+            const { loadTenantConfig } = require('./lib/tenant-config');
+            const reqLike = { ns: { admin: ns } };
+            const loaded = await loadTenantConfig(reqLike, store, path.join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json');
+            
+            if (loaded && loaded.data) {
+              const data = loaded.data;
+              if (data.discordWebhook || data.telegramBotToken || data.liveDiscordWebhook || data.liveTelegramBotToken) {
+                tenantConfigured = true;
+
+                Object.assign(cfg, {
+                  hasDiscord: !!(data.discordWebhook || cfg.hasDiscord),
+                  hasTelegram: !!((data.telegramBotToken && data.telegramChatId) || cfg.hasTelegram),
+                  hasLiveDiscord: !!(data.liveDiscordWebhook || cfg.hasLiveDiscord),
+                  hasLiveTelegram: !!((data.liveTelegramBotToken && data.liveTelegramChatId) || cfg.hasLiveTelegram)
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('[DEBUG] Error checking tenant config:', e.message);
+          }
+        } else {
+          console.warn('[DEBUG] No ns available');
+        }
+
         const out = {
           active: !!st.active,
-          configured: !!(cfg.hasDiscord || cfg.hasTelegram || cfg.hasLiveDiscord || cfg.hasLiveTelegram),
+          configured: !!(cfg.hasDiscord || cfg.hasTelegram || cfg.hasLiveDiscord || cfg.hasLiveTelegram || tenantConfigured),
           lastTips: Array.isArray(st.lastTips) ? st.lastTips : [],
           config: {
             hasDiscord: !!cfg.hasDiscord,
@@ -3036,7 +3069,9 @@ app.get('/api/modules', async (req, res) => {
           }
         };
         return out;
-      } catch { return { active: false, configured: false, lastTips: [], config: { hasDiscord: false, hasTelegram: false, hasLiveDiscord: false, hasLiveTelegram: false, template: '' } }; }
+      } catch {
+        return { active: false, configured: false, lastTips: [], config: { hasDiscord: false, hasTelegram: false, hasLiveDiscord: false, hasLiveTelegram: false, template: '' } };
+      }
     })(),
     tipWidget: (() => {
       try {
