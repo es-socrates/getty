@@ -307,7 +307,6 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const field = String(req.query.field || 'discordWebhook').trim();
       if (field !== 'discordWebhook') return res.status(400).json({ success: false, error: 'invalid_field' });
 
-      // Require session in hosted or require-session mode
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const shouldRequireSession = (requireSessionFlag || hosted) && !isOpenTestMode();
@@ -400,7 +399,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       if (!parsed.success) return res.status(400).json({ success: false, error: 'invalid_payload' });
       const payload = parsed.data;
       if (Object.prototype.hasOwnProperty.call(payload, 'discordWebhook') && payload.discordWebhook === '') {
-        delete payload.discordWebhook; // treat empty as clearing override for this call
+        delete payload.discordWebhook;
       }
 
       try {
@@ -542,7 +541,7 @@ function registerExternalNotificationsRoutes(app, externalNotifications, limiter
       const parsed = schema.safeParse(req.body || {});
       let payload = parsed.success ? parsed.data : {};
       if (payload && Object.prototype.hasOwnProperty.call(payload, 'discordWebhook') && payload.discordWebhook === '') {
-        delete payload.discordWebhook; // treat empty as clearing override for test call
+        delete payload.discordWebhook;
       }
 
       let draft = null;

@@ -1032,7 +1032,7 @@ if (!store || !store.redis) try {
       let reqCtx = (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)
         ? { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH }
         : {};
-      let claim = '';
+  let claim = '';
       try {
         const shWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'stream-history-config.json'), 'stream-history-config.json');
         const c = shWrap && shWrap.data ? shWrap.data : {};
@@ -1045,8 +1045,47 @@ if (!store || !store.redis) try {
           if (typeof lv.claimid === 'string' && lv.claimid.trim()) claim = lv.claimid.trim();
         } catch {}
       }
+
+      const cfgWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
+      let draft = cfgWrap?.data || null;
+      if (!claim && draft && typeof draft.channelUrl === 'string' && draft.channelUrl.trim()) {
+        try {
+          const { name, short } = (function __parse(u) { try { const url = new URL(u); if (!/^https?:$/i.test(url.protocol)) return { name:'', short:'' }; if (!/^(www\.)?odysee\.com$/i.test(url.hostname)) return { name:'', short:'' }; const parts = url.pathname.split('/').filter(Boolean); if (!parts.length) return { name:'', short:'' }; const m = parts[0].match(/^@([^:]+):?([^/]*)/i); return m ? { name: m[1]||'', short: m[2]||'' } : { name:'', short:'' }; } catch { return { name:'', short:'' }; } })(draft.channelUrl.trim());
+          if (name) {
+            const lbry = `lbry://@${name}${short ? ('#' + short) : ''}`;
+            try {
+              const r = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', { method: 'resolve', params: { urls: [lbry] } }, { timeout: 7000 });
+              const result = r?.data?.result || r?.data?.data?.result || {};
+              const entry = result[lbry];
+              const cid = entry?.value?.claim_id || entry?.claim_id || '';
+              if (cid && /^[a-f0-9]{40}$/i.test(cid)) claim = cid;
+            } catch {}
+            if (!claim) {
+              try {
+                const r2 = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', { method: 'claim_search', params: { name: `@${name}`, claim_type: 'channel', page_size: 1, no_totals: true } }, { timeout: 7000 });
+                const items = r2?.data?.result?.items || r2?.data?.data?.result?.items || [];
+                const first = Array.isArray(items) && items[0] ? items[0] : null;
+                const cid = first?.claim_id || '';
+                if (cid && /^[a-f0-9]{40}$/i.test(cid)) claim = cid;
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+
+      const livePostClaimId = typeof draft?.livePostClaimId === 'string' ? draft.livePostClaimId : null;
+      if (!claim && livePostClaimId) {
+        try {
+          const r = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', { method: 'claim_search', params: { claim_ids: [livePostClaimId], page_size: 1, no_totals: true } }, { timeout: 7000 });
+          const items = r?.data?.result?.items || r?.data?.data?.result?.items || [];
+          const it = Array.isArray(items) && items[0] ? items[0] : null;
+          const channel = it?.signing_channel || it?.publisher || it?.value?.signing_channel || null;
+          const cid = channel?.claim_id || channel?.claimId || '';
+          if (cid && /^[a-f0-9]{40}$/i.test(cid)) claim = cid;
+        } catch {}
+      }
       if (!claim) {
-        console.warn('[auto-live][local] no ClaimID configured; skipping poll');
+        console.warn('[auto-live][local] no ClaimID configured or resolvable; skipping poll');
         return;
       }
       console.warn('[auto-live][local] using claimId', claim.slice(0,8)+'…');
@@ -1056,20 +1095,14 @@ if (!store || !store.redis) try {
         lastLive = null;
       }
 
-      const cfgWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
-      let draft = cfgWrap?.data || null;
       if (!draft || !draft.auto) return;
-      const livePostClaimId = typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : null;
-      if (!livePostClaimId) {
-        if (__verboseAuto) try { console.warn('[auto-live][local] no livePostClaimId configured', { claim }); } catch {}
-        return;
-      }
 
-      const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
-      const resp = await axios.get(url, { timeout: 7000 });
-      const activeClaim = resp?.data?.data?.ActiveClaim;
-      const activeClaimId = activeClaim?.ClaimID;
-      const nowLive = !!(activeClaimId && activeClaimId === livePostClaimId);
+  const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
+  const resp = await axios.get(url, { timeout: 7000 });
+  const activeClaim = resp?.data?.data?.ActiveClaim;
+  const activeClaimId = activeClaim?.ClaimID;
+
+  const nowLive = !!resp?.data?.data?.Live;
       const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
 
       console.warn('[auto-live][local] API response', { claim, activeClaimId, livePostClaimId, nowLive, viewerCount });      try {
@@ -1086,67 +1119,12 @@ if (!store || !store.redis) try {
         if (!nowLive && isOpen) await recordHistoryEvent(false);
       } catch {}
 
-      if (lastLive === null) {
-        lastLive = nowLive;
-        if (nowLive === true) {
-          const payload = {
-            title: typeof draft.title === 'string' ? draft.title : undefined,
-            description: typeof draft.description === 'string' ? draft.description : undefined,
-            channelUrl: typeof draft.channelUrl === 'string' ? draft.channelUrl : undefined,
-            signature: typeof draft.signature === 'string' ? draft.signature : undefined,
-            discordWebhook: typeof draft.discordWebhook === 'string' ? draft.discordWebhook : undefined
-          };
-          Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
-
-          try {
-            const statusCfg = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus().config || {}) : {};
-            let tenantExt = {};
-            try {
-              const extWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'external-notifications-config.json'), 'external-notifications-config.json');
-              tenantExt = extWrap?.data || {};
-            } catch {}
-            const cfg = {
-              ...statusCfg,
-              ...tenantExt,
-              liveDiscordWebhook: (tenantExt.liveDiscordWebhook || externalNotifications?.liveDiscordWebhook || ''),
-              liveTelegramBotToken: (tenantExt.liveTelegramBotToken || externalNotifications?.liveTelegramBotToken || ''),
-              liveTelegramChatId: (tenantExt.liveTelegramChatId || externalNotifications?.liveTelegramChatId || '')
-            };
-            const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
-            if (hasAny) {
-              try {
-                const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
-                console.warn('[auto-live][local] attempted send', {
-                  claim,
-                  sent,
-                  nowLive,
-                  prev: lastLive,
-                  hasAny,
-                  override: !!payload.discordWebhook,
-                  globalDiscord: !!cfg.liveDiscordWebhook,
-                  globalTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId)
-                });
-              } catch (e) {
-                console.error('[auto-live][local] send error', e?.message || e);
-              }
-            } else if (__verboseAuto) {
-              try { console.warn('[auto-live][local] no live targets configured', {
-                claim,
-                hasAny,
-                override: !!payload.discordWebhook,
-                globalDiscord: !!cfg.liveDiscordWebhook,
-                globalTelegram: !!(cfg.liveTelegramBotToken && cfg.liveTelegramChatId)
-              }); } catch {}
-            }
-          } catch {}
-        }
-        if (__verboseAuto) try { console.warn('[auto-live][local] initialize state', { claim, nowLive }); } catch {}
-      } else if (nowLive !== lastLive) {
+      if (nowLive !== lastLive || lastLive === null) {
         const prev = lastLive;
         await recordHistoryEvent(nowLive);
 
         try {
-          if (nowLive === true && prev === false) {
+          if (nowLive === true && (prev === false || prev === null)) {
             const payload = {
               title: typeof draft.title === 'string' ? draft.title : undefined,
               description: typeof draft.description === 'string' ? draft.description : undefined,
@@ -1431,17 +1409,18 @@ try {
             });
             const activeClaim = resp?.data?.data?.ActiveClaim;
             const activeClaimId = activeClaim?.ClaimID;
-            const livePostClaimId = typeof draft.livePostClaimId === 'string' ? draft.livePostClaimId : null;
-            const nowLive = livePostClaimId ? !!(activeClaimId && activeClaimId === livePostClaimId) : !!activeClaim;
+            // Channel-level detection: consider live if any active claim is present
+            const nowLive = !!resp?.data?.data?.Live;
             if (__verboseAuto) {
               try {
                 const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : undefined;
                 console.warn('[auto-live] poll result', { ns, activeClaimId: activeClaimId ? (activeClaimId.slice(0,8)+'…') : null, nowLive, viewerCount });
               } catch {}
             }
-            const prev = !!lastState[ns];
+            const hasPrev = Object.prototype.hasOwnProperty.call(lastState || {}, ns);
+            const prev = hasPrev ? !!lastState[ns] : null;
             try { await store.redis.hset(LAST_POLL_KEY, ns, String(Date.now())); await store.redis.expire(LAST_POLL_KEY, 24 * 3600); } catch {}
-            if (nowLive && !prev) {
+            if (hasPrev && prev === false && nowLive === true) {
 
               const payload = {
                 title: typeof draft.title === 'string' ? draft.title : undefined,
@@ -1463,7 +1442,7 @@ try {
               };
               const hasAny = !!(cfg.liveDiscordWebhook || (cfg.liveTelegramBotToken && cfg.liveTelegramChatId) || payload.discordWebhook);
 
-              console.warn('[auto-live] sending for ns', ns, 'hasAny', hasAny, 'cfg.liveDiscordWebhook', !!cfg.liveDiscordWebhook, 'payload.discordWebhook', !!payload.discordWebhook, 'lastState[ns]', lastState[ns]);
+              console.warn('[auto-live] sending for ns', ns, 'hasAny', hasAny, 'cfg.liveDiscordWebhook', !!cfg.liveDiscordWebhook, 'payload.discordWebhook', !!payload.discordWebhook, 'prev', prev);
               if (hasAny) {
                 try {
                   const sent = await externalNotifications.sendLiveWithConfig(cfg, payload);
@@ -1475,13 +1454,9 @@ try {
               } else {
                 console.warn('[auto-live] no live targets configured for ns', ns);
               }
-
-              lastState[ns] = nowLive;
             }
-
-            if (!nowLive || prev !== nowLive) {
-              try { lastState[ns] = nowLive; } catch {}
-            }
+            // Always update lastState, but avoid startup burst by not sending when no previous entry exists
+            try { lastState[ns] = nowLive; } catch {}
           } catch (e) {
             try {
               const status = e?.response?.status;
@@ -3044,6 +3019,25 @@ app.get('/api/modules', async (req, res) => {
         return sanitizeIfNoNs(merged);
       } catch { return sanitizeIfNoNs({ ...lastTip.getStatus(), ...lastTipColors }); }
     })(),
+    externalNotifications: (() => {
+      try {
+        const st = (typeof externalNotifications?.getStatus === 'function') ? (externalNotifications.getStatus() || {}) : {};
+        const cfg = st.config || {};
+        const out = {
+          active: !!st.active,
+          configured: !!(cfg.hasDiscord || cfg.hasTelegram || cfg.hasLiveDiscord || cfg.hasLiveTelegram),
+          lastTips: Array.isArray(st.lastTips) ? st.lastTips : [],
+          config: {
+            hasDiscord: !!cfg.hasDiscord,
+            hasTelegram: !!cfg.hasTelegram,
+            hasLiveDiscord: !!cfg.hasLiveDiscord,
+            hasLiveTelegram: !!cfg.hasLiveTelegram,
+            template: typeof cfg.template === 'string' ? cfg.template : ''
+          }
+        };
+        return out;
+      } catch { return { active: false, configured: false, lastTips: [], config: { hasDiscord: false, hasTelegram: false, hasLiveDiscord: false, hasLiveTelegram: false, template: '' } }; }
+    })(),
     tipWidget: (() => {
       try {
         const base = tipWidget.getStatus?.() || {};
@@ -3216,31 +3210,17 @@ app.get('/api/modules', async (req, res) => {
     })(),
     socialmedia: (async () => {
       try {
-        let cfg = null;
+        let items = null;
         if (store && ns) {
-          try { cfg = await store.getConfig(ns, 'socialmedia-config.json', null) || await store.get(ns, 'socialmedia-config', null); } catch { cfg = null; }
+          try { items = await store.getConfig(ns, 'socialmedia-config.json', null) || await store.get(ns, 'socialmedia-config', null); } catch { items = null; }
         }
-        if (!cfg) {
-          try { cfg = socialMediaModule.loadConfig(); } catch { cfg = null; }
+        if (!items) {
+          try { items = socialMediaModule.loadConfig?.(); } catch { items = null; }
         }
-        const count = Array.isArray(cfg) ? cfg.length : (cfg && typeof cfg === 'object' ? Object.keys(cfg).length : 0);
-        return { configured: !!cfg, entries: count };
+        const arr = Array.isArray(items) ? items : (Array.isArray(items?.data) ? items.data : []);
+        const count = Array.isArray(arr) ? arr.length : 0;
+        return { configured: count > 0, entries: count };
       } catch { return { configured: false, entries: 0 }; }
-    })(),
-    externalNotifications: (() => {
-      const st = externalNotifications.getStatus();
-      const hasDiscord = !!st.config?.hasDiscord;
-      const hasTelegram = !!st.config?.hasTelegram;
-      const hasLiveDiscord = !!st.config?.hasLiveDiscord;
-      const hasLiveTelegram = !!st.config?.hasLiveTelegram;
-      const configured = hasDiscord || hasTelegram || hasLiveDiscord || hasLiveTelegram || !!(st.config?.template && st.config.template !== '');
-      return {
-        active: !!st.active,
-        configured,
-        lastTips: st.lastTips,
-        config: { hasDiscord, hasTelegram, hasLiveDiscord, hasLiveTelegram, template: st.config?.template || '' },
-        lastUpdated: st.lastUpdated
-      };
     })(),
   liveviews: (async () => {
       try {
