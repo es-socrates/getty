@@ -22,7 +22,7 @@ class ChatNsManager {
     this.CACHE_TTL_MS = 60 * 60 * 1000;
     this.__msgCounters = new Map();
     this.__starting = new Set();
-    this.__lastMsgSig = new Map(); // ns -> { sig, ts }
+    this.__lastMsgSig = new Map();
   }
 
   _broadcast(ns, payload) {
@@ -64,7 +64,6 @@ class ChatNsManager {
 
   await this.stop(ns);
 
-    // Basic diagnostics for connection target
     try {
       const u = new URL(url);
       const id = u.searchParams.get('id') || '';
@@ -91,7 +90,7 @@ class ChatNsManager {
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
       try { console.warn('[chat-ns] error', { ns: (ns||'').slice(0,6) + '…', error: err && err.message ? err.message : String(err), code: err && err.code }); } catch {}
     });
-    // Capture HTTP details when the upgrade is rejected (e.g., 400)
+
     try {
       ws.on('unexpected-response', (_req, res) => {
         try {
@@ -262,7 +261,6 @@ class ChatNsManager {
         }
       } catch {}
 
-      // De-dup guard: avoid flooding if upstream sends duplicates rapidly
       try {
         const sig = `${chatMessage.userId}|${chatMessage.timestamp}|${(chatMessage.message||'').slice(0,64)}`;
         const prev = this.__lastMsgSig.get(ns);
