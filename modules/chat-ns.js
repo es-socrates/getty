@@ -21,6 +21,8 @@ class ChatNsManager {
     this.channelCache = new Map();
     this.CACHE_TTL_MS = 60 * 60 * 1000;
     this.__msgCounters = new Map();
+    this.__starting = new Set();
+    this.__lastMsgSig = new Map(); // ns -> { sig, ts }
   }
 
   _broadcast(ns, payload) {
@@ -40,9 +42,16 @@ class ChatNsManager {
   async start(ns, chatUrlInput) {
     if (!ns || !chatUrlInput) return;
 
+    if (this.__starting.has(ns)) {
+      try { console.warn('[chat-ns] start skipped (in-progress)', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
+      return;
+    }
+    this.__starting.add(ns);
+
     if (process.env.NODE_ENV === 'test') {
-      this.sessions.set(ns, { ws: null, url: chatUrlInput, connected: false, history: [] });
+      this.sessions.set(ns, { ws: null, url: chatUrlInput, connected: false, history: [], reconnectTimer: null });
       this._broadcast(ns, { type: 'chatStatus', data: { connected: false } });
+      this.__starting.delete(ns);
       return;
     }
 
@@ -53,11 +62,23 @@ class ChatNsManager {
     }
     if (!/^wss?:\/\//i.test(url) || !url.includes('commentron')) return;
 
-    await this.stop(ns);
+  await this.stop(ns);
+
+    // Basic diagnostics for connection target
+    try {
+      const u = new URL(url);
+      const id = u.searchParams.get('id') || '';
+      console.warn('[chat-ns] connecting', { ns: (ns||'').slice(0,6) + '…', host: u.host, path: u.pathname, idPreview: id ? (id.slice(0,8)+'…') : '' });
+    } catch {}
 
     const originHeader = process.env.ODYSEE_WS_ORIGIN || 'https://odysee.com';
-    const ws = new WebSocket(url, { headers: { Origin: originHeader } });
-    const session = { ws, url, connected: false, history: [] };
+    const headers = {
+      Origin: originHeader,
+      Referer: originHeader + '/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36'
+    };
+    const ws = new WebSocket(url, { headers });
+  const session = { ws, url, connected: false, history: [], reconnectTimer: null };
     this.sessions.set(ns, session);
 
     ws.on('open', () => {
@@ -68,31 +89,62 @@ class ChatNsManager {
     ws.on('error', (err) => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
-      try { console.warn('[chat-ns] error', { ns: (ns||'').slice(0,6) + '…', error: err && err.message ? err.message : String(err) }); } catch {}
+      try { console.warn('[chat-ns] error', { ns: (ns||'').slice(0,6) + '…', error: err && err.message ? err.message : String(err), code: err && err.code }); } catch {}
     });
+    // Capture HTTP details when the upgrade is rejected (e.g., 400)
+    try {
+      ws.on('unexpected-response', (_req, res) => {
+        try {
+          const status = res && res.statusCode;
+          const statusMessage = res && res.statusMessage;
+          let body = '';
+          res.on('data', (chunk) => { try { if (body.length < 2048) body += chunk.toString(); } catch {} });
+          res.on('end', () => {
+            try {
+              const snippet = body ? body.slice(0, 300).replace(/\s+/g, ' ').trim() : '';
+              console.warn('[chat-ns] unexpected-response', { ns: (ns||'').slice(0,6) + '…', status, statusMessage, bodyPreview: snippet });
+            } catch {}
+          });
+        } catch {}
+      });
+    } catch {}
     ws.on('close', () => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
       try { console.warn('[chat-ns] disconnected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
 
       if (process.env.NODE_ENV !== 'test') {
-        setTimeout(() => {
-          try { this.start(ns, url); } catch {}
-        }, 5000);
+        if (!session.reconnectTimer) {
+          session.reconnectTimer = setTimeout(() => {
+            session.reconnectTimer = null;
+            try { this.start(ns, url); } catch {}
+          }, 5000);
+          if (session.reconnectTimer && typeof session.reconnectTimer.unref === 'function') {
+            try { session.reconnectTimer.unref(); } catch {}
+          }
+        }
       }
     });
     ws.on('message', (data) => {
       try {
-        const message = JSON.parse(data);
+        const message = JSON.parse(typeof data === 'string' ? data : data.toString());
         this._handleOdyseeMessage(ns, message);
       } catch {}
     });
+
+    this.__starting.delete(ns);
   }
 
   async stop(ns) {
     const s = this.sessions.get(ns);
     if (!s) return;
-    try { if (s.ws && s.ws.readyState === WebSocket.OPEN) s.ws.close(); } catch {}
+    try {
+      if (s.reconnectTimer) { try { clearTimeout(s.reconnectTimer); } catch {} s.reconnectTimer = null; }
+      if (s.ws) {
+        try { s.ws.removeAllListeners && s.ws.removeAllListeners(); } catch {}
+        try { s.ws.terminate && s.ws.terminate(); } catch { try { s.ws.close && s.ws.close(); } catch {} }
+      }
+    } catch {}
     this.sessions.delete(ns);
   this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
   }
@@ -210,7 +262,16 @@ class ChatNsManager {
         }
       } catch {}
 
-      this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
+      // De-dup guard: avoid flooding if upstream sends duplicates rapidly
+      try {
+        const sig = `${chatMessage.userId}|${chatMessage.timestamp}|${(chatMessage.message||'').slice(0,64)}`;
+        const prev = this.__lastMsgSig.get(ns);
+        const now = Date.now();
+        if (!prev || prev.sig !== sig || (now - prev.ts) > 1500) {
+          this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
+          this.__lastMsgSig.set(ns, { sig, ts: now });
+        }
+      } catch { this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage }); }
 
       try {
         if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
