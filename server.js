@@ -1633,53 +1633,54 @@ if (process.env.NODE_ENV !== 'test') {
   } catch {}
 
   try {
-    const enableTenantAuto = process.env.GETTY_CHAT_AUTOSTART_TENANT === '1';
+    const enableTenantAuto = process.env.GETTY_CHAT_AUTOSTART_TENANT !== '0';
     const debugAutostart = process.env.GETTY_CHAT_AUTOSTART_DEBUG === '1';
     const inWalletMulti = process.env.GETTY_MULTI_TENANT_WALLET === '1';
-    const hasRedis = !!process.env.REDIS_URL;
-    if (enableTenantAuto && inWalletMulti && !hasRedis && chatNs) {
+    if (enableTenantAuto && inWalletMulti && chatNs) {
       const tenantRoot = path.join(process.cwd(), 'tenant');
       if (fs.existsSync(tenantRoot)) {
         const dirs = fs.readdirSync(tenantRoot, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).slice(0, 200);
         if (debugAutostart) console.warn('[Chat][Autostart][Tenant] scanning', { count: dirs.length });
-        const startPromises = [];
-        for (const ns of dirs) {
-          const nsLabel = ns.slice(0,8)+'…';
-          try {
-            const cfgPath = path.join(tenantRoot, ns, 'config', 'chat-config.json');
-            if (!fs.existsSync(cfgPath)) { continue; }
-            const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-            const data = raw && raw.data ? raw.data : raw;
-            const chatUrl = (data && typeof data.chatUrl === 'string') ? data.chatUrl : '';
-            if (!chatUrl) { continue; }
-            const st = chatNs.getStatus(ns) || {};
-            if (st.connected) { if (debugAutostart) console.warn('[Chat][Autostart][Tenant] already connected', nsLabel); continue; }
-            if (debugAutostart) console.warn('[Chat][Autostart][Tenant] starting ns', nsLabel);
-            const p = chatNs.start(ns, chatUrl).catch(e => {
-              if (debugAutostart) console.warn('[Chat][Autostart][Tenant] start promise rejected', nsLabel, e?.message);
-              throw e;
-            });
-            startPromises.push(p);
-          } catch (e) {
-            if (debugAutostart) console.warn('[Chat][Autostart][Tenant] failed pre-start', nsLabel, e?.message);
-          }
-        }
-        if (startPromises.length) {
-          Promise.allSettled(startPromises).then(results => {
+        (async () => {
+          const startPromises = [];
+          for (const ns of dirs) {
+            const nsLabel = ns.slice(0,8)+'…';
             try {
-              const ok = results.filter(r => r.status === 'fulfilled').length;
-              const fail = results.filter(r => r.status === 'rejected').length;
-              if (debugAutostart) console.warn('[Chat][Autostart][Tenant] completed', { ok, fail });
-            } catch {}
-          });
-        } else if (debugAutostart) {
-          console.warn('[Chat][Autostart][Tenant] no eligible tenants to start');
-        }
+              const { loadTenantConfig } = require('./lib/tenant-config');
+              const reqLike = { ns: { admin: ns }, __forceWalletHash: ns };
+              const wrapped = await loadTenantConfig(reqLike, store, CHAT_CONFIG_FILE, 'chat-config.json');
+              const data = wrapped && wrapped.data ? wrapped.data : null;
+              const chatUrl = (data && typeof data.chatUrl === 'string') ? data.chatUrl : '';
+              if (!chatUrl) { continue; }
+              const st = chatNs.getStatus(ns) || {};
+              if (st.connected) { if (debugAutostart) console.warn('[Chat][Autostart][Tenant] already connected', nsLabel); continue; }
+              if (debugAutostart) console.warn('[Chat][Autostart][Tenant] starting ns', nsLabel);
+              const p = chatNs.start(ns, chatUrl).catch(e => {
+                if (debugAutostart) console.warn('[Chat][Autostart][Tenant] start promise rejected', nsLabel, e?.message);
+                throw e;
+              });
+              startPromises.push(p);
+            } catch (e) {
+              if (debugAutostart) console.warn('[Chat][Autostart][Tenant] failed pre-start', nsLabel, e?.message);
+            }
+          }
+          if (startPromises.length) {
+            Promise.allSettled(startPromises).then(results => {
+              try {
+                const ok = results.filter(r => r.status === 'fulfilled').length;
+                const fail = results.filter(r => r.status === 'rejected').length;
+                if (debugAutostart) console.warn('[Chat][Autostart][Tenant] completed', { ok, fail });
+              } catch {}
+            });
+          } else if (debugAutostart) {
+            console.warn('[Chat][Autostart][Tenant] no eligible tenants to start');
+          }
+        })().catch(() => {});
       } else if (debugAutostart) {
         console.warn('[Chat][Autostart][Tenant] no tenant dir');
       }
     } else if (debugAutostart) {
-      console.warn('[Chat][Autostart][Tenant] skipped', { enableTenantAuto, inWalletMulti, hasRedis, hasChatNs: !!chatNs });
+      console.warn('[Chat][Autostart][Tenant] skipped', { enableTenantAuto, inWalletMulti, hasChatNs: !!chatNs });
     }
   } catch {}
 }
