@@ -74,7 +74,8 @@ class ChatModule {
       } catch {}
     }
 
-    this.ws = new WebSocket(websocketUrl);
+  const originHeader = process.env.ODYSEE_WS_ORIGIN || 'https://odysee.com';
+  this.ws = new WebSocket(websocketUrl, { headers: { Origin: originHeader } });
     this.chatUrl = websocketUrl;
 
     this.ws.on('open', () => {
