@@ -55,8 +55,8 @@ class ChatNsManager {
 
     await this.stop(ns);
 
-  const originHeader = process.env.ODYSEE_WS_ORIGIN || 'https://odysee.com';
-  const ws = new WebSocket(url, { headers: { Origin: originHeader } });
+    const originHeader = process.env.ODYSEE_WS_ORIGIN || 'https://odysee.com';
+    const ws = new WebSocket(url, { headers: { Origin: originHeader } });
     const session = { ws, url, connected: false, history: [] };
     this.sessions.set(ns, session);
 
