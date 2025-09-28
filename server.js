@@ -2814,6 +2814,9 @@ try {
 } catch {}
 
 app.get('/api/modules', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
   const queryWidgetToken = typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
     ? req.query.widgetToken.trim()
