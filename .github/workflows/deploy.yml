@@ -38,6 +38,6 @@ jobs:
           script: |
             cd /opt/getty
             git pull origin staging
-            pnpm install --frozen-lockfile
-            pnpm run build
-            pm2 restart getty || pm2 start server.js --name getty
+            /root/.nvm/versions/node/v22.20.0/bin/pnpm install --frozen-lockfile
+            /root/.nvm/versions/node/v22.20.0/bin/pnpm run build
+            /root/.nvm/versions/node/v22.20.0/bin/pm2 restart getty || /root/.nvm/versions/node/v22.20.0/bin/pm2 start server.js --name getty
