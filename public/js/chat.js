@@ -39,10 +39,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (randomParam === '0') randomAvatarBgPerMessage = false;
         if (window.location.hash.includes('avatarRandom')) randomAvatarBgPerMessage = true;
     }
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token');
+    if (token && token.includes('?')) {
+        token = token.split('?')[0];
+    }
 
     try {
         if (typeof randomAvatarBgPerMessage !== 'boolean' || randomAvatarBgPerMessage === false) {
-            const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+            const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const cfg = await res.json();
             if (cfg && typeof cfg.avatarRandomBg === 'boolean' && localStorage.getItem('chat_avatar_random_bg') === null) {
                 randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
@@ -56,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         return colorForUsername(name);
     }
-    const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}` + window.location.host;
+    const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}` + window.location.host + (token ? `?ns=${encodeURIComponent(token)}` : '');
     const ws = new WebSocket(wsUrl);
     let ttsEnabled = true;
     let ttsAllChat = false;
@@ -100,9 +105,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadTtsSettings() {
         try {
-            const s = await fetch('/api/tts-setting');
+            const s = await fetch(`/api/tts-setting${token ? `?token=${encodeURIComponent(token)}` : ''}`);
             if (s.ok) { const j = await s.json(); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; }
-            const l = await fetch('/api/tts-language');
+            const l = await fetch(`/api/tts-language${token ? `?token=${encodeURIComponent(token)}` : ''}`);
             if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; }
         } catch {}
     }
@@ -126,7 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 (async () => {
                     try {
-                        const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+                        const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
                         const cfg = await res.json();
                         if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
                             randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
@@ -223,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadColors() {
         if (!isOBSWidget) return;
         try {
-            const res = await fetch(`/api/modules?nocache=${Date.now()}`);
+            const res = await fetch(`/api/modules?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const data = await res.json();
             if (data.chat) {
                 chatColors = {
@@ -536,7 +541,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let serverHasTheme = false;
     async function fetchAndApplyTheme() {
         try {
-            const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+            const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
             const config = await res.json();
             const serverCSS = (config.themeCSS || '').trim();
             let isLightTheme = !!serverCSS && (serverCSS.includes('--text: #1f2328') || serverCSS.includes('--text: #111'));
