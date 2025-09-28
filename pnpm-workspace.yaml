@@ -1,0 +1,8 @@
+packages:
+  - 'admin-frontend'
+  - 'lib'
+  - 'modules'
+  - 'routes'
+  - 'shared-i18n'
+  - 'src'
+  - 'tests'

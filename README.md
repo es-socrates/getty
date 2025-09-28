@@ -14,7 +14,7 @@ Odysee is a blockchain-based media platform. We host all kinds of media such as 
 
 ### Learn more about creating and setting up a wallet on Odysee, [visit the documentation](https://help.odysee.tv/category-monetization/).
 
-## Learn more about Wander
+## About Wander
 
 Wander App is a secure and easy-to-use digital wallet for Odysee, allowing you to authenticate to getty without the need for traditional passwords. It is essential for accessing Getty features such as widget configuration and encrypted data management. Download Wander from [https://www.wander.app/](https://www.wander.app/) to get started.
 
