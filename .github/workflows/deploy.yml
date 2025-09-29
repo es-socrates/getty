@@ -38,6 +38,7 @@ jobs:
           script: |
             cd /opt/getty
             export PATH=/root/.nvm/versions/node/v22.20.0/bin:$PATH
+            corepack enable
             git pull origin staging
             pnpm install --frozen-lockfile
             pnpm run build
