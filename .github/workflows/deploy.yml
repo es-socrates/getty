@@ -39,8 +39,8 @@ jobs:
             cd /opt/getty
             export PATH=/root/.nvm/versions/node/v22.20.0/bin:$PATH
             corepack enable
-            git stash
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
             pnpm install --frozen-lockfile
             pnpm run build
             pm2 restart getty || pm2 start server.js --name getty
