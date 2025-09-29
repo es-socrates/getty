@@ -2,7 +2,7 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [staging]
+    branches: [main]
 
 jobs:
   deploy:
@@ -40,7 +40,7 @@ jobs:
             export PATH=/root/.nvm/versions/node/v22.20.0/bin:$PATH
             corepack enable
             git stash
-            git pull origin staging
+            git pull origin main
             pnpm install --frozen-lockfile
             pnpm run build
             pm2 restart getty || pm2 start server.js --name getty
