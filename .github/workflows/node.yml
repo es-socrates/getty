@@ -63,7 +63,7 @@ jobs:
       - name: Security audit (production only)
         if: matrix.node-version == '22.x'
         continue-on-error: true
-        run: pnpm audit --omit=dev --audit-level=high
+        run: pnpm audit --prod --audit-level=high
 
       - name: Upload built public assets (manual runs only)
         if: github.event_name == 'workflow_dispatch'
