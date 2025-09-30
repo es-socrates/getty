@@ -358,25 +358,6 @@ export async function initNotifications() {
       }
     } catch {}
   })();
-
-  function isDemoOn() { try { return document.documentElement.getAttribute('data-demo-tips') === '1'; } catch { return false; } }
-  function stopDemoLoop() { if (__tn_demoTimer) { clearInterval(__tn_demoTimer); __tn_demoTimer = null; } }
-  function startDemoLoop() {
-    stopDemoLoop();
-
-    showDonationNotification({ amount: (Math.random()*2+0.1).toFixed(3), from: 'demo-wallet-'.concat(Math.random().toString(16).slice(2,8)), message: 'Thanks for the stream! 🎉', avatar: '/assets/odysee.png' });
-    __tn_demoTimer = setInterval(() => {
-      if (!isDemoOn()) { stopDemoLoop(); return; }
-      const msgs = ['Great content!', 'Keep it up!', 'Love this!', 'Saluditos 👋', 'Increíble directo'];
-      showDonationNotification({ amount: (Math.random()*3+0.05).toFixed(3), from: 'demo-'.concat(Math.random().toString(36).slice(2,7)), message: msgs[Math.floor(Math.random()*msgs.length)], avatar: '/assets/odysee.png' });
-    }, 20000);
-  }
-
-  try {
-    const obs = new MutationObserver(() => { if (isDemoOn()) startDemoLoop(); else stopDemoLoop(); });
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-demo-tips'] });
-    if (isDemoOn()) startDemoLoop();
-  } catch {}
 }
 
 export default { initNotifications };

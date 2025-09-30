@@ -314,7 +314,6 @@
     const PREFS = {
       'menu.open': false,
       'scroll.y': 0,
-      'demo.tips': false,
     };
 
     const SKEY = 'index.ui.prefs';
@@ -342,38 +341,6 @@
       if (scrollTimer) clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => { prefs['scroll.y'] = window.scrollY || 0; savePrefs(prefs); }, 200);
     }, { passive: true });
-
-    const demoToggle = document.getElementById('demo-tips-toggle');
-    const applyDemo = () => {
-      try { document.documentElement.setAttribute('data-demo-tips', prefs['demo.tips'] ? '1' : '0'); } catch {}
-      if (!demoToggle) return;
-      try {
-        if ('checked' in demoToggle) {
-          demoToggle.checked = !!prefs['demo.tips'];
-        } else {
-          demoToggle.setAttribute('aria-pressed', (!!prefs['demo.tips']).toString());
-        }
-      } catch {}
-    };
-    applyDemo();
-    if (demoToggle) {
-      const onDemoChange = () => {
-        if ('checked' in demoToggle) {
-          prefs['demo.tips'] = !!demoToggle.checked;
-        } else {
-          prefs['demo.tips'] = demoToggle.getAttribute('aria-pressed') === 'true';
-        }
-        savePrefs(prefs); applyDemo();
-      };
-      demoToggle.addEventListener('change', onDemoChange);
-      demoToggle.addEventListener('click', () => {
-        if (!('checked' in demoToggle)) {
-          const v = demoToggle.getAttribute('aria-pressed') === 'true';
-          demoToggle.setAttribute('aria-pressed', (!v).toString());
-          onDemoChange();
-        }
-      });
-    }
   } catch {}
 
   try {

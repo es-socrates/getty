@@ -203,21 +203,6 @@ export async function initLastTip() {
       }
     } catch {}
   }, 10000);
-
-  let demoTimer = null;
-  const isDemoOn = () => { try { return document.documentElement.getAttribute('data-demo-tips') === '1'; } catch { return false; } };
-  const stopDemo = () => { if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } };
-  const startDemo = () => {
-    stopDemo();
-    const mk = () => ({ amount: (Math.random()*1.5+0.05).toFixed(4), from: 'demo-'.concat(Math.random().toString(36).slice(2,10)) });
-    updateUI(mk());
-    demoTimer = setInterval(() => { if (!isDemoOn()) { stopDemo(); return; } updateUI(mk()); }, 30000);
-  };
-  try {
-    const mo = new MutationObserver(() => { if (isDemoOn()) startDemo(); else stopDemo(); });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-demo-tips'] });
-    if (isDemoOn()) startDemo();
-  } catch {}
 }
 
 export default { initLastTip };

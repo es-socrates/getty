@@ -98,6 +98,7 @@ async function notify(item) {
   if (!cfg.enabled || cfg.dnd) {
     return;
   }
+  if (!root) return;
   if (isEmbed) {
     const card = buildCard(item);
     if (!root) {
@@ -185,6 +186,15 @@ async function boot() {
   } catch {}
   await loadSharedAudio();
   applyPosition();
+  if (!root) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const tokenFromUrl = urlParams.get('token');
+  if (tokenFromUrl) {
+    currentNamespace = tokenFromUrl;
+  } else {
+    currentNamespace = await getCurrentNamespace();
+  }
 
   try {
     const st = await getJson('/api/achievements/status');
@@ -202,9 +212,10 @@ async function boot() {
   connectWebSocket();
 
   setInterval(async () => {
-    const currentNs = await getCurrentNamespace();
-    if (currentNs !== currentNamespace) {
+    const newNs = tokenFromUrl ? tokenFromUrl : await getCurrentNamespace();
+    if (newNs !== currentNamespace) {
       console.log('Namespace changed, reconnecting WebSocket...');
+      currentNamespace = newNs;
       if (ws) {
         ws.close();
         ws = null;
@@ -244,8 +255,6 @@ async function getCurrentNamespace() {
 }
 
 async function connectWebSocket() {
-  currentNamespace = await getCurrentNamespace();
-
   let url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
   if (currentNamespace) {
     url += '/?ns=' + encodeURIComponent(currentNamespace);

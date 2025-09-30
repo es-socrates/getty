@@ -4125,7 +4125,25 @@ app.get(['/admin.html','/admin.html/'], (_req, res) => {
   res.redirect(301, '/admin/');
 });
 
+app.get('/admin/status', (req, res) => {
+  try {
+    const hasAdminSession = !!(req.ns && req.ns.admin);
+    if (hasAdminSession) {
+      return res.redirect(302, '/');
+    } else {
+      return res.redirect(302, '/welcome');
+    }
+  } catch {
+    return res.redirect(302, '/welcome');
+  }
+});
+
 app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
+  const hasAdminSession = !!(req.ns && req.ns.admin);
+  if (!hasAdminSession) {
+    return res.redirect(302, '/welcome');
+  }
+
   try {
     const adminDist = path.join(__dirname, 'public', 'admin-dist');
     const indexPath = path.join(adminDist, 'index.html');
@@ -4149,6 +4167,19 @@ app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
     return res.status(503).send('Admin UI not built. Run "npm run admin:build".');
   } catch (e) {
     return next(e);
+  }
+});
+
+app.get('/admin/status', (req, res) => {
+  try {
+    const hasAdminSession = !!(req.ns && req.ns.admin);
+    if (hasAdminSession) {
+      return res.redirect(302, '/');
+    } else {
+      return res.redirect(302, '/welcome');
+    }
+  } catch {
+    return res.redirect(302, '/welcome');
   }
 });
 
