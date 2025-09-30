@@ -4191,6 +4191,9 @@ app.use((req, res, next) => {
   }
   const silenceTest404 = process.env.NODE_ENV === 'test' && process.env.GETTY_SILENCE_404_TEST === '1';
   const isApi = typeof req.originalUrl === 'string' && req.originalUrl.startsWith('/api/');
+  if (!isApi) {
+    return res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  }
   if (!silenceTest404 && (isApi || __allow('warn'))) {
     try { console.warn('404 Not Found:', { method: req.method, url: req.originalUrl }); } catch {}
   }
