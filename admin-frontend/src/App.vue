@@ -570,6 +570,16 @@ const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'))
 
 const wanderSession = useWanderSession();
 
+watch(
+  () => [wanderSession.state.address, route.path],
+  ([address, path]) => {
+    if (!address && path.startsWith('/admin')) {
+      router.push('/');
+    }
+  },
+  { immediate: true }
+);
+
 watch(route, () => {});
 
 function applyTheme(dark) {
@@ -706,11 +716,6 @@ onBeforeUnmount(() => {
 
 let suppressNextDirtyPrompt = false;
 router.beforeEach(async (to, from, next) => {
-  if (to.path.startsWith('/admin') && to.path !== '/admin/status') {
-    if (!wanderSession.state.address) {
-      if (to.path !== '/admin/status') return next('/admin/status');
-    }
-  }
   if (suppressNextDirtyPrompt) {
     suppressNextDirtyPrompt = false;
     return next();
