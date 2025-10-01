@@ -571,8 +571,9 @@ const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'))
 const wanderSession = useWanderSession();
 
 watch(
-  () => [wanderSession.state.address, route.path],
-  ([address, path]) => {
+  () => [wanderSession.state.address, wanderSession.state.loading, route.path],
+  ([address, loading, path]) => {
+    if (loading) return;
     if (!address && path.startsWith('/admin')) {
       router.push('/');
     }

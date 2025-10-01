@@ -6,7 +6,7 @@ const state = reactive({
   walletHash: null,
   capabilities: [],
   expiresAt: null,
-  loading: false,
+  loading: true,
   error: null,
   wsConnected: false,
   sessionStale: false,
