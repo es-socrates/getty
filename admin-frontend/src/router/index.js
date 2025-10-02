@@ -5,6 +5,7 @@ export const routes = [
   { path: '/admin/status', name: 'status', component: () => import('../views/StatusView.vue') },
   { path: '/admin/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
   { path: '/admin/chat', name: 'chat', component: () => import('../views/ChatView.vue') },
+  { path: '/admin/events', name: 'events', component: () => import('../views/EventsView.vue') },
   { path: '/admin/notifications', name: 'notifications', component: () => import('../views/NotificationsView.vue') },
   { path: '/admin/social-media', name: 'social-media', component: () => import('../views/SocialMediaView.vue') },
   { path: '/admin/integrations', name: 'integrations', component: () => import('../views/ExternalNotificationsView.vue') },

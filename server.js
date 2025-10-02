@@ -90,6 +90,7 @@ const registerAchievementsRoutes = require('./routes/achievements');
 const { AnnouncementModule } = require('./modules/announcement');
 const RaffleModule = require('./modules/raffle');
 const { registerUserRoutes } = require('./routes/user');
+const registerEventsSettingsRoutes = require('./routes/events-settings');
 
 const __CONFIG_DIR = process.env.GETTY_CONFIG_DIR
   ? path.isAbsolute(process.env.GETTY_CONFIG_DIR)
@@ -1834,6 +1835,7 @@ registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, {
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 registerAchievementsRoutes(app, achievements, strictLimiter, { store });
+registerEventsSettingsRoutes(app, strictLimiter, { store });
 registerUserRoutes(app, { store });
 
 app.post('/api/chat/test-message', limiter, async (req, res) => {
@@ -1875,11 +1877,31 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
 
       const adminNs = await resolveAdminNsFromReq(req) || ns;
       wss.broadcast(adminNs, { type: 'chatMessage', data: chatMsg });
+
+      if (isTip) {
+        const chatTipData = {
+          amount: arAmount,
+          from: username,
+          message: username,
+          timestamp: new Date().toISOString()
+        };
+        wss.broadcast(adminNs, { type: 'chat-tip', data: chatTipData });
+      }
     try { achievements.onChatMessage(adminNs, chatMsg); } catch {}
     } else {
       wss.clients.forEach(client => {
         if (client.readyState === 1) {
           client.send(JSON.stringify({ type: 'chatMessage', data: chatMsg }));
+
+          if (isTip) {
+            const chatTipData = {
+              amount: arAmount,
+              from: username,
+              message: username,
+              timestamp: new Date().toISOString()
+            };
+            client.send(JSON.stringify({ type: 'chat-tip', data: chatTipData }));
+          }
         }
       });
     }
@@ -1966,6 +1988,11 @@ app.get('/obs/widgets', (req, res) => {
       name: "Achievements",
       url: `${baseUrl}/widgets/achievements`,
       params: { position: "top-right", width: 380, height: 120 }
+    },
+    events: {
+      name: "Events",
+      url: `${baseUrl}/widgets/events`,
+      params: { position: "top-right", width: 380, height: 200 }
     }
   };
   
@@ -2074,6 +2101,23 @@ app.get('/widgets/achievements', (req, res, next) => {
       html = html.replace(/<style(\s[^>]*)?>/gi, function (m) {
         return m.includes('nonce=') ? m : m.replace('<style', `<style nonce="${nonce}"`);
       });
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  } catch { return next(); }
+});
+
+app.get('/widgets/events', (req, res, next) => {
+  try {
+    const filePath = path.join(__dirname, 'public', 'widgets', 'events.html');
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -3317,6 +3361,47 @@ app.get('/api/modules', async (req, res) => {
         return { active: !!cfg.enabled, dnd: !!cfg.dnd, items: st.items?.length || 0 };
       } catch { return { active: false, items: 0 }; }
     })(),
+    events: (async () => {
+      try {
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        let configured = false;
+        let eventCount = 6;
+        let animation = 'fadeIn';
+
+        if (store && ns) {
+          try {
+            const cfg = await store.get(ns, 'events-settings', null);
+            if (cfg && typeof cfg === 'object') {
+              configured = true;
+              eventCount = cfg.eventCount || 6;
+              animation = cfg.animation || 'fadeIn';
+            }
+          } catch {}
+        }
+
+        if (!configured) {
+          try {
+            const { loadTenantConfig } = require('./lib/tenant-config');
+            const reqLike = { ns: { admin: ns } };
+            const loaded = await loadTenantConfig(reqLike, store, path.join(process.cwd(), 'config', 'events-settings.json'), 'events-settings.json');
+            if (loaded && loaded.data) {
+              configured = true;
+              const data = loaded.data.data ? loaded.data.data : loaded.data;
+              eventCount = data.eventCount || 6;
+              animation = data.animation || 'fadeIn';
+            }
+          } catch {}
+        }
+
+        if (!configured && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
+          if (hasAnyTenantFile('events-settings.json')) {
+            configured = true;
+          }
+        }
+
+        return { active: configured, configured, eventCount, animation };
+      } catch { return { active: false, configured: false, eventCount: 6, animation: 'fadeIn' }; }
+    })(),
     system: { uptimeSeconds, wsClients, env: process.env.NODE_ENV || 'development' }
   };
 
@@ -3399,7 +3484,7 @@ app.get('/api/modules', async (req, res) => {
       if (configured) return 'configured';
       return 'inactive';
     };
-    const moduleKeys = ['lastTip','tipWidget','tipGoal','chat','announcement','socialmedia','externalNotifications','liveviews','raffle','achievements'];
+    const moduleKeys = ['lastTip','tipWidget','tipGoal','chat','announcement','socialmedia','externalNotifications','liveviews','raffle','achievements','events'];
     for (const mk of moduleKeys) {
       if (payload[mk] && typeof payload[mk] === 'object') {
         try { payload[mk].displayState = derive(payload[mk]); } catch {}
@@ -3409,7 +3494,7 @@ app.get('/api/modules', async (req, res) => {
 
   try {
     const now = Date.now();
-    const moduleKeys = ['lastTip','tipWidget','tipGoal','chat','announcement','socialmedia','externalNotifications','liveviews','raffle'];
+    const moduleKeys = ['lastTip','tipWidget','tipGoal','chat','announcement','socialmedia','externalNotifications','liveviews','raffle','events'];
     for (const k of moduleKeys) {
       const obj = payload[k];
       if (!obj || typeof obj !== 'object') continue;

@@ -711,7 +711,7 @@ async function testRandomNotification() {
     if (dirty) {
       await persistAudioCfg(true);
     }
-    await api.post('/api/test-donation', { amount: (Math.random() * 2 + 0.1).toFixed(3) });
+    await api.post('/api/test-tip', { amount: (Math.random() * 2 + 0.1).toFixed(3) });
   } catch {}
 }
 

@@ -154,6 +154,9 @@ function buildItems(d) {
   push('achievements', t('achievementsTitle') || 'Achievements', d.achievements, (o) =>
     o.active ? (o.items || 0) + ' items' : ''
   );
+  push('events', t('eventsModule') || 'Events', d.events, (o) =>
+    o.active ? (o.eventCount || 0) + ' events' : ''
+  );
   return out;
 }
 
