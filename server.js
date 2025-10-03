@@ -1862,7 +1862,7 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
   const arAmount = isTip ? (usdAmount / (rate || 5)) : 0;
   const chatMsg = {
       channelTitle: username,
-      message: username,
+      message: body.message || username,
       credits,
       creditsIsUsd: isTip,
       isChatTip: isTip,

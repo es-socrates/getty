@@ -31,7 +31,7 @@ export function createChatPanel(t) {
   const connected = ref(false);
   const lastStatusAt = ref(0);
   const original = reactive({ snapshot: null });
-  const testForm = reactive({ username: 'TestUser', message: 'Hello from test', credits: 5 });
+  const testForm = reactive({ username: t('testUsernameDefault'), message: t('testMessageDefault'), credits: 5 });
   const testSending = ref(false);
   const testKind = ref('');
 
@@ -221,7 +221,7 @@ export function createChatPanel(t) {
             ? Number(testForm.credits)
             : 5;
         await api.post('/api/chat/test-message', {
-          username: testForm.username || 'TestUser',
+          username: testForm.username || t('testUsernameDefault'),
             message: testForm.message || '',
             credits,
             donationOnly: true,
@@ -229,8 +229,8 @@ export function createChatPanel(t) {
           pushToast({ type: 'success', message: t('sentTestDonation') || 'Test donation sent' });
         } else {
           await api.post('/api/chat/test-message', {
-            username: testForm.username || 'TestUser',
-            message: testForm.message || 'Hello from test',
+            username: testForm.username || t('testUsernameDefault'),
+            message: testForm.message || t('testMessageDefault'),
             credits: 0,
             donationOnly: false,
           });
