@@ -62,95 +62,90 @@ document.addEventListener('DOMContentLoaded', async () => {
         return colorForUsername(name);
     }
     const wsUrl = `${location.protocol === 'https:' ? 'wss://' : 'ws://'}` + window.location.host + (token ? `?ns=${encodeURIComponent(token)}` : '');
-    const ws = new WebSocket(wsUrl);
+    let ws;
+    let reconnectInterval;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 5000; // 5 seconds
+
     let ttsEnabled = true;
     let ttsAllChat = false;
     let ttsLanguage = 'en';
 
-    function stripEmojis(text) {
-        if (!text) return '';
-        let cleaned = text.replace(/:[^:\s]+:/g, '');
-        cleaned = cleaned.replace(/<stkr>.*?<\/stkr>/g, '');
-        cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
-        cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
-        return cleaned;
-    }
-
-    function selectVoice(utterance, voices) {
-        if (ttsLanguage === 'en') {
-            const english = voices.filter(v => v.lang.startsWith('en'));
-            if (english.length) utterance.voice = english[0];
-        } else {
-            const spanish = voices.filter(v => v.lang.includes('es'));
-            if (spanish.length) utterance.voice = spanish[0];
+    function connectWebSocket() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+            return; // Already connected or connecting
         }
+
+        console.log('Connecting to WebSocket:', wsUrl);
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            reconnectAttempts = 0;
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+            }
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'ttsSettingUpdate') {
+                    if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) ttsEnabled = !!msg.data.ttsEnabled;
+                    if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) ttsAllChat = !!msg.data.ttsAllChat;
+                    return;
+                }
+                if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
+                    ttsLanguage = msg.data.ttsLanguage;
+                    return;
+                }
+                if (msg.type === 'chatConfigUpdate') {
+                    fetchAndApplyTheme();
+                    applyChatColors();
+
+                    (async () => {
+                        try {
+                            const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+                            const cfg = await res.json();
+                            if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
+                                randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
+                            }
+                        } catch {/* ignore */}
+                    })();
+                    return;
+                }
+                if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
+                else if (msg.type === 'chat') addMessage(msg);
+                else if (msg.type === 'init' && msg.data?.chatHistory) {
+                    msg.data.chatHistory.forEach(m => addMessage(m));
+                } else if (msg.type === 'batch' && Array.isArray(msg.messages)) {
+                    msg.messages.forEach(m => addMessage(m));
+                }
+            } catch (e) {
+                console.error('Error processing message:', e);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket closed, attempting to reconnect...');
+            if (reconnectAttempts < maxReconnectAttempts) {
+                setTimeout(() => {
+                    reconnectAttempts++;
+                    connectWebSocket();
+                }, reconnectDelay);
+            } else {
+                console.error('Max reconnect attempts reached');
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
     }
 
-    function speakMessage(text) {
-        if (!ttsEnabled) return;
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-        const cleaned = stripEmojis(text);
-        if (!cleaned) return;
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(cleaned);
-        u.volume = 0.9; u.rate = 1; u.pitch = 0.9;
-        let voices = window.speechSynthesis.getVoices();
-        if (voices.length === 0) {
-            window.speechSynthesis.onvoiceschanged = () => {
-                voices = window.speechSynthesis.getVoices();
-                selectVoice(u, voices); window.speechSynthesis.speak(u);
-            };
-        } else { selectVoice(u, voices); window.speechSynthesis.speak(u); }
-    }
-
-    async function loadTtsSettings() {
-        try {
-            const s = await fetch(`/api/tts-setting${token ? `?token=${encodeURIComponent(token)}` : ''}`);
-            if (s.ok) { const j = await s.json(); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; }
-            const l = await fetch(`/api/tts-language${token ? `?token=${encodeURIComponent(token)}` : ''}`);
-            if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; }
-        } catch {}
-    }
-    loadTtsSettings();
-
-    ws.onmessage = (event) => {
-        try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'ttsSettingUpdate') {
-                if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) ttsEnabled = !!msg.data.ttsEnabled;
-                if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) ttsAllChat = !!msg.data.ttsAllChat;
-                return;
-            }
-            if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
-                ttsLanguage = msg.data.ttsLanguage;
-                return;
-            }
-            if (msg.type === 'chatConfigUpdate') {
-                fetchAndApplyTheme();
-                applyChatColors();
-
-                (async () => {
-                    try {
-                        const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
-                        const cfg = await res.json();
-                        if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
-                            randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
-                        }
-                    } catch {/* ignore */}
-                })();
-                return;
-            }
-            if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
-            else if (msg.type === 'chat') addMessage(msg);
-            else if (msg.type === 'init' && msg.data?.chatHistory) {
-                msg.data.chatHistory.forEach(m => addMessage(m));
-            } else if (msg.type === 'batch' && Array.isArray(msg.messages)) {
-                msg.messages.forEach(m => addMessage(m));
-            }
-        } catch (e) {
-            console.error('Error processing message:', e);
-        }
-    };
+    connectWebSocket();
 
     const CYBERPUNK_PALETTE = [
         { bg: 'rgba(17, 255, 121, 0.8)', text: '#000', border: 'rgba(17, 255, 121, 0.9)' },
