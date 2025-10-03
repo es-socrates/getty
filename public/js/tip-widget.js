@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const tokenParam = token ? `?token=${token}` : '';
+    const tokenAmp = token ? `&token=${token}` : '';
+
     const notification = document.getElementById('notification');
     const tipWrapper = document.getElementById('tip-wrapper');
     const gifSlot = document.getElementById('notification-gif');
@@ -6,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadGifConfig() {
         try {
-            const res = await fetch('/api/tip-notification-gif');
+            const res = await fetch(`/api/tip-notification-gif${tokenParam}`);
             if (res.ok) {
                 gifConfig = await res.json();
                 applyGifConfig();
@@ -40,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadColorConfig() {
         if (!window.location.pathname.includes('/widgets/')) return;
         try {
-            const r = await fetch('/api/tip-notification?ts=' + Date.now(), { cache: 'no-store' });
+            const r = await fetch(`/api/tip-notification?ts=${Date.now()}${tokenAmp}`, { cache: 'no-store' });
             if (r.ok) {
                 const j = await r.json();
                 applyColorVars({
@@ -60,7 +65,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         notification.classList.add('tip-notification-widget');
     }
     
-    const ws = new WebSocket(`${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}`);
+    let ws;
+    let reconnectInterval;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 10;
+    const reconnectDelay = 5000; // 5 seconds
+
     let AR_TO_USD = 0;
     let ttsLanguage = 'en'; // Global TTS Language
     let ttsAllChat = false; // Speak all chat messages optionally
@@ -74,44 +84,79 @@ document.addEventListener('DOMContentLoaded', async () => {
         volume: 0.5
     };
 
-    let lastAudioSettingsFetch = 0;
-    const AUDIO_SETTINGS_TTL = 10_000; // ms
+    var lastAudioSettingsFetch = 0;
+    const AUDIO_SETTINGS_TTL = 10_000;
 
-    async function refreshAudioSettingsIfStale(force = false) {
-        const now = Date.now();
-        if (!force && (now - lastAudioSettingsFetch) < AUDIO_SETTINGS_TTL) return;
-        try {
-            const res = await fetch('/api/audio-settings', { cache: 'no-store' });
-            if (res.ok) {
-                const data = await res.json();
-                audioSettings = {
-                    audioSource: data.audioSource || 'remote',
-                    hasCustomAudio: !!data.hasCustomAudio,
-                    enabled: data.enabled !== false,
-                    volume: typeof data.volume === 'number' ? Math.min(1, Math.max(0, data.volume)) : 0.5
-                };
-                lastAudioSettingsFetch = now;
-                updateDebugOverlay();
+    let EMOJI_MAPPING = {};
+    try {
+        const response = await fetch(`/emojis.json?nocache=${Date.now()}`);
+        EMOJI_MAPPING = await response.json();
+    } catch (e) {
+        console.error('Error loading emojis:', e);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML
+            .replace(/&lt;stkr&gt;/g,'<stkr>')
+            .replace(/&lt;\/stkr&gt;/g,'</stkr>');
+    }
+
+    function formatText(text) {
+        if (!text) return '';
+        let formatted = escapeHtml(text);
+
+        formatted = formatted.replace(/<stkr>(.*?)<\/stkr>/g, (m, url) => {
+            try {
+                const decoded = decodeURIComponent(url);
+                if (/^https?:\/\//i.test(decoded)) {
+                    return `<img src="${decoded}" alt="Sticker" class="comment-sticker" loading="lazy" />`;
+                }
+                return m;
+            } catch { return m; }
+        });
+        if (EMOJI_MAPPING && typeof EMOJI_MAPPING === 'object') {
+            for (const [code, url] of Object.entries(EMOJI_MAPPING)) {
+                if (!code || !url) continue;
+                const escapedCode = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const isSticker = url.includes('/stickers/');
+                const cls = isSticker ? 'comment-sticker' : 'comment-emoji';
+                formatted = formatted.replace(new RegExp(escapedCode, 'g'), `<img src="${url}" alt="${code}" class="${cls}" loading="lazy" />`);
             }
-        } catch (e) {
-            console.warn('Failed to refresh audio settings', e);
         }
+        return formatted;
     }
 
-    let reusableAudioEl = null;
+    async function refreshAudioSettingsIfStale() {
+        const now = Date.now();
+        if (now - lastAudioSettingsFetch < AUDIO_SETTINGS_TTL) return;
+        try {
+            const r = await fetch(`/api/audio-settings?ts=${now}${tokenAmp}`, { cache: 'no-store' });
+            if (r.ok) {
+                const j = await r.json();
+                if (j && typeof j === 'object') {
+                    audioSettings = {
+                        audioSource: j.audioSource || audioSettings.audioSource || 'remote',
+                        hasCustomAudio: !!j.hasCustomAudio,
+                        enabled: typeof j.enabled === 'boolean' ? j.enabled : audioSettings.enabled,
+                        volume: (typeof j.volume === 'number' && j.volume >= 0 && j.volume <= 1) ? j.volume : audioSettings.volume,
+                    };
+                }
+            }
+        } catch {}
+        lastAudioSettingsFetch = Date.now();
+    }
+
     function getReusableAudioElement(url) {
-        if (!reusableAudioEl) {
-            reusableAudioEl = new Audio(url);
-        } else if (reusableAudioEl.src !== new URL(url, location.origin).href) {
-            reusableAudioEl.src = url;
-        }
-        return reusableAudioEl;
+        return new Audio(url);
     }
 
-    function perceptualVolume(linear) {
-        const clamped = Math.min(1, Math.max(0, linear || 0));
-        return +(clamped * clamped).toFixed(4);
+    function perceptualVolume(linearVol) {
+        return Math.pow(linearVol, 2);
     }
+
+    const shownTips = new Set();
 
     async function playNotificationSound() {
         await refreshAudioSettingsIfStale();
@@ -120,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let logMessage;
         if (audioSettings.audioSource === 'custom' && audioSettings.hasCustomAudio) {
             try {
-                const response = await fetch('/api/custom-audio');
+                const response = await fetch(`/api/custom-audio${tokenParam}`);
                 if (response.ok) {
                     const data = await response.json();
                     audioUrl = data.url;
@@ -165,159 +210,297 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    let EMOJI_MAPPING = {};
-    try {
-        const r = await fetch(`/emojis.json?nocache=${Date.now()}`);
-        EMOJI_MAPPING = await r.json();
-    } catch (e) { console.warn('tip-widget: failed to load emojis', e); }
+    async function showDonationNotification(data) {
+        const uniqueId = data.isDirectTip 
+            ? `direct-${data.txId}` 
+            : `chat-${data.id || (data.from + data.amount + data.message)}`;
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML
-            .replace(/&lt;stkr&gt;/g, '<stkr>')
-            .replace(/&lt;\/stkr&gt;/g, '</stkr>');
-    }
-    function formatText(text) {
-        if (!text) return '';
-        let formatted = escapeHtml(text);
+        if (shownTips.has(uniqueId)) {
+            return;
+        }
+        shownTips.add(uniqueId);
 
-        formatted = formatted.replace(/<stkr>(.*?)<\/stkr>/g, (m, url) => {
-            try {
-                const decoded = decodeURIComponent(url);
-                if (/^https?:\/\//i.test(decoded)) {
-                    return `<img src="${decoded}" alt="Sticker" class="comment-sticker" loading="lazy" />`;
-                }
-                return m;
-            } catch { return m; }
+        await playNotificationSound();
+        notification.classList.add('hidden');
+        void notification.offsetWidth;
+
+        if (!(typeof data.usdAmount === 'number' && typeof data.arAmount === 'number')) {
+            await updateExchangeRate();
+        } else {
+            if (!AR_TO_USD && data.arAmount > 0) {
+                AR_TO_USD = data.usdAmount / data.arAmount;
+            }
+        }
+        
+        const originalMessage = data.message || '';
+        const emojiCodes = (originalMessage.match(/:[^:\s]{1,32}:/g) || []);
+        let truncated = originalMessage;
+        if (originalMessage.length > 80) {
+            if (!(emojiCodes.length >= 3 && originalMessage.length <= 160)) {
+                truncated = originalMessage.substring(0,80) + '...';
+            }
+        }
+
+        const formattedMessage = /<img[^>]+class=\"(?:comment-emoji|comment-sticker)\"/i.test(truncated)
+            ? truncated
+            : (truncated ? formatText(truncated) : '');
+        const isChatTipHeuristic = !!data.isChatTip && (data.amount === undefined || data.amount === null);
+        const creditsIsUsd = !!data.creditsIsUsd;
+        let rawAr = 0, rawUsd = 0;
+        if (typeof data.usdAmount === 'number' && typeof data.arAmount === 'number') {
+            rawUsd = data.usdAmount;
+            rawAr = data.arAmount;
+        } else if (isChatTipHeuristic || creditsIsUsd) {
+            rawUsd = parseFloat(data.credits || 0) || 0;
+            rawAr = AR_TO_USD > 0 ? (rawUsd / AR_TO_USD) : (rawUsd / 5);
+        } else {
+            rawAr = parseFloat(data.amount || data.credits || 0) || 0;
+            rawUsd = AR_TO_USD > 0 ? (rawAr * AR_TO_USD) : (rawAr * 5);
+        }
+
+        const arAmount = rawAr.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6
         });
-        if (EMOJI_MAPPING && typeof EMOJI_MAPPING === 'object') {
-            for (const [code, url] of Object.entries(EMOJI_MAPPING)) {
-                if (!code || !url) continue;
-                const escapedCode = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const isSticker = url.includes('/stickers/');
-                const cls = isSticker ? 'comment-sticker' : 'comment-emoji';
-                formatted = formatted.replace(new RegExp(escapedCode, 'g'), `<img src="${url}" alt="${code}" class="${cls}" loading="lazy" />`);
+        const usdAmount = rawUsd.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
+        const senderInfo = data.from 
+            ? `📦 From: ${data.from.slice(0, 8)}...` 
+            : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
+
+        if (ttsEnabled) {
+            const rawForTts = originalMessage || '';
+            if ((data.isChatTip || ttsAllChat) && rawForTts) {
+                speakMessage(rawForTts);
             }
         }
-        return formatted;
-    }
 
-    ws.onopen = () => {
-        showConnectionStatus(true);
-    };
+        notification.innerHTML = `
+            <div class="notification-content">
+                <div class="notification-icon"></div>
+                <div class="notification-text">
+                    <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo!' : 'Tip Received. Woohoo!'}</div>
+                    <div class="amount-container">
+                        <span class="ar-amount">${arAmount} AR</span>
+                        <span class="usd-value">($${usdAmount} USD${isChatTipHeuristic ? '' : ''})</span>
+                    </div>
+                    <div class="notification-from">
+                        ${senderInfo} <span class="thank-you">👏</span>
+                    </div>
+                    ${formattedMessage ? `
+                    <div class="notification-message">
+                        ${formattedMessage}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
 
-    ws.onmessage = async (event) => {
         try {
-            const msg = JSON.parse(event.data);
-
-            if (msg.type === 'ttsSettingUpdate') {
-                if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) {
-                    updateTTSStatus(msg.data.ttsEnabled);
-                }
-                if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) {
-                    ttsAllChat = !!msg.data.ttsAllChat;
-                }
-            }
-
-            if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
-                ttsLanguage = msg.data.ttsLanguage;
-            }
-            
-            if (msg.type === 'audioSettingsUpdate') {
-                audioSettings = { ...audioSettings, ...msg.data };
-                if (typeof msg.data.volume === 'number') {
-                    audioSettings.volume = Math.min(1, Math.max(0, msg.data.volume));
-                }
-                if (Object.prototype.hasOwnProperty.call(msg.data,'enabled')) {
-                    audioSettings.enabled = msg.data.enabled !== false;
-                }
-                updateDebugOverlay();
-            }
-
-            if (msg.type === 'tipNotificationConfigUpdate') {
-                if (!window.location.pathname.includes('/widgets/')) return;
-                applyColorVars({
-                    bgColor: msg.data?.bgColor,
-                    fontColor: msg.data?.fontColor,
-                    borderColor: msg.data?.borderColor,
-                    amountColor: msg.data?.amountColor,
-                    fromColor: msg.data?.fromColor,
+            const iconContainer = notification.querySelector('.notification-icon');
+            if (iconContainer) {
+                const imgEl = document.createElement('img');
+                imgEl.src = data.avatar || '/assets/odysee.png';
+                imgEl.alt = '💰';
+                imgEl.addEventListener('error', () => {
+                    imgEl.classList.add('hidden');
+                    iconContainer.textContent = '💰';
                 });
+                iconContainer.appendChild(imgEl);
             }
-            
-            if (msg.type === 'tipNotification') {
-                await showDonationNotification({
-                    ...msg.data,
-                    isDirectTip: true
-                });
-            } else if (msg.type === 'chatMessage' && msg.data?.credits > 0) {
-                await showDonationNotification({
-                    ...msg.data,
-                    isChatTip: true
-                });
-        } else if (msg.type === 'donation' || msg.type === 'tip') {
-                await showDonationNotification({
-            amount: msg.amount ?? msg.data?.amount,
-            from: msg.from ?? msg.data?.from,
-            message: msg.message ?? msg.data?.message,
-                    isTestDonation: true
-                });
-            }
+        } catch {}
+        notification.classList.remove('hidden');
 
-        } catch (error) {
-            console.error('Error processing message:', error);
-            showError('Error processing notification');
+        if (gifConfig.gifPath && gifSlot) {
+            const cacheBust = `${gifConfig.width||0}x${gifConfig.height||0}-${Date.now()}`;
+        gifSlot.innerHTML = `<img class="tip-gif-img" src="${gifConfig.gifPath}?v=${cacheBust}" alt="Tip GIF" />`;
+        gifSlot.classList.remove('hidden');
+        } else if (gifSlot) {
+        gifSlot.classList.add('hidden');
+            gifSlot.innerHTML = '';
         }
-    };
 
-    async function loadInitialTTSLanguage() {
+        const DISPLAY_DURATION = 15000;
+        const FADE_TIME = 500;
+        const VISIBLE_TIME = DISPLAY_DURATION - FADE_TIME;
+
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            if (gifSlot) gifSlot.classList.add('fade-out');
+            setTimeout(() => {
+                notification.classList.add('hidden');
+                notification.classList.remove('fade-out');
+                if (gifSlot) {
+                    gifSlot.classList.add('hidden');
+                    gifSlot.innerHTML = '';
+                    gifSlot.classList.remove('fade-out');
+                }
+            }, FADE_TIME);
+        }, VISIBLE_TIME);
+    }
+
+    function showError(message) {
+        notification.innerHTML = `
+            <div class="notification-content error">
+                <div class="notification-icon">⚠️</div>
+                <div class="notification-text">
+                    <div class="notification-title">Error</div>
+                    <div class="notification-from">${message}</div>
+                </div>
+            </div>
+        `;
+        notification.classList.remove('hidden');
+        setTimeout(() => notification.classList.add('hidden'), 3000);
+    }
+
+    function showConnectionStatus(connected) {
+        let statusElement = document.getElementById('connection-status');
+        if (!statusElement) {
+            statusElement = document.createElement('div');
+            statusElement.id = 'connection-status';
+            document.body.appendChild(statusElement);
+        }
+        // statusElement.textContent = connected ? '🟢 Connected' : '🔴 Offline';
+    statusElement.className = connected ? 'conn-status conn-online' : 'conn-status conn-offline';
+    }
+
+    function connectWebSocket() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
+
+        console.log('Connecting to WebSocket:', `${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}`);
+        ws = new WebSocket(`${location.protocol==='https:'?'wss://':'ws://'}${window.location.host}`);
+
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            reconnectAttempts = 0;
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+            }
+            showConnectionStatus(true);
+        };
+
+        ws.onmessage = async (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+
+                if (msg.type === 'ttsSettingUpdate') {
+                    if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) {
+                        updateTTSStatus(msg.data.ttsEnabled);
+                    }
+                    if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) {
+                        ttsAllChat = !!msg.data.ttsAllChat;
+                    }
+                }
+
+                if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) {
+                    ttsLanguage = msg.data.ttsLanguage;
+                }
+                
+                if (msg.type === 'audioSettingsUpdate') {
+                    audioSettings = { ...audioSettings, ...msg.data };
+                    if (typeof msg.data.volume === 'number') {
+                        audioSettings.volume = Math.min(1, Math.max(0, msg.data.volume));
+                    }
+                    if (Object.prototype.hasOwnProperty.call(msg.data,'enabled')) {
+                        audioSettings.enabled = msg.data.enabled !== false;
+                    }
+                    updateDebugOverlay();
+                }
+
+                if (msg.type === 'tipNotificationConfigUpdate') {
+                    if (!window.location.pathname.includes('/widgets/')) return;
+                    applyColorVars({
+                        bgColor: msg.data?.bgColor,
+                        fontColor: msg.data?.fontColor,
+                        borderColor: msg.data?.borderColor,
+                        amountColor: msg.data?.amountColor,
+                        fromColor: msg.data?.fromColor,
+                    });
+                }
+                
+                if (msg.type === 'tipNotification') {
+                    await showDonationNotification({
+                        ...msg.data,
+                        isDirectTip: true
+                    });
+                } else if (msg.type === 'chatMessage' && msg.data?.credits > 0) {
+                    await showDonationNotification({
+                        ...msg.data,
+                        isChatTip: true
+                    });
+            } else if (msg.type === 'donation' || msg.type === 'tip') {
+                    await showDonationNotification({
+                amount: msg.amount ?? msg.data?.amount,
+                from: msg.from ?? msg.data?.from,
+                message: msg.message ?? msg.data?.message,
+                        isTestDonation: true
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error processing message:', error);
+                showError('Error processing notification');
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket closed, attempting to reconnect...');
+            showConnectionStatus(false);
+            if (reconnectAttempts < maxReconnectAttempts) {
+                setTimeout(() => {
+                    reconnectAttempts++;
+                    connectWebSocket();
+                }, reconnectDelay);
+            } else {
+                console.error('Max reconnect attempts reached');
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+            showError('Server connection error');
+        };
+    }
+
+    connectWebSocket();
+
+    (async () => {
         try {
-            const response = await fetch('/api/tts-language');
-            if (response.ok) {
-                const data = await response.json();
-                ttsLanguage = data.ttsLanguage || 'en';
-
+            const r = await fetch(`/api/audio-settings${tokenParam}`);
+            if (r.ok) {
+                const j = await r.json();
+                audioSettings = {
+                    audioSource: j.audioSource || 'remote',
+                    hasCustomAudio: !!j.hasCustomAudio,
+                    enabled: typeof j.enabled === 'boolean' ? j.enabled : true,
+                    volume: typeof j.volume === 'number' && j.volume >= 0 && j.volume <= 1 ? j.volume : 0.5,
+                };
             }
-        } catch (error) {
-            console.error('Error loading initial TTS language:', error);
-        }
-    }
-    loadInitialTTSLanguage();
-
-    async function loadInitialTTSStatus() {
+        } catch {}
         try {
-            const response = await fetch('/api/tts-setting');
-            if (response.ok) {
-                const data = await response.json();
-                updateTTSStatus(data.ttsEnabled);
-                ttsAllChat = !!data.ttsAllChat;
+            const r = await fetch(`/api/tts-language${tokenParam}`);
+            if (r.ok) {
+                const j = await r.json();
+                ttsLanguage = j.ttsLanguage || 'en';
             }
-        } catch (error) {
-            console.error('Error loading initial TTS status:', error);
-        }
-    }
+        } catch {}
+    })();
 
-    loadInitialTTSStatus();
-
-    async function loadInitialAudioSettings() {
-        await refreshAudioSettingsIfStale(true);
-    }
-
-    loadInitialAudioSettings();
-
-    ws.onerror = (error) => {
-        console.error('WebSocket Error:', error);
-        showError('Server connection error');
-    };
-
-    ws.onclose = () => {
-        showConnectionStatus(false);
-    };
+    setInterval(() => {
+        loadColorConfig();
+        loadGifConfig();
+        refreshAudioSettingsIfStale();
+    }, 15000);
 
 async function updateExchangeRate() {
     try {
-        const response = await fetch('/api/ar-price');
+        const response = await fetch(`/api/ar-price${tokenParam}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -350,8 +533,6 @@ async function updateExchangeRate() {
     }
 }
 
-const shownTips = new Set();
-
 let ttsEnabled = true;
 
 function updateTTSStatus(enabled) {
@@ -365,7 +546,7 @@ function updateTTSStatus(enabled) {
 
 async function checkTTSStatus() {
     try {
-        const response = await fetch('/api/tts-setting');
+        const response = await fetch(`/api/tts-setting${tokenParam}`);
         if (response.ok) {
             const data = await response.json();
             ttsEnabled = data.ttsEnabled;
@@ -478,160 +659,4 @@ function selectVoice(utterance, voices) {
         debugDiv.textContent = `Audio linear=${(audioSettings.volume??0).toFixed(3)} applied=${(appliedVol!==undefined?appliedVol:perceptualVolume(audioSettings.volume)).toFixed(3)} enabled=${audioSettings.enabled}`;
     }
 
-async function showDonationNotification(data) {
-    const uniqueId = data.isDirectTip 
-        ? `direct-${data.txId}` 
-        : `chat-${data.id || (data.from + data.amount + data.message)}`;
-
-    if (shownTips.has(uniqueId)) {
-        return;
-    }
-    shownTips.add(uniqueId);
-
-    playNotificationSound();
-    notification.classList.add('hidden');
-    void notification.offsetWidth;
-
-    if (!(typeof data.usdAmount === 'number' && typeof data.arAmount === 'number')) {
-        await updateExchangeRate();
-    } else {
-        if (!AR_TO_USD && data.arAmount > 0) {
-            AR_TO_USD = data.usdAmount / data.arAmount;
-        }
-    }
-    
-    const originalMessage = data.message || '';
-    const emojiCodes = (originalMessage.match(/:[^:\s]{1,32}:/g) || []);
-    let truncated = originalMessage;
-    if (originalMessage.length > 80) {
-        if (!(emojiCodes.length >= 3 && originalMessage.length <= 160)) {
-            truncated = originalMessage.substring(0,80) + '...';
-        }
-    }
-
-    const formattedMessage = /<img[^>]+class=\"(?:comment-emoji|comment-sticker)\"/i.test(truncated)
-        ? truncated
-        : (truncated ? formatText(truncated) : '');
-    const isChatTipHeuristic = !!data.isChatTip && (data.amount === undefined || data.amount === null);
-    const creditsIsUsd = !!data.creditsIsUsd;
-    let rawAr = 0, rawUsd = 0;
-    if (typeof data.usdAmount === 'number' && typeof data.arAmount === 'number') {
-        rawUsd = data.usdAmount;
-        rawAr = data.arAmount;
-    } else if (isChatTipHeuristic || creditsIsUsd) {
-        rawUsd = parseFloat(data.credits || 0) || 0;
-        rawAr = AR_TO_USD > 0 ? (rawUsd / AR_TO_USD) : (rawUsd / 5);
-    } else {
-        rawAr = parseFloat(data.amount || data.credits || 0) || 0;
-        rawUsd = AR_TO_USD > 0 ? (rawAr * AR_TO_USD) : (rawAr * 5);
-    }
-
-    const arAmount = rawAr.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 6
-    });
-    const usdAmount = rawUsd.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-    
-    const senderInfo = data.from 
-        ? `📦 From: ${data.from.slice(0, 8)}...` 
-        : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
-
-    if (ttsEnabled) {
-        const rawForTts = originalMessage || '';
-        if ((data.isChatTip || ttsAllChat) && rawForTts) {
-            speakMessage(rawForTts);
-        }
-    }
-
-    notification.innerHTML = `
-        <div class="notification-content">
-            <div class="notification-icon"></div>
-            <div class="notification-text">
-                <div class="notification-title">🎉 ${data.credits ? 'Tip Received. Woohoo!' : 'Tip Received. Woohoo!'}</div>
-                <div class="amount-container">
-                    <span class="ar-amount">${arAmount} AR</span>
-                    <span class="usd-value">($${usdAmount} USD${isChatTipHeuristic ? '' : ''})</span>
-                </div>
-                <div class="notification-from">
-                    ${senderInfo} <span class="thank-you">👏</span>
-                </div>
-                ${formattedMessage ? `
-                <div class="notification-message">
-                    ${formattedMessage}
-                </div>
-                ` : ''}
-            </div>
-        </div>
-    `;
-
-    try {
-        const iconContainer = notification.querySelector('.notification-icon');
-        if (iconContainer) {
-            const imgEl = document.createElement('img');
-            imgEl.src = data.avatar || '/assets/odysee.png';
-            imgEl.alt = '💰';
-            imgEl.addEventListener('error', () => {
-                imgEl.classList.add('hidden');
-                iconContainer.textContent = '💰';
-            });
-            iconContainer.appendChild(imgEl);
-        }
-    } catch {}
-    notification.classList.remove('hidden');
-
-    if (gifConfig.gifPath && gifSlot) {
-        const cacheBust = `${gifConfig.width||0}x${gifConfig.height||0}-${Date.now()}`;
-    gifSlot.innerHTML = `<img class="tip-gif-img" src="${gifConfig.gifPath}?v=${cacheBust}" alt="Tip GIF" />`;
-    gifSlot.classList.remove('hidden');
-    } else if (gifSlot) {
-    gifSlot.classList.add('hidden');
-        gifSlot.innerHTML = '';
-    }
-
-    const DISPLAY_DURATION = 15000;
-    const FADE_TIME = 500;
-    const VISIBLE_TIME = DISPLAY_DURATION - FADE_TIME;
-
-    setTimeout(() => {
-        notification.classList.add('fade-out');
-        if (gifSlot) gifSlot.classList.add('fade-out');
-        setTimeout(() => {
-            notification.classList.add('hidden');
-            notification.classList.remove('fade-out');
-            if (gifSlot) {
-                gifSlot.classList.add('hidden');
-                gifSlot.innerHTML = '';
-                gifSlot.classList.remove('fade-out');
-            }
-        }, FADE_TIME);
-    }, VISIBLE_TIME);
-}
-
-    function showError(message) {
-        notification.innerHTML = `
-            <div class="notification-content error">
-                <div class="notification-icon">⚠️</div>
-                <div class="notification-text">
-                    <div class="notification-title">Error</div>
-                    <div class="notification-from">${message}</div>
-                </div>
-            </div>
-        `;
-        notification.classList.remove('hidden');
-        setTimeout(() => notification.classList.add('hidden'), 3000);
-    }
-
-    function showConnectionStatus(connected) {
-        let statusElement = document.getElementById('connection-status');
-        if (!statusElement) {
-            statusElement = document.createElement('div');
-            statusElement.id = 'connection-status';
-            document.body.appendChild(statusElement);
-        }
-        // statusElement.textContent = connected ? '🟢 Connected' : '🔴 Offline';
-    statusElement.className = connected ? 'conn-status conn-online' : 'conn-status conn-offline';
-    }
 });

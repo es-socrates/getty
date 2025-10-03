@@ -730,13 +730,11 @@ onMounted(async () => {
 });
 
 watch(
-  () => gif.position,
-  () => {
-    posPulse.value = false;
-    requestAnimationFrame(() => {
-      posPulse.value = true;
-      setTimeout(() => (posPulse.value = false), 700);
-    });
+  () => audioCfg.volume,
+  (newVol, oldVol) => {
+    if (Math.abs(newVol - oldVol) > 0.01 && sessionActive.value) {
+      persistAudioCfg(true); // silent save
+    }
   }
 );
 </script>

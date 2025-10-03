@@ -12,8 +12,8 @@
 
     let ws;
     let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
-    const reconnectDelayBase = 1000;
+    const maxReconnectAttempts = 10;
+    const reconnectDelayBase = 5000;
     let currentData = null;
     let hasReachedGoal = false;
     let hasPlayedGoalSound = false;
