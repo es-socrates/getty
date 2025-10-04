@@ -32,7 +32,7 @@ async function run() {
   ].map(p => path.posix.join(projectRoot.replace(/\\/g, '/'), p))
 
   const skipGlobs = [
-    'public/admin-dist/**/*.css',
+    'dist/**/*.css',
     'public/**/min/**/*.css',
     '**/*.min.css',
   ].map(p => path.posix.join(projectRoot.replace(/\\/g, '/'), p))
@@ -72,7 +72,7 @@ async function run() {
   const output = {
     generatedAt: new Date().toISOString(),
     notes: [
-      'Minified/bundled CSS was excluded (public/admin-dist, **/*.min.css, public/**/min).',
+      'Minified/bundled CSS was excluded (dist, **/*.min.css, public/**/min).',
       'Tailwind utilities are analyzed against project content; dynamic class names built at runtime may be reported as unused if not detectable.',
       'This is a read-only report. No files were changed.',
     ],
