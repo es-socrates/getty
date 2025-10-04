@@ -128,6 +128,9 @@
                     :audio-file-name="audioState.audioFileName"
                     :audio-file-size="audioState.audioFileSize"
                     :remote-url="REMOTE_ACH_SOUND_URL"
+                    :save-endpoint="'/api/goal-audio-settings'"
+                    :delete-endpoint="'/api/goal-audio-settings'"
+                    :custom-audio-endpoint="'/api/goal-custom-audio'"
                     @update:enabled="(v) => (cfg.sound.enabled = v)"
                     @update:volume="(v) => (cfg.sound.volume = v)"
                     @update:audio-source="(v) => (audio.audioSource = v)"
@@ -645,7 +648,7 @@ async function loadAll() {
     status.items = Array.isArray(st.items) ? st.items : [];
   } catch {}
   try {
-    const { data } = await api.get('/api/audio-settings');
+    const { data } = await api.get('/api/goal-audio-settings');
     audio.audioSource = data.audioSource || 'remote';
     audioState.hasCustomAudio = !!data.hasCustomAudio;
     audioState.audioFileName = data.audioFileName || '';
@@ -653,7 +656,7 @@ async function loadAll() {
 
     if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
       try {
-        const response = await api.get('/api/custom-audio');
+        const response = await api.get('/api/goal-custom-audio');
         cfg.sound.url = response.data.url;
       } catch (error) {
         console.error('Error fetching custom audio URL:', error);
@@ -718,7 +721,7 @@ watch(
   async (src) => {
     if (src === 'custom' && audioState.hasCustomAudio) {
       try {
-        const response = await api.get('/api/custom-audio');
+        const response = await api.get('/api/goal-custom-audio');
         cfg.sound.url = response.data.url;
       } catch (error) {
         console.error('Error fetching custom audio URL:', error);

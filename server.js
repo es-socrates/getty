@@ -1831,6 +1831,8 @@ const goalAudioUpload = multer({
 
 registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss, TIP_GOAL_CONFIG_FILE, GOAL_AUDIO_CONFIG_FILE, { store });
 
+registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
+
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
@@ -4051,7 +4053,7 @@ if (!fs.existsSync(GOAL_AUDIO_UPLOADS_DIR)) {
     fs.mkdirSync(GOAL_AUDIO_UPLOADS_DIR, { recursive: true });
 }
 
-registerGoalAudioRoutes(app, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
+registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
 
 app.get('/api/status', (_req, res) => {
   try {
@@ -4633,4 +4635,18 @@ if (process.env.NODE_ENV === 'test') {
     try { wss.clients.forEach(c=>{ try { c.terminate(); } catch {} }); } catch {}
     try { if (wss.close) wss.close(); } catch {}
   };
+}
+
+if (process.env.NODE_ENV !== 'test') {
+  const port = parseInt(process.env.PORT || '3000', 10);
+  const server = require('http').createServer(app);
+  server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  });
+
+  server.listen(port, () => {
+    console.warn(`Server running on port ${port}`);
+  });
 }
