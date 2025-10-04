@@ -347,7 +347,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (ttsEnabled) {
             const rawForTts = originalMessage || '';
-            console.log('TTS check:', { ttsEnabled, ttsAllChat, isChatTip: data.isChatTip, rawForTts, originalMessage });
             if ((data.isChatTip || ttsAllChat) && rawForTts) {
                 speakMessage(rawForTts);
             }
@@ -582,7 +581,6 @@ async function checkTTSStatus() {
         const response = await fetch(`/api/tts-setting${tokenParam}`);
         if (response.ok) {
             const data = await response.json();
-            console.log('TTS settings loaded:', data);
             ttsEnabled = data.ttsEnabled;
         } else {
             console.log('TTS settings fetch failed:', response.status);
@@ -641,12 +639,8 @@ function selectVoice(utterance, voices) {
         const anyEnglish = voices.filter(voice => voice.lang.startsWith('en'));
         if (usMaleVoices.length > 0) {
             utterance.voice = usMaleVoices[0];
-            console.log('Using male voice in English:', usMaleVoices[0].name);
         } else if (anyEnglish.length > 0) {
             utterance.voice = anyEnglish[0];
-            console.log('Using English voice:', anyEnglish[0].name);
-        } else {
-            console.log('Using the browsers default voice');
         }
     } else {
         const mexicanMaleVoices = voices.filter(voice => 
@@ -667,18 +661,12 @@ function selectVoice(utterance, voices) {
         const anySpanish = voices.filter(voice => voice.lang.includes('es'));
         if (mexicanMaleVoices.length > 0) {
             utterance.voice = mexicanMaleVoices[0];
-            console.log('Usando voz mexicana masculina:', mexicanMaleVoices[0].name);
         } else if (latinMaleVoices.length > 0) {
             utterance.voice = latinMaleVoices[0];
-            console.log('Usando voz latinoamericana masculina:', latinMaleVoices[0].name);
         } else if (anySpanishMale.length > 0) {
             utterance.voice = anySpanishMale[0];
-            console.log('Usando voz masculina en español:', anySpanishMale[0].name);
         } else if (anySpanish.length > 0) {
             utterance.voice = anySpanish[0];
-            console.log('Usando voz en español:', anySpanish[0].name);
-        } else {
-            console.log('Usando voz predeterminada del navegador');
         }
     }
 }
