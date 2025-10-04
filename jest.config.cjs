@@ -6,7 +6,8 @@ module.exports = {
   },
   moduleFileExtensions: ['js','json','vue'],
   moduleNameMapper: {
-    '^vue-i18n$': 'vue-i18n/dist/vue-i18n.cjs.js'
+    '^vue-i18n$': 'vue-i18n/dist/vue-i18n.cjs.js',
+    '^shared-i18n/(.*)$': '<rootDir>/shared-i18n/$1'
   },
   transformIgnorePatterns: [
     '/node_modules/(?!(?:\\.pnpm/[^/]+/node_modules/)?(@?vue|vue-i18n|@intlify)/)'
