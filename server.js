@@ -4636,3 +4636,17 @@ if (process.env.NODE_ENV === 'test') {
     try { if (wss.close) wss.close(); } catch {}
   };
 }
+
+if (process.env.NODE_ENV !== 'test') {
+  const port = parseInt(process.env.PORT || '3000', 10);
+  const server = require('http').createServer(app);
+  server.on('upgrade', (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  });
+
+  server.listen(port, () => {
+    console.warn(`Server running on port ${port}`);
+  });
+}
