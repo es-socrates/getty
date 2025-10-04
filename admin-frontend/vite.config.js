@@ -19,7 +19,7 @@ try {
 
 export default defineConfig({
   plugins: [vue()],
-  root: __dirname,
+  root: path.resolve(__dirname),
   base: '/admin/',
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
@@ -30,17 +30,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      'shared-i18n': path.resolve(__dirname, '../public/shared-i18n')
+      'shared-i18n': path.resolve(__dirname, '../shared-i18n')
     }
   },
   build: {
-    outDir: path.resolve(__dirname, '../public/admin-dist'),
-    emptyOutDir: true,
-    sourcemap: false,
-    target: 'es2020',
-    workerThreads: false,
-    minify: 'esbuild',
+    outDir: path.resolve(__dirname, '..', 'dist'),
     rollupOptions: {
+      input: path.resolve(__dirname, 'index.html'),
       output: {
         manualChunks: {
           'vue-core': ['vue', 'vue-router', 'vue-i18n'],

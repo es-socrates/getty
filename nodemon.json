@@ -4,7 +4,7 @@
     "config/*-cache.json",
     "public/js/min/*",
     "public/uploads/**",
-    "public/admin-dist/**"
+    "dist/**"
   ],
   "ext": "js,json",
   "exec": "node server.js"

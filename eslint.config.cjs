@@ -8,7 +8,7 @@ module.exports = [
       'public/**',
       '!public/js/*.js',
       'public/js/min/**',
-      'public/admin-dist/**',
+      'dist/**',
       'public/**/i18n-runtime*.js',
       'node_modules/**'
     ] },

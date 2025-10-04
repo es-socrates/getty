@@ -4147,7 +4147,7 @@ if (process.env.NODE_ENV !== 'test') {
 registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOBS, store);
 
 try {
-  const adminDist = path.join(__dirname, 'public', 'admin-dist');
+  const adminDist = path.join(__dirname, 'dist');
   if (fs.existsSync(adminDist)) {
     app.use('/admin', (req, res, next) => {
       try {
@@ -4230,7 +4230,7 @@ app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
   }
 
   try {
-    const adminDist = path.join(__dirname, 'public', 'admin-dist');
+    const adminDist = path.join(__dirname, 'dist');
     const indexPath = path.join(adminDist, 'index.html');
     if (fs.existsSync(indexPath)) {
       try {
