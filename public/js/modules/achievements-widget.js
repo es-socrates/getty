@@ -29,7 +29,10 @@ const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslir
 
 async function loadSharedAudio() {
   try {
-    const r = await fetch('/api/audio-settings', { cache: 'no-store' });
+    const urlParams = new URLSearchParams(window.location.search);
+    const widgetToken = urlParams.get('token');
+    const url = widgetToken ? `/api/goal-audio-settings?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/goal-audio-settings';
+    const r = await fetch(url, { cache: 'no-store' });
     if (r.ok) {
       const j = await r.json();
       sharedAudio = {
@@ -43,16 +46,19 @@ async function loadSharedAudio() {
 }
 
 function resolveAchievementSound(urlFromCfg) {
-  if (sharedAudio.audioSource === 'custom' && sharedAudio.hasCustomAudio) return '/api/custom-audio';
+  if (sharedAudio.audioSource === 'custom' && sharedAudio.hasCustomAudio) return '/api/goal-custom-audio';
 
   return urlFromCfg || REMOTE_SOUND_URL;
 }
 
 async function getAchievementAudioUrl(urlFromCfg) {
   const baseUrl = resolveAchievementSound(urlFromCfg);
-  if (baseUrl === '/api/custom-audio') {
+  if (baseUrl === '/api/goal-custom-audio') {
     try {
-      const response = await fetch(baseUrl);
+      const urlParams = new URLSearchParams(window.location.search);
+      const widgetToken = urlParams.get('token');
+      const url = widgetToken ? `/api/goal-custom-audio?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/goal-custom-audio';
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         return data.url;
@@ -286,7 +292,7 @@ async function connectWebSocket() {
             });
           } catch {}
         }
-        if (msg && msg.type === 'audioSettingsUpdate' && msg.data) {
+        if (msg && msg.type === 'goalAudioSettingsUpdate' && msg.data) {
           try {
             sharedAudio = {
               audioSource: msg.data.audioSource || sharedAudio.audioSource,

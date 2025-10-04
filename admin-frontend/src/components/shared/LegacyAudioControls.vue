@@ -157,6 +157,9 @@ const props = defineProps({
   compact: { type: Boolean, default: false },
   forceStack: { type: Boolean, default: false },
   remoteUrl: { type: String, default: '' },
+  saveEndpoint: { type: String, default: '/api/audio-settings' },
+  deleteEndpoint: { type: String, default: '/api/audio-settings' },
+  customAudioEndpoint: { type: String, default: '/api/custom-audio' },
 });
 const emit = defineEmits([
   'update:enabled',
@@ -196,7 +199,7 @@ async function testPlayback() {
     let url = props.remoteUrl || fallbackRemote;
     if (useCustom) {
       try {
-        const response = await api.get('/api/custom-audio');
+        const response = await api.get(props.customAudioEndpoint);
         url = response.data.url;
       } catch (error) {
         console.error('Error fetching custom audio URL:', error);
@@ -250,7 +253,7 @@ async function saveAudio() {
     if (props.audioSource === 'custom' && fileRef.value) {
       fd.append('audioFile', fileRef.value);
     }
-    await api.post('/api/audio-settings', fd, {
+    await api.post(props.saveEndpoint, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     emit('audio-saved');
@@ -270,7 +273,7 @@ async function deleteCustomAudio() {
   }
   try {
     savingAudio.value = true;
-    await api.delete('/api/audio-settings');
+    await api.delete(props.deleteEndpoint);
     emit('audio-deleted');
     emit('toast', { type: 'success', messageKey: 'toastAudioRemoved' });
   } catch {
