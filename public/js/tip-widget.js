@@ -184,30 +184,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             audioUrl = REMOTE_SOUND_URL;
             logMessage = '🎵 Remote audio played';
         }
-        try {
-            const audio = getReusableAudioElement(audioUrl);
-            audio.currentTime = 0;
-            const appliedVol = perceptualVolume(audioSettings.volume);
-            audio.volume = appliedVol;
-            updateDebugOverlay(appliedVol);
-            audio.play()
-                .then(() => console.log(logMessage, `(linear=${audioSettings.volume.toFixed(2)}, applied=${appliedVol})`))
-                .catch(err => {
-                    console.error('Audio play failed:', err);
-                    if (audioUrl !== REMOTE_SOUND_URL) {
-                        const fallback = getReusableAudioElement(REMOTE_SOUND_URL);
-                        fallback.currentTime = 0;
-                        const fbVol = perceptualVolume(audioSettings.volume);
-                        fallback.volume = fbVol;
-                        updateDebugOverlay(fbVol);
-                        fallback.play().catch(e => console.error('Fallback audio failed:', e));
-                    }
-                });
-        } catch (e) {
-            console.error('Audio init error:', e);
-        } finally {
-            lastAudioSettingsFetch = Date.now() - (AUDIO_SETTINGS_TTL - 2500);
-        }
+        return new Promise((resolve) => {
+            try {
+                const audio = getReusableAudioElement(audioUrl);
+                audio.currentTime = 0;
+                const appliedVol = perceptualVolume(audioSettings.volume);
+                audio.volume = appliedVol;
+                updateDebugOverlay(appliedVol);
+                audio.addEventListener('ended', () => {
+                    console.log(logMessage, `(linear=${audioSettings.volume.toFixed(2)}, applied=${appliedVol})`);
+                    resolve();
+                }, { once: true });
+                audio.play()
+                    .catch(err => {
+                        console.error('Audio play failed:', err);
+                        if (audioUrl !== REMOTE_SOUND_URL) {
+                            const fallback = getReusableAudioElement(REMOTE_SOUND_URL);
+                            fallback.currentTime = 0;
+                            const fbVol = perceptualVolume(audioSettings.volume);
+                            fallback.volume = fbVol;
+                            updateDebugOverlay(fbVol);
+                            fallback.addEventListener('ended', () => {
+                                console.log('🎵 Fallback audio played', `(linear=${audioSettings.volume.toFixed(2)}, applied=${fbVol})`);
+                                resolve();
+                            }, { once: true });
+                            fallback.play().catch(e => {
+                                console.error('Fallback audio failed:', e);
+                                resolve();
+                            });
+                        } else {
+                            resolve();
+                        }
+                    });
+            } catch (e) {
+                console.error('Audio init error:', e);
+                resolve();
+            } finally {
+                lastAudioSettingsFetch = Date.now() - (AUDIO_SETTINGS_TTL - 2500);
+            }
+        });
     }
 
     async function showDonationNotification(data) {
@@ -215,12 +230,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             ? `direct-${data.txId}` 
             : `chat-${data.id || (data.from + data.amount + data.message)}`;
 
-        if (shownTips.has(uniqueId)) {
+        if (!data.isTestDonation && shownTips.has(uniqueId)) {
             return;
         }
         shownTips.add(uniqueId);
 
-        await playNotificationSound();
         notification.classList.add('hidden');
         void notification.offsetWidth;
 
@@ -271,13 +285,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             ? `📦 From: ${data.from.slice(0, 8)}...` 
             : `🏷️ From: ${data.channelTitle || 'Anonymous'}`;
 
-        if (ttsEnabled) {
-            const rawForTts = originalMessage || '';
-            if ((data.isChatTip || ttsAllChat) && rawForTts) {
-                speakMessage(rawForTts);
-            }
-        }
-
         notification.innerHTML = `
             <div class="notification-content">
                 <div class="notification-icon"></div>
@@ -312,18 +319,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                 iconContainer.appendChild(imgEl);
             }
         } catch {}
-        notification.classList.remove('hidden');
-
+        
         if (gifConfig.gifPath && gifSlot) {
-            const cacheBust = `${gifConfig.width||0}x${gifConfig.height||0}-${Date.now()}`;
-        gifSlot.innerHTML = `<img class="tip-gif-img" src="${gifConfig.gifPath}?v=${cacheBust}" alt="Tip GIF" />`;
-        gifSlot.classList.remove('hidden');
-        } else if (gifSlot) {
-        gifSlot.classList.add('hidden');
-            gifSlot.innerHTML = '';
+            await new Promise((resolve) => {
+                const img = document.createElement('img');
+                img.className = 'tip-gif-img';
+                img.alt = 'Tip GIF';
+                img.onload = () => {
+                    gifSlot.innerHTML = '';
+                    gifSlot.appendChild(img);
+                    gifSlot.classList.remove('hidden');
+                    resolve();
+                };
+                img.onerror = () => {
+                    resolve();
+                };
+                const cacheBust = `${gifConfig.width||0}x${gifConfig.height||0}-${Date.now()}`;
+                img.src = `${gifConfig.gifPath}?v=${cacheBust}`;
+            });
+        } else {
+            if (gifSlot) gifSlot.classList.add('hidden');
         }
 
-        const DISPLAY_DURATION = 15000;
+        notification.classList.remove('hidden');
+
+        await playNotificationSound();
+
+        if (ttsEnabled) {
+            const rawForTts = originalMessage || '';
+            console.log('TTS check:', { ttsEnabled, ttsAllChat, isChatTip: data.isChatTip, rawForTts, originalMessage });
+            if ((data.isChatTip || ttsAllChat) && rawForTts) {
+                speakMessage(rawForTts);
+            }
+        }
+
+        const DISPLAY_DURATION = 5000;
         const FADE_TIME = 500;
         const VISIBLE_TIME = DISPLAY_DURATION - FADE_TIME;
 
@@ -425,16 +455,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 if (msg.type === 'tipNotification') {
+                    console.log('Received tipNotification:', msg.data);
                     await showDonationNotification({
                         ...msg.data,
                         isDirectTip: true
                     });
                 } else if (msg.type === 'chatMessage' && msg.data?.credits > 0) {
+                    console.log('Received chatMessage with credits:', msg.data);
                     await showDonationNotification({
                         ...msg.data,
                         isChatTip: true
                     });
             } else if (msg.type === 'donation' || msg.type === 'tip') {
+                    console.log('Received donation/tip:', msg);
                     await showDonationNotification({
                 amount: msg.amount ?? msg.data?.amount,
                 from: msg.from ?? msg.data?.from,
@@ -549,7 +582,10 @@ async function checkTTSStatus() {
         const response = await fetch(`/api/tts-setting${tokenParam}`);
         if (response.ok) {
             const data = await response.json();
+            console.log('TTS settings loaded:', data);
             ttsEnabled = data.ttsEnabled;
+        } else {
+            console.log('TTS settings fetch failed:', response.status);
         }
     } catch (error) {
         console.error('Error checking TTS status:', error);

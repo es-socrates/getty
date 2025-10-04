@@ -132,31 +132,17 @@
         <div class="notif-setting-item">
           <div class="notif-setting-text">
             <div class="notif-setting-title">{{ t('enableTextToSpeech') }}</div>
-            <div class="notif-setting-desc">{{ t('ttsHint') }}</div>
+            <div class="notif-setting-desc">
+              {{ tts.ttsAllChat ? t('ttsDisabledDueToGlobal') : t('ttsHint') }}
+            </div>
           </div>
           <div class="notif-setting-control">
             <button
               type="button"
               class="switch"
               :aria-pressed="String(tts.enabled)"
+              :disabled="tts.ttsAllChat"
               @click="tts.enabled = !tts.enabled">
-              <span class="knob"></span>
-            </button>
-          </div>
-        </div>
-        <div class="notif-setting-item">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title">{{ t('enableTtsAllChat') }}</div>
-            <div class="notif-setting-desc">{{ t('enableTtsAllChat') }}</div>
-          </div>
-          <div class="notif-setting-control">
-            <button
-              type="button"
-              class="switch"
-              :disabled="!tts.enabled"
-              :aria-disabled="(!tts.enabled).toString()"
-              :aria-pressed="String(tts.allChat)"
-              @click="tts.enabled && (tts.allChat = !tts.allChat)">
               <span class="knob"></span>
             </button>
           </div>
@@ -402,8 +388,8 @@ const posKeyMap = {
 
 const tts = reactive({
   enabled: true,
-  allChat: false,
   language: 'en',
+  ttsAllChat: false,
   original: '',
 });
 
@@ -470,7 +456,7 @@ const previewVarsStyle = computed(() => ({
 function isDirty() {
   return (
     JSON.stringify({ p: gif.position, g: !!gif.gifPath }) !== gif.original ||
-    JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language }) !== tts.original ||
+    JSON.stringify({ e: tts.enabled, l: tts.language }) !== tts.original ||
     JSON.stringify({ s: audio.audioSource, f: !!audio.fileName }) !== audio.original ||
     (originalColors && originalColors !== JSON.stringify(colors))
   );
@@ -619,9 +605,9 @@ async function loadTts() {
     const se = await api.get('/api/tts-setting');
     const la = await api.get('/api/tts-language');
     tts.enabled = !!se.data.ttsEnabled;
-    tts.allChat = !!se.data.ttsAllChat;
     tts.language = la.data.ttsLanguage || 'en';
-    tts.original = JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language });
+    tts.ttsAllChat = !!se.data.ttsAllChat;
+    tts.original = JSON.stringify({ e: tts.enabled, l: tts.language });
   } catch {}
 }
 
@@ -632,9 +618,9 @@ async function saveTts() {
       pushToast({ type: 'info', message: t('sessionRequiredToast') });
       return;
     }
-    await api.post('/api/tts-setting', { ttsEnabled: tts.enabled, ttsAllChat: tts.allChat });
+    await api.post('/api/tts-setting', { ttsEnabled: tts.enabled });
     await api.post('/api/tts-language', { ttsLanguage: tts.language });
-    tts.original = JSON.stringify({ e: tts.enabled, a: tts.allChat, l: tts.language });
+    tts.original = JSON.stringify({ e: tts.enabled, l: tts.language });
     pushToast({ type: 'success', message: t('savedNotifications') });
   } catch {
     pushToast({ type: 'error', message: t('saveFailedNotifications') });

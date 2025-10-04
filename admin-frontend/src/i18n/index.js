@@ -1,5 +1,5 @@
-import enShared from '../../../shared-i18n/en.json';
-import esShared from '../../../shared-i18n/es.json';
+import enShared from 'shared-i18n/en.json';
+import esShared from 'shared-i18n/es.json';
 import { createI18n } from 'vue-i18n';
 
 const adminExtra = {
