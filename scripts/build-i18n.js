@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const localesDir = path.join(__dirname, '..', 'shared-i18n');
+const localesDir = path.join(__dirname, '..', 'public', 'shared-i18n');
 const outDir = path.join(__dirname, '..', 'public', 'js', 'min');
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 

@@ -24,12 +24,14 @@ export function createChatPanel(t) {
   const avatarRandomBg = ref(false);
   const overrideUsername = ref(false);
   const clearedThemeCSS = ref(false);
+  const ttsAllChat = ref(false);
   const errors = reactive({ chatUrl: '' });
   const CLAIM_BASE = 'wss://sockety.odysee.tv/ws/commentron?id=';
   const claimPlaceholder = 'ej: 9e28103c613048b4a40...';
   const saving = ref(false);
   const connected = ref(false);
   const lastStatusAt = ref(0);
+  const savingTts = ref(false);
   const original = reactive({ snapshot: null });
   const testForm = reactive({ username: t('testUsernameDefault'), message: t('testMessageDefault'), credits: 5 });
   const testSending = ref(false);
@@ -114,6 +116,10 @@ export function createChatPanel(t) {
     } catch {
       pushToast({ type: 'error', message: t('loadFailedChat') });
     }
+    try {
+      const { data } = await api.get('/api/tts-setting');
+      ttsAllChat.value = !!data.ttsAllChat;
+    } catch {}
   }
 
   async function save() {
@@ -143,6 +149,18 @@ export function createChatPanel(t) {
     } finally {
       saving.value = false;
       clearedThemeCSS.value = false;
+    }
+  }
+
+  async function saveTtsAllChat() {
+    try {
+      savingTts.value = true;
+      await api.post('/api/tts-setting', { ttsAllChat: ttsAllChat.value });
+      pushToast({ type: 'success', message: t('savedChat') });
+    } catch {
+      pushToast({ type: 'error', message: t('saveFailedChat') });
+    } finally {
+      savingTts.value = false;
     }
   }
 
@@ -296,12 +314,14 @@ export function createChatPanel(t) {
       avatarRandomBg,
       overrideUsername,
       clearedThemeCSS,
+      ttsAllChat,
       errors,
       CLAIM_BASE,
       claimPlaceholder,
       saving,
       connected,
       lastStatusAt,
+      savingTts,
       original,
       testForm,
       testSending,
@@ -312,6 +332,7 @@ export function createChatPanel(t) {
       resetColors,
       load,
       save,
+      saveTtsAllChat,
       extractClaimId,
       validate,
       sendTest,

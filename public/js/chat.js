@@ -72,6 +72,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ttsAllChat = false;
     let ttsLanguage = 'en';
 
+    function stripEmojis(text) {
+      if (!text) return '';
+      let cleaned = text.replace(/:[^:\s]+:/g, '');
+      cleaned = cleaned.replace(/<stkr>.*?<\/stkr>/g, '');
+      cleaned = cleaned.replace(/<img[^>]*class=\"(?:comment-emoji|comment-sticker)[^>]*>/gi, '');
+      cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
+      cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+      return cleaned;
+    }
+    function selectVoice(utterance, voices) {
+      if (ttsLanguage === 'en') { const english = voices.filter(v => v.lang.startsWith('en')); if (english.length) utterance.voice = english[0]; }
+      else { const spanish = voices.filter(v => v.lang.includes('es')); if (spanish.length) utterance.voice = spanish[0]; }
+    }
+    function speakMessage(text) {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return; const cleaned = stripEmojis(text); if (!cleaned) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(cleaned); u.volume = 0.9; u.rate = 1; u.pitch = 0.9; let voices = window.speechSynthesis.getVoices(); if (voices.length === 0) { window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); selectVoice(u, voices); window.speechSynthesis.speak(u); }; } else { selectVoice(u, voices); window.speechSynthesis.speak(u); }
+    }
+    async function loadTtsSettings() {
+      try { const s = await fetch('/api/tts-setting'); if (s.ok) { const j = await s.json(); console.log('Chat TTS settings:', j); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; } const l = await fetch('/api/tts-language'); if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; } } catch {}
+    }
+    loadTtsSettings();
+
     function connectWebSocket() {
         if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
             return; // Already connected or connecting

@@ -35,6 +35,16 @@ export async function initChat() {
         }
       }
     } catch {}
+
+    setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+        const cfg = await res.json();
+        if (cfg && typeof cfg.avatarRandomBg === 'boolean' && cfg.avatarRandomBg !== randomAvatarBgPerMessage) {
+          randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
+        }
+      } catch {}
+    }, 10000);
     function colorForAvatar(name = 'Anonymous') {
       if (randomAvatarBgPerMessage) { const idx = Math.floor(Math.random() * DEFAULT_AVATAR_BG_COLORS.length); return DEFAULT_AVATAR_BG_COLORS[idx]; }
       return colorForUsername(name);
@@ -56,24 +66,12 @@ export async function initChat() {
       else { const spanish = voices.filter(v => v.lang.includes('es')); if (spanish.length) utterance.voice = spanish[0]; }
     }
     function speakMessage(text) {
-      if (!ttsEnabled) return; if (typeof window === 'undefined' || !('speechSynthesis' in window)) return; const cleaned = stripEmojis(text); if (!cleaned) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(cleaned); u.volume = 0.9; u.rate = 1; u.pitch = 0.9; let voices = window.speechSynthesis.getVoices(); if (voices.length === 0) { window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); selectVoice(u, voices); window.speechSynthesis.speak(u); }; } else { selectVoice(u, voices); window.speechSynthesis.speak(u); }
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return; const cleaned = stripEmojis(text); if (!cleaned) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(cleaned); u.volume = 0.9; u.rate = 1; u.pitch = 0.9; let voices = window.speechSynthesis.getVoices(); if (voices.length === 0) { window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); selectVoice(u, voices); window.speechSynthesis.speak(u); }; } else { selectVoice(u, voices); window.speechSynthesis.speak(u); }
     }
     async function loadTtsSettings() {
-      try { const s = await fetch('/api/tts-setting'); if (s.ok) { const j = await s.json(); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; } const l = await fetch('/api/tts-language'); if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; } } catch {}
+      try { const s = await fetch('/api/tts-setting'); if (s.ok) { const j = await s.json(); console.log('Chat TTS settings:', j); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; } const l = await fetch('/api/tts-language'); if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; } } catch {}
     }
     loadTtsSettings();
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'ttsSettingUpdate') { if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) ttsEnabled = !!msg.data.ttsEnabled; if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) ttsAllChat = !!msg.data.ttsAllChat; return; }
-        if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) { ttsLanguage = msg.data.ttsLanguage; return; }
-        if (msg.type === 'chatConfigUpdate') { fetchAndApplyTheme(); applyChatColors(); return; }
-        if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
-        else if (msg.type === 'chat') addMessage(msg);
-        else if (msg.type === 'init' && msg.data?.chatHistory) { msg.data.chatHistory.forEach(m => addMessage(m)); }
-        else if (msg.type === 'batch' && Array.isArray(msg.messages)) { msg.messages.forEach(m => addMessage(m)); }
-      } catch (e) { console.error('Error processing message:', e); }
-    };
     const CYBERPUNK_PALETTE = [
       { bg: 'rgba(17, 255, 121, 0.8)', text: '#000', border: 'rgba(17, 255, 121, 0.9)' },
       { bg: 'rgba(255, 17, 121, 0.8)', text: '#fff', border: 'rgba(255, 17, 121, 0.9)' },
@@ -225,7 +223,8 @@ export async function initChat() {
       if (msg.credits > 0) { const isDonationOnly = !normalText.length && !hasSticker && !/:([^\s:]+):/.test(cleanMessage); messageEl.classList.add('has-donation'); if (isDonationOnly) { messageEl.classList.add('donation-only'); } }
       if (normalText.length > 0 || (!normalText.length && (hasSticker || /:[^\s:]+:/.test(cleanMessage)))) {
         const textElement = document.createElement('span'); textElement.className = msg.credits > 0 ? 'message-text-inline has-donation' : 'message-text-inline'; textElement.innerHTML = formatText(normalText.length > 0 ? normalText : cleanMessage); userContainer.appendChild(textElement);
-        if (ttsAllChat && (normalText || cleanMessage)) { speakMessage(normalText || cleanMessage); }
+        console.log('TTS global check:', { ttsAllChat, normalText, cleanMessage });
+        if (ttsAllChat && (normalText || cleanMessage) && msg.credits <= 0) { speakMessage(normalText || cleanMessage); }
       }
       header.appendChild(userContainer);
       if (msg.credits > 0) {
@@ -336,6 +335,29 @@ export async function initChat() {
   });
 
     originalAddMessage = addMessageImpl;
+    addMessage = addMessageImpl;
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'ttsSettingUpdate') { if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsEnabled')) ttsEnabled = !!msg.data.ttsEnabled; if (Object.prototype.hasOwnProperty.call(msg.data || {}, 'ttsAllChat')) ttsAllChat = !!msg.data.ttsAllChat; return; }
+        if (msg.type === 'ttsLanguageUpdate' && msg.data?.ttsLanguage) { ttsLanguage = msg.data.ttsLanguage; return; }
+        if (msg.type === 'chatConfigUpdate') { fetchAndApplyTheme(); applyChatColors(); 
+          (async () => {
+            try {
+              const res = await fetch(`/api/chat-config?nocache=${Date.now()}`);
+              const cfg = await res.json();
+              if (cfg && typeof cfg.avatarRandomBg === 'boolean') {
+                randomAvatarBgPerMessage = !!cfg.avatarRandomBg;
+              }
+            } catch {/* ignore */}
+          })();
+          return; }
+        if (msg.type === 'chatMessage' && msg.data) addMessage(msg.data);
+        else if (msg.type === 'chat') addMessage(msg);
+        else if (msg.type === 'init' && msg.data?.chatHistory) { msg.data.chatHistory.forEach(m => addMessage(m)); }
+        else if (msg.type === 'batch' && Array.isArray(msg.messages)) { msg.messages.forEach(m => addMessage(m)); }
+      } catch (e) { console.error('Error processing message:', e); }
+    };
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });

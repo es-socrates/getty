@@ -101,6 +101,35 @@
             </div>
           </div>
         </div>
+        <div class="chat-group-box" aria-labelledby="obs-heading">
+          <h3 id="obs-heading" class="chat-group-title flex items-center gap-2">
+            <HeaderIcon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            </HeaderIcon>
+            <span>{{ t('obsIntegration') }}</span>
+          </h3>
+          <div class="form-group">
+            <label>{{ t('chatWidgetUrl') }}</label>
+            <CopyField :value="widgetUrl" />
+          </div>
+          <div class="form-group mt-2">
+            <label>{{ t('chatWidgetUrlHorizontal') || 'Chat Widget URL (Horizontal)' }}</label>
+            <CopyField :value="widgetHorizontalUrl" />
+          </div>
+        </div>
       </div>
       <!-- Right Column -->
       <div class="chat-col chat-col-right">
@@ -176,6 +205,44 @@
             <small class="block opacity-60 mt-1 text-xs" aria-live="polite">{{
               saving ? t('commonSaving') || 'Saving…' : ''
             }}</small>
+          </div>
+        </div>
+        <div class="chat-group-box" aria-labelledby="tts-heading">
+          <h3 id="tts-heading" class="chat-group-title flex items-center gap-2">
+            <HeaderIcon>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <path
+                  d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-4.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+            </HeaderIcon>
+            <span>{{ t('ttsSectionTitle') || 'Text-to-Speech' }}</span>
+          </h3>
+          <div class="mb-3">
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input type="checkbox" v-model="ttsAllChat" class="checkbox" />
+              <span>{{ t('enableTtsAllChat') || 'Read all chat messages' }}</span>
+            </label>
+            <small class="block opacity-70 mt-1">{{
+              t('enableTtsAllChatHint') || 'Enable TTS for all incoming chat messages'
+            }}</small>
+          </div>
+          <div class="chat-actions-row">
+            <button
+              class="btn"
+              :disabled="savingTts"
+              @click="saveTtsAllChat"
+              :aria-busy="savingTts ? 'true' : 'false'">
+              {{ savingTts ? t('commonSaving') : t('saveSettings') }}
+            </button>
           </div>
         </div>
         <div
@@ -286,16 +353,6 @@
               }}
             </button>
           </div>
-          <div class="my-4 h-px bg-[var(--card-border)] opacity-60"></div>
-          <h4 class="chat-subtitle mb-2">{{ t('obsIntegration') }}</h4>
-          <div class="form-group">
-            <label>{{ t('chatWidgetUrl') }}</label>
-            <CopyField :value="widgetUrl" />
-          </div>
-          <div class="form-group mt-2">
-            <label>{{ t('chatWidgetUrlHorizontal') || 'Chat Widget URL (Horizontal)' }}</label>
-            <CopyField :value="widgetHorizontalUrl" />
-          </div>
         </div>
       </div>
     </div>
@@ -333,8 +390,11 @@ const {
   testKind,
   widgetUrl,
   widgetHorizontalUrl,
+  ttsAllChat,
+  savingTts,
   resetColors,
   save,
+  saveTtsAllChat,
   sendTest,
   price,
   refreshPrice,
