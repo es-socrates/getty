@@ -159,6 +159,7 @@
   "english": "English",
   "spanish": "Español",
   "ttsHint": "Enable or disable text-to-speech for tip notifications",
+  "ttsDisabledDueToGlobal": "Text-to-speech must be disabled to use global TTS settings",
   "liveChatSettings": "Live Chat Settings",
   "chatUrl": "ClaimID of the live stream on Odysee:",
   "chatWidgetUrl": "Chat Widget URL:",
