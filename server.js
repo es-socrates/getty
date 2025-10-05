@@ -3041,7 +3041,7 @@ app.get('/api/modules', async (req, res) => {
           const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
           const hasNsSession = !!(req?.ns?.admin || req?.ns?.pub);
           if (hostedMode && hasNsSession) {
-            if (!__ltBaseWallet && (__ltCfgWallet || __tgWallet)) {
+            if (!__ltBaseWallet && (__ltCfgWallet || (__tgWallet && !hostedMode))) {
               const adopt = __ltCfgWallet || __tgWallet;
               if (adopt && typeof adopt === 'string') {
                 if (typeof lastTip.updateWalletAddress === 'function') {

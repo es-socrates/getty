@@ -267,6 +267,7 @@
     }
 
     function createConfetti(container, count = 50) {
+        const confettiContainer = isOBSWidget ? container : document.body;
         for (let i = 0; i < count; i++) {
             const el = document.createElement('div');
             el.classList.add('confetti');
@@ -277,7 +278,7 @@
             const delay = Math.floor(Math.random() * 11);
             if (Math.random() > 0.5) el.classList.add('round');
             el.classList.add(`pos-${pos}`, `size-${size}`, `color-${color}`, `dur-${dur-2}`, `delay-${delay}`);
-            container.appendChild(el);
+            confettiContainer.appendChild(el);
             const ttl = (dur + delay) * 1000;
             setTimeout(() => { el.remove(); }, ttl);
         }
@@ -380,13 +381,13 @@
 
     function scheduleGoalUpdate(data, reason = '') {
         try {
-            pendingUpdate = data;
+            pendingUpdate = { data, reason };
             if (updateTimer) return;
             updateTimer = setTimeout(() => {
                 const d = pendingUpdate;
                 pendingUpdate = null;
                 updateTimer = null;
-                try { updateGoalDisplay(d); } catch (e) { console.error('updateGoalDisplay failed:', e); }
+                try { updateGoalDisplay(d.data, d.reason); } catch (e) { console.error('updateGoalDisplay failed:', e); }
             }, 80);
         } catch (e) {
             console.error('scheduleGoalUpdate error:', e);
@@ -470,7 +471,7 @@
         el.classList.add(`w-pct-${n}`);
     }
 
-    function renderModernListTheme(data) {
+    function renderModernListTheme(data, reason = '') {
         const prefersDark = (() => {
             try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return false; }
         })();
@@ -482,6 +483,8 @@
         const targetUsd = data.goalUsd || ((data.goal || 0) * (data.rate || 0)).toFixed(2);
         const currentUsd = data.usdValue || ((data.current || 0) * (data.rate || 0)).toFixed(2);
 
+    let card = goalWidget.querySelector('.modern-card');
+    if (!card) {
     goalWidget.innerHTML = `
             <div class="modern-card ${themeClass}">
                 <div class="modern-top">
@@ -515,8 +518,25 @@
                 <!-- footer removed -->
             </div>
         `;
-
-    const card = goalWidget.querySelector('.modern-card');
+        card = goalWidget.querySelector('.modern-card');
+        if (reason === 'initial-load') {
+            card.style.opacity = '0';
+            setTimeout(() => card.style.opacity = '1', 10);
+        }
+    } else {
+        // Update existing elements
+        const pill = card.querySelector('.modern-pill');
+        if (pill) pill.textContent = statusLabel;
+        const title = card.querySelector('.modern-title');
+        if (title) title.textContent = titleSafe;
+        const progressValue = card.querySelector('.modern-value');
+        if (progressValue) progressValue.textContent = `${(data.progress || 0).toFixed(0)}%`;
+        const bar = card.querySelector('.modern-bar');
+        if (bar) setWidthClass(bar, data.progress || 0);
+        const amounts = card.querySelectorAll('.modern-amount');
+        if (amounts[0]) amounts[0].textContent = `$${targetUsd}`;
+        if (amounts[1]) amounts[1].textContent = `$${currentUsd}`;
+    }
         const bg = data.bgColor || (prefersDark ? '#0F0F12' : '#ffffff');
         const text = data.fontColor || (prefersDark ? '#ffffff' : '#0a0a0a');
         const accent = data.progressColor || (prefersDark ? '#00ff7f' : '#0a0a0a');
@@ -528,11 +548,14 @@
     if (bar) setWidthClass(bar, data.progress || 0);
     }
 
-    function updateGoalDisplay(data) {
+    function updateGoalDisplay(data, reason = '') {
         if (!data) {
             console.warn('No data provided to updateGoalDisplay');
             return;
         }
+
+        const skeleton = goalWidget.querySelector('[data-skeleton="goal"]');
+        if (skeleton) skeleton.remove();
 
         const bgColor = data.bgColor || '#222222';
         const fontColor = data.fontColor || '#ffffff';
@@ -552,32 +575,62 @@
     const t = (window.__i18n && window.__i18n.t) ? window.__i18n.t : (k=>k);
     let customTitle = (data.title && String(data.title).trim()) ? String(data.title).trim() : t('tipGoalDefaultTitle');
 
-    if (data.theme === 'modern-list' && isOBSWidget) {
+        if (data.theme === 'modern-list') {
 
             goalWidget.classList.add('modern-theme');
 
-            renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR });
+            renderModernListTheme({ ...data, current: parseFloat(currentAR), goal: goalAR }, reason);
         } else {
             goalWidget.classList.remove('modern-theme');
-            goalWidget.innerHTML = `
-            <div class="goal-container">
-                <div class="goal-header">
-                    <div class="goal-title">${customTitle.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-                    <div class="goal-amounts">
-                        <span class="current-ar">${currentAR}</span>
-                        <span class="goal-ar">/ ${goalAR} AR</span>
-                        <span class="usd-value">$${currentUSD} USD</span>
+            let container = goalWidget.querySelector('.goal-container');
+            if (!container) {
+                goalWidget.innerHTML = `
+                <div class="goal-container">
+                    <div class="goal-header">
+                        <div class="goal-title">${customTitle.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+                        <div class="goal-amounts">
+                            <span class="current-ar">${currentAR}</span>
+                            <span class="goal-ar">/ ${goalAR} AR</span>
+                            <span class="usd-value">$${currentUSD} USD</span>
+                        </div>
+                    </div>
+                    <div class="progress-container ${reachedGoal ? 'reached-goal' : ''}">
+                        <div class="progress-bar w-pct-${Math.max(0, Math.min(100, Math.round(progressPercentage)))}"></div>
+                        <div class="progress-text">${progressPercentage.toFixed(1)}%</div>
                     </div>
                 </div>
-                <div class="progress-container ${reachedGoal ? 'reached-goal' : ''}">
-                    <div class="progress-bar w-pct-${Math.max(0, Math.min(100, Math.round(progressPercentage)))}"></div>
-                    <div class="progress-text">${progressPercentage.toFixed(1)}%</div>
-                </div>
-            </div>
-        `;
-        }
-        
-        goalWidget.className = existingClasses;
+                `;
+                container = goalWidget.querySelector('.goal-container');
+                if (reason === 'initial-load') {
+                    container.style.opacity = '0';
+                    setTimeout(() => container.style.opacity = '1', 10);
+                }
+            } else {
+                const titleEl = container.querySelector('.goal-title');
+                if (titleEl) titleEl.textContent = customTitle.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const currentArEl = container.querySelector('.current-ar');
+                if (currentArEl) currentArEl.textContent = currentAR;
+                const goalArEl = container.querySelector('.goal-ar');
+                if (goalArEl) goalArEl.textContent = `/ ${goalAR} AR`;
+                const usdEl = container.querySelector('.usd-value');
+                if (usdEl) usdEl.textContent = `$${currentUSD} USD`;
+                const progressTextEl = container.querySelector('.progress-text');
+                if (progressTextEl) progressTextEl.textContent = `${progressPercentage.toFixed(1)}%`;
+                const progressBar = container.querySelector('.progress-bar');
+                if (progressBar) setWidthClass(progressBar, progressPercentage);
+                const progressContainer = container.querySelector('.progress-container');
+                if (progressContainer) {
+                    if (reachedGoal) {
+                        progressContainer.classList.add('reached-goal');
+                    } else {
+                        progressContainer.classList.remove('reached-goal');
+                    }
+                }
+                if (reason === 'initial-load') {
+                    container.classList.remove('goal-container-initial');
+                }
+            }
+        }        goalWidget.className = existingClasses;
 
     if (isOBSWidget && data.theme === 'modern-list') {
         goalWidget.classList.add('modern-theme');
@@ -604,11 +657,8 @@
         }
         
         if (reachedGoal && !wasCelebrating) {
-            goalWidget.classList.add('celebrating');
             createParticles(goalWidget, 30);
-            createPersistentConfetti(goalWidget);
         } else if (!reachedGoal && wasCelebrating) {
-            goalWidget.classList.remove('celebrating');
             const existingConfetti = goalWidget.querySelectorAll('.confetti');
             const existingParticles = goalWidget.querySelectorAll('.particles');
             existingConfetti.forEach(el => el.remove());
@@ -636,28 +686,6 @@
     }
 
     setInterval(forceUpdateCelebrationState, 5000);
-
-    const existingClasses = goalWidget.className;
-    
-    goalWidget.innerHTML = `
-        <div class="goal-container">
-            <div class="goal-header">
-                    <div class="goal-title" data-i18n="tipGoalDefaultTitle">Configure tip goal 💸</div>
-                <div class="goal-amounts">
-                    <span class="current-ar">0.00</span>
-                    <span class="goal-ar">/ 0.00 AR</span>
-                    <span class="usd-value">$0.00 USD</span>
-                </div>
-            </div>
-            <div class="progress-container">
-                <div class="progress-bar w-pct-0"></div>
-                <div class="progress-text">0%</div>
-            </div>
-        </div>
-    `;
-    
-    goalWidget.className = existingClasses;
-    goalWidget.classList.remove('modern-theme');
     };
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', start, { once: true });

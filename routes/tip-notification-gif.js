@@ -80,7 +80,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
             return res.json(st);
           }
         } catch {}
-        return res.json(cfg);
+        return res.json({ gifPath: '', position: 'right', width: 0, height: 0 });
       }
       res.json(cfg);
     } catch {

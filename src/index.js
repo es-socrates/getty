@@ -275,7 +275,7 @@ function buildLayout() {
       <div class="flex-1 flex flex-col justify-center">
         <div id="goal-widget" class="p-4" aria-busy="true">
           <div class="skeleton skeleton-lg mb-2" data-skeleton="goal"></div>
-          <div class="goal-container"></div>
+          <div class="goal-container goal-container-initial"></div>
         </div>
       </div>
     </section>

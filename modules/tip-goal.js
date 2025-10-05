@@ -247,7 +247,7 @@ class TipGoalModule {
             }
 
             const adoptionDisabled = process.env.GETTY_MULTI_TENANT_WALLET === '1' || process.env.GETTY_DISABLE_TIPGOAL_TENANT_ADOPTION === '1';
-            if (hostedMode && (!config || !config.walletAddress) && !adoptionDisabled) {
+            if (hostedMode && (!config || !config.walletAddress) && !adoptionDisabled && reqForTenant && tenantEnabled(reqForTenant)) {
                 if (process.env.NODE_ENV === 'test' && process.env.JEST_WORKER_ID) {
                     // Skip adoption during tests for determinism.
                 } else {
@@ -317,7 +317,7 @@ class TipGoalModule {
                 this.theme = (config.theme === 'koku-list') ? 'modern-list' : config.theme;
             }
             if (typeof config.title === 'string' && config.title.trim()) this.title = config.title.trim();
-            if (!this.walletAddress) {
+            if (!this.walletAddress && reqForTenant && tenantEnabled(reqForTenant)) {
                 try {
                     const lastTipConfigPath1 = path.join(configDir, 'last-tip-config.json');
                     let lastTipWallet = '';
@@ -353,43 +353,6 @@ class TipGoalModule {
     async init() {
         if (!this._bootLogged) this._bootLogged = { missing: false };
         if (!this.walletAddress) {
-            const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-
-            if (hostedMode && !this.walletAddress) {
-                try {
-                    const store = this._store || (global.__gettyStore || null);
-
-                    if (!store && typeof global.getAppStore === 'function') {
-                        try { this._store = global.getAppStore(); } catch {}
-                    } else { this._store = store; }
-                    const nsCandidates = [];
-                    try { if (global.__lastAdminNamespace) nsCandidates.push(global.__lastAdminNamespace); } catch {}
-                    try { if (global.__lastPublicNamespace) nsCandidates.push(global.__lastPublicNamespace); } catch {}
-
-                    const seen = new Set();
-                    for (const cand of nsCandidates) {
-                        if (!cand || seen.has(cand)) continue; seen.add(cand);
-                        let cfgObj = null;
-                        if (this._store && typeof this._store.getConfig === 'function') {
-                            try { cfgObj = await this._store.getConfig(cand, 'tip-goal-config.json', null); } catch {}
-                        }
-                        if (!cfgObj && this._store && typeof this._store.get === 'function') {
-                            try { cfgObj = await this._store.get(cand, 'tip-goal-config', null); } catch {}
-                        }
-                        if (cfgObj) {
-                            const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
-                            if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
-                                this.walletAddress = data.walletAddress.trim();
-                                if (typeof data.monthlyGoal === 'number' && data.monthlyGoal > 0) this.monthlyGoalAR = data.monthlyGoal;
-                                if (typeof data.currentAmount === 'number') this.currentTipsAR = data.currentAmount;
-                                else if (typeof data.currentTips === 'number') this.currentTipsAR = data.currentTips;
-                                if (typeof data.theme === 'string') this.theme = (data.theme === 'koku-list') ? 'modern-list' : data.theme;
-                                break;
-                            }
-                        }
-                    }
-                } catch {}
-            }
 
             const msgHosted = '[TipGoal] walletAddress not set at boot (hosted multi-tenant). Waiting for namespaced configuration.';
             const msgSingle = '❌ ERROR: walletAddress is missing in tip-goal-config.json';
