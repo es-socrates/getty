@@ -21,7 +21,11 @@ body {
 }
 
 .goal-container {
-  animation: fadeIn 0.6s ease;
+  transition: opacity 0.3s ease;
+}
+
+.goal-container-initial {
+  opacity: 0;
 }
 
 @keyframes fadeIn {
@@ -40,6 +44,7 @@ body {
   font-weight: 800;
   color: var(--tg-text, #fff);
   margin-bottom: 8px;
+  transition: all 0.3s ease;
 }
 
 .goal-amounts {
@@ -54,6 +59,7 @@ body {
   font-size: 24px;
   font-weight: 800;
   color: var(--tg-progress, #00ff7f);
+  transition: all 0.3s ease;
 }
 
 .tip-goal-widget .current-ar {
@@ -64,6 +70,7 @@ body {
   font-size: 18px;
   font-weight: 800;
   color: var(--tg-text, #fff);
+  transition: all 0.3s ease;
 }
 
 .usd-value {
@@ -71,6 +78,7 @@ body {
   font-weight: 600;
   color: var(--tg-text, #fff);
   margin-left: auto;
+  transition: all 0.3s ease;
 }
 
 .progress-container {
@@ -143,7 +151,7 @@ body {
   font-weight: 800;
   color: var(--tg-text, #ffffff);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  transition: color 0.3s ease;
+  transition: color 0.3s ease, all 0.3s ease;
 }
 
 .particles {
@@ -493,6 +501,7 @@ body {
   padding: 14px;
   width: 310px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: opacity 0.3s ease;
 }
 .modern-card.theme-dark {
   --modern-bg: #0f0f12;
@@ -540,6 +549,7 @@ body {
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  transition: all 0.3s ease;
 }
 
 .modern-row {
@@ -564,6 +574,7 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: var(--modern-text);
+  transition: all 0.3s ease;
 }
 
 .modern-progress {
@@ -889,12 +900,14 @@ body {
 .modern-amount {
   font-size: 13px;
   font-weight: 700;
+  transition: all 0.3s ease;
 }
 
 .modern-muted {
   font-size: 12px;
   color: var(--modern-text);
   opacity: 0.7;
+  transition: all 0.3s ease;
 }
 
 .modern-row-meta {

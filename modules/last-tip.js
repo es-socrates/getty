@@ -143,7 +143,7 @@ class LastTipModule {
           this.walletAddress = envWallet.trim();
         }
       }
-      if (!this.walletAddress) {
+      if (!this.walletAddress && reqForTenant && tenantEnabled(reqForTenant)) {
         try {
           const tgPath = path.join(configDir, 'tip-goal-config.json');
           if (fs.existsSync(tgPath)) {
@@ -173,40 +173,6 @@ class LastTipModule {
   init() {
     if (!this._bootLogged) this._bootLogged = { missing: false };
     if (!this.walletAddress) {
-      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-
-      if (hostedMode && !this.walletAddress) {
-        (async () => {
-          try {
-            const store = this._store || (global.__gettyStore || null);
-            if (!store && typeof global.getAppStore === 'function') {
-              try { this._store = global.getAppStore(); } catch {}
-            } else { this._store = store; }
-            const nsCandidates = [];
-            try { if (global.__lastAdminNamespace) nsCandidates.push(global.__lastAdminNamespace); } catch {}
-            try { if (global.__lastPublicNamespace) nsCandidates.push(global.__lastPublicNamespace); } catch {}
-            const seen = new Set();
-            for (const cand of nsCandidates) {
-              if (!cand || seen.has(cand)) continue; seen.add(cand);
-              let cfgObj = null;
-              if (this._store && typeof this._store.getConfig === 'function') {
-                try { cfgObj = await this._store.getConfig(cand, 'last-tip-config.json', null); } catch {}
-              }
-              if (!cfgObj && this._store && typeof this._store.get === 'function') {
-                try { cfgObj = await this._store.get(cand, 'last-tip-config', null); } catch {}
-              }
-              if (cfgObj) {
-                const data = cfgObj && cfgObj.data ? cfgObj.data : cfgObj;
-                if (data && typeof data.walletAddress === 'string' && data.walletAddress.trim()) {
-                  this.walletAddress = data.walletAddress.trim();
-                  if (typeof data.title === 'string' && data.title.trim()) this.title = data.title.trim();
-                  break;
-                }
-              }
-            }
-          } catch {}
-        })();
-      }
       const msgHosted = '[LastTip] walletAddress not set at boot (hosted multi-tenant). Waiting for namespaced configuration.';
       const msgSingle = '❌ ERROR: walletAddress is missing in last-tip-config.json';
       if (!this._bootLogged.missing) {
