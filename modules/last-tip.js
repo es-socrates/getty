@@ -177,7 +177,7 @@ class LastTipModule {
       const msgSingle = '❌ ERROR: walletAddress is missing in last-tip-config.json';
       if (!this._bootLogged.missing) {
         try {
-          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1' || process.env.NODE_ENV !== 'production';
+          const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
           const isLocalhost = process.env.GETTY_LOCALHOST === '1' || !process.env.GETTY_FORCE_SINGLE_TENANT;
           const shouldShowError = !hostedMode && !isLocalhost;
           const dbg = process.env.GETTY_DEBUG_WALLET_BOOT === '1';
@@ -191,11 +191,14 @@ class LastTipModule {
       }
       return;
     }
-    this.updateLatestDonation();
-    if (process.env.NODE_ENV !== 'test') {
-      const quickDelays = [2000, 5000, 10000, 20000];
-      quickDelays.forEach(d => setTimeout(() => { try { this.updateLatestDonation(); } catch {} }, d));
-      this._updateInterval = setInterval(() => this.updateLatestDonation(), 60000);
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    if (!hostedMode) {
+      this.updateLatestDonation();
+      if (process.env.NODE_ENV !== 'test') {
+        const quickDelays = [2000, 5000, 10000, 20000];
+        quickDelays.forEach(d => setTimeout(() => { try { this.updateLatestDonation(); } catch {} }, d));
+        this._updateInterval = setInterval(() => this.updateLatestDonation(), 60000);
+      }
     }
   }
 
@@ -349,6 +352,8 @@ class LastTipModule {
   }
   
   notifyFrontend(data, ns = null) {
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    if (hostedMode && !ns) return;
     const payload = JSON.stringify({
       type: 'lastTip',
       data: {
@@ -370,6 +375,8 @@ class LastTipModule {
   }
 
   broadcastConfig(config = {}, ns = null) {
+    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+    if (hostedMode && !ns) return;
     try {
       const payload = JSON.stringify({
         type: 'lastTipConfig',
