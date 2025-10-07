@@ -3530,6 +3530,8 @@ app.get('/api/metrics', async (req, res) => {
 
     const oneMin = now - 60 * 1000;
     const fiveMin = now - 5 * 60 * 1000;
+    const fifteenMin = now - 15 * 60 * 1000;
+    const thirtyMin = now - 30 * 60 * 1000;
     const hour = now - 60 * 60 * 1000;
     const rpm = __requestTimestamps.filter(t => t >= oneMin).length;
     const r5m = __requestTimestamps.filter(t => t >= fiveMin).length;
@@ -3558,6 +3560,8 @@ app.get('/api/metrics', async (req, res) => {
   };
   const chat1m = history.filter(m => toTs(m) >= oneMin).length;
   const chat5m = history.filter(m => toTs(m) >= fiveMin).length;
+  const chat15m = history.filter(m => toTs(m) >= fifteenMin).length;
+  const chat30m = history.filter(m => toTs(m) >= thirtyMin).length;
   const chat1h = history.filter(m => toTs(m) >= hour).length;
 
   const tips = externalNotifications.getStatus().lastTips || [];
@@ -3681,6 +3685,8 @@ app.get('/api/metrics', async (req, res) => {
         historySize: history.length,
         perMin: chat1m,
         last5m: chat5m,
+        last15m: chat15m,
+        last30m: chat30m,
         lastHour: chat1h
       },
       tips: {
@@ -4148,126 +4154,62 @@ if (process.env.NODE_ENV !== 'test') {
 
 registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, connectOBS, store);
 
-try {
-  const adminDist = path.join(__dirname, 'dist');
-  if (fs.existsSync(adminDist)) {
-    app.use('/admin', (req, res, next) => {
-      try {
-        if (process.env.GETTY_ADMIN_REQUIRE_AUTH === '1') {
-          const hasWallet = !!req.walletSession;
-          const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-          const isHtmlAccept = req.accepts(['html','json']) === 'html';
-          const wantsHtmlDoc = isHtmlAccept && (req.path === '/' || req.path === '');
-          const blockAssets = process.env.GETTY_ADMIN_BLOCK_ASSETS === '1';
-          const isAsset = /\.(js|css|map|json|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot)$/i.test(req.path);
-          if (!hasWallet && !hasNs) {
-            if (wantsHtmlDoc) return res.redirect(302, '/?admin=login');
-            if (blockAssets && isAsset) return res.status(401).json({ error: 'admin_auth_required' });
-          }
+const adminDist = path.join(__dirname, 'dist');
+if (fs.existsSync(adminDist)) {
+  app.use('/admin', (req, res, next) => {
+    try {
+      if (process.env.GETTY_ADMIN_REQUIRE_AUTH === '1') {
+        const hasWallet = !!req.walletSession;
+        const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+        const isHtmlAccept = req.accepts(['html','json']) === 'html';
+        const wantsHtmlDoc = isHtmlAccept && (req.path === '/' || req.path === '');
+        const blockAssets = process.env.GETTY_ADMIN_BLOCK_ASSETS === '1';
+        const isAsset = /\.(js|css|map|json|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot)$/i.test(req.path);
+        if (!hasWallet && !hasNs) {
+          if (wantsHtmlDoc) return res.redirect(302, '/?admin=login');
+          if (blockAssets && isAsset) return res.status(401).json({ error: 'admin_auth_required' });
         }
-      } catch (e) { try { console.warn('[adminGuard][warn]', e?.message); } catch {} }
-      return next();
-    });
-    app.get(['/admin', '/admin/'], (req, res, next) => {
-      try {
-        const indexPath = path.join(adminDist, 'index.html');
-        if (!fs.existsSync(indexPath)) return next();
-        const nonce = res.locals?.cspNonce || '';
-        let html = fs.readFileSync(indexPath, 'utf8');
-        if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-          const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-          const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-          html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-        }
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-        return res.send(html);
-      } catch { return next(); }
-    });
-    app.use('/admin', express.static(adminDist, { index: 'index.html' }));
-    app.get('/admin/*', (req, res, next) => {
-      try {
-        const indexPath = path.join(adminDist, 'index.html');
-        if (!fs.existsSync(indexPath)) return next();
-        const nonce = res.locals?.cspNonce || '';
-        let html = fs.readFileSync(indexPath, 'utf8');
-        if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-          const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-          const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-          html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-        }
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-        return res.send(html);
-      } catch { return next(); }
-    });
-  } else {
-    app.get(['/admin','/admin/*'], (_req, res) => {
-      res.status(503).send('Admin UI not built. Run "npm run admin:build" to generate the SPA.');
-    });
-  }
-} catch {}
+      }
+    } catch (e) { try { console.warn('[adminGuard][warn]', e?.message); } catch {} }
+    return next();
+  });
+  app.get(['/admin', '/admin/'], (req, res, next) => {
+    const indexPath = path.join(adminDist, 'index.html');
+    if (!fs.existsSync(indexPath)) return next();
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(indexPath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  });
+  app.use('/admin', express.static(adminDist, { index: 'index.html' }));
+  app.use('/admin', (req, res, next) => {
+    const indexPath = path.join(adminDist, 'index.html');
+    if (!fs.existsSync(indexPath)) return next();
+    const nonce = res.locals?.cspNonce || '';
+    let html = fs.readFileSync(indexPath, 'utf8');
+    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
+    return res.send(html);
+  });
+} else {
+  app.get(['/admin','/admin/*'], (_req, res) => {
+    res.status(503).send('Admin UI not built. Run "npm run admin:build" to generate the SPA.');
+  });
+}
 
 app.get(['/admin.html','/admin.html/'], (_req, res) => {
   res.redirect(301, '/admin/');
-});
-
-app.get('/admin/status', (req, res) => {
-  try {
-    const hasAdminSession = !!(req.ns && req.ns.admin);
-    if (hasAdminSession) {
-      return res.redirect(302, '/');
-    } else {
-      return res.redirect(302, '/welcome');
-    }
-  } catch {
-    return res.redirect(302, '/welcome');
-  }
-});
-
-app.get(/^\/admin(?:\/.*)?$/, (req, res, next) => {
-  const hasAdminSession = !!(req.ns && req.ns.admin);
-  if (!hasAdminSession) {
-    return res.redirect(302, '/welcome');
-  }
-
-  try {
-    const adminDist = path.join(__dirname, 'dist');
-    const indexPath = path.join(adminDist, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      try {
-        const nonce = res.locals?.cspNonce || '';
-        let html = fs.readFileSync(indexPath, 'utf8');
-        if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-          const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-          const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-          html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-        }
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-        return res.send(html);
-  } catch {
-        return res.sendFile(indexPath);
-      }
-    }
-
-    return res.status(503).send('Admin UI not built. Run "npm run admin:build".');
-  } catch (e) {
-    return next(e);
-  }
-});
-
-app.get('/admin/status', (req, res) => {
-  try {
-    const hasAdminSession = !!(req.ns && req.ns.admin);
-    if (hasAdminSession) {
-      return res.redirect(302, '/');
-    } else {
-      return res.redirect(302, '/welcome');
-    }
-  } catch {
-    return res.redirect(302, '/welcome');
-  }
 });
 
 app.use((req, res, next) => {

@@ -17,34 +17,6 @@
         {{ t('streamHistoryTitle') }}
       </h3>
     </template>
-    <div class="flex items-center justify-between mb-2">
-      <div class="text-xs font-semibold opacity-80 flex items-center gap-2">
-        <span>{{ t('streamHistoryTitle') }}</span>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] text-[0.75rem] hover:opacity-100"
-          @click="settingsCollapsed = !settingsCollapsed">
-          <span>{{ t('settings') || 'Settings' }}</span>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            :style="
-              settingsCollapsed
-                ? 'transform:rotate(-90deg);transition:transform .2s'
-                : 'transition:transform .2s'
-            ">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
-    </div>
     <div class="status-row" v-if="!settingsCollapsed">
       <span class="badge" :class="status.connected ? 'ok' : 'err'">
         {{ status.connected ? t('connected') : t('disconnected') }}
@@ -261,67 +233,89 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between -m-2 mt-2">
-      <div class="w-auto p-2">
+    <div class="flex flex-wrap items-center justify-between -m-2">
+      <div class="w-auto p-2 flex items-center gap-2">
         <h3 class="font-heading text-lg font-semibold">{{ t('activity') }}</h3>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border text-[0.75rem] hover:opacity-100"
+          style="background: rgb(255, 24, 76); color: #fff; border-color: rgb(255, 24, 76)"
+          @click="settingsCollapsed = !settingsCollapsed">
+          <span>{{ t('settings') || 'Settings' }}</span>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            :style="
+              settingsCollapsed
+                ? 'transform:rotate(-90deg);transition:transform .2s'
+                : 'transition:transform .2s'
+            ">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
       </div>
-      <div class="w-auto p-2">
-        <div class="flex items-center gap-2">
-          <div class="relative h-full overflow-hidden rounded-full">
-            <select
-              class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
-              v-model="filterQuick"
-              @change="onQuickFilterChange"
-              aria-label="Quick period">
-              <option value="day">{{ t('quickToday') }}</option>
-              <option value="week">{{ t('quickThisWeek') }}</option>
-              <option value="month">{{ t('quickThisMonth') }}</option>
-              <option value="year">{{ t('quickThisYear') }}</option>
-            </select>
-            <svg
-              class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2"
-              width="17"
-              height="16"
-              viewBox="0 0 17 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M13.1673 6L8.50065 10.6667L3.83398 6"
-                stroke="#0C1523"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
+      <div class="w-auto p-2 flex items-center gap-2">
+        <div class="relative h-full overflow-hidden rounded-full">
+          <select
+            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+            v-model="filterQuick"
+            @change="onQuickFilterChange"
+            aria-label="Quick period">
+            <option value="day">{{ t('quickToday') }}</option>
+            <option value="week">{{ t('quickThisWeek') }}</option>
+            <option value="month">{{ t('quickThisMonth') }}</option>
+            <option value="year">{{ t('quickThisYear') }}</option>
+          </select>
+          <svg
+            class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2"
+            width="17"
+            height="16"
+            viewBox="0 0 17 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M13.1673 6L8.50065 10.6667L3.83398 6"
+              stroke="#0C1523"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
+        </div>
 
-          <div class="relative h-full overflow-hidden rounded-full">
-            <select
-              class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
-              v-model.number="filterQuickSpan"
-              @change="onQuickRangeChange"
-              aria-label="Quick range span">
-              <option :value="7">7d</option>
-              <option :value="14">14d</option>
-              <option :value="30">30d</option>
-              <option :value="90">90d</option>
-              <option :value="180">180d</option>
-              <option :value="365">365d</option>
-            </select>
-            <svg
-              class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2"
-              width="17"
-              height="16"
-              viewBox="0 0 17 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M13.1673 6L8.50065 10.6667L3.83398 6"
-                stroke="#0C1523"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"></path>
-            </svg>
-          </div>
+        <div class="relative h-full overflow-hidden rounded-full">
+          <select
+            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
+            v-model.number="filterQuickSpan"
+            @change="onQuickRangeChange"
+            aria-label="Quick range span">
+            <option :value="7">7d</option>
+            <option :value="14">14d</option>
+            <option :value="30">30d</option>
+            <option :value="90">90d</option>
+            <option :value="180">180d</option>
+            <option :value="365">365d</option>
+          </select>
+          <svg
+            class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2"
+            width="17"
+            height="16"
+            viewBox="0 0 17 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M13.1673 6L8.50065 10.6667L3.83398 6"
+              stroke="#0C1523"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"></path>
+          </svg>
         </div>
       </div>
     </div>

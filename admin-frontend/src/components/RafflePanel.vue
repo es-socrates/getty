@@ -243,6 +243,10 @@ function applyState(s) {
   if (!locallyClearedImage.value) {
     displayImageUrl.value = form.imageUrl || '';
   }
+
+  if (s.reset) {
+    winner.value = null;
+  }
 }
 
 async function load() {

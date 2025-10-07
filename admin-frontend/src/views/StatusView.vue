@@ -4,7 +4,7 @@
       <ModulesStatusPanel />
       <MetricsPanel />
 
-      <div ref="historySentinel" class="min-h-[2rem]"></div>
+      <div ref="historySentinel"></div>
       <component v-if="showHistory" :is="AsyncStreamHistoryPanel" class="animate-fade-in" />
       <div
         v-else

@@ -8,8 +8,8 @@ const { getStorage } = require('../lib/supabase-storage');
 
 function getLiveviewsConfigWithDefaults(partial) {
   return {
-    bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
-    color: typeof partial.color === 'string' && partial.color.trim() ? partial.color : '#222',
+    bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#ffffff',
+    color: typeof partial.color === 'string' && partial.color.trim() ? partial.color : '#222222',
     font: typeof partial.font === 'string' && partial.font.trim() ? partial.font : 'Arial',
     size: typeof partial.size === 'string' && partial.size.trim() ? partial.size : '32',
     icon: typeof partial.icon === 'string' ? partial.icon : '',
@@ -191,10 +191,10 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     fs.readFile(configPath, 'utf8', (err, data) => {
       let config;
       if (err) {
-        config = { bg: '#fff', color: '#222', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel };
+        config = { bg: '#ffffff', color: '#222222', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel };
       } else {
         try { config = JSON.parse(data); if (typeof config !== 'object' || config === null) config = {}; }
-        catch { config = { bg: '#fff', color: '#222', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel }; }
+        catch { config = { bg: '#ffffff', color: '#222222', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel }; }
         config.viewersLabel = viewersLabel;
       }
       fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8', (err) => {
