@@ -129,8 +129,8 @@ import { usePublicToken } from '../composables/usePublicToken';
 const { t } = useI18n();
 
 const form = ref({
-  bg: '#fff',
-  color: '#222',
+  bg: '#ffffff',
+  color: '#222222',
   font: 'Inter',
   size: '32',
   icon: '',

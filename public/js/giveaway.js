@@ -219,6 +219,8 @@ function connectWebSocket() {
                         participants: []
                     };
                     localStorage.removeItem(STORAGE_KEY);
+                    localStorage.removeItem(ACTIVE_STATE_KEY);
+                    lastActiveState = null;
                 }
                 updateRaffleState(data);
             } else if (data.type === 'init' && data.data && data.data.raffle) {
