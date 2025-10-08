@@ -854,5 +854,7 @@
   "eventsActivityAchievement": "Logro",
   "eventsActivityLastAchievement": "Último logro",
   "eventsResetColors": "Restablecer colores por defecto",
-  "eventsModule": "Eventos"
+  "eventsModule": "Eventos",
+  "chartTooltipHoursStreamed": "Horas transmitidas:",
+  "chartTooltipAverageViewers": "Espectadores promedio:"
 }

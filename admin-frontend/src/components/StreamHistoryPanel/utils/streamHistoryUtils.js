@@ -1,5 +1,11 @@
 function formatHours(h) {
   const v = Number(h || 0);
+  const minutes = v * 60;
+  
+  if (minutes < 60) {
+    return Math.round(minutes) + ' min';
+  }
+  
   if (v >= 24) {
     const snapped = Math.round(v / 24) * 24;
     if (snapped >= 48) return snapped + ' h (' + (snapped / 24) + ' d)';
@@ -7,6 +13,7 @@ function formatHours(h) {
   }
   if (v >= 10) return Math.round(v) + ' h';
   if (v >= 1) return v.toFixed(1) + ' h';
+
   return v.toFixed(2) + ' h';
 }
 

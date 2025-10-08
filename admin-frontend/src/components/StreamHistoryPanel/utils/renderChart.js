@@ -1,4 +1,7 @@
 import { buildDisplayData, formatHours } from './streamHistoryUtils.js';
+import i18n from '../../../i18n';
+
+const t = i18n.global.t;
 
 function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', showViewers = true, smoothWindow = 1 } = {}) {
   if (!el) return;
@@ -18,7 +21,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     pointerEvents: 'none',
     padding: '4px 6px',
     fontSize: '12px',
-    borderRadius: '6px',
+    borderRadius: '4px',
     border: '1px solid var(--card-border)',
     background: 'var(--card-bg, #111827)',
     display: 'none',
@@ -181,7 +184,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     path.setAttribute('d', dPath);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', 'var(--line-color, #10b981)');
-    path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('stroke-width', '3');
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('class', 'line-path');
     svg.appendChild(path);
@@ -197,8 +200,8 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       pathV = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       pathV.setAttribute('d', dPathV);
       pathV.setAttribute('fill', 'none');
-      pathV.setAttribute('stroke', 'var(--viewers-line-color, #e11d48)');
-      pathV.setAttribute('stroke-width', '2');
+      pathV.setAttribute('stroke', 'var(--accent,#553fee)');
+      pathV.setAttribute('stroke-width', '3');
       pathV.setAttribute('stroke-linecap', 'round');
       pathV.setAttribute('class', 'line-path viewers');
       svg.appendChild(pathV);
@@ -232,7 +235,7 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       c.style.transition = 'opacity 450ms ease 120ms';
       c.addEventListener('mouseenter', (e) => {
       const title = fmtDate(p);
-        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div><div class="tip-viewers">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
+        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(p.hours||0)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${Number(p.avgViewers||0).toFixed(1)}</div>`;
         tip.style.display = 'block';
         placeTipFromMouse(e, (p.hours || 0) === 0);
       });
@@ -244,14 +247,14 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
   if (showViewers && maxViewers > 0) {
         const yv = toYViewers(Number(p.avgViewers || 0));
         const cv = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        cv.setAttribute('cx', String(x)); cv.setAttribute('cy', String(yv)); cv.setAttribute('r', '2.5');
-        cv.setAttribute('fill', 'var(--viewers-line-color,#e11d48)');
+        cv.setAttribute('cx', String(x)); cv.setAttribute('cy', String(yv)); cv.setAttribute('r', '3');
+        cv.setAttribute('fill', 'var(--accent,#553fee)');
         cv.classList.add('line-point-viewers');
         cv.style.opacity = '0';
         cv.style.transition = 'opacity 450ms ease 180ms';
         const show = (e) => {
           const title = fmtDate(p);
-          tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${(p.hours||0)} h</div><div class="tip-viewers">${Number(p.avgViewers||0).toFixed(1)} avg</div>`;
+          tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(p.hours||0)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${Number(p.avgViewers||0).toFixed(1)}</div>`;
           tip.style.display = 'block'; placeTipFromMouse(e, (p.hours || 0) === 0);
         };
         cv.addEventListener('mouseenter', show);
@@ -336,25 +339,25 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     bar.style.width = barW + 'px'; bar.style.height = Math.max(2, bh) + 'px';
     bar.title = `${d.date ? d.date + ': ' : ''}${v} h`;
     bar.style.background = v > 0 ? 'var(--bar-positive,#10b981)' : 'rgba(128,128,128,.35)';
-    bar.style.borderRadius = '6px';
+    bar.style.borderRadius = '4px';
     bar.className = 'bar';
     if (mode === 'candle') {
       bar.style.border = '1px solid var(--card-border)'; bar.style.background = 'transparent';
       const wrap = document.createElement('div'); wrap.style.position = 'relative'; wrap.style.width = '100%'; wrap.style.height = Math.max(2, bh) + 'px';
-      const fill = document.createElement('div'); fill.style.height = '100%'; fill.style.background = v > 0 ? 'var(--bar-positive,#10b981)' : 'rgba(128,128,128,.55)'; fill.style.width = '100%'; fill.style.borderRadius = '6px'; wrap.appendChild(fill);
+      const fill = document.createElement('div'); fill.style.height = '100%'; fill.style.background = v > 0 ? 'var(--bar-positive,#10b981)' : 'rgba(128,128,128,.55)'; fill.style.width = '100%'; fill.style.borderRadius = '4px'; wrap.appendChild(fill);
 
       if (showViewers && maxViewers > 0) {
         const vh = Math.round((Math.max(0, Number(d.avgViewers || 0)) / maxViewers) * available);
         const viewersLine = document.createElement('div');
         viewersLine.style.position = 'absolute'; viewersLine.style.left = '0'; viewersLine.style.right = '0';
         viewersLine.style.bottom = '0'; viewersLine.style.height = Math.max(2, Math.min(vh, available)) + 'px';
-        viewersLine.style.background = 'var(--viewers-line-color,#e11d48)'; viewersLine.style.opacity = '0.75';
-        viewersLine.style.borderRadius = '6px';
+        viewersLine.style.background = 'var(--accent,#553fee)'; viewersLine.style.opacity = '0.75';
+        viewersLine.style.borderRadius = '4px';
         wrap.appendChild(viewersLine);
       }
       bar.appendChild(wrap);
     }
-  const show = (e) => { try { const title = fmtDate(d); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${v} h</div>${showViewers ? `<div class="tip-viewers">${vv} avg</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
+  const show = (e) => { try { const title = fmtDate(d); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(v)}</div>${showViewers ? `<div class="tip-viewers">${t('chartTooltipAverageViewers')} ${vv}</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
     const hide = () => { tip.style.display = 'none'; };
     bar.addEventListener('mouseenter', show);
     bar.addEventListener('mousemove', show);

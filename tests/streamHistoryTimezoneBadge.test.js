@@ -34,7 +34,7 @@ const messages = {
     chartLine: 'Line',
     chartCandle: 'Candle',
     kpiHoursStreamed: 'Hours streamed',
-    kpiHoursWatched: 'Hours watched',
+    kpiHoursWatched: 'Viewer Hours',
     kpiActiveDays: 'Active days',
     kpiTotalHoursStreamed: 'Total hours streamed',
     kpiTotalEarnings: 'Total earnings',

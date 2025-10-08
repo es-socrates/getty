@@ -854,5 +854,7 @@
   "eventsActivityAchievement": "Achievement",
   "eventsActivityLastAchievement": "Last Achievement",
   "eventsResetColors": "Reset to default colors",
-  "eventsModule": "Events"
+  "eventsModule": "Events",
+  "chartTooltipHoursStreamed": "Hours streamed:",
+  "chartTooltipAverageViewers": "Average viewers:"
 }

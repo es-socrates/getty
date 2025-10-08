@@ -482,23 +482,6 @@
       </div>
       <div class="text-xs opacity-80 mt-1 flex items-center gap-2">
         <span>{{ t('streamHistoryHint') }}</span>
-        <span
-          class="inline-flex items-center gap-1 text-[0.7rem] px-1.5 py-0.5 rounded bg-[var(--bg-chat)] border border-[var(--card-border)]">
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="6" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </span>
         <button
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
@@ -544,7 +527,13 @@
       </div>
       <div class="kpi">
         <div class="kpi-label">{{ t('kpiHoursWatched') }}</div>
-        <div class="kpi-value">{{ perf.range.hoursWatched.toFixed(2) }}</div>
+        <div
+          class="kpi-value"
+          :title="
+            t('kpiHoursWatchedTooltip') || 'Total hours all viewers spent watching (viewers × time)'
+          ">
+          {{ perf.range.hoursWatched.toFixed(2) }}
+        </div>
       </div>
       <div class="kpi">
         <div class="kpi-label">{{ t('kpiActiveDays') }}</div>

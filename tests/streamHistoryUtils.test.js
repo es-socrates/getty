@@ -4,8 +4,8 @@ const { formatHours, formatTotalHours, usdFromAr, buildDisplayData } = require(u
 
 describe('streamHistoryUtils', () => {
   test('formatHours edge cases', () => {
-    expect(formatHours(0)).toBe('0.00 h');
-    expect(formatHours(0.75)).toBe('0.75 h');
+    expect(formatHours(0)).toBe('0 min');
+    expect(formatHours(0.75)).toBe('45 min');
     expect(formatHours(1.2)).toBe('1.2 h');
     expect(formatHours(10.2)).toBe('10 h');
     const d = formatHours(48);
