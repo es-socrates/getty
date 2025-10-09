@@ -316,7 +316,7 @@ try {
         'https://*.supabase.co',
         ...mediaExtra
       ],
-      connectSrc: [self, 'ws:', 'wss:', ...connectExtra],
+      connectSrc: [self, 'ws:', 'wss:', 'https://api.na-backend.odysee.com', ...connectExtra],
       frameSrc: [self, ...frameExtra]
     };
 

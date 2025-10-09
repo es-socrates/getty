@@ -856,5 +856,6 @@
   "eventsResetColors": "Reset to default colors",
   "eventsModule": "Events",
   "chartTooltipHoursStreamed": "Hours streamed:",
-  "chartTooltipAverageViewers": "Average viewers:"
+  "chartTooltipAverageViewers": "Average viewers:",
+  "marqueeTitle": "Channels using getty today. Follow them!"
 }
