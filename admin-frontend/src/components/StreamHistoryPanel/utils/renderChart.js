@@ -3,7 +3,13 @@ import i18n from '../../../i18n';
 
 const t = i18n.global.t;
 
-function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', showViewers = true, smoothWindow = 1 } = {}) {
+function renderStreamHistoryChart(el, data, {
+  mode = 'line',
+  period = 'day',
+  showViewers = true,
+  smoothWindow = 1,
+  goalHours = 0,
+} = {}) {
   if (!el) return;
   try { el.innerHTML = ''; } catch {}
   el.style.position = 'relative';
@@ -13,6 +19,12 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
   const fallbackH = Number(el.dataset.testHeight || 260);
   const w = el.clientWidth ? (el.clientWidth - 20) : (fallbackW - 20);
   const h = el.clientHeight ? (el.clientHeight - 16) : (fallbackH - 16);
+  const goal = Number.isFinite(Number(goalHours)) ? Math.max(0, Number(goalHours)) : 0;
+  let peakCandidate = null;
+  const updatePeak = (candidate) => {
+    if (!candidate || !candidate.hours || candidate.hours <= 0) return;
+    if (!peakCandidate || candidate.hours > peakCandidate.hours) peakCandidate = candidate;
+  };
 
   const tip = document.createElement('div');
   tip.className = 'chart-tip';
@@ -28,7 +40,6 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     zIndex: 10,
   });
   el.appendChild(tip);
-
   const placeTipFromMouse = (evt, preferAbove = false) => {
     try {
       const elRect = el.getBoundingClientRect();
@@ -163,6 +174,29 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
             svg.appendChild(txtR);
           }
         }
+        const zeroTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        zeroTxt.setAttribute('x', '6');
+        zeroTxt.setAttribute('y', String(h - bottom + 12));
+        zeroTxt.setAttribute('fill', labelColor);
+        zeroTxt.setAttribute('font-size', '10');
+        zeroTxt.setAttribute('text-anchor', 'start');
+        try { zeroTxt.textContent = formatHours ? formatHours(0) : '0 h'; } catch { zeroTxt.textContent = '0 h'; }
+        svg.appendChild(zeroTxt);
+
+        if (goal > 0 && maxHours >= goal) {
+          const goalY = Math.round((h - bottomAxis - padY) - (Math.max(0, goal) / maxHours) * (h - bottomAxis - padY * 2));
+          const goalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          goalLine.setAttribute('x1', String(axisLeft));
+          goalLine.setAttribute('y1', String(goalY));
+          goalLine.setAttribute('x2', String(w));
+          goalLine.setAttribute('y2', String(goalY));
+          goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ee2264)');
+          goalLine.setAttribute('stroke-width', '2');
+          goalLine.setAttribute('stroke-dasharray', '6 4');
+          goalLine.setAttribute('stroke-linecap', 'round');
+          goalLine.setAttribute('opacity', '0.75');
+          svg.appendChild(goalLine);
+        }
       }
     };
     drawGrid(true);
@@ -176,8 +210,9 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     };
     let dPath = '';
     display.forEach((p, idx) => {
+      const hoursValue = Number(p.hours || 0);
       const x = Math.round(axisLeft + padX + idx * stepX);
-      const y = toYHours(p.hours || 0);
+      const y = toYHours(hoursValue);
       dPath += (idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
     });
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -225,27 +260,34 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     } catch {}
 
     display.forEach((p, idx) => {
+      const hoursValue = Number(p.hours || 0);
+      const avgViewersValue = Number(p.avgViewers || 0);
       const x = Math.round(axisLeft + padX + idx * stepX);
-      const y = toYHours(p.hours || 0);
+      const y = toYHours(hoursValue);
       const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); c.setAttribute('r', '3');
-      c.setAttribute('fill', (p.hours || 0) > 0 ? 'var(--line-color,#10b981)' : 'rgba(128,128,128,.65)');
+      const meetsGoal = goal > 0 && hoursValue >= goal;
+      const hourFill = hoursValue > 0
+        ? (goal > 0 ? (meetsGoal ? 'var(--chart-goal-met,#ee2264)' : 'var(--line-color,#10b981)') : 'var(--line-color,#10b981)')
+        : 'rgba(128,128,128,.65)';
+      c.setAttribute('fill', hourFill);
       c.classList.add('line-point');
       c.style.opacity = '0';
       c.style.transition = 'opacity 450ms ease 120ms';
       c.addEventListener('mouseenter', (e) => {
       const title = fmtDate(p);
-        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(p.hours||0)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${Number(p.avgViewers||0).toFixed(1)}</div>`;
+        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(hoursValue)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${avgViewersValue.toFixed(1)}</div>`;
         tip.style.display = 'block';
-        placeTipFromMouse(e, (p.hours || 0) === 0);
+        placeTipFromMouse(e, hoursValue === 0);
       });
-      c.addEventListener('mousemove', (e) => placeTipFromMouse(e, (p.hours || 0) === 0));
+      c.addEventListener('mousemove', (e) => placeTipFromMouse(e, hoursValue === 0));
       c.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
       svg.appendChild(c);
       requestAnimationFrame(() => { try { c.style.opacity = '1'; } catch {} });
+  updatePeak({ hours: hoursValue, avgViewers: avgViewersValue, x, y });
 
   if (showViewers && maxViewers > 0) {
-        const yv = toYViewers(Number(p.avgViewers || 0));
+        const yv = toYViewers(avgViewersValue);
         const cv = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         cv.setAttribute('cx', String(x)); cv.setAttribute('cy', String(yv)); cv.setAttribute('r', '3');
         cv.setAttribute('fill', 'var(--accent,#553fee)');
@@ -254,8 +296,8 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
         cv.style.transition = 'opacity 450ms ease 180ms';
         const show = (e) => {
           const title = fmtDate(p);
-          tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(p.hours||0)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${Number(p.avgViewers||0).toFixed(1)}</div>`;
-          tip.style.display = 'block'; placeTipFromMouse(e, (p.hours || 0) === 0);
+          tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(hoursValue)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${avgViewersValue.toFixed(1)}</div>`;
+          tip.style.display = 'block'; placeTipFromMouse(e, hoursValue === 0);
         };
         cv.addEventListener('mouseenter', show);
         cv.addEventListener('mousemove', show);
@@ -274,8 +316,8 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
       txt.textContent = fmtX(display[i]);
       svg.appendChild(txt);
     }
-    el.appendChild(svg);
-    return;
+  el.appendChild(svg);
+  return { peak: peakCandidate };
   }
 
   const axisLeft = 44; const gap = 4; const barW = Math.max(8, Math.floor((w - axisLeft) / Math.max(1, display.length)) - (gap + 2));
@@ -315,6 +357,29 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
   try { txt.textContent = formatHours ? formatHours(val) : String(Math.round(val)); } catch { txt.textContent = String(Math.round(val)); }
         gridSvg.appendChild(txt);
       }
+      const zeroTxt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      zeroTxt.setAttribute('x', '6');
+      zeroTxt.setAttribute('y', String(h - bottom + 12));
+      zeroTxt.setAttribute('fill', labelColor);
+      zeroTxt.setAttribute('font-size', '10');
+      zeroTxt.setAttribute('text-anchor', 'start');
+      try { zeroTxt.textContent = formatHours ? formatHours(0) : '0 h'; } catch { zeroTxt.textContent = '0 h'; }
+      gridSvg.appendChild(zeroTxt);
+
+      if (goal > 0 && maxHours >= goal) {
+        const goalY = Math.round(padY + ((h - bottomAxis - padY * 2) * (1 - (goal / maxHours))));
+        const goalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        goalLine.setAttribute('x1', String(axisLeft));
+        goalLine.setAttribute('y1', String(goalY));
+        goalLine.setAttribute('x2', String(w));
+        goalLine.setAttribute('y2', String(goalY));
+  goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ee2264)');
+        goalLine.setAttribute('stroke-width', '2');
+        goalLine.setAttribute('stroke-dasharray', '6 4');
+        goalLine.setAttribute('stroke-linecap', 'round');
+        goalLine.setAttribute('opacity', '0.75');
+        gridSvg.appendChild(goalLine);
+      }
     }
 
     const bottomLabelY = h - Math.max(6, Math.round(24 / 3));
@@ -333,18 +398,24 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
   Object.assign(container.style, { display: 'flex', alignItems: 'flex-end', gap: gap + 'px', position: 'relative', zIndex: '1', marginLeft: axisLeft + 'px' });
   const bottomAxis = 24; const padY = 10; const innerHeight = Math.max(1, h - bottomAxis - padY * 2); container.style.height = innerHeight + 'px'; container.style.marginTop = padY + 'px';
   const maxVal = maxHours; const available = innerHeight;
-  display.forEach(d => {
+  display.forEach((d, idx) => {
     const v = d.hours || 0; const bh = Math.round((v / maxVal) * available);
     const bar = document.createElement('div');
     bar.style.width = barW + 'px'; bar.style.height = Math.max(2, bh) + 'px';
-    bar.title = `${d.date ? d.date + ': ' : ''}${v} h`;
-    bar.style.background = v > 0 ? 'var(--bar-positive,#10b981)' : 'rgba(128,128,128,.35)';
+    const ariaTitle = (() => {
+      try { const label = fmtDate(d); return `${label ? label + '. ' : ''}${t('chartTooltipHoursStreamed')} ${formatHours(v)}${showViewers ? `. ${t('chartTooltipAverageViewers')} ${Number(d.avgViewers || 0).toFixed(1)}` : ''}`; } catch { return ''; }
+    })();
+    if (ariaTitle) { bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', ariaTitle); }
+    const meetsGoal = goal > 0 && v >= goal;
+  const positiveColor = meetsGoal ? 'var(--chart-goal-met,#ee2264)' : 'var(--bar-positive,#10b981)';
+    const neutralColor = goal > 0 ? 'var(--chart-goal-base,rgba(148,163,184,0.45))' : 'rgba(128,128,128,.35)';
+    bar.style.background = v > 0 ? positiveColor : neutralColor;
     bar.style.borderRadius = '4px';
     bar.className = 'bar';
     if (mode === 'candle') {
       bar.style.border = '1px solid var(--card-border)'; bar.style.background = 'transparent';
       const wrap = document.createElement('div'); wrap.style.position = 'relative'; wrap.style.width = '100%'; wrap.style.height = Math.max(2, bh) + 'px';
-      const fill = document.createElement('div'); fill.style.height = '100%'; fill.style.background = v > 0 ? 'var(--bar-positive,#10b981)' : 'rgba(128,128,128,.55)'; fill.style.width = '100%'; fill.style.borderRadius = '4px'; wrap.appendChild(fill);
+      const fill = document.createElement('div'); fill.style.height = '100%'; fill.style.background = v > 0 ? positiveColor : 'rgba(128,128,128,.55)'; fill.style.width = '100%'; fill.style.borderRadius = '4px'; wrap.appendChild(fill);
 
       if (showViewers && maxViewers > 0) {
         const vh = Math.round((Math.max(0, Number(d.avgViewers || 0)) / maxViewers) * available);
@@ -363,10 +434,98 @@ function renderStreamHistoryChart(el, data, { mode = 'line', period = 'day', sho
     bar.addEventListener('mousemove', show);
     bar.addEventListener('mouseleave', hide);
     container.appendChild(bar);
+    const barTop = padY + Math.max(0, available - Math.max(2, bh));
+    const centerX = Math.round(axisLeft + (barW + gap) * idx + barW / 2);
+    updatePeak({ hours: Number(v || 0), avgViewers: Number(d.avgViewers || 0), x: centerX, y: barTop });
   });
   el.appendChild(container);
+  return { peak: peakCandidate };
 }
 
-export { renderStreamHistoryChart };
+function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindow = 1 } = {}) {
+  if (!el) return;
+  try { el.innerHTML = ''; } catch {}
+  el.style.position = 'relative';
+  const fallbackW = Number(el.dataset.testWidth || 260);
+  const fallbackH = Number(el.dataset.testHeight || 70);
+  const w = el.clientWidth ? el.clientWidth : fallbackW;
+  const h = el.clientHeight ? el.clientHeight : fallbackH;
+
+  const displayRaw = buildDisplayData(data).map(d => ({ ...d, avgViewers: Number(d?.avgViewers || 0) }));
+  const win = Math.max(1, Number(smoothWindow || 1));
+  const viewers = displayRaw.map((d, i, arr) => {
+    if (win <= 1) return d.avgViewers;
+    let sum = 0; let cnt = 0;
+    const half = Math.floor(win / 2);
+    const start = Math.max(0, i - half);
+    const end = Math.min(arr.length - 1, i + half);
+    for (let k = start; k <= end; k++) { sum += Number(arr[k].avgViewers || 0); cnt++; }
+    return cnt > 0 ? sum / cnt : d.avgViewers;
+  });
+  const maxViewers = Math.max(0, ...viewers);
+  if (!viewers.length || maxViewers <= 0) {
+    const empty = document.createElement('div');
+    empty.className = 'sparkline-empty';
+    try { empty.textContent = t('streamHistoryViewersTrendEmpty'); } catch { empty.textContent = 'No viewer data'; }
+    el.appendChild(empty);
+    return;
+  }
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', String(w));
+  svg.setAttribute('height', String(h));
+  svg.style.display = 'block';
+
+  const padX = 4;
+  const padY = 6;
+  const innerW = Math.max(1, w - padX * 2);
+  const innerH = Math.max(1, h - padY * 2);
+  const stepX = viewers.length === 1 ? 0 : innerW / (viewers.length - 1);
+  const toY = (v) => padY + innerH - (Math.max(0, v) / maxViewers) * innerH;
+
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  bg.setAttribute('x', '0');
+  bg.setAttribute('y', '0');
+  bg.setAttribute('width', String(w));
+  bg.setAttribute('height', String(h));
+  bg.setAttribute('fill', 'var(--chart-bg,#fefefe)');
+  bg.setAttribute('rx', '6');
+  svg.appendChild(bg);
+
+  const dPath = viewers.map((val, idx) => {
+    const x = padX + idx * stepX;
+    const y = toY(val);
+    return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', dPath);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', 'var(--accent,#553fee)');
+  path.setAttribute('stroke-width', '2');
+  path.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(path);
+
+  const lastX = padX + (viewers.length - 1) * stepX;
+  const lastY = toY(viewers[viewers.length - 1]);
+  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dot.setAttribute('cx', String(lastX));
+  dot.setAttribute('cy', String(lastY));
+  dot.setAttribute('r', '3');
+  dot.setAttribute('fill', 'var(--accent,#553fee)');
+  svg.appendChild(dot);
+
+  const lastLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  lastLabel.setAttribute('x', String(lastX));
+  lastLabel.setAttribute('y', String(Math.max(10, lastY - 6)));
+  lastLabel.setAttribute('fill', 'var(--text-secondary,#475569)');
+  lastLabel.setAttribute('font-size', '10');
+  lastLabel.setAttribute('text-anchor', 'end');
+  lastLabel.textContent = Math.round(viewers[viewers.length - 1]).toString();
+  svg.appendChild(lastLabel);
+
+  el.appendChild(svg);
+}
+
+export { renderStreamHistoryChart, renderViewersSparkline };
 // eslint-disable-next-line no-undef
-if (typeof module !== 'undefined' && module?.exports) { module.exports = { renderStreamHistoryChart }; }
+if (typeof module !== 'undefined' && module?.exports) { module.exports = { renderStreamHistoryChart, renderViewersSparkline }; }

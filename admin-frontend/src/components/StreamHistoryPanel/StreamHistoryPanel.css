@@ -9,6 +9,8 @@
   border-radius: 10px;
   padding: 8px;
   background: var(--bg-chat);
+  --chart-goal-met: #ee2264;
+  --chart-goal-base: rgba(148, 163, 184, 0.45);
 }
 .chart-canvas.reflowing .line-path {
   transition: d 160ms ease-out;
@@ -18,6 +20,62 @@
 }
 .chart-canvas.reflowing .bar {
   transition: height 160ms ease-out;
+}
+.chart-annotation {
+  position: absolute;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  white-space: nowrap;
+}
+.sampling-caption {
+  white-space: nowrap;
+  color: var(--text-secondary, #475569);
+}
+
+.peak-session-summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 2px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-primary, #0f172a);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.peak-session-label {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.peak-session-value {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--chart-goal-met, #ee2264);
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-annotation {
+    background: var(--card-bg, #111827);
+    color: var(--text-primary, #e5e7eb);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+  .peak-session-summary {
+    background: var(--card-bg, #111827);
+    color: var(--text-primary, #e5e7eb);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+  }
+  .peak-session-value {
+    color: var(--chart-goal-met, #ee2264);
+  }
 }
 .chart-overlay {
   position: absolute;
@@ -343,4 +401,45 @@ select.quick-select::-ms-expand {
   height: 1px;
   background: var(--card-border);
   margin: 6px 0;
+}
+.viewers-trend {
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--card-bg, #111827);
+}
+.viewers-trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+.sparkline-canvas {
+  width: 100%;
+  height: 70px;
+}
+.sparkline-empty {
+  font-size: 11px;
+  opacity: 0.75;
+  padding: 6px 0;
+}
+.trend-toggle {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.trend-toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  .trend-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
