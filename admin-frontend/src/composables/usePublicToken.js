@@ -27,7 +27,8 @@ export function usePublicToken() {
 
   function withToken(urlBase) {
     const q = tokenQuery();
-    return q ? `${urlBase}?${q}` : urlBase;
+    if (!q) return urlBase;
+    return urlBase.includes('?') ? `${urlBase}&${q}` : `${urlBase}?${q}`;
   }
 
   return { supported, active: token, loaded, refresh, tokenQuery, withToken };

@@ -24,8 +24,159 @@ function t(key) {
 if (!window.languageManager && window.__i18n && typeof window.__i18n.t === 'function') {
   window.languageManager = {
     getText: (k) => window.__i18n.t(k),
-    updatePageLanguage: () => {}
+    updatePageLanguage: () => { renderLiveviewsUI(); }
   };
+}
+
+const liveviewsState = {
+  live: false,
+  count: 0,
+  labelIsCustom: false,
+  customLabel: '',
+  adminActive: false,
+  adminCount: 0
+};
+
+function getViewerLabel() {
+  if (liveviewsState.labelIsCustom && liveviewsState.customLabel.trim()) {
+    return liveviewsState.customLabel;
+  }
+  return t('viewers');
+}
+
+function renderLiveviewsUI() {
+  const liveButtonEl = document.getElementById('live-button') || document.querySelector('.live-button');
+  if (liveButtonEl) {
+    const key = liveviewsState.live ? 'liveNow' : 'notLive';
+    if (liveButtonEl.getAttribute('data-i18n') !== key) {
+      liveButtonEl.setAttribute('data-i18n', key);
+    }
+    liveButtonEl.textContent = t(key);
+  }
+
+  const liveviewsStatus = document.getElementById('liveviews-status');
+  if (liveviewsStatus) {
+    if (liveviewsState.adminActive) {
+      const adminCount = typeof liveviewsState.adminCount === 'number' && !Number.isNaN(liveviewsState.adminCount) ? liveviewsState.adminCount : 0;
+      liveviewsStatus.textContent = `${t('liveNow')}: ${adminCount} ${t('views')}`;
+    } else {
+      liveviewsStatus.textContent = t('notLive');
+    }
+  }
+
+  const viewerCountEl = document.getElementById('viewer-count');
+  if (viewerCountEl) {
+    const count = typeof liveviewsState.count === 'number' && !Number.isNaN(liveviewsState.count) ? liveviewsState.count : 0;
+    viewerCountEl.textContent = `${count} ${getViewerLabel()}`;
+  }
+}
+
+if (typeof MutationObserver === 'function') {
+  try {
+    const langObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'lang') {
+          renderLiveviewsUI();
+          break;
+        }
+      }
+    });
+    langObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  } catch {}
+}
+
+function ensureLanguageHooks(attempts = 20) {
+  try {
+    if (window.__i18n && typeof window.__i18n.setLanguage === 'function' && !window.__i18n.__liveviewsHooked) {
+      const originalSetLanguage = window.__i18n.setLanguage.bind(window.__i18n);
+      window.__i18n.setLanguage = async function patchedSetLanguage(lang) {
+        const result = await originalSetLanguage(lang);
+        try { renderLiveviewsUI(); } catch {}
+        return result;
+      };
+      window.__i18n.__liveviewsHooked = true;
+    }
+  } catch {}
+
+  try {
+    if (window.languageManager && typeof window.languageManager.updatePageLanguage === 'function' && !window.languageManager.__liveviewsHooked) {
+      const originalUpdate = window.languageManager.updatePageLanguage.bind(window.languageManager);
+      window.languageManager.updatePageLanguage = function patchedUpdatePageLanguage(...args) {
+        const result = originalUpdate(...args);
+        try { renderLiveviewsUI(); } catch {}
+        return result;
+      };
+      window.languageManager.__liveviewsHooked = true;
+    }
+  } catch {}
+
+  if (attempts > 0 && (!window.__i18n || !window.__i18n.__liveviewsHooked || !window.languageManager || !window.languageManager.__liveviewsHooked)) {
+    setTimeout(() => ensureLanguageHooks(attempts - 1), 100);
+  }
+}
+ensureLanguageHooks();
+
+try {
+  window.addEventListener('storage', (event) => {
+    if (!event) return;
+    if (event.key === 'getty-language' && typeof event.newValue === 'string' && event.newValue) {
+      try {
+        if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+          window.__i18n.setLanguage(event.newValue);
+        }
+      } catch {}
+    }
+  });
+} catch {}
+
+async function applyPreferredLanguage() {
+  let preferred = '';
+  try {
+    const url = new URL(window.location.href);
+    const qp = url.searchParams.get('lang') || url.searchParams.get('language');
+    if (qp) preferred = qp;
+  } catch {}
+  try {
+    if (!preferred) {
+      preferred = localStorage.getItem('getty-language') || localStorage.getItem('lang') || '';
+      if (!preferred) {
+        preferred = localStorage.getItem('language') || '';
+      }
+      if (!preferred) {
+        preferred = localStorage.getItem('i18nextLng') || '';
+      }
+    }
+  } catch {}
+  if (!preferred) {
+    try {
+      const cookieMatch = document.cookie.match(/(?:^|; )getty_lang=([^;]+)/);
+      if (cookieMatch && cookieMatch[1]) {
+        preferred = decodeURIComponent(cookieMatch[1]);
+      }
+    } catch {}
+  }
+  if (!preferred) {
+    try {
+      const cookieMatch = document.cookie.match(/(?:^|; )lang=([^;]+)/);
+      if (cookieMatch && cookieMatch[1]) {
+        preferred = decodeURIComponent(cookieMatch[1]);
+      }
+    } catch {}
+  }
+  try { console.debug('[Liveviews] preferred language candidate', preferred); } catch {}
+  if (!preferred) return;
+
+  try {
+    if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
+      if (window.__i18n.current !== preferred) {
+        await window.__i18n.setLanguage(preferred);
+      }
+    } else if (window.languageManager && typeof window.languageManager.setLanguage === 'function') {
+      if (window.languageManager.current !== preferred) {
+        await window.languageManager.setLanguage(preferred);
+      }
+    }
+  } catch {}
 }
 
 function getNonce() {
@@ -66,8 +217,8 @@ async function fetchLiveviewsConfig() {
     return await res.json();
   } catch (e) {
     return {
-      bg: '#fff',
-      color: '#222',
+      bg: '#222222',
+      color: '#ffffff',
       font: 'Arial',
       size: '32',
       icon: ''
@@ -76,15 +227,19 @@ async function fetchLiveviewsConfig() {
 }
 
 function applyLiveviewsConfig(config) {
+  liveviewsState.labelIsCustom = !!(config.viewersLabel && config.viewersLabel.trim());
+  liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
+  if (typeof liveviewsState.count !== 'number' || Number.isNaN(liveviewsState.count)) {
+    liveviewsState.count = 0;
+  }
+
   const viewerCountEl = document.getElementById('viewer-count');
   if (viewerCountEl) {
   const sizePx = (config.size || '32').toString().endsWith('px') ? config.size : `${config.size}px`;
   setLiveviewsVars({ bg: config.bg, fg: config.color, font: config.font, sizePx });
-
-  if (!viewerCountEl.textContent || viewerCountEl.textContent.trim() === '' || viewerCountEl.textContent === t('viewers')) {
-      viewerCountEl.textContent = config.viewersLabel || 'viewers';
-    }
   }
+
+  renderLiveviewsUI();
 
   let iconEl = document.getElementById('liveviews-icon');
 
@@ -119,10 +274,6 @@ async function fetchViewerCountAndDisplay(url) {
   console.log('[Liveviews] endpoint:', url);
   console.log('[Liveviews] API response:', data);
 
-    const viewerCountEl = document.getElementById('viewer-count');
-    const liveButtonEl = document.getElementById('live-button');
-    if (!viewerCountEl || !liveButtonEl) return;
-
     let config = window._liveviewsConfigCache;
     if (!config) {
       try {
@@ -130,54 +281,58 @@ async function fetchViewerCountAndDisplay(url) {
         if (configRes.ok) config = await configRes.json();
       } catch (e) { config = {}; }
     }
-    let customLabel = (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) ? config.viewersLabel : t('viewers');
-    let bg = config && config.bg ? config.bg : '#fff';
-    let color = config && config.color ? config.color : '#222';
+    let bg = config && config.bg ? config.bg : '#222222';
+    let color = config && config.color ? config.color : '#ffffff';
     let font = config && config.font ? config.font : 'Arial';
     let size = config && config.size ? config.size : '32';
+    liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
+    liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
       try {
         const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
         setLiveviewsVars({ bg, fg: color, font, sizePx });
       } catch {}
+    const previousLive = liveviewsState.live;
   if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
-      viewerCountEl.textContent = `${data.data.ViewerCount} ${customLabel}`;
-      const was = liveButtonEl.textContent === t('liveNow');
       const nowLive = !!data.data.Live;
-      liveButtonEl.textContent = nowLive ? t('liveNow') : t('notLive');
-  if (was !== nowLive) reportStreamState(nowLive, data.data.ViewerCount);
+      liveviewsState.live = nowLive;
+      liveviewsState.count = typeof data.data.ViewerCount === 'number' ? data.data.ViewerCount : 0;
+      renderLiveviewsUI();
+      if (previousLive !== nowLive) reportStreamState(nowLive, liveviewsState.count);
   } else if (data && data.data && typeof data.data.Live !== 'undefined') {
-      viewerCountEl.textContent = `0 ${customLabel}`;
-      const was = liveButtonEl.textContent === t('liveNow');
       const nowLive = !!data.data.Live;
-      liveButtonEl.textContent = nowLive ? t('liveNow') : t('notLive');
-  if (was !== nowLive) reportStreamState(nowLive, 0);
+      liveviewsState.live = nowLive;
+      liveviewsState.count = 0;
+      renderLiveviewsUI();
+      if (previousLive !== nowLive) reportStreamState(nowLive, 0);
     } else {
-      viewerCountEl.textContent = `0 ${customLabel}`;
-      const was = liveButtonEl.textContent === t('liveNow');
-      const nowLive = false;
-      liveButtonEl.textContent = t('notLive');
-  if (was !== nowLive) reportStreamState(nowLive, 0);
+      liveviewsState.live = false;
+      liveviewsState.count = 0;
+      renderLiveviewsUI();
+      if (previousLive !== false) reportStreamState(false, 0);
     }
   } catch (error) {
     console.error('Error details:', error);
     const viewerCountEl = document.getElementById('viewer-count');
-    const liveButtonEl = document.getElementById('live-button');
-    if (!viewerCountEl || !liveButtonEl) return;
+    const liveButtonEl = document.getElementById('live-button') || document.querySelector('.live-button');
+  const liveviewsStatusEl = document.getElementById('liveviews-status');
     let config = window._liveviewsConfigCache || {};
-    let customLabel = (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) ? config.viewersLabel : t('viewers');
-    let bg = config && config.bg ? config.bg : '#fff';
-    let color = config && config.color ? config.color : '#222';
+    let bg = config && config.bg ? config.bg : '#222222';
+    let color = config && config.color ? config.color : '#ffffff';
     let font = config && config.font ? config.font : 'Arial';
     let size = config && config.size ? config.size : '32';
+    liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
+    liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
     try {
       const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
       setLiveviewsVars({ bg, fg: color, font, sizePx });
     } catch {}
-    viewerCountEl.textContent = `0 ${customLabel}`;
-  const was = liveButtonEl.textContent === t('liveNow');
-  const nowLive = false;
-  liveButtonEl.textContent = t('notLive');
-  if (was !== nowLive) reportStreamState(nowLive);
+    const previousLive = liveviewsState.live;
+    liveviewsState.live = false;
+    liveviewsState.count = 0;
+    if (viewerCountEl || liveButtonEl || liveviewsStatusEl) {
+      renderLiveviewsUI();
+    }
+    if (previousLive !== false) reportStreamState(false);
   }
 }
 
@@ -202,32 +357,30 @@ function validateIconSize(fileInput) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  function updateLiveviewsStatusAdmin(liveviews) {
-    const liveviewsStatus = document.getElementById('liveviews-status');
-    if (!liveviewsStatus) return;
-    if (liveviews && liveviews.active) {
-      const count = typeof liveviews.count === 'number' ? liveviews.count : 0;
-      liveviewsStatus.textContent = `${t('liveNow')}: ${count} ${t('views')}`;
-    } else {
-      liveviewsStatus.textContent = t('notLive');
-    }
+  await applyPreferredLanguage();
+  try {
+    console.debug('[Liveviews] current lang', window.__i18n && window.__i18n.current);
+    console.debug('[Liveviews] liveNow translation', window.__i18n && window.__i18n.t ? window.__i18n.t('liveNow') : 'n/a');
+  } catch {}
+  renderLiveviewsUI();
 
+  function updateLiveviewsStatusAdmin(liveviews) {
+    liveviewsState.adminActive = !!(liveviews && liveviews.active);
+    liveviewsState.adminCount = typeof liveviews?.count === 'number' ? liveviews.count : 0;
+    if (typeof liveviews?.count === 'number') {
+      liveviewsState.count = liveviews.count;
+    }
     const viewerCount = document.getElementById('viewer-count');
     if (viewerCount) {
-      let label = '';
       let config = window._liveviewsConfigCache || {};
-      if (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) {
-        label = config.viewersLabel;
-      } else {
-        label = t('viewers');
-      }
-      let count = typeof liveviews.count === 'number' ? liveviews.count : 0;
-      viewerCount.textContent = `${count} ${label}`;
+      liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
+      liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
       try {
         const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-        setLiveviewsVars({ bg: config.bg || '#fff', fg: config.color || '#222', font: config.font || 'Arial', sizePx });
+        setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || 'Arial', sizePx });
       } catch {}
     }
+    renderLiveviewsUI();
   }
 
   if (window.ws) {
@@ -276,11 +429,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   const viewerCountInit = document.getElementById('viewer-count');
   if (viewerCountInit) {
-    viewerCountInit.textContent = `0 ${config.viewersLabel || 'viewers'}`;
+    liveviewsState.labelIsCustom = !!(config.viewersLabel && config.viewersLabel.trim());
+    liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
+    liveviewsState.count = 0;
     try {
   const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-  setLiveviewsVars({ bg: config.bg || '#fff', fg: config.color || '#222', font: config.font || 'Arial', sizePx });
+  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || 'Arial', sizePx });
     } catch {}
+    renderLiveviewsUI();
   }
 
   const searchToken = (() => { try { return new URL(window.location.href).searchParams.get('token') || ''; } catch { return ''; } })();
@@ -325,6 +481,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     liveButton.classList.add('mr-0');
     viewerCount.classList.add('ml-2p5');
   }
+
+  renderLiveviewsUI();
 });
 
 function reportStreamState(isLive, viewers) {
@@ -440,8 +598,8 @@ if (window.location.pathname.startsWith('/admin')) {
         let claimid = document.getElementById('liveviews-claimid')?.value;
         let viewersLabel = document.getElementById('liveviews-viewers-label')?.value;
 
-        if (!bg) bg = '#fff';
-        if (!color) color = '#222';
+        if (!bg) bg = '#222222';
+        if (!color) color = '#ffffff';
         if (!font) font = 'Arial';
         if (!size) size = '32';
         if (!claimid) claimid = '';
@@ -514,7 +672,7 @@ if (window.location.pathname.startsWith('/admin')) {
                 viewerCountSave.textContent = `${count} ${label}`;
                 try {
                   const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-                  setLiveviewsVars({ bg: config.bg || '#fff', fg: config.color || '#222', font: config.font || 'Arial', sizePx });
+                  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || 'Arial', sizePx });
                 } catch {}
             }
     } catch (err) {

@@ -126,11 +126,11 @@ import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
 import { usePublicToken } from '../composables/usePublicToken';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const form = ref({
-  bg: '#ffffff',
-  color: '#222222',
+  bg: '#222222',
+  color: '#ffffff',
   font: 'Inter',
   size: '32',
   icon: '',
@@ -142,7 +142,17 @@ const customFont = ref('');
 const errors = ref({ claimid: '' });
 const wallet = useWalletSession();
 const { withToken, refresh } = usePublicToken();
-const widgetUrl = computed(() => withToken(`${location.origin}/widgets/liveviews`));
+
+function appendLangParam(url) {
+  const lang = locale?.value || '';
+  if (!lang) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}lang=${encodeURIComponent(lang)}`;
+}
+
+const widgetUrl = computed(() =>
+  withToken(appendLangParam(`${location.origin}/widgets/liveviews`))
+);
 const initial = ref('');
 const dirty = ref(false);
 const saving = ref(false);

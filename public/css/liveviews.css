@@ -1,13 +1,13 @@
 #liveviews-widget {
   padding: 10px;
   border-radius: 4px;
-  background: var(--liveviews-bg, #fff);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  background: var(--liveviews-bg, #222222);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 #viewer-count {
   font-family: var(--liveviews-font, Arial);
   font-size: var(--liveviews-size, 32px);
-  color: var(--liveviews-color, #222);
+  color: var(--liveviews-color, #ffffff);
 }
 #liveviews-icon {
   height: var(--liveviews-icon-size, 40px);

@@ -1729,6 +1729,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('DOMContentLoaded', loadAudioSettings);
 });
 
+function resolveAdminLanguage() {
+    try {
+        if (window.__i18n && window.__i18n.current) return window.__i18n.current;
+    } catch (e) {}
+    try {
+        const stored = localStorage.getItem('getty-language') || localStorage.getItem('lang') || localStorage.getItem('language') || localStorage.getItem('i18nextLng');
+        if (stored) return stored;
+    } catch (e) {}
+    try {
+        const match = document.cookie.match(/(?:^|;\s*)getty_lang=([^;]+)/) || document.cookie.match(/(?:^|;\s*)lang=([^;]+)/);
+        if (match && match[1]) return decodeURIComponent(match[1]);
+    } catch (e) {}
+    return '';
+}
+
+function appendLangParam(url) {
+    const lang = resolveAdminLanguage();
+    if (!lang) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}lang=${encodeURIComponent(lang)}`;
+}
+
 function setWidgetUrlsFromObsConfig(cfg) {
     // If no IP or port is configured, use localhost:3000 by default
     const ip = cfg && cfg.ip ? cfg.ip : 'localhost';
@@ -1741,7 +1763,7 @@ function setWidgetUrlsFromObsConfig(cfg) {
         'tip-notification-url': `${baseUrl}/widgets/tip-notification`,
         'obs-chat-url': `${baseUrl}/widgets/chat`,
         'obs-chat-horizontal-url': `${baseUrl}/widgets/chat?horizontal=1`,
-        'liveviews-widget-url': `${baseUrl}/widgets/liveviews`,
+    'liveviews-widget-url': appendLangParam(`${baseUrl}/widgets/liveviews`),
         'socialmedia-widget-url': `${baseUrl}/widgets/socialmedia`
     };
     Object.entries(widgetUrls).forEach(([id, url]) => {
@@ -1887,7 +1909,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const liveviewsWidgetUrl = document.getElementById('liveviews-widget-url');
     if (liveviewsWidgetUrl) {
-        liveviewsWidgetUrl.value = window.location.origin + '/widgets/liveviews';
+    liveviewsWidgetUrl.value = appendLangParam(window.location.origin + '/widgets/liveviews');
     }
 
     const liveviewsSaveBtn = document.getElementById('liveviews-save');
