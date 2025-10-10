@@ -47,109 +47,25 @@ function closeStaleOpenSegment(hist, nowTs = Date.now(), freshMs = 150000) {
   try {
     if (!hist || !Array.isArray(hist.segments)) return;
     const lastSeg = hist.segments[hist.segments.length - 1];
-    if (!lastSeg || lastSeg.end) return; // nothing open
+    if (!lastSeg || lastSeg.end) return;
     const samples = Array.isArray(hist.samples) ? hist.samples : [];
     const lastSample = samples.length ? samples[samples.length - 1] : null;
     const lastSampleTs = lastSample ? Number(lastSample.ts || 0) : 0;
     if (!lastSampleTs) {
-
-      if (nowTs - lastSeg.start > 12 * 3600000) {
+      const twelveHoursMs = 12 * 3600000;
+      const ninetyMinutesMs = 90 * 60000;
+      const staleThreshold = Math.min(twelveHoursMs, ninetyMinutesMs);
+      if (nowTs - lastSeg.start > staleThreshold) {
         lastSeg.end = nowTs - freshMs;
       }
       return;
     }
     const age = nowTs - lastSampleTs;
-    if (age > freshMs) {
-
+    const staleLimit = Math.max(freshMs, 90 * 60000);
+    if (age > staleLimit) {
       if (lastSampleTs >= lastSeg.start) lastSeg.end = lastSampleTs;
     }
   } catch {}
-}
-
-// Compact samples to reduce file size while preserving metrics.
-// Rules:
-//  - Always keep first & last sample.
-//  - Keep on any change of `live` state or change of viewer count (while live).
-//  - Keep if sample timestamp equals (or crosses) a segment start or end boundary.
-function compactSamples(hist, opts = {}) {
-  try {
-    if (!hist || !Array.isArray(hist.samples)) return { before: 0, after: 0, synthetic: 0 };
-    const maxIntervalMs = Math.max(60000, Math.min(12 * 3600000, Number(opts.maxIntervalMs || 10 * 60000))); // default 10 min
-    const synthPadMs = 2000;
-    const segStarts = new Set();
-    const segEnds = [];
-    for (const seg of (hist.segments || [])) {
-      if (seg && typeof seg.start === 'number') segStarts.add(seg.start);
-      if (seg && typeof seg.end === 'number') segEnds.push(seg.end);
-    }
-    segEnds.sort((a,b)=>a-b);
-    const samples = [...hist.samples].sort((a,b)=>a.ts-b.ts);
-    const before = samples.length;
-    if (before <= 3) {
-
-      let synthetic = 0;
-      if (segEnds.length) {
-        const lastSample = samples[samples.length - 1];
-
-        const lastSegEnd = segEnds[segEnds.length - 1];
-        if (lastSample && lastSample.live && typeof lastSegEnd === 'number') {
-
-          const synthPadMs = 2000;
-            const hasOfflineNear = samples.some(s => !s.live && Math.abs(s.ts - lastSegEnd) <= synthPadMs);
-            if (!hasOfflineNear) {
-              const offSample = { ts: lastSegEnd, live: false, viewers: 0, synthetic: true };
-              samples.push(offSample);
-              samples.sort((a,b)=>a.ts-b.ts);
-              hist.samples = samples;
-              synthetic = 1;
-              return { before, after: samples.length, synthetic };
-            }
-        }
-      }
-      hist.samples = samples;
-      return { before, after: samples.length, synthetic };
-    }
-    const kept = [];
-    let lastKept = null;
-    for (let i=0;i<samples.length;i++) {
-      const cur = samples[i];
-      if (!cur || typeof cur.ts !== 'number') continue;
-      const isFirst = kept.length === 0;
-      const isLast = i === samples.length -1;
-      const mustKeepChange = !lastKept || cur.live !== lastKept.live || (cur.live && cur.viewers !== lastKept.viewers);
-      const isSegBoundary = segStarts.has(cur.ts) || segEnds.includes(cur.ts);
-      const gapExceeded = lastKept ? (cur.ts - lastKept.ts) >= maxIntervalMs : false;
-      if (isFirst || isLast || mustKeepChange || isSegBoundary || gapExceeded) {
-        kept.push(cur);
-        lastKept = cur;
-      }
-    }
-
-    let synthetic = 0;
-    function hasOfflineSampleNear(ts) {
-      return kept.some(s => Math.abs(s.ts - ts) <= synthPadMs && !s.live);
-    }
-    for (const endTs of segEnds) {
-      let lastIdx = -1;
-      for (let k=0;k<kept.length;k++) { if (kept[k].ts <= endTs) lastIdx = k; else break; }
-      if (lastIdx >=0) {
-        const lastAt = kept[lastIdx];
-        if (lastAt.live) {
-            if (!hasOfflineSampleNear(endTs)) {
-              const offSample = { ts: endTs, live: false, viewers: 0, synthetic: true };
-              kept.splice(lastIdx+1, 0, offSample);
-              synthetic++;
-            }
-        }
-      }
-    }
-
-    kept.sort((a,b)=>a.ts-b.ts);
-    hist.samples = kept;
-    return { before, after: kept.length, synthetic };
-  } catch {
-    return { before: 0, after: 0, synthetic: 0 };
-  }
 }
 
 function dayStartUTC(ts, tzOffsetMinutes) {
@@ -168,6 +84,119 @@ function splitSpanByDayTz(start, end, tzOffsetMinutes) {
     s = e;
   }
   return out;
+}
+
+function sanitizeSegments(rawSegments, nowTs) {
+  if (!Array.isArray(rawSegments)) return [];
+  return rawSegments
+    .map(seg => {
+      const start = Number(seg?.start);
+      const endRaw = seg?.end == null ? nowTs : Number(seg.end);
+      if (!isFinite(start) || !isFinite(endRaw)) return null;
+      const end = Math.max(start, endRaw);
+      if (end <= start) return null;
+      return { start, end };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.start - b.start);
+}
+
+function sortSamples(rawSamples) {
+  if (!Array.isArray(rawSamples)) return [];
+  return [...rawSamples]
+    .filter(s => Number.isFinite(Number(s?.ts)))
+    .sort((a, b) => Number(a.ts) - Number(b.ts));
+}
+
+function buildLiveIntervals(samples, nowTs) {
+  const intervals = [];
+  let currentStart = null;
+  let prevSampleForCurrent = null;
+  for (let i = 0; i < samples.length; i++) {
+    const cur = samples[i];
+    const curTs = Number(cur?.ts || 0);
+    if (!isFinite(curTs)) continue;
+    if (currentStart == null) {
+      if (cur && cur.live) {
+        currentStart = curTs;
+        prevSampleForCurrent = samples[i - 1] || null;
+      }
+      continue;
+    }
+    if (cur && cur.live) continue;
+    const endTs = curTs;
+    if (isFinite(endTs) && endTs > currentStart) {
+      intervals.push({
+        start: currentStart,
+        end: endTs,
+        prevSample: prevSampleForCurrent,
+        nextSample: cur,
+      });
+    }
+    currentStart = null;
+    prevSampleForCurrent = null;
+  }
+  if (currentStart != null) {
+    const endTs = Number(nowTs);
+    if (isFinite(endTs) && endTs > currentStart) {
+      intervals.push({
+        start: currentStart,
+        end: endTs,
+        prevSample: prevSampleForCurrent,
+        nextSample: null,
+      });
+    }
+  }
+  return intervals;
+}
+
+function mergeIntervals(intervals) {
+  if (!intervals.length) return [];
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  const out = [Object.assign({}, sorted[0])];
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i];
+    const last = out[out.length - 1];
+    if (cur.start <= last.end) {
+      last.end = Math.max(last.end, cur.end);
+    } else {
+      out.push(Object.assign({}, cur));
+    }
+  }
+  return out;
+}
+
+function extendIntervalsWithSegments(intervals, segments, opts = {}) {
+  if (!intervals.length) return [];
+  const maxPadMs = Math.max(0, Number(opts.maxPadMs ?? 2 * 3600000));
+  const padRatio = Math.max(0, Number(opts.padRatio ?? 0.25));
+  const padExtraMs = Math.max(0, Number(opts.padExtraMs ?? 5 * 60000));
+  const out = [];
+  for (const interval of intervals) {
+    let start = interval.start;
+    let end = interval.end;
+    const duration = Math.max(0, end - start);
+    const overlaps = segments.filter(seg => seg.end > (start - maxPadMs) && seg.start < (end + maxPadMs));
+    const segStartBound = overlaps.length ? Math.min(...overlaps.map(s => s.start)) : start;
+    const segEndBound = overlaps.length ? Math.max(...overlaps.map(s => s.end)) : end;
+    const prevOfflineTs = interval.prevSample && interval.prevSample.live === false ? Number(interval.prevSample.ts) : null;
+    const nextOfflineTs = interval.nextSample && interval.nextSample.live === false ? Number(interval.nextSample.ts) : null;
+    const lowerBound = Math.max(
+      isFinite(segStartBound) ? segStartBound : start,
+      prevOfflineTs != null && isFinite(prevOfflineTs) ? prevOfflineTs : -Infinity
+    );
+    const upperBound = Math.min(
+      isFinite(segEndBound) ? segEndBound : end,
+      nextOfflineTs != null && isFinite(nextOfflineTs) ? nextOfflineTs : Infinity
+    );
+    const padLimit = Math.min(maxPadMs, duration * padRatio + padExtraMs);
+    const backPad = Math.min(Math.max(0, start - lowerBound), padLimit);
+    const fwdPad = Math.min(Math.max(0, upperBound - end), padLimit);
+    start = Math.max(lowerBound, start - backPad);
+    end = Math.min(upperBound, end + fwdPad);
+    if (end > start) out.push({ start, end });
+  }
+  return mergeIntervals(out);
 }
 
 function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
@@ -191,31 +220,59 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
     const rangeStart = buckets[0]?.key ?? todayStart;
     const rangeEnd = (buckets[buckets.length - 1]?.key ?? todayStart) + 86400000;
 
-    for (const seg of hist.segments || []) {
-      const sRaw = Number(seg.start); const eRaw = Number(seg.end || Date.now());
-      if (!isFinite(sRaw) || !isFinite(eRaw)) continue;
-      if (eRaw < rangeStart || sRaw > rangeEnd) continue;
-      const s = Math.max(sRaw, rangeStart); const e = Math.min(eRaw, rangeEnd);
+    const segments = sanitizeSegments(hist.segments, nowTs);
+    const samples = sortSamples(hist.samples);
+    const liveIntervals = buildLiveIntervals(samples, nowTs);
+    const paddedIntervals = extendIntervalsWithSegments(liveIntervals, segments, {
+      maxPadMs: 2 * 3600000,
+      padRatio: 1,
+      padExtraMs: 5 * 60000,
+    });
+    const hasLiveSamples = samples.some(s => s && s.live);
+
+    let liveMsFromIntervals = 0;
+    for (const interval of paddedIntervals) {
+      const s = Math.max(rangeStart, interval.start);
+      const e = Math.min(rangeEnd, interval.end);
+      if (e <= s) continue;
+      liveMsFromIntervals += (e - s);
       for (const part of splitSpanByDayTz(s, e, offset)) {
-        const b = bmap.get(part.day); if (b) b.ms += part.ms;
+        const b = bmap.get(part.day);
+        if (b) b.ms += part.ms;
       }
     }
+
+    if (liveMsFromIntervals === 0 && !hasLiveSamples) {
+      for (const seg of segments) {
+        const s = Math.max(seg.start, rangeStart);
+        const e = Math.min(seg.end, rangeEnd);
+        if (e <= s) continue;
+        for (const part of splitSpanByDayTz(s, e, offset)) {
+          const b = bmap.get(part.day);
+          if (b) b.ms += part.ms;
+        }
+      }
+    }
+
     try {
-      const samples = Array.isArray(hist.samples) ? hist.samples : [];
       for (let i = 0; i < samples.length; i++) {
-        const cur = samples[i]; const next = samples[i + 1] || null;
-        const t0 = Math.max(rangeStart, Number(cur?.ts || 0));
-        const t1 = Math.min(rangeEnd, Number(next ? next.ts : Date.now()));
-        if (!(isFinite(t0) && isFinite(t1)) || t1 <= t0) continue;
+        const cur = samples[i];
+        const next = samples[i + 1] || null;
+        const curTs = Number(cur?.ts || 0);
+        const nextTs = Number(next ? next.ts : nowTs);
+        if (!isFinite(curTs) || !isFinite(nextTs)) continue;
+        const t0 = Math.max(rangeStart, curTs);
+        const t1 = Math.min(rangeEnd, nextTs);
+        if (t1 <= t0) continue;
         if (cur && cur.live) {
           const v = Math.max(0, Number(cur.viewers || 0));
-            for (const part of splitSpanByDayTz(t0, t1, offset)) {
-              const b = bmap.get(part.day);
-              if (b) {
-                const sec = Math.max(0, part.ms / 1000);
-                b.vsec += v * sec; b.lsec += sec;
-              }
-            }
+          for (const part of splitSpanByDayTz(t0, t1, offset)) {
+            const b = bmap.get(part.day);
+            if (!b) continue;
+            const sec = Math.max(0, part.ms / 1000);
+            b.vsec += v * sec;
+            b.lsec += sec;
+          }
         }
       }
     } catch {}
@@ -289,47 +346,72 @@ function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0) {
 
 function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
   const { start, end } = rangeWindow(period, span, tzOffsetMinutes);
+  const nowTs = Date.now();
 
-  let hoursStreamed = 0;
-  for (const seg of hist.segments || []) {
-    const s = Math.max(start, seg.start);
-    const e = Math.min(end, seg.end || Date.now());
-    if (e > s) hoursStreamed += (e - s) / 3600000;
+  const segments = sanitizeSegments(hist.segments, nowTs);
+  const sortedSamples = sortSamples(hist.samples);
+  const liveIntervals = buildLiveIntervals(sortedSamples, nowTs);
+  const paddedIntervals = extendIntervalsWithSegments(liveIntervals, segments, {
+    maxPadMs: 2 * 3600000,
+    padRatio: 1,
+    padExtraMs: 5 * 60000,
+  });
+  const hasLiveSamples = sortedSamples.some(s => s && s.live);
+
+  let liveMsInRange = 0;
+  for (const interval of paddedIntervals) {
+    const s = Math.max(start, interval.start);
+    const e = Math.min(end, interval.end);
+    if (e > s) liveMsInRange += (e - s);
   }
-  hoursStreamed = +hoursStreamed.toFixed(2);
+  if (liveMsInRange === 0 && !hasLiveSamples) {
+    for (const seg of segments) {
+      const s = Math.max(start, seg.start);
+      const e = Math.min(end, seg.end);
+      if (e > s) liveMsInRange += (e - s);
+    }
+  }
+  const hoursStreamed = +(liveMsInRange / 3600000).toFixed(2);
 
   const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000), tzOffsetMinutes);
   const activeDays = daily.filter(d => (d.hours || 0) > 0).length;
 
-  const samples = Array.isArray(hist.samples) ? hist.samples.filter(s => s.ts >= start && s.ts <= end) : [];
-  let watchedHours = 0;
-  let liveWeightedSeconds = 0;
   let peakViewers = 0;
-  for (let i = 0; i < samples.length; i++) {
-    const cur = samples[i];
-    const next = samples[i + 1] || null;
-    peakViewers = Math.max(peakViewers, Number(cur.viewers || 0));
-    const t0 = Math.max(start, Number(cur.ts || 0));
-    const t1 = Math.min(end, next ? Number(next.ts || end) : end);
-    if (t1 <= t0) continue;
+  let rangeWatchedHours = 0;
+  let liveWeightedSeconds = 0;
+  for (let i = 0; i < sortedSamples.length; i++) {
+    const cur = sortedSamples[i];
+    const next = sortedSamples[i + 1] || null;
+    const curTs = Number(cur?.ts || 0);
+    const nextTs = Number(next ? next.ts : nowTs);
+    if (!isFinite(curTs) || !isFinite(nextTs)) continue;
+    if (curTs >= start && curTs <= end) {
+      peakViewers = Math.max(peakViewers, Number(cur.viewers || 0));
+    }
+    const t0 = Math.max(start, curTs);
+    const t1 = Math.min(end, nextTs);
+    if (t1 <= t0 || !cur?.live) continue;
     const dtSec = (t1 - t0) / 1000;
-    if (cur.live) {
+    const v = Math.max(0, Number(cur.viewers || 0));
+    rangeWatchedHours += v * (dtSec / 3600);
+    liveWeightedSeconds += dtSec;
+  }
+  const avgViewers = liveWeightedSeconds > 0 ? +(rangeWatchedHours / (liveWeightedSeconds / 3600)).toFixed(2) : 0;
+  const watchedHours = +rangeWatchedHours.toFixed(2);
 
-      const v = Math.max(0, Number(cur.viewers || 0));
-      watchedHours += v * (dtSec / 3600);
-      liveWeightedSeconds += dtSec * 1;
+  let totalLiveMs = 0;
+  if (paddedIntervals.length) {
+    for (const interval of paddedIntervals) {
+      const span = Math.max(0, interval.end - interval.start);
+      totalLiveMs += span;
+    }
+  } else {
+    for (const seg of segments) {
+      const span = Math.max(0, seg.end - seg.start);
+      totalLiveMs += span;
     }
   }
-  const avgViewers = liveWeightedSeconds > 0 ? +(watchedHours / (liveWeightedSeconds / 3600)).toFixed(2) : 0;
-  watchedHours = +watchedHours.toFixed(2);
-
-  let totalHoursStreamed = 0;
-  for (const seg of hist.segments || []) {
-    const s = seg.start;
-    const e = seg.end || Date.now();
-    if (e > s) totalHoursStreamed += (e - s) / 3600000;
-  }
-  totalHoursStreamed = +totalHoursStreamed.toFixed(2);
+  const totalHoursStreamed = +(totalLiveMs / 3600000).toFixed(2);
   const highestViewers = Array.isArray(hist.samples) && hist.samples.length ? Math.max(...hist.samples.map(s => Number(s.viewers || 0))) : 0;
 
   return {
@@ -628,37 +710,6 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     }
   });
 
-  app.post('/api/stream-history/compact', limiter, async (req, res) => {
-    try {
-      let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
-      if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-        try {
-          const token = (req.query?.token || '').toString();
-          if (token && store) {
-            const mapped = await store.get(token, 'adminToken', null);
-            nsCheck = mapped ? mapped : token;
-          }
-        } catch {}
-        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
-      }
-      const body = req.body || {};
-      const maxIntervalSeconds = Number(body.maxIntervalSeconds || 600); // 10 min default
-      const dryRun = !!body.dryRun;
-      const hist = await loadHistoryNS(req);
-      const beforeClone = dryRun ? (Array.isArray(hist.samples) ? hist.samples.slice() : []) : null;
-      const result = compactSamples(hist, { maxIntervalMs: maxIntervalSeconds * 1000 });
-      if (dryRun) {
-        hist.samples = beforeClone;
-        return res.json({ ok: true, dryRun: true, ...result });
-      }
-      truncateSegments(hist);
-      await saveHistoryNS(req, hist);
-      return res.json({ ok: true, dryRun: false, ...result });
-    } catch (e) {
-      return res.status(500).json({ error: 'failed_to_compact', details: e?.message });
-    }
-  });
-
   app.get('/api/stream-history/export', async (req, res) => {
     try {
   const hist = await loadHistoryNS(req);
@@ -743,6 +794,27 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const samples = Array.isArray(hist.samples) ? hist.samples : [];
       const lastSample = samples.length ? samples[samples.length - 1] : null;
       const lastTs = lastSample ? Number(lastSample.ts || 0) : 0;
+      let avgSampleIntervalSec = null;
+      let latestSampleIntervalSec = null;
+      try {
+        if (samples.length >= 2) {
+          const consider = samples.slice(-200);
+          const deltas = [];
+          for (let i = 1; i < consider.length; i++) {
+            const prevTs = Number(consider[i - 1]?.ts || 0);
+            const curTs = Number(consider[i]?.ts || 0);
+            if (!isFinite(prevTs) || !isFinite(curTs)) continue;
+            const diff = curTs - prevTs;
+            if (diff > 0 && diff < 3600000) deltas.push(diff);
+          }
+          if (deltas.length) {
+            const avgMs = deltas.reduce((acc, ms) => acc + ms, 0) / deltas.length;
+            avgSampleIntervalSec = Math.round((avgMs / 1000) * 10) / 10;
+            const lastDiff = deltas[deltas.length - 1];
+            latestSampleIntervalSec = Math.round((lastDiff / 1000) * 10) / 10;
+          }
+        }
+      } catch {}
       const now = Date.now();
       const FRESH_MS = 150000;
       const hasClaim = !!(cfg.claimid && String(cfg.claimid).trim());
@@ -766,7 +838,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       } catch {}
       const reason = hasClaim ? (connected ? 'ok' : 'stale') : 'no_claimid';
       const sampleCount = Array.isArray(hist.samples) ? hist.samples.length : 0;
-      return res.json({ connected, live, lastSampleTs: lastTs || null, reason, sampleCount });
+      return res.json({
+        connected,
+        live,
+        lastSampleTs: lastTs || null,
+        reason,
+        sampleCount,
+        avgSampleIntervalSec,
+        latestSampleIntervalSec,
+      });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_compute_status', details: e?.message });
     }
@@ -775,6 +855,3 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
 module.exports = registerStreamHistoryRoutes;
 
-if (typeof module !== 'undefined' && module?.exports) {
-  module.exports._compactSamples = compactSamples;
-}
