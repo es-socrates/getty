@@ -2,15 +2,15 @@
 
 Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee. Now integrated with **Wander Wallet** for login and encrypted data isolation with security tokens for your widgets and overlays.
 
-🔥 Online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **Please be kind and patient; resources on the test server are limited and it may not be as fast.**
+🔥 Online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **You only need to configure once and save the changes. Then, open OBS and integrate the widgets.**
 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
 ![getty](https://thumbs.odycdn.com/a3a2b6dfa1498257a7c37ea4050e217b.webp)
 
-## Live streaming on Odysee?
+## Go live on Odysee
 
-Odysee is a blockchain-based media platform. We host all kinds of media such as images, articles, PDFs, audio files, etc., but we're best known for hosting videos. Odysee seeks to recapture the spirit of the early 2000s era internet. Rather than favouring corporate content such as late night talk shows, network television, and TV news, Odysee is a place for everyone, including independent creators.
+Odysee is a blockchain-based media platform. We host all kinds of media such as images, articles, PDFs, audio files, etc., but we're best known for hosting videos. Odysee seeks to recapture the spirit of the early 2000s era internet. Rather than favouring corporate content such as late night talk shows, network television, and TV news, Odysee is a place for everyone, including independent creators. [Create a channel and go live](https://odysee.com).
 
 ### Learn more about creating and setting up a wallet on Odysee, [visit the documentation](https://help.odysee.tv/category-monetization/).
 
@@ -37,7 +37,9 @@ Want to take your stream to the next level? With getty, managing your widgets in
 11. 📈 Real-time and historical statistics of your lives in Odysee.
 12. 🎉 Achievements System: Receive real-time achievement notifications.
 
-![image](https://thumbs.odycdn.com/280350ed164307082a48e00ecc59b02a.webp)
+![image](https://thumbs.odycdn.com/1276aa291bbd9a6bd621e7cce65da845.webp)
+
+# Do you want to use getty locally?
 
 ## Prerequisites to start getty
 
@@ -98,7 +100,8 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 
 getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
 
-**This is an independent project; it is not an official Odysee product.** Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
+**This is an independent project; it is not an official Odysee product.**
+Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
 
 ### With love for Odysee ❤️
 
