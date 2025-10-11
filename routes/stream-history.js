@@ -295,18 +295,20 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
     let keyEpoch;
     let label;
     if (period === 'week') {
-      // Monday start (ISO) in user local time
-      const dow = (dLocal.getDay() + 6) % 7; // 0=Mon
+      const dow = (dLocal.getDay() + 6) % 7;
       const weekStartLocal = new Date(dLocal.getFullYear(), dLocal.getMonth(), dLocal.getDate() - dow).getTime();
-      keyEpoch = weekStartLocal - offset * 60000; // store UTC epoch representing that local midnight
-      const wd = new Date(weekStartLocal); // local timeline date object
-      const y = wd.getFullYear(); const m = String(wd.getMonth() + 1).padStart(2, '0'); const dd = String(wd.getDate()).padStart(2, '0');
-      label = `${y}-${m}-${dd}`; // week start label
+      keyEpoch = weekStartLocal - offset * 60000;
+      const wd = new Date(weekStartLocal);
+      const y = wd.getFullYear();
+      const m = String(wd.getMonth() + 1).padStart(2, '0');
+      const dd = String(wd.getDate()).padStart(2, '0');
+      label = `${y}-${m}-${dd}`;
     } else if (period === 'month') {
       const monthStartLocal = new Date(dLocal.getFullYear(), dLocal.getMonth(), 1).getTime();
       keyEpoch = monthStartLocal - offset * 60000;
       const ms = new Date(monthStartLocal);
-      const y = ms.getFullYear(); const m = String(ms.getMonth() + 1).padStart(2, '0');
+      const y = ms.getFullYear();
+      const m = String(ms.getMonth() + 1).padStart(2, '0');
       label = `${y}-${m}`;
     } else { // year
       const yearStartLocal = new Date(dLocal.getFullYear(), 0, 1).getTime();
@@ -537,6 +539,93 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     try { saveHistoryToFile(DATA_FILE, data); return true; } catch { return false; }
   }
 
+  const DEFAULT_POLL_EVERY_MS = 5000;
+  const BACKGROUND_POLL_MS = Math.max(DEFAULT_POLL_EVERY_MS, Number(process.env.GETTY_STREAM_HISTORY_BACKGROUND_MS || DEFAULT_POLL_EVERY_MS));
+  const bgPollers = new Map();
+
+  function makeReqLike(adminNs, pubNs = null) {
+    return {
+      ns: { admin: adminNs || null, pub: pubNs || null },
+      query: {},
+      headers: {}
+    };
+  }
+
+  function stopBackgroundPoller(key) {
+    const existing = bgPollers.get(key);
+    if (existing) {
+      try { clearInterval(existing.timer); } catch {}
+      bgPollers.delete(key);
+    }
+  }
+
+  async function pollLiveStatus(reqLike, adminNs, claimId, opts = {}) {
+    const cfgClaim = typeof claimId === 'string' ? claimId.trim() : '';
+    if (!cfgClaim) return null;
+    const key = adminNs ? `ns:${adminNs}` : 'single';
+    const nowTs = Date.now();
+    const force = !!opts.force;
+    if (!app.__shLastFetch) app.__shLastFetch = {};
+    const lastTs = app.__shLastFetch[key] || 0;
+    if (!force && (nowTs - lastTs) < DEFAULT_POLL_EVERY_MS) return null;
+    app.__shLastFetch[key] = nowTs;
+    try {
+      const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(cfgClaim)}`;
+      const resp = await axios.get(url, { timeout: 5000 });
+      const nowLive = !!resp?.data?.data?.Live;
+      const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
+      const hist = await loadHistoryNS(reqLike);
+      const last = hist.segments[hist.segments.length - 1];
+      if (nowLive) {
+        if (!(last && !last.end)) startSegment(hist, nowTs);
+      } else if (last && !last.end) {
+        endSegment(hist, nowTs);
+      }
+      if (!Array.isArray(hist.samples)) hist.samples = [];
+      try { hist.samples.push({ ts: nowTs, live: nowLive, viewers: viewerCount }); } catch {}
+      truncateSegments(hist);
+      await saveHistoryNS(reqLike, hist);
+      try {
+        const nsToken = reqLike?.ns?.admin || reqLike?.ns?.pub || null;
+        if (options.wss && nsToken) {
+          options.wss.broadcast(nsToken, {
+            type: 'stream-history-update',
+            data: { sampleCount: hist.samples.length, live: nowLive, viewerCount }
+          });
+        }
+      } catch {}
+      return { nowLive, viewerCount };
+    } catch {
+      return null;
+    }
+  }
+
+  async function ensureBackgroundPoller(adminNs, claimId, sourceReq = null) {
+    const trimmed = typeof claimId === 'string' ? claimId.trim() : '';
+    const key = adminNs ? `ns:${adminNs}` : 'single';
+    if (!trimmed) {
+      stopBackgroundPoller(key);
+      return null;
+    }
+    const existing = bgPollers.get(key);
+    if (existing && existing.claimId === trimmed) return existing;
+    stopBackgroundPoller(key);
+    const reqLike = sourceReq && sourceReq.ns
+      ? { ns: { admin: adminNs || null, pub: sourceReq.ns.pub || null }, query: sourceReq.query || {}, headers: sourceReq.headers || {} }
+      : makeReqLike(adminNs);
+    try {
+      const timer = setInterval(() => {
+        pollLiveStatus(reqLike, adminNs, trimmed).catch(() => {});
+      }, BACKGROUND_POLL_MS);
+      const entry = { claimId: trimmed, timer, reqLike };
+      bgPollers.set(key, entry);
+      pollLiveStatus(reqLike, adminNs, trimmed, { force: true }).catch(() => {});
+      return entry;
+    } catch {
+      return null;
+    }
+  }
+
   app.get('/config/stream-history-config.json', async (req, res) => {
     try {
   let cfg = await loadConfigNS(req);
@@ -575,6 +664,19 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
       try {
         const { canWriteConfig } = require('../lib/authz');
+
+  setTimeout(() => {
+    try {
+      const bootReq = makeReqLike(null);
+      loadConfigNS(bootReq)
+        .then((cfg) => {
+          if (cfg && typeof cfg.claimid === 'string' && cfg.claimid.trim()) {
+            ensureBackgroundPoller(null, cfg.claimid, bootReq).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    } catch {}
+  }, 2500);
         const hosted = !!(store && store.redis);
         if ((hosted || requireSessionFlag) && !canWriteConfig(req)) {
           return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
@@ -583,8 +685,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   const body = req.body || {};
   const claimid = (typeof body.claimid === 'string') ? body.claimid : '';
   const cfg = { claimid };
+  const adminNsForPoll = await resolveAdminNs(req);
   const ok = await saveConfigNS(req, cfg);
   if (!ok) return res.status(500).json({ error: 'failed_to_save' });
+  ensureBackgroundPoller(adminNsForPoll, claimid, req).catch(() => {});
   return res.json({ success: true, config: cfg });
     } catch (e) { return res.status(500).json({ error: 'failed_to_save', details: e?.message }); }
   });
@@ -770,29 +874,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         } catch {}
       }
 
-      try {
-        const adminNs = await resolveAdminNs(req);
-        const throttleKey = adminNs ? `ns:${adminNs}` : 'single';
-        const nowTs = Date.now();
-        const lastTs = (app.__shLastFetch && app.__shLastFetch[throttleKey]) || 0;
-        if (!app.__shLastFetch) app.__shLastFetch = {};
-        const POLL_EVERY_MS = 15000;
-        if (cfg.claimid && (nowTs - lastTs) >= POLL_EVERY_MS) {
-          app.__shLastFetch[throttleKey] = nowTs;
-          const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(cfg.claimid)}`;
-          const resp = await axios.get(url, { timeout: 5000 });
-          const nowLive = !!resp?.data?.data?.Live;
-          const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
-          const hist = await loadHistoryNS(req);
-          const last = hist.segments[hist.segments.length - 1];
-          if (nowLive) { if (!(last && !last.end)) startSegment(hist, nowTs); }
-          else { if (last && !last.end) endSegment(hist, nowTs); }
-          if (!Array.isArray(hist.samples)) hist.samples = [];
-          try { hist.samples.push({ ts: nowTs, live: nowLive, viewers: viewerCount }); } catch {}
-          truncateSegments(hist);
-          await saveHistoryNS(req, hist);
-        }
-      } catch {}
+      let adminNs = null;
+      try { adminNs = await resolveAdminNs(req); } catch {}
+      try { await pollLiveStatus(req, adminNs, cfg.claimid); } catch {}
+      ensureBackgroundPoller(adminNs, cfg.claimid, req).catch(() => {});
 
   const hist = await loadHistoryNS(req);
       const samples = Array.isArray(hist.samples) ? hist.samples : [];

@@ -269,13 +269,13 @@ export function createStreamHistoryPanel(t) {
   watch(period, (p) => { if (['day','week','month','year'].includes(p)) filterQuick.value = p; });
   watch(span, (s) => { if ([7,14,30,90,180,365].includes(Number(s))) filterQuickSpan.value = Number(s); });
   watch(overlayCollapsed, (v) => { try { localStorage.setItem(OVERLAY_KEY, v ? '1':'0'); } catch {} });
-  watch(earningsHidden, (v) => { try { localStorage.setItem(EARNINGS_HIDE_KEY, v ? '1':'0'); } catch {} });
+
   watch(
     () => Number(status.value.sampleCount || 0),
     (count, prev) => {
       if (!Number.isFinite(count) || count <= 0) return;
       if (!Number.isFinite(prev) || count > prev) {
-        scheduleRefresh();
+        scheduleRefresh(true);
       }
     }
   );
@@ -370,7 +370,7 @@ export function createStreamHistoryPanel(t) {
         latestSampleIntervalSec: toNumberOrNull(data.latestSampleIntervalSec),
       };
     } catch {}
-      pollTimer = setTimeout(pollStatus, 10000);
+      pollTimer = setTimeout(pollStatus, 5000);
     }
     pollStatus();
     try { clickAwayHandler = (evt) => { try { if (!menuOpen.value) return; const root = overlayMenuEl.value; if (root && !root.contains(evt.target)) menuOpen.value = false; } catch {} }; document.addEventListener('click', clickAwayHandler, true); } catch {}
