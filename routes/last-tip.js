@@ -21,12 +21,115 @@ function isValidArweaveAddress(addr) {
 }
 
 function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
-  // Optional tipGoal module can be passed in options for cross-propagation of wallet
   const tipGoal = options.tipGoal || null;
   const store = options.store || null;
   const wss = options.wss || null;
   const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
   const tenant = (() => { try { return require('../lib/tenant'); } catch { return null; } })();
+
+  async function __autoPersistTipGoalWallet(req, ns, effectiveWallet, storeInstance, tenantContext) {
+    if (!effectiveWallet) return;
+    const tipGoalPath = path.join(process.cwd(), 'config', 'tip-goal-config.json');
+    const targetStore = storeInstance || store;
+
+    try {
+      if (tipGoal) {
+        if (typeof tipGoal.updateWalletAddress === 'function') {
+          tipGoal.updateWalletAddress(effectiveWallet, req);
+        } else {
+          tipGoal.walletAddress = effectiveWallet;
+        }
+      }
+    } catch {}
+
+    try {
+      if (tenantContext) {
+        let existing = {};
+        try {
+          const tgLoaded = await loadTenantConfig(req, targetStore, tipGoalPath, 'tip-goal-config.json');
+          const data = tgLoaded?.data?.data ? tgLoaded.data.data : tgLoaded?.data;
+          if (data && typeof data === 'object') existing = data;
+        } catch {}
+        const merged = { ...(existing && typeof existing === 'object' ? existing : {}), walletAddress: effectiveWallet };
+        await saveTenantConfig(req, targetStore, tipGoalPath, 'tip-goal-config.json', merged);
+      } else if (targetStore && ns) {
+        let existing = {};
+        if (typeof targetStore.getConfig === 'function') {
+          try { existing = await targetStore.getConfig(ns, 'tip-goal-config.json', null) || {}; } catch {}
+        }
+        if (!existing || Object.keys(existing).length === 0) {
+          if (typeof targetStore.get === 'function') {
+            try { existing = await targetStore.get(ns, 'tip-goal-config', null) || {}; } catch {}
+          }
+        }
+        const data = existing && existing.data ? existing.data : existing;
+        const merged = { ...(data && typeof data === 'object' ? data : {}), walletAddress: effectiveWallet };
+        if (typeof targetStore.setConfig === 'function') {
+          await targetStore.setConfig(ns, 'tip-goal-config.json', merged);
+        } else if (typeof targetStore.set === 'function') {
+          await targetStore.set(ns, 'tip-goal-config', merged);
+        }
+      } else {
+        let existing = {};
+        try {
+          const hybrid = readHybridConfig(tipGoalPath);
+          existing = hybrid.data || {};
+        } catch {}
+        const merged = { ...(existing && typeof existing === 'object' ? existing : {}), walletAddress: effectiveWallet };
+        try {
+          writeHybridConfig(tipGoalPath, merged);
+        } catch {
+          fs.writeFileSync(tipGoalPath, JSON.stringify(merged, null, 2));
+        }
+      }
+    } catch (err) {
+      if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][AUTO_TIP_GOAL_SAVE_ERROR]', err.message);
+    }
+  }
+
+  async function __autoPersistWalletFromSession(req, ns, effectiveWallet, existingConfig) {
+    if (!effectiveWallet) return;
+    const storeInstance = (req.app && req.app.get) ? req.app.get('store') : store;
+    const targetStore = storeInstance || store;
+    const tenantContext = tenant && tenant.tenantEnabled && tenant.tenantEnabled(req);
+    const nextConfig = {
+      ...(existingConfig && typeof existingConfig === 'object' ? existingConfig : {}),
+      walletAddress: effectiveWallet
+    };
+
+    try {
+      if (tenantContext) {
+        await saveTenantConfig(req, targetStore, LAST_TIP_CONFIG_FILE, 'last-tip-config.json', nextConfig);
+      } else if (targetStore && ns) {
+        if (typeof targetStore.setConfig === 'function') {
+          await targetStore.setConfig(ns, 'last-tip-config.json', nextConfig);
+        } else if (typeof targetStore.set === 'function') {
+          await targetStore.set(ns, 'last-tip-config', nextConfig);
+        }
+      } else {
+        try {
+          writeHybridConfig(LAST_TIP_CONFIG_FILE, nextConfig);
+        } catch {
+          fs.writeFileSync(LAST_TIP_CONFIG_FILE, JSON.stringify(nextConfig, null, 2));
+        }
+      }
+    } catch (err) {
+      if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][AUTO_SAVE_ERROR]', err.message);
+    }
+
+    try {
+      if (lastTip) {
+        lastTip.walletAddress = effectiveWallet;
+        if (typeof lastTip.updateLatestDonation === 'function') {
+          lastTip.updateLatestDonation(req?.ns?.admin || req?.ns?.pub || null);
+        }
+      }
+    } catch {}
+
+    try {
+      await __autoPersistTipGoalWallet(req, ns, effectiveWallet, targetStore, tenantContext);
+    } catch {}
+  }
 
   function __hasRedisStore() { return !!(store && store.redis); }
   function __requireSessionFlag() { return process.env.GETTY_REQUIRE_SESSION === '1'; }
@@ -67,30 +170,64 @@ function registerLastTipRoutes(app, lastTip, tipWidget, options = {}) {
         }
         if (wrapped) cfg = wrapped.data ? wrapped.data : wrapped;
       }
+      const sessionWallet = (() => {
+        try {
+          if (req && req.walletSession && typeof req.walletSession.addr === 'string') {
+            const trimmed = req.walletSession.addr.trim();
+            if (trimmed && isValidArweaveAddress(trimmed)) return trimmed;
+          }
+        } catch {}
+        return '';
+      })();
+
       if (!cfg) {
         const multiTenant = process.env.GETTY_MULTI_TENANT_WALLET === '1';
-        if (multiTenant && (tenant && tenant.tenantEnabled(req))) {
-          return res.status(404).json({ error: 'No last tip config', tenant: true, strict: true });
-        }
-        if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) return res.status(404).json({ error: 'No last tip config' });
-        try {
-          const hybrid = readHybridConfig(LAST_TIP_CONFIG_FILE);
-          cfg = hybrid.data || {};
-          if (hybrid.meta && hybrid.meta.wrapped) {
-            meta = { __version: hybrid.meta.__version, checksum: hybrid.meta.checksum, updatedAt: hybrid.meta.updatedAt, source: 'global-file' };
-          } else if (!hybrid.meta?.error) {
-            const rawTxt = fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8');
-            try { const legacy = JSON.parse(rawTxt); if (legacy.__version) meta = { __version: legacy.__version, checksum: legacy.checksum, updatedAt: legacy.updatedAt, source: 'global-file' }; } catch {}
+        const tenantContext = tenant && tenant.tenantEnabled && tenant.tenantEnabled(req);
+  const hasSessionWallet = !!sessionWallet;
+        if (multiTenant && tenantContext) {
+          if (!hasSessionWallet) {
+            return res.status(404).json({ error: 'No last tip config', tenant: true, strict: true });
           }
-        } catch { cfg = {}; }
+          cfg = {};
+        } else {
+          if (!fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+            if (!hasSessionWallet) return res.status(404).json({ error: 'No last tip config' });
+            cfg = {};
+          } else {
+            try {
+              const hybrid = readHybridConfig(LAST_TIP_CONFIG_FILE);
+              cfg = hybrid.data || {};
+              if (hybrid.meta && hybrid.meta.wrapped) {
+                meta = { __version: hybrid.meta.__version, checksum: hybrid.meta.checksum, updatedAt: hybrid.meta.updatedAt, source: 'global-file' };
+              } else if (!hybrid.meta?.error) {
+                const rawTxt = fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8');
+                try { const legacy = JSON.parse(rawTxt); if (legacy.__version) meta = { __version: legacy.__version, checksum: legacy.checksum, updatedAt: legacy.updatedAt, source: 'global-file' }; } catch {}
+              }
+            } catch { cfg = {}; }
+          }
+        }
       }
 
-  const out = { ...cfg };
-  try { if (out && typeof out === 'object' && 'iconColor' in out) delete out.iconColor; } catch {}
+      const hadWalletInConfig = !!(cfg && typeof cfg.walletAddress === 'string' && cfg.walletAddress.trim());
+
+      const out = { ...cfg };
+      try { if (out && typeof out === 'object' && 'iconColor' in out) delete out.iconColor; } catch {}
+
       try {
         const hosted = (!!(store && store.redis)) || (process.env.GETTY_REQUIRE_SESSION === '1');
         const { canReadSensitive } = require('../lib/authz');
         const allowSensitive = canReadSensitive(req);
+  const shouldAutoPersist = !hadWalletInConfig && !!sessionWallet;
+        if (shouldAutoPersist) {
+          await __autoPersistWalletFromSession(req, ns, sessionWallet, cfg || {});
+        }
+        if (!out.walletAddress && sessionWallet && allowSensitive) {
+          out.walletAddress = sessionWallet;
+          out.__sessionInjected = true;
+        }
+        if (shouldAutoPersist && allowSensitive) {
+          out.__sessionAutoSaved = true;
+        }
         if (hosted) {
           if (!allowSensitive && out && typeof out === 'object' && out.walletAddress) delete out.walletAddress;
         } else {

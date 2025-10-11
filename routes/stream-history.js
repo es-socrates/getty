@@ -745,7 +745,11 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         .map(s => ({ ts: Number(s.ts), live: !!s.live, viewers: Math.max(0, Number(s.viewers || 0)) }))
         .filter(s => !isNaN(s.ts));
       const data = { segments: safeSegments, samples: safeSamples };
+      const hadSegments = data.segments.length;
+      const hadSamples = data.samples.length;
       truncateSegments(data);
+      if (!data.segments.length && hadSegments) data.segments = safeSegments;
+      if (!data.samples.length && hadSamples) data.samples = safeSamples;
       await saveHistoryNS(req, data);
       return res.json({ ok: true, segments: data.segments.length, samples: data.samples.length });
     } catch (e) {

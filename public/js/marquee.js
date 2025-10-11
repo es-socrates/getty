@@ -3,19 +3,52 @@ const claimIds = [
     '057ca5a46e70cc1cb70558940ba0a7f22bad5714',
     'e29e2ced2f8b829f4a056b593ca673575ffada33',
     'ada5f36d4a63794403f47589de4f3b80fb60cf8d',
+    'ab1f3566be79649ab5276370c3daa3f3c8d6a339',
 ];
 
-function getConsistentColor(name) {
+const AVATAR_COLOR_CLASSES = [
+    'avatar-bg-0',
+    'avatar-bg-1',
+    'avatar-bg-2',
+    'avatar-bg-3',
+    'avatar-bg-4',
+    'avatar-bg-5',
+    'avatar-bg-6',
+    'avatar-bg-7',
+    'avatar-bg-8',
+    'avatar-bg-9',
+    'avatar-bg-10',
+    'avatar-bg-11',
+];
+
+function getConsistentColorClass(name) {
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
         hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
-    const hue = Math.abs(hash) % 360;
-    const saturation = 65 + (Math.abs(hash) % 20);
-    const lightness = 45 + (Math.abs(hash >> 8) % 20);
-    
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+
+    const index = Math.abs(hash) % AVATAR_COLOR_CLASSES.length;
+    return AVATAR_COLOR_CLASSES[index];
+}
+
+function renderFallbackAvatar(letter, colorClass) {
+    const safeLetter = letter || '?';
+    const safeClass = colorClass && AVATAR_COLOR_CLASSES.includes(colorClass)
+        ? colorClass
+        : AVATAR_COLOR_CLASSES[0];
+    return `<div class="avatar-fallback w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm avatar-color ${safeClass}">${safeLetter}</div>`;
+}
+
+function replaceWithFallback(avatarImg) {
+    if (!avatarImg) return;
+
+    const parent = avatarImg.parentElement;
+    if (!parent) return;
+
+    const colorClass = avatarImg.getAttribute('data-color-class');
+    const firstLetter = avatarImg.getAttribute('data-first-letter');
+
+    parent.innerHTML = renderFallbackAvatar(firstLetter, colorClass);
 }
 
 function cleanDescription(html) {
@@ -123,13 +156,13 @@ async function loadMarquee() {
         if (channel.thumbnail) {
             const cleanTitle = channel.title.replace(/^@/, '');
             const firstLetter = cleanTitle.charAt(0).toUpperCase();
-            const bgColor = getConsistentColor(cleanTitle);
-            avatarContent = `<img src="${channel.thumbnail}" alt="" class="w-8 h-8 rounded-full object-cover avatar-image" data-channel-title="${channel.title}" data-bg-color="${bgColor}" data-first-letter="${firstLetter}">`;
+            const colorClass = getConsistentColorClass(cleanTitle);
+            avatarContent = `<img src="${channel.thumbnail}" alt="" class="w-8 h-8 rounded-full object-cover avatar-image" data-channel-title="${channel.title}" data-color-class="${colorClass}" data-first-letter="${firstLetter}">`;
         } else {
             const cleanTitle = channel.title.replace(/^@/, '');
             const firstLetter = cleanTitle.charAt(0).toUpperCase();
-            const bgColor = getConsistentColor(cleanTitle);
-            avatarContent = `<div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm avatar-color" data-bg-color="${bgColor}">${firstLetter}</div>`;
+            const colorClass = getConsistentColorClass(cleanTitle);
+            avatarContent = `<div class="avatar-fallback w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm avatar-color ${colorClass}" data-color-class="${colorClass}">${firstLetter}</div>`;
         }
         
         item.innerHTML = `
@@ -137,7 +170,7 @@ async function loadMarquee() {
                 <div class="avatar-container">
                     ${avatarContent}
                 </div>
-                <div class="font-medium text-sm leading-tight sm:text-base">${channel.title}</div>
+                <div class="font-bold text-sm leading-tight sm:text-base">${channel.title}</div>
             </div>
             <span class="line-clamp-2 text-muted-foreground text-sm">${channel.description}</span>
         `;
@@ -145,29 +178,30 @@ async function loadMarquee() {
         setTimeout(() => {
             const avatarImg = item.querySelector('.avatar-image');
             if (avatarImg) {
-
                 const loadTimeout = setTimeout(() => {
-                    const bgColor = avatarImg.getAttribute('data-bg-color');
-                    const firstLetter = avatarImg.getAttribute('data-first-letter');
-                    avatarImg.parentElement.innerHTML = `<div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm" style="background-color: ${bgColor};">${firstLetter}</div>`;
+                    replaceWithFallback(avatarImg);
                 }, 5000);
                 
                 avatarImg.onload = function() {
                     clearTimeout(loadTimeout);
+                    avatarImg.onload = null;
+                    avatarImg.onerror = null;
                 };
                 
                 avatarImg.onerror = function() {
                     clearTimeout(loadTimeout);
-                    const bgColor = this.getAttribute('data-bg-color');
-                    const firstLetter = this.getAttribute('data-first-letter');
-                    this.parentElement.innerHTML = `<div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm" style="background-color: ${bgColor};">${firstLetter}</div>`;
+                    replaceWithFallback(this);
+                    avatarImg.onload = null;
+                    avatarImg.onerror = null;
                 };
             }
             
             const avatarColor = item.querySelector('.avatar-color');
             if (avatarColor) {
-                const bgColor = avatarColor.getAttribute('data-bg-color');
-                avatarColor.style.backgroundColor = bgColor;
+                const colorClass = avatarColor.getAttribute('data-color-class');
+                if (colorClass) {
+                    avatarColor.classList.add(colorClass);
+                }
             }
         }, 0);
         

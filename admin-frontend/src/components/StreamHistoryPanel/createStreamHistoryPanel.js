@@ -9,7 +9,7 @@ export function createStreamHistoryPanel(t) {
   const sparklineEl = ref(null);
   const period = ref('day');
   const span = ref(30);
-  const mode = ref('line');
+  const mode = ref('candle');
   const filterQuick = ref('day');
   const filterQuickSpan = ref(30);
   const claimid = ref('');
@@ -41,7 +41,7 @@ export function createStreamHistoryPanel(t) {
   const GOAL_KEY = 'streamHistory.dailyGoalHours';
   const TREND_KEY = 'streamHistory.viewerTrendVisible';
   const NOW_TICK_INTERVAL = 30000;
-  const showViewers = ref(true);
+  const showViewers = ref(false);
   const totalAR = ref(0);
   const arUsd = ref(null);
   const earningsHidden = ref(false);
