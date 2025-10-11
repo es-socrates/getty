@@ -16,7 +16,10 @@
       v-else
       class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm"
       :title="'Wallet: ' + session.state.address">
-      <WsStatusDot :connected="session.state.wsConnected" size="sm" />
+      <WsStatusDot
+        :connected="walletConnected"
+        size="sm"
+        sr-label="Estado de la sesión de wallet" />
       <WalletIcon class="w-4 h-4 opacity-80" />
       <span class="font-mono truncate max-w-[110px]" aria-label="Dirección wallet">{{
         shortAddr
@@ -40,6 +43,8 @@ const session = useWanderSession();
 const busy = ref(false);
 const error = ref('');
 let providerPromise = null;
+
+const walletConnected = computed(() => !!session.state.address && !session.state.sessionStale);
 
 const shortAddr = computed(() => {
   if (!session.state.address) return '';

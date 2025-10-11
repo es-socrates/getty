@@ -251,6 +251,163 @@
         </button>
       </div>
       <div class="w-auto p-2 flex items-center gap-2">
+        <div class="live-analytics-trigger relative">
+          <button
+            type="button"
+            class="top-toggle inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--card-border)] bg-[var(--bg-chat)] text-sm font-medium"
+            :aria-expanded="String(!overlayCollapsed)"
+            @click="overlayCollapsed = !overlayCollapsed"
+            :title="overlayCollapsed ? 'Expand live analytics' : 'Collapse live analytics'">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true">
+              <path
+                d="M3 12h4l3-7 4 14 3-7h4"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+            <span>{{ t('activity') }}</span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              :style="
+                overlayCollapsed
+                  ? 'transform:rotate(-90deg);transition:transform .2s'
+                  : 'transition:transform .2s'
+              "
+              aria-hidden="true">
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div
+            v-if="!overlayCollapsed"
+            class="chart-overlay chart-overlay-popover"
+            aria-label="viewer-stats">
+            <div class="overlay-header">
+              <div class="overlay-title flex items-center gap-1.5">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true">
+                  <path
+                    d="M3 12h4l3-7 4 14 3-7h4"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <span>{{ t('activity') }}</span>
+              </div>
+              <div v-if="showBackfill" class="overlay-actions" ref="overlayMenuEl">
+                <button
+                  type="button"
+                  class="overlay-action-btn"
+                  :aria-expanded="String(menuOpen)"
+                  :title="t('actions') || 'Actions'"
+                  @click.stop="toggleMenu">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true">
+                    <circle cx="5" cy="12" r="2" fill="currentColor" />
+                    <circle cx="12" cy="12" r="2" fill="currentColor" />
+                    <circle cx="19" cy="12" r="2" fill="currentColor" />
+                  </svg>
+                </button>
+                <div v-if="menuOpen" class="overlay-menu" role="menu">
+                  <div class="overlay-menu-title">
+                    {{ t('streamHistoryBackfillTitle') || 'Backfill current segment' }}
+                  </div>
+                  <button
+                    type="button"
+                    class="overlay-item"
+                    role="menuitem"
+                    @click="onBackfillClick(24)">
+                    +24h
+                  </button>
+                  <button
+                    type="button"
+                    class="overlay-item"
+                    role="menuitem"
+                    @click="onBackfillClick(48)">
+                    +48h
+                  </button>
+                  <button
+                    type="button"
+                    class="overlay-item"
+                    role="menuitem"
+                    @click="onBackfillClick(72)">
+                    +72h
+                  </button>
+                  <div class="overlay-sep"></div>
+                  <button
+                    type="button"
+                    class="overlay-item overlay-danger"
+                    role="menuitem"
+                    @click="onBackfillDismiss">
+                    {{ t('commonClose') }}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="overlay-toggle"
+                :aria-expanded="String(!overlayCollapsed)"
+                @click="overlayCollapsed = true"
+                aria-label="Collapse">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div class="overlay-row">
+              <span class="dot dot-teal" aria-hidden="true"></span>
+              <span class="ov-label">{{ t('kpiAvgViewers') }}</span>
+              <span class="ov-value">{{ Number(perf.range.avgViewers || 0).toFixed(1) }}</span>
+            </div>
+            <div class="overlay-row">
+              <span class="dot dot-red" aria-hidden="true"></span>
+              <span class="ov-label">{{ t('kpiPeakViewers') }}</span>
+              <span class="ov-value">{{ perf.range.peakViewers }}</span>
+            </div>
+            <div class="overlay-row">
+              <span class="dot dot-slate" aria-hidden="true"></span>
+              <span class="ov-label">{{ t('kpiHighestViewers') }}</span>
+              <span class="ov-value">{{ perf.allTime.highestViewers }}</span>
+            </div>
+          </div>
+        </div>
+
         <div class="relative h-full overflow-hidden rounded-full">
           <select
             class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
@@ -354,119 +511,6 @@
         </div>
       </div>
       <div class="chart-wrap">
-        <div
-          class="chart-overlay"
-          :class="overlayCollapsed ? 'collapsed' : ''"
-          aria-label="viewer-stats">
-          <div class="overlay-header">
-            <div class="overlay-title flex items-center gap-1.5">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true">
-                <path
-                  d="M3 12h4l3-7 4 14 3-7h4"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round" />
-              </svg>
-              <span>{{ t('activity') }}</span>
-            </div>
-            <div v-if="showBackfill" class="overlay-actions" ref="overlayMenuEl">
-              <button
-                type="button"
-                class="overlay-action-btn"
-                :aria-expanded="String(menuOpen)"
-                :title="t('actions') || 'Actions'"
-                @click.stop="toggleMenu">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true">
-                  <circle cx="5" cy="12" r="2" fill="currentColor" />
-                  <circle cx="12" cy="12" r="2" fill="currentColor" />
-                  <circle cx="19" cy="12" r="2" fill="currentColor" />
-                </svg>
-              </button>
-              <div v-if="menuOpen" class="overlay-menu" role="menu">
-                <div class="overlay-menu-title">
-                  {{ t('streamHistoryBackfillTitle') || 'Backfill current segment' }}
-                </div>
-                <button
-                  type="button"
-                  class="overlay-item"
-                  role="menuitem"
-                  @click="onBackfillClick(24)">
-                  +24h
-                </button>
-                <button
-                  type="button"
-                  class="overlay-item"
-                  role="menuitem"
-                  @click="onBackfillClick(48)">
-                  +48h
-                </button>
-                <button
-                  type="button"
-                  class="overlay-item"
-                  role="menuitem"
-                  @click="onBackfillClick(72)">
-                  +72h
-                </button>
-                <div class="overlay-sep"></div>
-                <button
-                  type="button"
-                  class="overlay-item overlay-danger"
-                  role="menuitem"
-                  @click="onBackfillDismiss">
-                  {{ t('commonClose') }}
-                </button>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="overlay-toggle"
-              :aria-expanded="String(!overlayCollapsed)"
-              @click="overlayCollapsed = !overlayCollapsed"
-              aria-label="Toggle">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M6 9l6 6 6-6"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round" />
-              </svg>
-            </button>
-          </div>
-          <div class="overlay-row">
-            <span class="dot dot-teal" aria-hidden="true"></span>
-            <span class="ov-label">{{ t('kpiAvgViewers') }}</span>
-            <span class="ov-value">{{ Number(perf.range.avgViewers || 0).toFixed(1) }}</span>
-          </div>
-          <div class="overlay-row">
-            <span class="dot dot-red" aria-hidden="true"></span>
-            <span class="ov-label">{{ t('kpiPeakViewers') }}</span>
-            <span class="ov-value">{{ perf.range.peakViewers }}</span>
-          </div>
-          <div class="overlay-row">
-            <span class="dot dot-slate" aria-hidden="true"></span>
-            <span class="ov-label">{{ t('kpiHighestViewers') }}</span>
-            <span class="ov-value">{{ perf.allTime.highestViewers }}</span>
-          </div>
-        </div>
         <div ref="chartEl" class="chart-canvas"></div>
       </div>
       <div class="text-xs opacity-80 mt-1 flex flex-wrap items-center gap-2">

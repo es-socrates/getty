@@ -133,6 +133,16 @@
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
   }
 }
+.live-analytics-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.chart-overlay-popover {
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+}
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -334,6 +344,8 @@ select.quick-select::-ms-expand {
 }
 .overlay-actions {
   position: relative;
+  display: inline-flex;
+  align-items: center;
   margin-left: auto;
   margin-right: 4px;
 }

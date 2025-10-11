@@ -33,6 +33,7 @@ class WanderWalletLogin {
             statusDot: null,
             btnLabel: null
         };
+        this.btnLabelMeta = null;
 
         this.locale = this.detectLocale();
         this.messages = this.loadSharedMessages(this.locale);
@@ -121,6 +122,13 @@ class WanderWalletLogin {
         this.elements.langBtnLabel = document.getElementById('lang-btn-label');
         this.elements.statusDot = document.querySelector('.connection-status .status-dot');
         this.elements.btnLabel = this.elements.loginBtn ? this.elements.loginBtn.querySelector('.btn-label') : null;
+        if (this.elements.btnLabel && !this.btnLabelMeta) {
+            this.btnLabelMeta = {
+                i18n: this.elements.btnLabel.getAttribute('data-i18n') || null,
+                defaultLabel: this.elements.btnLabel.getAttribute('data-default-label') || null,
+                fallbackText: this.elements.btnLabel.textContent || ''
+            };
+        }
         this.safeAttach(this.elements.loginBtn, 'click', () => this.handleLoginClick());
         this.safeAttach(this.elements.logoutBtn, 'click', () => this.logout());
         this.safeAttach(this.elements.logoutInline, 'click', () => this.logout());
@@ -407,8 +415,21 @@ class WanderWalletLogin {
             if (this.elements.btnLabel) {
                 if (this.isConnected && this.arweaveAddress) {
                     this.elements.btnLabel.textContent = this.truncateAddress(this.arweaveAddress);
+                    this.elements.btnLabel.removeAttribute('data-i18n');
+                    this.elements.btnLabel.removeAttribute('data-default-label');
                 } else {
-                    this.elements.btnLabel.textContent = this.t('loginLabel');
+                    if (this.btnLabelMeta?.i18n) this.elements.btnLabel.setAttribute('data-i18n', this.btnLabelMeta.i18n);
+                    else this.elements.btnLabel.removeAttribute('data-i18n');
+                    if (this.btnLabelMeta?.defaultLabel) this.elements.btnLabel.setAttribute('data-default-label', this.btnLabelMeta.defaultLabel);
+                    else this.elements.btnLabel.removeAttribute('data-default-label');
+                    const translated = this.t('loginLabel');
+                    if (translated && translated !== 'loginLabel') {
+                        this.elements.btnLabel.textContent = translated;
+                    } else if (this.btnLabelMeta?.defaultLabel) {
+                        this.elements.btnLabel.textContent = this.btnLabelMeta.defaultLabel;
+                    } else {
+                        this.elements.btnLabel.textContent = this.btnLabelMeta?.fallbackText || 'Login';
+                    }
                 }
             }
         }
@@ -851,7 +872,11 @@ class WanderWalletLogin {
             const truncated = this.truncateAddress(this.arweaveAddress);
             if (loginBtn) {
                 loginBtn.dataset.state = 'logged-in';
-                if (btnLabel) btnLabel.textContent = truncated;
+                if (btnLabel) {
+                    btnLabel.textContent = truncated;
+                    btnLabel.removeAttribute('data-i18n');
+                    btnLabel.removeAttribute('data-default-label');
+                }
                 loginBtn.title = this.arweaveAddress || '';
                 const widgetToken = this.getWidgetToken();
                 if (widgetToken) {
@@ -898,7 +923,20 @@ class WanderWalletLogin {
         } else {
             if (loginBtn) {
                 loginBtn.dataset.state = 'logged-out';
-                if (btnLabel) btnLabel.textContent = this.t('loginLabel');
+                if (btnLabel) {
+                    if (this.btnLabelMeta?.i18n) btnLabel.setAttribute('data-i18n', this.btnLabelMeta.i18n);
+                    else btnLabel.removeAttribute('data-i18n');
+                    if (this.btnLabelMeta?.defaultLabel) btnLabel.setAttribute('data-default-label', this.btnLabelMeta.defaultLabel);
+                    else btnLabel.removeAttribute('data-default-label');
+                    const translated = this.t('loginLabel');
+                    if (translated && translated !== 'loginLabel') {
+                        btnLabel.textContent = translated;
+                    } else if (this.btnLabelMeta?.defaultLabel) {
+                        btnLabel.textContent = this.btnLabelMeta.defaultLabel;
+                    } else {
+                        btnLabel.textContent = this.btnLabelMeta?.fallbackText || 'Login';
+                    }
+                }
                 loginBtn.title = this.t('loginLabel');
                 if (loginBtn.dataset.widgetToken) delete loginBtn.dataset.widgetToken;
                 loginBtn.removeAttribute('aria-label');

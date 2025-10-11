@@ -16,8 +16,8 @@
         <WsStatusDot :connected="session.state.wsConnected" size="md" sr-label="Estado WebSocket" />
         <span
           class="text-xs"
-          :class="session.state.wsConnected ? 'text-green-600' : 'text-yellow-600'">
-          WS: {{ session.state.wsConnected ? 'conectado' : 'pendiente' }}
+          :class="session.state.wsConnected ? 'text-green-600' : 'text-red-600'">
+          WS: {{ session.state.wsConnected ? 'conectado' : 'desconectado' }}
         </span>
         <span v-if="session.state.expiresAt"
           >exp: {{ new Date(session.state.expiresAt).toLocaleTimeString() }}</span

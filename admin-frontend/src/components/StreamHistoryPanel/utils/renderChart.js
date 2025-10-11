@@ -3,6 +3,50 @@ import i18n from '../../../i18n';
 
 const t = i18n.global.t;
 
+function prefersReducedMotion() {
+  try {
+    return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
+function shouldAnimate(el, modeLabel) {
+  if (!el || prefersReducedMotion()) return false;
+  const last = el.dataset.lastAnimatedMode || '';
+  el.dataset.lastAnimatedMode = modeLabel;
+  return last !== modeLabel;
+}
+
+function primePathAnimation(path, delayMs = 0) {
+  try {
+    const totalLen = path.getTotalLength();
+    path.style.strokeDasharray = `${totalLen}`;
+    path.style.strokeDashoffset = `${totalLen}`;
+    path.style.opacity = '0';
+    path.style.transition = `stroke-dashoffset 600ms ease ${delayMs}ms, opacity 600ms ease ${delayMs}ms`;
+    path.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      path.style.strokeDashoffset = '0';
+      path.style.opacity = '1';
+    });
+  } catch {}
+}
+
+function primeGrowAnimation(el, delayMs = 0) {
+  if (!el || prefersReducedMotion()) return;
+  try {
+    el.style.transformOrigin = 'center bottom';
+    el.style.transform = 'scaleY(0.001)';
+    el.style.opacity = '0';
+    el.style.transition = `transform 420ms cubic-bezier(0.22, 0.68, 0, 1) ${delayMs}ms, opacity 320ms ease ${delayMs}ms`;
+    requestAnimationFrame(() => {
+      el.style.transform = 'scaleY(1)';
+      el.style.opacity = '1';
+    });
+  } catch {}
+}
+
 function renderStreamHistoryChart(el, data, {
   mode = 'line',
   period = 'day',
@@ -14,6 +58,10 @@ function renderStreamHistoryChart(el, data, {
   try { el.innerHTML = ''; } catch {}
   el.style.position = 'relative';
   el.style.background = 'var(--chart-bg, #fefefe)';
+
+  const viewersFlag = showViewers ? '1' : '0';
+  const viewersStateChanged = el.dataset.lastViewersState !== viewersFlag;
+  el.dataset.lastViewersState = viewersFlag;
 
   const fallbackW = Number(el.dataset.testWidth || 600);
   const fallbackH = Number(el.dataset.testHeight || 260);
@@ -125,6 +173,7 @@ function renderStreamHistoryChart(el, data, {
     svg.setAttribute('width', String(w));
     svg.setAttribute('height', String(h));
     svg.style.display = 'block';
+    const animateLine = shouldAnimate(el, 'line');
     const drawGrid = (withLabels = false) => {
       const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
       bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
@@ -222,9 +271,16 @@ function renderStreamHistoryChart(el, data, {
     path.setAttribute('stroke-width', '3');
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('class', 'line-path');
+    if (animateLine) {
+      primePathAnimation(path, 40);
+    } else {
+      path.style.opacity = '1';
+      path.style.transition = 'none';
+    }
     svg.appendChild(path);
 
     let pathV = null;
+    const animateViewerLine = showViewers && maxViewers > 0 && (animateLine || viewersStateChanged);
     if (showViewers && maxViewers > 0) {
       let dPathV = '';
       display.forEach((p, idx) => {
@@ -239,19 +295,14 @@ function renderStreamHistoryChart(el, data, {
       pathV.setAttribute('stroke-width', '3');
       pathV.setAttribute('stroke-linecap', 'round');
       pathV.setAttribute('class', 'line-path viewers');
+      if (animateViewerLine) {
+        primePathAnimation(pathV, 100);
+      } else {
+        pathV.style.opacity = '1';
+        pathV.style.transition = 'none';
+      }
       svg.appendChild(pathV);
     }
-
-    try {
-      if (pathV) {
-        const totalLenV = pathV.getTotalLength();
-        pathV.style.strokeDasharray = String(totalLenV);
-        pathV.style.strokeDashoffset = String(totalLenV);
-        pathV.style.transition = 'stroke-dashoffset 600ms ease, opacity 600ms ease';
-        pathV.getBoundingClientRect();
-        setTimeout(() => { pathV.style.strokeDashoffset = '0'; pathV.style.opacity = '1'; }, 30);
-      }
-    } catch {}
 
     display.forEach((p, idx) => {
       const hoursValue = Number(p.hours || 0);
@@ -266,8 +317,12 @@ function renderStreamHistoryChart(el, data, {
         : 'rgba(128,128,128,.65)';
       c.setAttribute('fill', hourFill);
       c.classList.add('line-point');
-      c.style.opacity = '0';
-      c.style.transition = 'opacity 450ms ease 120ms';
+      if (animateLine) {
+        c.style.opacity = '0';
+        c.style.transition = `opacity 360ms ease ${140 + idx * 12}ms`;
+      } else {
+        c.style.opacity = '1';
+      }
       c.addEventListener('mouseenter', (e) => {
       const title = fmtDate(p);
         tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(hoursValue)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${avgViewersValue.toFixed(1)}</div>`;
@@ -277,17 +332,23 @@ function renderStreamHistoryChart(el, data, {
       c.addEventListener('mousemove', (e) => placeTipFromMouse(e, hoursValue === 0));
       c.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
       svg.appendChild(c);
-      requestAnimationFrame(() => { try { c.style.opacity = '1'; } catch {} });
+      if (animateLine) {
+        requestAnimationFrame(() => { try { c.style.opacity = '1'; } catch {} });
+      }
   updatePeak({ hours: hoursValue, avgViewers: avgViewersValue, x, y });
 
-  if (showViewers && maxViewers > 0) {
+      if (showViewers && maxViewers > 0) {
         const yv = toYViewers(avgViewersValue);
         const cv = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         cv.setAttribute('cx', String(x)); cv.setAttribute('cy', String(yv)); cv.setAttribute('r', '3');
         cv.setAttribute('fill', 'var(--accent,#553fee)');
         cv.classList.add('line-point-viewers');
-        cv.style.opacity = '0';
-        cv.style.transition = 'opacity 450ms ease 180ms';
+        if (animateViewerLine) {
+          cv.style.opacity = '0';
+          cv.style.transition = `opacity 360ms ease ${170 + idx * 12}ms`;
+        } else {
+          cv.style.opacity = '1';
+        }
         const show = (e) => {
           const title = fmtDate(p);
           tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(hoursValue)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${avgViewersValue.toFixed(1)}</div>`;
@@ -297,7 +358,9 @@ function renderStreamHistoryChart(el, data, {
         cv.addEventListener('mousemove', show);
         cv.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
         svg.appendChild(cv);
-        requestAnimationFrame(() => { try { cv.style.opacity = '1'; } catch {} });
+        if (animateViewerLine) {
+          requestAnimationFrame(() => { try { cv.style.opacity = '1'; } catch {} });
+        }
       }
     });
     const maxLabels = 8; const stride = Math.max(1, Math.ceil(display.length / maxLabels));
@@ -315,6 +378,7 @@ function renderStreamHistoryChart(el, data, {
   }
 
   const axisLeft = 44; const gap = 4; const barW = Math.max(8, Math.floor((w - axisLeft) / Math.max(1, display.length)) - (gap + 2));
+  const animateBars = shouldAnimate(el, mode === 'candle' ? 'candle' : 'bar');
   const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   gridSvg.setAttribute('width', String(w)); gridSvg.setAttribute('height', String(h));
   gridSvg.style.position = 'absolute'; gridSvg.style.left = '0'; gridSvg.style.top = '0'; gridSvg.style.pointerEvents = 'none';
@@ -367,7 +431,7 @@ function renderStreamHistoryChart(el, data, {
         goalLine.setAttribute('y1', String(goalY));
         goalLine.setAttribute('x2', String(w));
         goalLine.setAttribute('y2', String(goalY));
-  goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ee2264)');
+        goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ee2264)');
         goalLine.setAttribute('stroke-width', '2');
         goalLine.setAttribute('stroke-dasharray', '6 4');
         goalLine.setAttribute('stroke-linecap', 'round');
@@ -394,7 +458,7 @@ function renderStreamHistoryChart(el, data, {
   const maxVal = maxHours; const available = innerHeight;
   display.forEach((d, idx) => {
     const v = d.hours || 0; const bh = Math.round((v / maxVal) * available);
-    const bar = document.createElement('div');
+  const bar = document.createElement('div');
     bar.style.width = barW + 'px'; bar.style.height = Math.max(2, bh) + 'px';
     const ariaTitle = (() => {
       try { const label = fmtDate(d); return `${label ? label + '. ' : ''}${t('chartTooltipHoursStreamed')} ${formatHours(v)}${showViewers ? `. ${t('chartTooltipAverageViewers')} ${Number(d.avgViewers || 0).toFixed(1)}` : ''}`; } catch { return ''; }
@@ -406,8 +470,13 @@ function renderStreamHistoryChart(el, data, {
     bar.style.background = v > 0 ? positiveColor : neutralColor;
     bar.style.borderRadius = '4px';
     bar.className = 'bar';
+    if (!animateBars) {
+      bar.style.opacity = '1';
+      bar.style.transform = 'none';
+      bar.style.transition = 'none';
+    }
     if (mode === 'candle') {
-      bar.style.border = '1px solid var(--card-border)'; bar.style.background = 'transparent';
+      bar.style.background = 'transparent';
       const wrap = document.createElement('div'); wrap.style.position = 'relative'; wrap.style.width = '100%'; wrap.style.height = Math.max(2, bh) + 'px';
       const fill = document.createElement('div'); fill.style.height = '100%'; fill.style.background = v > 0 ? positiveColor : 'rgba(128,128,128,.55)'; fill.style.width = '100%'; fill.style.borderRadius = '4px'; wrap.appendChild(fill);
 
@@ -427,6 +496,11 @@ function renderStreamHistoryChart(el, data, {
     bar.addEventListener('mouseenter', show);
     bar.addEventListener('mousemove', show);
     bar.addEventListener('mouseleave', hide);
+    const delay = Math.min(idx * 18, 180);
+    if (animateBars) {
+      primeGrowAnimation(mode === 'candle' ? bar.firstChild : bar, delay + 80);
+      primeGrowAnimation(bar, delay);
+    }
     container.appendChild(bar);
     const barTop = padY + Math.max(0, available - Math.max(2, bh));
     const centerX = Math.round(axisLeft + (barW + gap) * idx + barW / 2);

@@ -87,11 +87,11 @@ body:not(.dark) #user-menu label {
 
 body:not(.dark) .status-dot.connected {
   background-color: #22c55e !important;
-  box-shadow: 0 0 8px #22c55e !important;
+  box-shadow: 0 0 4px #22c55e !important;
 }
 body:not(.dark) .status-dot.disconnected {
   background-color: #ef4444 !important;
-  box-shadow: 0 0 8px #ef4444 !important;
+  box-shadow: 0 0 4px #ef4444 !important;
 }
 
 body:not(.dark) footer {
