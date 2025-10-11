@@ -30,7 +30,7 @@
         <small v-if="errors.walletAddress" class="small text-red-700">{{
           errors.walletAddress
         }}</small>
-        <small v-else class="small opacity-70">{{ t('walletClearHint') }}</small>
+        <small v-else class="small opacity-70">{{ t(walletHintKey) }}</small>
         <small v-if="walletHiddenMsg" class="small opacity-70">{{ walletHiddenMsg }}</small>
       </div>
       <div class="mt-3">
@@ -111,8 +111,13 @@ const colorFields = [
   { key: 'from', label: 'colorFrom' },
 ];
 const wallet = useWalletSession();
+const sessionWalletAddress = computed(() => (wallet.address.value || '').trim());
 const { withToken, refresh } = usePublicToken();
 const widgetUrl = computed(() => withToken(`${location.origin}/widgets/last-tip`));
+const autoInjected = ref(false);
+const walletHintKey = computed(() =>
+  autoInjected.value ? 'walletSessionPrefillCombinedHint' : 'walletClearHint'
+);
 
 function resetColors() {
   form.colors = {
@@ -127,15 +132,21 @@ function resetColors() {
 async function load() {
   try {
     hostedSupported.value = true;
-    sessionActive.value = true;
+    sessionActive.value = wallet.hasSession.value;
 
     const { data } = await api.get('/api/last-tip');
     if (data && data.success) {
       const hasWalletField = Object.prototype.hasOwnProperty.call(data, 'walletAddress');
       if (hasWalletField) {
         form.walletAddress = data.walletAddress || '';
-        walletHiddenMsg.value = '';
         walletEditable.value = true;
+        if (data.__sessionInjected && form.walletAddress) {
+          walletHiddenMsg.value = t('walletSessionPrefillNotice');
+          autoInjected.value = true;
+        } else {
+          walletHiddenMsg.value = '';
+          autoInjected.value = false;
+        }
       } else {
         if (hostedSupported.value && !sessionActive.value) {
           walletHiddenMsg.value = t('walletHiddenHostedNotice');
@@ -158,12 +169,29 @@ async function load() {
       if (typeof data.amountColor === 'string') form.colors.amount = data.amountColor;
       if (typeof data.iconBgColor === 'string') form.colors.iconBg = data.iconBgColor;
       if (typeof data.fromColor === 'string') form.colors.from = data.fromColor;
+      if (!form.walletAddress && sessionWalletAddress.value) {
+        form.walletAddress = sessionWalletAddress.value;
+        walletEditable.value = true;
+        walletHiddenMsg.value = t('walletSessionPrefillNotice');
+        autoInjected.value = true;
+      }
       original.snapshot = JSON.stringify(form);
     }
   } catch (e) {
     if (!(e.response && e.response.status === 404)) {
       pushToast({ type: 'error', message: t('loadFailedLastTip') });
     }
+  }
+
+  if (!form.walletAddress && sessionWalletAddress.value) {
+    form.walletAddress = sessionWalletAddress.value;
+    walletEditable.value = true;
+    walletHiddenMsg.value = t('walletSessionPrefillNotice');
+    autoInjected.value = true;
+  }
+
+  if (!original.snapshot) {
+    original.snapshot = JSON.stringify(form);
   }
 }
 async function save() {
@@ -210,6 +238,36 @@ function isLastTipDirty() {
 }
 registerDirty(isLastTipDirty);
 watch(form, () => {}, { deep: true });
+
+watch(
+  () => form.walletAddress,
+  (current, previous) => {
+    if (!autoInjected.value) return;
+    if (current && sessionWalletAddress.value && current.trim() === sessionWalletAddress.value) {
+      return;
+    }
+    if (previous === undefined) return;
+    autoInjected.value = false;
+    if (walletHiddenMsg.value === t('walletSessionPrefillNotice')) {
+      walletHiddenMsg.value = '';
+    }
+  }
+);
+
+watch(
+  () => sessionWalletAddress.value,
+  (addr) => {
+    const next = (addr || '').trim();
+    if (!next) return;
+    if (autoInjected.value || !form.walletAddress) {
+      form.walletAddress = next;
+      walletEditable.value = true;
+      walletHiddenMsg.value = t('walletSessionPrefillNotice');
+      autoInjected.value = true;
+      original.snapshot = JSON.stringify(form);
+    }
+  }
+);
 
 onMounted(async () => {
   try {

@@ -34,7 +34,7 @@ class LastTipModule {
     this._updateInterval = null;
     this._pendingFlush = null;
 
-  const __loadPromise = this.loadWalletAddress();
+    const __loadPromise = this.loadWalletAddress();
     try {
       if (__loadPromise && typeof __loadPromise.then === 'function') {
         __loadPromise.then(() => {
@@ -77,7 +77,9 @@ class LastTipModule {
   }
 
   async loadWalletAddress(reqForTenant) {
-    const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+  const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+  const isTenant = tenantEnabled && tenantEnabled(reqForTenant);
+  const prevAddress = typeof this.walletAddress === 'string' ? this.walletAddress.trim() : '';
     const fs = require('fs');
     const path = require('path');
     const configDir = path.join(process.cwd(), 'config');
@@ -96,18 +98,34 @@ class LastTipModule {
       fromColor: '#817ec8',
       title: 'Last Tip'
     };
+
     let config = {};
-    try {
-      if (tenantEnabled && tenantEnabled(reqForTenant)) {
+    this.walletAddress = '';
+    if (isTenant) {
+      this._cacheLoaded = true;
+    } else {
+      this._cacheLoaded = false;
+    }
+
+    if (hostedMode && !isTenant) {
+      return;
+    }
+
+  try {
+      if (isTenant) {
         try {
           const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
           const lt = await loadTenantConfig(reqForTenant, store, lastTipConfigPath, 'last-tip-config.json');
-          const data = lt.data?.data ? lt.data.data : lt.data;
-          if (data && Object.keys(data).length) config = data;
           this._loadedMeta = { source: lt.source, tenantPath: lt.tenantPath };
-        } catch (e) { if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][TENANT_LOAD_ERROR]', e.message); }
-      }
-      if (!config || !Object.keys(config).length) {
+          const source = lt?.source || '';
+          if (source === 'tenant-disk' || source === 'redis') {
+            const data = lt.data?.data ? lt.data.data : lt.data;
+            if (data && Object.keys(data).length) config = data;
+          }
+        } catch (e) {
+          if (process.env.GETTY_TENANT_DEBUG === '1') console.warn('[LastTip][TENANT_LOAD_ERROR]', e.message);
+        }
+      } else {
         if (fs.existsSync(lastTipConfigPath)) {
           try {
             const raw = JSON.parse(fs.readFileSync(lastTipConfigPath, 'utf8'));
@@ -120,30 +138,45 @@ class LastTipModule {
             if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][CREATE_DEFAULT]', { path: lastTipConfigPath });
           } catch (e) { console.error('[LastTip] Failed creating default config:', e.message); }
         }
-      }
-      const prevWallet = config.walletAddress || '';
+    }
+
+  const prevWallet = typeof config.walletAddress === 'string' ? config.walletAddress.trim() : '';
 
       let mutated = false;
-      for (const [k,v] of Object.entries(lastTipDefault)) {
+      for (const [k, v] of Object.entries(lastTipDefault)) {
         if (!Object.prototype.hasOwnProperty.call(config, k)) { config[k] = v; mutated = true; }
       }
-      if (mutated && !hostedMode) {
+      if (mutated && !hostedMode && !isTenant) {
         try {
           fs.writeFileSync(lastTipConfigPath, JSON.stringify(config, null, 2));
           if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][FILL_DEFAULTS]', { path: lastTipConfigPath, addedKeys: true });
         } catch (e) { console.error('[LastTip] Failed writing filled defaults:', e.message); }
       }
-      if (config.walletAddress) {
-        this.walletAddress = config.walletAddress;
+
+      this.walletAddress = prevWallet;
+
+      if (prevAddress !== this.walletAddress) {
+        this.lastDonation = null;
+        if (this.processedTxs && typeof this.processedTxs.clear === 'function') {
+          this.processedTxs.clear();
+        }
+        this._lastFetchGatewayAttempts = [];
+        this._lastFetchSucceededGateway = null;
+        this._lastFetchErrorCount = 0;
       }
 
       if (!this.walletAddress) {
+        this.lastDonation = null;
+      }
+
+      if (!this.walletAddress && !isTenant && !hostedMode) {
         const envWallet = process.env.LAST_TIP_WALLET || process.env.WALLET_ADDRESS || '';
         if (typeof envWallet === 'string' && envWallet.trim()) {
           this.walletAddress = envWallet.trim();
         }
       }
-      if (!this.walletAddress && reqForTenant && tenantEnabled(reqForTenant)) {
+
+  if (!this.walletAddress && !isTenant && !hostedMode) {
         try {
           const tgPath = path.join(configDir, 'tip-goal-config.json');
           if (fs.existsSync(tgPath)) {
@@ -156,18 +189,14 @@ class LastTipModule {
                   fs.writeFileSync(lastTipConfigPath, JSON.stringify(updated, null, 2));
                   if (process.env.GETTY_DEBUG_CONFIG === '1') console.warn('[LastTip][IMPORT_WALLET_FROM_TIP_GOAL]', { prevWallet, newWallet: this.walletAddress });
                 } catch (e) { console.error('[LastTip] Failed persisting imported wallet:', e.message); }
-              } else if (tenantEnabled && tenantEnabled(reqForTenant)) {
-                try {
-                  const store = (reqForTenant && reqForTenant.app && reqForTenant.app.get) ? reqForTenant.app.get('store') : null;
-                  await saveTenantConfig(reqForTenant, store, lastTipConfigPath, 'last-tip-config.json', updated);
-                } catch {}
               }
-              try { console.warn('[LastTip] Wallet address imported from tip-goal-config.json'); } catch {}
             }
           }
         } catch {}
       }
-    } catch (e) { console.error('[LastTip] Error reading wallet address from config:', e); }
+    } catch (e) {
+      console.error('[LastTip] Error reading wallet address from config:', e);
+    }
   }
   
   init() {
@@ -448,8 +477,8 @@ class LastTipModule {
         } catch {}
       }
     } catch (e) { console.error('[LastTip] Error writing wallet address to config:', e.message); }
-    if (this._lastReqForSave) this.scheduleWriteThrough(config);
-    if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
+  if (this._lastReqForSave) this.scheduleWriteThrough(config);
+  if (process.env.NODE_ENV !== 'test' && this.walletAddress) {
 
       this.updateLatestDonation();
     }
@@ -535,15 +564,37 @@ class LastTipModule {
       if (!fs.existsSync(configDir)) {
         try { fs.mkdirSync(configDir, { recursive: true }); } catch {}
       }
-      const cachePath = path.join(configDir, 'last-donation-cache.json');
-      const payload = {
+
+      const hostedMode = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
+      const cachePayload = {
         walletAddress: this.walletAddress,
         from: this.lastDonation.from,
         amount: this.lastDonation.amount,
         txId: this.lastDonation.txId,
         timestamp: this.lastDonation.timestamp
       };
-      fs.writeFileSync(cachePath, JSON.stringify(payload, null, 2));
+
+      const cachePath = path.join(configDir, 'last-donation-cache.json');
+      fs.writeFileSync(cachePath, JSON.stringify(cachePayload, null, 2));
+
+      if (hostedMode) {
+        try {
+          const tenantEnabledFn = tenantEnabled && typeof tenantEnabled === 'function' ? tenantEnabled : null;
+          if (tenantEnabledFn) {
+            const reqLike = this._lastReqForSave || null;
+            if (reqLike && tenantEnabledFn(reqLike)) {
+              const store = (reqLike.app && reqLike.app.get) ? reqLike.app.get('store') : null;
+              const payloadWrapped = { data: cachePayload };
+              try {
+                saveTenantConfig(reqLike, store, cachePath, 'last-donation-cache.json', cachePayload);
+              } catch {}
+              if (store && typeof store.setConfig === 'function') {
+                try { store.setConfig(reqLike.ns?.admin || reqLike.ns?.pub || null, 'last-donation-cache.json', payloadWrapped); } catch {}
+              }
+            }
+          }
+        } catch {}
+      }
     } catch {}
   }
 

@@ -3,7 +3,7 @@
 }
 
 .marquee-content {
-  animation: marquee 50s linear infinite;
+  animation: marquee 40s linear infinite;
   white-space: nowrap;
 }
 
@@ -37,4 +37,47 @@
 
 .avatar-image-hidden {
   display: none;
+}
+
+.avatar-fallback {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.avatar-bg-0 {
+  background-color: #4f46e5;
+}
+.avatar-bg-1 {
+  background-color: #2563eb;
+}
+.avatar-bg-2 {
+  background-color: #0ea5e9;
+}
+.avatar-bg-3 {
+  background-color: #10b981;
+}
+.avatar-bg-4 {
+  background-color: #22c55e;
+}
+.avatar-bg-5 {
+  background-color: #f97316;
+}
+.avatar-bg-6 {
+  background-color: #ef4444;
+}
+.avatar-bg-7 {
+  background-color: #dc2626;
+}
+.avatar-bg-8 {
+  background-color: #d946ef;
+}
+.avatar-bg-9 {
+  background-color: #9333ea;
+}
+.avatar-bg-10 {
+  background-color: #475569;
+}
+.avatar-bg-11 {
+  background-color: #0891b2;
 }

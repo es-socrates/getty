@@ -251,12 +251,6 @@ function renderStreamHistoryChart(el, data, {
         pathV.getBoundingClientRect();
         setTimeout(() => { pathV.style.strokeDashoffset = '0'; pathV.style.opacity = '1'; }, 30);
       }
-      const totalLenV = pathV.getTotalLength();
-      pathV.style.strokeDasharray = String(totalLenV);
-      pathV.style.strokeDashoffset = String(totalLenV);
-      pathV.style.transition = 'stroke-dashoffset 600ms ease, opacity 600ms ease';
-      pathV.getBoundingClientRect();
-      setTimeout(() => { pathV.style.strokeDashoffset = '0'; pathV.style.opacity = '1'; }, 30);
     } catch {}
 
     display.forEach((p, idx) => {

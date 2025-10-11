@@ -2670,36 +2670,75 @@ async function __fetchWalletBalance(arAddr) {
 }
 
 async function __resolveWalletAddressForMetrics(req) {
-
   try {
-    let addr = '';
-    let tenant = null;
-    try { tenant = require('./lib/tenant'); } catch {}
-
+    const path = require('path');
     const fs = require('fs');
-    const LAST_TIP_CONFIG_FILE = require('path').join(process.cwd(), 'config', 'last-tip-config.json');
-    if (tenant && typeof tenant.tenantEnabled === 'function' && tenant.tenantEnabled(req)) {
+    let tenantLib = null;
+    try { tenantLib = require('./lib/tenant'); } catch {}
+
+    const nsToken = (req?.ns?.admin || req?.ns?.pub) || null;
+    const tenantActive = tenantLib && typeof tenantLib.tenantEnabled === 'function' ? tenantLib.tenantEnabled(req) : false;
+    const preferIsolated = tenantActive || !!nsToken;
+    const LAST_TIP_CONFIG_FILE = path.join(process.cwd(), 'config', 'last-tip-config.json');
+    const unwrapConfig = (raw) => {
+      if (!raw || typeof raw !== 'object') return raw || {};
+      if (raw.data && typeof raw.data === 'object') return raw.data;
+      return raw;
+    };
+    const readWallet = (raw) => {
+      const cfg = unwrapConfig(raw);
+      const value = cfg && typeof cfg.walletAddress === 'string' ? cfg.walletAddress.trim() : '';
+      return value || '';
+    };
+
+    if (preferIsolated) {
+      if (nsToken && store && typeof store.getConfig === 'function') {
+        try {
+          const cached = await store.getConfig(nsToken, 'last-tip-config.json', null);
+          const wallet = readWallet(cached);
+          if (wallet) return wallet;
+        } catch {}
+      }
+
+      if (loadTenantConfig) {
+        try {
+          const wrapped = await loadTenantConfig(req, null, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+          if (wrapped && wrapped.source === 'tenant-disk') {
+            const wallet = readWallet(wrapped.data);
+            if (wallet) return wallet;
+          }
+        } catch {}
+      }
+      return '';
+    }
+
+    if (loadTenantConfig) {
       try {
-        const loaded = tenant.loadConfigWithFallback(req, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
-        if (loaded && loaded.data && typeof loaded.data.walletAddress === 'string') addr = loaded.data.walletAddress.trim();
+        const wrapped = await loadTenantConfig(req, store, LAST_TIP_CONFIG_FILE, 'last-tip-config.json');
+        const wallet = readWallet(wrapped?.data);
+        if (wallet) return wallet;
       } catch {}
     }
-    if (!addr) {
-      try {
-        if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
-          const raw = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
-          if (raw && typeof raw.walletAddress === 'string') addr = raw.walletAddress.trim();
-        }
-      } catch {}
-    }
-    if (!addr) {
-      try { if (typeof tipWidget?.getStatus === 'function') { const s = tipWidget.getStatus(); if (s?.walletAddress) addr = String(s.walletAddress).trim(); } } catch {}
-    }
-    if (!addr) {
-      try { if (typeof tipGoal?.getStatus === 'function') { const s = tipGoal.getStatus(); if (s?.walletAddress) addr = String(s.walletAddress).trim(); } } catch {}
-    }
-    return addr || '';
-  } catch { return ''; }
+
+    try {
+      if (fs.existsSync(LAST_TIP_CONFIG_FILE)) {
+        const raw = JSON.parse(fs.readFileSync(LAST_TIP_CONFIG_FILE, 'utf8'));
+        const wallet = readWallet(raw);
+        if (wallet) return wallet;
+      }
+    } catch {}
+
+    try { if (typeof tipWidget?.getStatus === 'function') { const s = tipWidget.getStatus(); const wallet = readWallet(s); if (wallet) return wallet; } } catch {}
+    try { if (typeof tipGoal?.getStatus === 'function') { const s = tipGoal.getStatus(); const wallet = readWallet(s); if (wallet) return wallet; } } catch {}
+    try {
+      const envWallet = process.env.LAST_TIP_WALLET || process.env.WALLET_ADDRESS || '';
+      if (typeof envWallet === 'string' && envWallet.trim()) return envWallet.trim();
+    } catch {}
+
+    return '';
+  } catch {
+    return '';
+  }
 }
 
 app.get('/api/activity', (req, res) => {

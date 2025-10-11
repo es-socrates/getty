@@ -477,18 +477,14 @@
           :aria-pressed="showViewers ? 'true' : 'false'"
           :class="showViewers ? 'ring-1 ring-[var(--card-border)]' : ''"
           @click="toggleShowViewers"
-          :title="showViewers ? 'Hide viewers' : 'Show viewers'">
+          :title="
+            showViewers
+              ? t('chartHideViewers') || 'Hide viewers'
+              : t('chartShowViewers') || 'Show viewers'
+          ">
           <span
             class="inline-block w-2.5 h-2.5 rounded-full bg-[var(--viewers-line-color,#553fee)]"></span>
-          <span>{{ showViewers ? 'Viewers: on' : 'Viewers: off' }}</span>
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
-          :aria-pressed="mode === 'line' ? 'true' : 'false'"
-          :class="mode === 'line' ? 'ring-1 ring-[var(--card-border)]' : ''"
-          @click="mode = 'line'">
-          {{ t('chartLine') }}
+          <span>{{ showViewers ? t('chartViewersOn') : t('chartViewersOff') }}</span>
         </button>
         <button
           type="button"
@@ -497,6 +493,14 @@
           :class="mode === 'candle' ? 'ring-1 ring-[var(--card-border)]' : ''"
           @click="mode = 'candle'">
           {{ t('chartCandle') }}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
+          :aria-pressed="mode === 'line' ? 'true' : 'false'"
+          :class="mode === 'line' ? 'ring-1 ring-[var(--card-border)]' : ''"
+          @click="mode = 'line'">
+          {{ t('chartLine') }}
         </button>
         <span v-if="peakSessionSummary" class="peak-session-summary ml-auto">
           <span class="peak-session-label">{{ t('chartTopSessionBadgeTitle') }}</span>
