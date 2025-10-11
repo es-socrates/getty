@@ -11,18 +11,110 @@ const embedMaxItems = (() => {
 function qs(sel, el = document) { return el.querySelector(sel); }
 function h(tag, cls) { const el = document.createElement(tag); if (cls) el.className = cls; return el; }
 let __i18n = { 'ach.widget.unlocked': 'Achievement unlocked', 'ach.widget.now': 'Now' };
-async function loadLang() {
+let __lang = 'en';
+
+function sanitizeLangCode(code) {
   try {
-    const r = await fetch('/api/language', { cache: 'no-store' });
-    const j = await r.json();
-    const lang = (j && j.currentLanguage) || 'en';
-    const file = `/shared-i18n/${lang}.json`;
-    const rr = await fetch(file, { cache: 'no-store' });
-    if (rr.ok) { __i18n = await rr.json(); }
-  } catch { /* keep defaults */ }
+    if (!code || typeof code !== 'string') return '';
+    return code.toLowerCase().replace(/_/g, '-').split('-')[0];
+  } catch {
+    return '';
+  }
+}
+
+function readCookie(name) {
+  try {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]+)`));
+    return match && match[1] ? decodeURIComponent(match[1]) : '';
+  } catch {
+    return '';
+  }
+}
+
+async function detectPreferredLanguage() {
+  let preferred = '';
+  try {
+    const url = new URL(window.location.href);
+    preferred = url.searchParams.get('lang') || url.searchParams.get('language') || '';
+  } catch {}
+  if (!preferred) {
+    try {
+      preferred = localStorage.getItem('getty-language')
+        || localStorage.getItem('lang')
+        || localStorage.getItem('language')
+        || localStorage.getItem('i18nextLng')
+        || '';
+    } catch {}
+  }
+  if (!preferred) preferred = readCookie('getty_lang');
+  if (!preferred) preferred = readCookie('lang');
+  if (!preferred) preferred = readCookie('language');
+  if (!preferred) {
+    try {
+      preferred = navigator.language || navigator.languages && navigator.languages[0] || '';
+    } catch {}
+  }
+  if (!preferred && document.documentElement && document.documentElement.lang) {
+    preferred = document.documentElement.lang;
+  }
+  return sanitizeLangCode(preferred);
+}
+
+async function loadLang(forcedLang) {
+  let lang = sanitizeLangCode(forcedLang);
+  if (!lang) lang = await detectPreferredLanguage();
+  if (!lang) {
+    try {
+      const r = await fetch('/api/language', { cache: 'no-store' });
+      if (r.ok) {
+        const j = await r.json();
+        lang = sanitizeLangCode(j && j.currentLanguage);
+      }
+    } catch {}
+  }
+  if (!lang) lang = 'en';
+
+  try {
+    const rr = await fetch(`/shared-i18n/${lang}.json`, { cache: 'no-store' });
+    if (rr.ok) {
+      __i18n = await rr.json();
+      __lang = lang;
+      if (document.documentElement) {
+        document.documentElement.lang = lang;
+      }
+      return;
+    }
+  } catch {}
+
+  if (lang !== 'en') {
+    try {
+      const fallback = await fetch('/shared-i18n/en.json', { cache: 'no-store' });
+      if (fallback.ok) {
+        __i18n = await fallback.json();
+        __lang = 'en';
+        if (document.documentElement) document.documentElement.lang = 'en';
+        return;
+      }
+    } catch {}
+  }
+
+  __lang = 'en';
 }
 function t(key, fallback) { return (__i18n && __i18n[key]) || fallback || key; }
 function nowLabel() { return t('ach.widget.now', 'Now'); }
+
+try {
+  window.addEventListener('storage', (event) => {
+    if (!event) return;
+    if (event.key === 'getty-language' || event.key === 'lang' || event.key === 'language') {
+      const next = sanitizeLangCode(event.newValue || '');
+      if (next && next !== __lang) {
+        loadLang(next);
+      }
+    }
+  });
+} catch {}
 
 let sharedAudio = { audioSource: 'remote', hasCustomAudio: false, enabled: true, volume: 0.5 };
 const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
