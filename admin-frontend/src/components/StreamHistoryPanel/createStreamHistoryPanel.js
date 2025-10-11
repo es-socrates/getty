@@ -270,7 +270,22 @@ export function createStreamHistoryPanel(t) {
   watch(span, (s) => { if ([7,14,30,90,180,365].includes(Number(s))) filterQuickSpan.value = Number(s); });
   watch(overlayCollapsed, (v) => { try { localStorage.setItem(OVERLAY_KEY, v ? '1':'0'); } catch {} });
   watch(earningsHidden, (v) => { try { localStorage.setItem(EARNINGS_HIDE_KEY, v ? '1':'0'); } catch {} });
-  watch(() => status.value.sampleCount, () => { /* could add heuristics here */ });
+  watch(
+    () => Number(status.value.sampleCount || 0),
+    (count, prev) => {
+      if (!Number.isFinite(count) || count <= 0) return;
+      if (!Number.isFinite(prev) || count > prev) {
+        scheduleRefresh();
+      }
+    }
+  );
+  watch(
+    () => status.value.live,
+    (live, prev) => {
+      if (prev == null || live === prev) return;
+      scheduleRefresh(true);
+    }
+  );
   watch(showViewers, () => { try { renderCharts(lastSummaryData.value || []); } catch {} });
   watch(goalHours, (val) => {
     let safe = Number(val);
