@@ -245,12 +245,12 @@ html:not(.dark) #user-menu label {
 
 html:not(.dark) .status-dot.connected {
   background-color: #22c55e !important;
-  box-shadow: 0 0 8px #22c55e !important;
+  box-shadow: 0 0 4px #22c55e !important;
 }
 
 html:not(.dark) .status-dot.disconnected {
   background-color: #ef4444 !important;
-  box-shadow: 0 0 8px #ef4444 !important;
+  box-shadow: 0 0 4px #ef4444 !important;
 }
 
 .dark-logo {

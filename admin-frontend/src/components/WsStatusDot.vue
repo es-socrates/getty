@@ -1,11 +1,12 @@
 <template>
   <span
     :class="[
-      'inline-flex rounded-full flex-shrink-0',
+      'inline-flex rounded-full flex-shrink-0 status-dot',
       sizeClass,
-      connected ? 'bg-green-500' : 'bg-yellow-500',
+      statusClass,
+      stateClass,
     ]"
-    :aria-label="srLabel || (connected ? 'WebSocket conectado' : 'WebSocket pendiente')"
+    :aria-label="srLabel || (connected ? 'WebSocket conectado' : 'WebSocket desconectado')"
     role="status"></span>
 </template>
 <script setup>
@@ -16,6 +17,9 @@ const props = defineProps({
   size: { type: String, default: 'sm' },
   srLabel: { type: String, default: '' },
 });
+
+const statusClass = computed(() => (props.connected ? 'bg-green-500' : 'bg-red-500'));
+const stateClass = computed(() => (props.connected ? 'connected' : 'disconnected'));
 
 const sizeClass = computed(() => {
   switch (props.size) {
