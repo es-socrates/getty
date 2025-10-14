@@ -508,7 +508,11 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     }
     const adminNs = await resolveAdminNs(req);
     if (store && adminNs) {
-      try { await store.set(adminNs, 'stream-history-config', { claimid }); return true; } catch { return false; }
+      try {
+        await store.set(adminNs, 'stream-history-config', { claimid });
+        await rememberNamespace(adminNs, claimid);
+        return true;
+      } catch { return false; }
     }
     try { fs.writeFileSync(CONFIG_FILE, JSON.stringify({ claimid }, null, 2)); return true; } catch { return false; }
   }
@@ -542,13 +546,19 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   const DEFAULT_POLL_EVERY_MS = 5000;
   const BACKGROUND_POLL_MS = Math.max(DEFAULT_POLL_EVERY_MS, Number(process.env.GETTY_STREAM_HISTORY_BACKGROUND_MS || DEFAULT_POLL_EVERY_MS));
   const bgPollers = new Map();
+  const STREAM_HISTORY_NS_SET = 'getty:stream-history:namespaces';
+  const STREAM_HISTORY_HEALTH_KEY = 'getty:stream-history:health';
+  const HEALTH_CHECK_MS = Math.max(20000, BACKGROUND_POLL_MS);
+  const STALE_THRESHOLD_MS = Math.max(HEALTH_CHECK_MS * 3, BACKGROUND_POLL_MS * 4);
 
   function makeReqLike(adminNs, pubNs = null) {
-    return {
+    const reqLike = {
       ns: { admin: adminNs || null, pub: pubNs || null },
       query: {},
       headers: {}
     };
+    if (adminNs) reqLike.__forceWalletHash = adminNs;
+    return reqLike;
   }
 
   function stopBackgroundPoller(key) {
@@ -556,7 +566,25 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     if (existing) {
       try { clearInterval(existing.timer); } catch {}
       bgPollers.delete(key);
+      recordHealth(key, { ts: Date.now(), claimId: existing.claimId || null, live: false, stopped: true }).catch(() => {});
     }
+  }
+
+  async function rememberNamespace(adminNs, claimId) {
+    if (!store || !store.redis) return;
+    if (!adminNs) return;
+    const trimmed = typeof claimId === 'string' ? claimId.trim() : '';
+    try {
+      if (trimmed) await store.redis.sadd(STREAM_HISTORY_NS_SET, adminNs);
+      else await store.redis.srem(STREAM_HISTORY_NS_SET, adminNs);
+    } catch {}
+  }
+
+  async function recordHealth(key, info) {
+    if (!store || !store.redis || !key) return;
+    try {
+      await store.redis.hset(STREAM_HISTORY_HEALTH_KEY, key, JSON.stringify(info));
+    } catch {}
   }
 
   async function pollLiveStatus(reqLike, adminNs, claimId, opts = {}) {
@@ -585,6 +613,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       try { hist.samples.push({ ts: nowTs, live: nowLive, viewers: viewerCount }); } catch {}
       truncateSegments(hist);
       await saveHistoryNS(reqLike, hist);
+      const successTs = Date.now();
+      const entry = bgPollers.get(key);
+      if (entry) entry.lastSuccess = successTs;
+      recordHealth(key, { ts: successTs, claimId: cfgClaim, live: nowLive, viewers: viewerCount }).catch(() => {});
       try {
         const nsToken = reqLike?.ns?.admin || reqLike?.ns?.pub || null;
         if (options.wss && nsToken) {
@@ -596,6 +628,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       } catch {}
       return { nowLive, viewerCount };
     } catch {
+      recordHealth(key, { ts: Date.now(), claimId: cfgClaim, live: false, error: true }).catch(() => {});
       return null;
     }
   }
@@ -604,6 +637,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const trimmed = typeof claimId === 'string' ? claimId.trim() : '';
     const key = adminNs ? `ns:${adminNs}` : 'single';
     if (!trimmed) {
+      await rememberNamespace(adminNs, '');
       stopBackgroundPoller(key);
       return null;
     }
@@ -611,19 +645,130 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     if (existing && existing.claimId === trimmed) return existing;
     stopBackgroundPoller(key);
     const reqLike = sourceReq && sourceReq.ns
-      ? { ns: { admin: adminNs || null, pub: sourceReq.ns.pub || null }, query: sourceReq.query || {}, headers: sourceReq.headers || {} }
+      ? {
+          ns: { admin: adminNs || null, pub: sourceReq.ns.pub || null },
+          query: sourceReq.query || {},
+          headers: sourceReq.headers || {},
+          __forceWalletHash: sourceReq.__forceWalletHash || adminNs || null
+        }
       : makeReqLike(adminNs);
     try {
-      const timer = setInterval(() => {
+      const entry = {
+        claimId: trimmed,
+        timer: null,
+        reqLike,
+        adminNs: adminNs || null,
+        lastSuccess: 0,
+        lastAttempt: 0
+      };
+      const tick = () => {
+        entry.lastAttempt = Date.now();
         pollLiveStatus(reqLike, adminNs, trimmed).catch(() => {});
-      }, BACKGROUND_POLL_MS);
-      const entry = { claimId: trimmed, timer, reqLike };
+      };
+      const timer = setInterval(tick, BACKGROUND_POLL_MS);
+      entry.timer = timer;
       bgPollers.set(key, entry);
-      pollLiveStatus(reqLike, adminNs, trimmed, { force: true }).catch(() => {});
+      await rememberNamespace(adminNs, trimmed);
+      tick();
       return entry;
     } catch {
       return null;
     }
+  }
+
+  async function bootstrapBackgroundPollers() {
+    try {
+      const globalReq = makeReqLike(null);
+      try {
+        const cfg = await loadConfigNS(globalReq);
+        const claim = cfg && typeof cfg.claimid === 'string' ? cfg.claimid.trim() : '';
+        if (claim) ensureBackgroundPoller(null, claim, globalReq).catch(() => {});
+      } catch {}
+
+      const seen = new Set();
+      if (store && store.redis) {
+        try {
+          const nsFromSet = await store.redis.smembers(STREAM_HISTORY_NS_SET);
+          if (Array.isArray(nsFromSet)) nsFromSet.forEach(ns => { if (ns && ns !== 'local') seen.add(ns); });
+        } catch {}
+      }
+      try {
+        const tenantRoot = path.join(process.cwd(), 'tenant');
+        if (fs.existsSync(tenantRoot)) {
+          const dirs = fs.readdirSync(tenantRoot, { withFileTypes: true })
+            .filter(d => d.isDirectory())
+            .map(d => d.name)
+            .slice(0, 500);
+          dirs.forEach(ns => { if (ns && ns !== 'local') seen.add(ns); });
+        }
+      } catch {}
+
+      for (const ns of seen) {
+        if (!ns || ns === 'local') continue;
+        const reqLike = makeReqLike(ns);
+        reqLike.__forceWalletHash = reqLike.__forceWalletHash || ns;
+        try {
+          const cfg = await loadConfigNS(reqLike);
+          const claim = cfg && typeof cfg.claimid === 'string' ? cfg.claimid.trim() : '';
+          if (claim) ensureBackgroundPoller(ns, claim, reqLike).catch(() => {});
+          else await rememberNamespace(ns, '');
+        } catch {}
+      }
+    } catch {}
+  }
+
+  function scheduleBackgroundHealth() {
+    if (app.__shHealthScheduled) return;
+    app.__shHealthScheduled = true;
+    setInterval(() => {
+      try {
+        const now = Date.now();
+        bgPollers.forEach((entry) => {
+          if (!entry || !entry.claimId) return;
+          const lastOk = entry.lastSuccess || 0;
+          if (!lastOk || (now - lastOk) > STALE_THRESHOLD_MS) {
+            try {
+              const claimPreview = typeof entry.claimId === 'string' ? `${entry.claimId.slice(0, 8)}…` : null;
+              console.warn('[stream-history][health] forcing poller refresh', {
+                ns: entry.adminNs || 'global',
+                claimId: claimPreview,
+                staleMs: now - lastOk
+              });
+            } catch {}
+            pollLiveStatus(entry.reqLike, entry.adminNs, entry.claimId, { force: true }).catch(() => {});
+          }
+        });
+        if (!bgPollers.has('single')) {
+          const reqLike = makeReqLike(null);
+          loadConfigNS(reqLike)
+            .then((cfg) => {
+              const claim = cfg && typeof cfg.claimid === 'string' ? cfg.claimid.trim() : '';
+              if (claim) ensureBackgroundPoller(null, claim, reqLike).catch(() => {});
+            })
+            .catch(() => {});
+        }
+        if (store && store.redis) {
+          store.redis.smembers(STREAM_HISTORY_NS_SET)
+            .then((nsList) => {
+              if (!Array.isArray(nsList)) return;
+              nsList.forEach((ns) => {
+                if (!ns || ns === 'local') return;
+                const key = `ns:${ns}`;
+                if (bgPollers.has(key)) return;
+                const reqLike = makeReqLike(ns);
+                reqLike.__forceWalletHash = reqLike.__forceWalletHash || ns;
+                loadConfigNS(reqLike)
+                  .then((cfg) => {
+                    const claim = cfg && typeof cfg.claimid === 'string' ? cfg.claimid.trim() : '';
+                    if (claim) ensureBackgroundPoller(ns, claim, reqLike).catch(() => {});
+                  })
+                  .catch(() => {});
+              });
+            })
+            .catch(() => {});
+        }
+      } catch {}
+    }, HEALTH_CHECK_MS);
   }
 
   app.get('/config/stream-history-config.json', async (req, res) => {
@@ -664,19 +809,6 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
       try {
         const { canWriteConfig } = require('../lib/authz');
-
-  setTimeout(() => {
-    try {
-      const bootReq = makeReqLike(null);
-      loadConfigNS(bootReq)
-        .then((cfg) => {
-          if (cfg && typeof cfg.claimid === 'string' && cfg.claimid.trim()) {
-            ensureBackgroundPoller(null, cfg.claimid, bootReq).catch(() => {});
-          }
-        })
-        .catch(() => {});
-    } catch {}
-  }, 2500);
         const hosted = !!(store && store.redis);
         if ((hosted || requireSessionFlag) && !canWriteConfig(req)) {
           return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
@@ -940,6 +1072,16 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       return res.status(500).json({ error: 'failed_to_compute_status', details: e?.message });
     }
   });
+
+  if (!app.__shBootstrapScheduled) {
+    app.__shBootstrapScheduled = true;
+    setTimeout(() => {
+      bootstrapBackgroundPollers().catch(() => {});
+      scheduleBackgroundHealth();
+    }, 2500);
+  } else {
+    scheduleBackgroundHealth();
+  }
 }
 
 module.exports = registerStreamHistoryRoutes;
