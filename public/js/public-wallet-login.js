@@ -138,6 +138,8 @@ class WanderWalletLogin {
 
         this.setupLangMenuBridge();
 
+        this.handleReasonParam();
+
             if (this.elements.langBtn && this.elements.langBtn.classList.contains('hidden')) {
                 const origFn = this.updateUI.bind(this);
                 this.updateUI = async (...args) => {
@@ -305,6 +307,74 @@ class WanderWalletLogin {
                 bindLegacyMenu();
             }
         }, 1500);
+    }
+
+    handleReasonParam() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const reason = params.get('reason');
+            if (!reason) return;
+            if (reason !== 'expired-token' && reason !== 'invalid-token') return;
+
+            const message = this.translateLanding(
+                reason === 'expired-token' ? 'welcomeTokenExpired' : 'welcomeTokenInvalid',
+                reason === 'expired-token'
+                    ? 'Session expired. Please log in again to refresh your dashboard link.'
+                    : 'We could not open your dashboard. Please log in again.'
+            );
+
+            this.resetSessionState(false);
+            this.showLandingStatusMessage(message);
+            this.exposeReconnectState(reason);
+
+            params.delete('reason');
+            const nextUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '') + (window.location.hash || '');
+            window.history.replaceState({}, document.title, nextUrl);
+        } catch (error) {
+            try { console.warn('[wander-login] failed to handle reason param', error?.message || error); } catch {}
+        }
+    }
+
+    translateLanding(key, fallback) {
+        try {
+            if (window.__i18n && typeof window.__i18n.t === 'function') {
+                const value = window.__i18n.t(key);
+                if (value && value !== key) return value;
+            }
+        } catch {}
+        return fallback !== undefined ? fallback : key;
+    }
+
+    showLandingStatusMessage(message) {
+        if (!message) return;
+        const statusEl = document.getElementById('landing-session-status');
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.classList.remove('hidden');
+        statusEl.dataset.visible = 'true';
+        try { statusEl.setAttribute('role', 'alert'); } catch {}
+    }
+
+    exposeReconnectState(reason) {
+        const heroBtn = document.getElementById('public-wallet-login-hero');
+        if (heroBtn) {
+            const label = this.translateLanding('welcomeLogin', this.t('loginLabel'));
+            heroBtn.textContent = label;
+            heroBtn.setAttribute('aria-label', label);
+            heroBtn.setAttribute('data-i18n', 'welcomeLogin');
+            heroBtn.setAttribute('data-default-label', label);
+            heroBtn.dataset.state = 'reconnect';
+            heroBtn.setAttribute('data-reason', reason || '');
+        }
+
+        if (this.elements.loginBtn) {
+            this.elements.loginBtn.dataset.state = 'logged-out';
+        }
+
+        if (this.elements.statusDot) {
+            this.elements.statusDot.classList.remove('connected');
+            this.elements.statusDot.classList.add('disconnected');
+        }
     }
 
     safeAttach(el, ev, fn) { if (el) try { el.addEventListener(ev, fn); } catch {} }

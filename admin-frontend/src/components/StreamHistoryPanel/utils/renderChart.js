@@ -3,6 +3,49 @@ import i18n from '../../../i18n';
 
 const t = i18n.global.t;
 
+function getActiveLocale() {
+  try {
+    const current = i18n.global.locale;
+    if (typeof current === 'string') return current;
+    if (current && typeof current.value === 'string') return current.value;
+  } catch {}
+  return 'en';
+}
+
+function formatViewerCount(value) {
+  const safe = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const rounded = Math.round(safe);
+  try {
+    return new Intl.NumberFormat(getActiveLocale(), { maximumFractionDigits: 0 }).format(rounded);
+  } catch {
+    return String(rounded);
+  }
+}
+
+function formatSignedCount(value) {
+  const safe = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const rounded = Math.round(safe);
+  if (rounded === 0) return '0';
+  const prefix = rounded > 0 ? '+' : '-';
+  return `${prefix}${formatViewerCount(Math.abs(rounded))}`;
+}
+
+function formatPercentChange(value) {
+  if (!Number.isFinite(value)) return null;
+  const rounded = Number(value);
+  if (!Number.isFinite(rounded)) return null;
+  const abs = Math.abs(rounded);
+  const digits = abs >= 10 ? 0 : 1;
+  const base = abs.toFixed(digits);
+  if (Number(base) === 0) return null;
+  const prefix = rounded > 0 ? '+' : '-';
+  return `${prefix}${base}%`;
+}
+
+function makeUid(prefix = 'spark') {
+  return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function prefersReducedMotion() {
   try {
     return !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -514,6 +557,9 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
   if (!el) return;
   try { el.innerHTML = ''; } catch {}
   el.style.position = 'relative';
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.gap = '8px';
   const fallbackW = Number(el.dataset.testWidth || 260);
   const fallbackH = Number(el.dataset.testHeight || 70);
   const w = el.clientWidth ? el.clientWidth : fallbackW;
@@ -539,6 +585,18 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
     return;
   }
 
+  const positiveViewers = viewers.filter(v => v > 0);
+  const minPositiveViewers = positiveViewers.length ? Math.min(...positiveViewers) : 0;
+  const avgViewers = viewers.reduce((acc, cur) => acc + cur, 0) / viewers.length;
+  const firstValue = viewers[0];
+  const lastValue = viewers[viewers.length - 1];
+  const changeValue = lastValue - firstValue;
+  const changePercent = firstValue > 0 ? (changeValue / firstValue) * 100 : null;
+  const peakIndex = viewers.indexOf(maxViewers);
+  const hasAvgBand = avgViewers > 0 && avgViewers < maxViewers;
+
+  const uid = makeUid();
+
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('width', String(w));
   svg.setAttribute('height', String(h));
@@ -551,6 +609,26 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
   const stepX = viewers.length === 1 ? 0 : innerW / (viewers.length - 1);
   const toY = (v) => padY + innerH - (Math.max(0, v) / maxViewers) * innerH;
 
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  const gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+  gradient.setAttribute('id', `${uid}-fill`);
+  gradient.setAttribute('x1', '0');
+  gradient.setAttribute('x2', '0');
+  gradient.setAttribute('y1', '0');
+  gradient.setAttribute('y2', '1');
+  const stopTop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stopTop.setAttribute('offset', '0%');
+  stopTop.setAttribute('stop-color', 'var(--accent,#553fee)');
+  stopTop.setAttribute('stop-opacity', '0.35');
+  const stopBottom = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+  stopBottom.setAttribute('offset', '100%');
+  stopBottom.setAttribute('stop-color', 'var(--accent,#553fee)');
+  stopBottom.setAttribute('stop-opacity', '0.04');
+  gradient.appendChild(stopTop);
+  gradient.appendChild(stopBottom);
+  defs.appendChild(gradient);
+  svg.appendChild(defs);
+
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   bg.setAttribute('x', '0');
   bg.setAttribute('y', '0');
@@ -559,6 +637,22 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
   bg.setAttribute('fill', 'var(--chart-bg,#fefefe)');
   bg.setAttribute('rx', '6');
   svg.appendChild(bg);
+
+  const areaPathD = (() => {
+    let dStr = `M ${padX} ${padY + innerH}`;
+    viewers.forEach((val, idx) => {
+      const x = padX + idx * stepX;
+      const y = toY(val);
+      dStr += ` L ${x} ${y}`;
+    });
+    dStr += ` L ${padX + (viewers.length - 1) * stepX} ${padY + innerH} Z`;
+    return dStr;
+  })();
+  const areaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  areaPath.setAttribute('d', areaPathD);
+  areaPath.setAttribute('fill', `url(#${uid}-fill)`);
+  areaPath.setAttribute('opacity', '1');
+  svg.appendChild(areaPath);
 
   const dPath = viewers.map((val, idx) => {
     const x = padX + idx * stepX;
@@ -572,6 +666,26 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
   path.setAttribute('stroke-width', '2');
   path.setAttribute('stroke-linecap', 'round');
   svg.appendChild(path);
+
+  if (hasAvgBand) {
+    const avgY = toY(avgViewers);
+    const avgLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    avgLine.setAttribute('d', `M ${padX} ${avgY} L ${padX + innerW} ${avgY}`);
+    avgLine.setAttribute('stroke', 'var(--sparkline-avg-line,#1d4ed8)');
+    avgLine.setAttribute('stroke-width', '1');
+    avgLine.setAttribute('stroke-dasharray', '4 4');
+    avgLine.setAttribute('opacity', '0.65');
+    svg.appendChild(avgLine);
+
+    const avgLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    avgLabel.setAttribute('x', String(padX + 6));
+    avgLabel.setAttribute('y', String(Math.max(12, avgY - 6)));
+    avgLabel.setAttribute('fill', 'var(--sparkline-avg-line,#1d4ed8)');
+    avgLabel.setAttribute('font-size', '10');
+    avgLabel.setAttribute('font-weight', '600');
+    avgLabel.textContent = `${t('streamHistoryViewersTrendAverageLabel')} · ${formatViewerCount(avgViewers)}`;
+    svg.appendChild(avgLabel);
+  }
 
   const lastX = padX + (viewers.length - 1) * stepX;
   const lastY = toY(viewers[viewers.length - 1]);
@@ -588,10 +702,71 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
   lastLabel.setAttribute('fill', 'var(--text-secondary,#475569)');
   lastLabel.setAttribute('font-size', '10');
   lastLabel.setAttribute('text-anchor', 'end');
-  lastLabel.textContent = Math.round(viewers[viewers.length - 1]).toString();
+  lastLabel.textContent = formatViewerCount(lastValue);
   svg.appendChild(lastLabel);
 
+  if (peakIndex >= 0) {
+    const peakX = padX + peakIndex * stepX;
+    const peakY = toY(maxViewers);
+    const peakMarker = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    peakMarker.setAttribute('cx', String(peakX));
+    peakMarker.setAttribute('cy', String(peakY));
+    peakMarker.setAttribute('r', '4');
+    peakMarker.setAttribute('fill', 'var(--sparkline-peak-color,#dc2626)');
+    peakMarker.setAttribute('opacity', '0.9');
+    svg.appendChild(peakMarker);
+
+    const peakLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    peakLabel.setAttribute('x', String(peakX + 6));
+    peakLabel.setAttribute('y', String(Math.max(12, peakY - 8)));
+    peakLabel.setAttribute('fill', 'var(--sparkline-peak-color,#dc2626)');
+    peakLabel.setAttribute('font-size', '10');
+    peakLabel.setAttribute('font-weight', '600');
+    peakLabel.textContent = `${t('streamHistoryViewersTrendPeakLabel')} · ${formatViewerCount(maxViewers)}`;
+    svg.appendChild(peakLabel);
+  }
+
   el.appendChild(svg);
+
+  const meta = document.createElement('div');
+  meta.className = 'sparkline-meta';
+
+  const peakBadge = document.createElement('div');
+  peakBadge.className = 'sparkline-badge sparkline-badge--peak';
+  peakBadge.innerHTML = `
+    <span class="sparkline-dot" aria-hidden="true"></span>
+    <span class="sparkline-badge-label">${t('streamHistoryViewersTrendPeakLabel')}</span>
+    <span class="sparkline-badge-value">${formatViewerCount(maxViewers)}</span>
+  `;
+  meta.appendChild(peakBadge);
+
+  const avgBadge = document.createElement('div');
+  avgBadge.className = 'sparkline-badge sparkline-badge--avg';
+  avgBadge.innerHTML = `
+    <span class="sparkline-dot" aria-hidden="true"></span>
+    <span class="sparkline-badge-label">${t('streamHistoryViewersTrendAverageLabel')}</span>
+    <span class="sparkline-badge-value">${formatViewerCount(avgViewers)}</span>
+  `;
+  meta.appendChild(avgBadge);
+
+  const changeBadge = document.createElement('div');
+  const trendClasses = ['sparkline-badge', 'sparkline-badge--trend'];
+  const changeThreshold = minPositiveViewers > 0 ? Math.max(1, minPositiveViewers * 0.02) : 1;
+  if (changeValue > changeThreshold) trendClasses.push('sparkline-badge--trend-up');
+  else if (changeValue < -changeThreshold) trendClasses.push('sparkline-badge--trend-down');
+  else trendClasses.push('sparkline-badge--trend-flat');
+  changeBadge.className = trendClasses.join(' ');
+  const percentText = formatPercentChange(changePercent);
+  const changeValueText = formatSignedCount(changeValue);
+  changeBadge.innerHTML = `
+    <span class="sparkline-dot" aria-hidden="true"></span>
+    <span class="sparkline-badge-label">${t('streamHistoryViewersTrendChangeLabel')}</span>
+    <span class="sparkline-badge-value">${changeValueText}</span>
+    ${percentText ? `<span class="sparkline-badge-note">${percentText}</span>` : ''}
+  `;
+  meta.appendChild(changeBadge);
+
+  el.appendChild(meta);
 }
 
 export { renderStreamHistoryChart, renderViewersSparkline };

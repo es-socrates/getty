@@ -1,6 +1,135 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const crypto = require('crypto');
+const zlib = require('zlib');
+
+const STREAM_HISTORY_MAX_SAMPLES_OVERRIDE = (() => {
+  const raw = Number(process.env.GETTY_STREAM_HISTORY_MAX_SAMPLES);
+  if (Number.isFinite(raw) && raw >= 0) return Math.floor(raw);
+  return null;
+})();
+let STREAM_HISTORY_MAX_SAMPLES = STREAM_HISTORY_MAX_SAMPLES_OVERRIDE != null
+  ? STREAM_HISTORY_MAX_SAMPLES_OVERRIDE
+  : 0;
+
+function setStreamHistorySampleCap(cap) {
+  if (!Number.isFinite(cap) || cap < 0) {
+    STREAM_HISTORY_MAX_SAMPLES = 0;
+    return;
+  }
+  STREAM_HISTORY_MAX_SAMPLES = Math.floor(cap);
+}
+
+function getStreamHistorySampleCap() {
+  return STREAM_HISTORY_MAX_SAMPLES;
+}
+
+const DEFAULT_STORE_ENCRYPTION_KEY = 'default-insecure-key-change-me';
+const STORE_ENCRYPTION_KEY = (() => {
+  try {
+    const passphrase = process.env.STORE_ENCRYPTION_KEY || DEFAULT_STORE_ENCRYPTION_KEY;
+    return crypto.scryptSync(passphrase, 'salt', 32);
+  } catch {
+    return crypto.scryptSync(DEFAULT_STORE_ENCRYPTION_KEY, 'salt', 32);
+  }
+})();
+
+function encryptText(text) {
+  try {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', STORE_ENCRYPTION_KEY, iv);
+    let encrypted = cipher.update(String(text), 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return `${iv.toString('hex')}:${encrypted}`;
+  } catch {
+    return null;
+  }
+}
+
+function decryptText(payload) {
+  try {
+    const parts = String(payload || '').split(':');
+    if (parts.length !== 2) return String(payload || '');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const decipher = crypto.createDecipheriv('aes-256-cbc', STORE_ENCRYPTION_KEY, iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch {
+    return null;
+  }
+}
+
+function encryptJSON(obj) {
+  const json = JSON.stringify(obj == null ? null : obj);
+  let payload = json;
+  try {
+    const compressed = zlib.deflateSync(Buffer.from(json, 'utf8'));
+    if (compressed && compressed.length < Buffer.byteLength(json)) {
+      payload = `::gz::${compressed.toString('base64')}`;
+    }
+  } catch {}
+  return encryptText(payload);
+}
+
+function decryptJSON(payload, fallback) {
+  try {
+    const text = decryptText(payload);
+    if (text == null) return fallback;
+    if (text.startsWith('::gz::')) {
+      try {
+        const buf = Buffer.from(text.slice(6), 'base64');
+        const inflated = zlib.inflateSync(buf).toString('utf8');
+        return JSON.parse(inflated);
+      } catch {
+        return fallback;
+      }
+    }
+    return JSON.parse(text);
+  } catch {
+    try { return JSON.parse(String(payload || '')); } catch { return fallback; }
+  }
+}
+
+function markSegmentsDirty(hist) {
+  if (!hist || typeof hist !== 'object') return;
+  hist.__segmentsDirty = true;
+}
+
+function markSamplesTrimmed(hist, count) {
+  if (!hist || typeof hist !== 'object') return;
+  const amt = Number(count);
+  if (!Number.isFinite(amt) || amt <= 0) return;
+  hist.__samplesTrimmed = (hist.__samplesTrimmed || 0) + Math.floor(amt);
+}
+
+function markSampleAppended(hist, sample) {
+  if (!hist || typeof hist !== 'object') return;
+  if (!hist.__pendingSamples) hist.__pendingSamples = [];
+  hist.__pendingSamples.push(sample);
+}
+
+function markReplaceAll(hist) {
+  if (!hist || typeof hist !== 'object') return;
+  hist.__replaceAll = true;
+}
+
+function clearPersistenceMarkers(hist) {
+  if (!hist || typeof hist !== 'object') return;
+  delete hist.__segmentsDirty;
+  delete hist.__samplesTrimmed;
+  delete hist.__pendingSamples;
+  delete hist.__replaceAll;
+}
+
+function normalizeHistoryData(raw) {
+  const base = raw && typeof raw === 'object' ? raw : {};
+  const segments = Array.isArray(base.segments) ? base.segments.filter(Boolean) : [];
+  const samples = Array.isArray(base.samples) ? base.samples.filter(Boolean) : [];
+  return { segments, samples };
+}
 
 function ensureDir(p) {
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
@@ -24,21 +153,37 @@ function startSegment(hist, ts) {
   const last = hist.segments[hist.segments.length - 1];
   if (last && !last.end) return;
   hist.segments.push({ start: ts, end: null });
+  markSegmentsDirty(hist);
 }
 
 function endSegment(hist, ts) {
   const last = hist.segments[hist.segments.length - 1];
-  if (last && !last.end) last.end = ts;
+  if (last && !last.end) {
+    last.end = ts;
+    markSegmentsDirty(hist);
+  }
 }
 
 function truncateSegments(hist, maxDays = 400) {
   try {
     const cutoff = Date.now() - maxDays * 86400000;
-    hist.segments = hist.segments.filter(s => (s.end || s.start) >= cutoff);
+    if (Array.isArray(hist.segments)) {
+      const beforeSegCount = hist.segments.length;
+      hist.segments = hist.segments.filter(s => (s.end || s.start) >= cutoff);
+      if (hist.segments.length !== beforeSegCount) markSegmentsDirty(hist);
+    }
     if (Array.isArray(hist.samples)) {
-      hist.samples = hist.samples.filter(s => s.ts >= cutoff);
-
-      if (hist.samples.length > 200000) hist.samples.splice(0, hist.samples.length - 200000);
+      const beforeLen = hist.samples.length;
+      const filtered = hist.samples.filter(s => s.ts >= cutoff);
+      const removedByCutoff = beforeLen - filtered.length;
+      if (removedByCutoff > 0) markSamplesTrimmed(hist, removedByCutoff);
+      hist.samples = filtered;
+      const cap = getStreamHistorySampleCap();
+      if (cap > 0 && hist.samples.length > cap) {
+        const excess = hist.samples.length - cap;
+        hist.samples = hist.samples.slice(excess);
+        markSamplesTrimmed(hist, excess);
+      }
     }
   } catch {}
 }
@@ -57,13 +202,17 @@ function closeStaleOpenSegment(hist, nowTs = Date.now(), freshMs = 150000) {
       const staleThreshold = Math.min(twelveHoursMs, ninetyMinutesMs);
       if (nowTs - lastSeg.start > staleThreshold) {
         lastSeg.end = nowTs - freshMs;
+        markSegmentsDirty(hist);
       }
       return;
     }
     const age = nowTs - lastSampleTs;
     const staleLimit = Math.max(freshMs, 90 * 60000);
     if (age > staleLimit) {
-      if (lastSampleTs >= lastSeg.start) lastSeg.end = lastSampleTs;
+      if (lastSampleTs >= lastSeg.start) {
+        lastSeg.end = lastSampleTs;
+        markSegmentsDirty(hist);
+      }
     }
   } catch {}
 }
@@ -434,12 +583,157 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
 
 function registerStreamHistoryRoutes(app, limiter, options = {}) {
   const store = options.store || null;
+  const historyStore = options.historyStore || null;
+  const forceFileStore = process.env.GETTY_STREAM_HISTORY_FORCE_FILE === '1' || options.forceFileStore === true;
+  const configStore = forceFileStore ? null : store;
+  const redisStore = (!forceFileStore && historyStore && historyStore.redis)
+    ? historyStore
+    : (!forceFileStore && store && store.redis ? store : null);
+  const redis = redisStore ? redisStore.redis : null;
+  const storeTtlSeconds = redisStore && typeof redisStore.ttl === 'number'
+    ? Math.max(0, Math.floor(redisStore.ttl))
+    : null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
   const DATA_DIR = path.join(process.cwd(), 'data');
   const DATA_FILE = path.join(DATA_DIR, 'stream-history.json');
   ensureDir(path.join(process.cwd(), 'config'));
   ensureDir(DATA_DIR);
+  const TENANT_ROOT = path.join(process.cwd(), 'tenant');
+
+  function redisKey(ns, key) {
+    return `getty:${ns}:${key}`;
+  }
+
+  function redisSamplesKey(ns) {
+    return redisKey(ns, 'stream-history:samples');
+  }
+
+  function redisSegmentsKey(ns) {
+    return redisKey(ns, 'stream-history:segments');
+  }
+
+  function redisLegacyKey(ns) {
+    return redisKey(ns, 'stream-history-data');
+  }
+
+  function getHistoryFilePath(adminNs) {
+    if (!adminNs) return DATA_FILE;
+    const safe = adminNs.replace(/[^a-zA-Z0-9_-]/g, '');
+    const tenantDataDir = path.join(TENANT_ROOT, safe, 'data');
+    ensureDir(tenantDataDir);
+    return path.join(tenantDataDir, 'stream-history.json');
+  }
+
+  async function persistHistoryToRedis(adminNs, hist, opts = {}) {
+    if (!redis || !adminNs) return false;
+    const data = normalizeHistoryData(hist);
+    const samplesKey = redisSamplesKey(adminNs);
+    const segmentsKey = redisSegmentsKey(adminNs);
+    const legacyKey = redisLegacyKey(adminNs);
+    const pendingSamples = Array.isArray(hist.__pendingSamples) ? hist.__pendingSamples : [];
+    const replaceAll = opts.forceReplace === true || hist.__replaceAll === true;
+    const segmentsDirty = replaceAll || opts.forceSegments === true || hist.__segmentsDirty === true;
+    const trimmedCount = replaceAll ? 0 : Number(hist.__samplesTrimmed || 0);
+    const totalSamples = Array.isArray(data.samples) ? data.samples.length : 0;
+    let wrote = false;
+
+    try {
+      if (replaceAll) {
+        await redis.del(samplesKey);
+        if (totalSamples > 0) {
+          const payloads = data.samples
+            .map(sample => encryptJSON(sample))
+            .filter(Boolean);
+          if (payloads.length) {
+            await redis.rpush(samplesKey, ...payloads);
+            wrote = true;
+          }
+        } else {
+          wrote = true;
+        }
+      } else {
+        if (pendingSamples.length) {
+          const payloads = pendingSamples
+            .map(sample => encryptJSON(sample))
+            .filter(Boolean);
+          if (payloads.length) {
+            await redis.rpush(samplesKey, ...payloads);
+            wrote = true;
+          }
+        }
+        if (trimmedCount > 0) {
+          if (totalSamples > 0) {
+            await redis.ltrim(samplesKey, -totalSamples, -1);
+          } else {
+            await redis.del(samplesKey);
+          }
+          wrote = true;
+        }
+      }
+
+      if (segmentsDirty) {
+        const payload = encryptJSON(data.segments);
+        if (payload != null) {
+          if (storeTtlSeconds && storeTtlSeconds > 0) await redis.set(segmentsKey, payload, 'EX', storeTtlSeconds);
+          else await redis.set(segmentsKey, payload);
+        } else {
+          await redis.del(segmentsKey);
+        }
+        wrote = true;
+      }
+
+      if (replaceAll) {
+        await redis.del(legacyKey);
+      }
+
+      if (storeTtlSeconds && storeTtlSeconds > 0 && wrote) {
+        await redis.expire(samplesKey, storeTtlSeconds);
+        await redis.expire(segmentsKey, storeTtlSeconds);
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function loadHistoryFromRedis(adminNs) {
+    if (!redis || !adminNs) return null;
+    try {
+      const segmentsRaw = await redis.get(redisSegmentsKey(adminNs));
+      const samplesRaw = await redis.lrange(redisSamplesKey(adminNs), 0, -1);
+      let segments = [];
+      if (segmentsRaw) {
+        const parsed = decryptJSON(segmentsRaw, null);
+        if (Array.isArray(parsed)) segments = parsed;
+      }
+      let samples = [];
+      if (Array.isArray(samplesRaw) && samplesRaw.length) {
+        samples = samplesRaw
+          .map(item => decryptJSON(item, null))
+          .filter(v => v && typeof v === 'object' && Number.isFinite(Number(v.ts)));
+      }
+
+      if (!segmentsRaw && (!samplesRaw || samplesRaw.length === 0)) {
+        const legacy = await (store ? store.get(adminNs, 'stream-history-data', null) : null);
+        if (legacy && typeof legacy === 'object') {
+          const normalized = normalizeHistoryData(legacy);
+          markReplaceAll(normalized);
+          await persistHistoryToRedis(adminNs, normalized, { forceReplace: true });
+          if (store) {
+            try { await store.del(adminNs, 'stream-history-data'); } catch {}
+          }
+          clearPersistenceMarkers(normalized);
+          return normalized;
+        }
+      }
+
+      return normalizeHistoryData({ segments, samples });
+    } catch {
+      return { segments: [], samples: [] };
+    }
+  }
 
   async function resolveAdminNs(req) {
     try {
@@ -464,7 +758,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   async function loadConfigNS(req) {
     if (loadTenantConfig) {
       try {
-        const wrapped = await loadTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json');
+        const wrapped = await loadTenantConfig(req, configStore, CONFIG_FILE, 'stream-history-config.json');
         if (wrapped && wrapped.data && typeof wrapped.data.claimid === 'string') {
           return { claimid: wrapped.data.claimid };
         }
@@ -502,12 +796,12 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const claimid = (cfg.claimid || '').trim();
     if (saveTenantConfig) {
       try {
-        await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', { claimid });
+        await saveTenantConfig(req, configStore, CONFIG_FILE, 'stream-history-config.json', { claimid });
         return true;
       } catch {}
     }
     const adminNs = await resolveAdminNs(req);
-    if (store && adminNs) {
+    if (!forceFileStore && store && adminNs) {
       try {
         await store.set(adminNs, 'stream-history-config', { claimid });
         await rememberNamespace(adminNs, claimid);
@@ -519,7 +813,13 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   async function loadHistoryNS(req) {
     const adminNs = await resolveAdminNs(req);
-    if (store && adminNs) {
+    if (!forceFileStore && redis && adminNs) {
+      const hist = await loadHistoryFromRedis(adminNs);
+      closeStaleOpenSegment(hist);
+      clearPersistenceMarkers(hist);
+      return hist;
+    }
+    if (!forceFileStore && store && adminNs) {
       try {
         const j = await store.get(adminNs, 'stream-history-data', null);
         const hist = j && typeof j === 'object' ? j : { segments: [], samples: [] };
@@ -527,24 +827,57 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         if (!Array.isArray(hist.samples)) hist.samples = [];
 
         closeStaleOpenSegment(hist);
+        clearPersistenceMarkers(hist);
         return hist;
       } catch { return { segments: [], samples: [] }; }
     }
-    const fileHist = loadHistoryFromFile(DATA_FILE);
+    const historyFile = getHistoryFilePath(adminNs);
+    const fileHist = loadHistoryFromFile(historyFile);
     closeStaleOpenSegment(fileHist);
+    clearPersistenceMarkers(fileHist);
     return fileHist;
   }
 
   async function saveHistoryNS(req, data) {
     const adminNs = await resolveAdminNs(req);
-    if (store && adminNs) {
-      try { await store.set(adminNs, 'stream-history-data', data); return true; } catch { return false; }
+    if (!forceFileStore && redis && adminNs) {
+      const ok = await persistHistoryToRedis(adminNs, data);
+      if (ok) clearPersistenceMarkers(data);
+      return ok;
     }
-    try { saveHistoryToFile(DATA_FILE, data); return true; } catch { return false; }
+    if (!forceFileStore && store && adminNs) {
+      try {
+        await store.set(adminNs, 'stream-history-data', data);
+        clearPersistenceMarkers(data);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    const historyFile = getHistoryFilePath(adminNs);
+    try {
+      saveHistoryToFile(historyFile, data);
+      clearPersistenceMarkers(data);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   const DEFAULT_POLL_EVERY_MS = 5000;
-  const BACKGROUND_POLL_MS = Math.max(DEFAULT_POLL_EVERY_MS, Number(process.env.GETTY_STREAM_HISTORY_BACKGROUND_MS || DEFAULT_POLL_EVERY_MS));
+  const MIN_BACKGROUND_POLL_MS = DEFAULT_POLL_EVERY_MS;
+  const DEFAULT_BACKGROUND_POLL_MS = 15000;
+  const envBackgroundMs = Number(process.env.GETTY_STREAM_HISTORY_BACKGROUND_MS);
+  const optionBackgroundMs = Number(options.backgroundPollMs);
+  const requestedBackgroundMs = Number.isFinite(envBackgroundMs)
+    ? envBackgroundMs
+    : (Number.isFinite(optionBackgroundMs) ? optionBackgroundMs : NaN);
+  const BACKGROUND_POLL_MS = Number.isFinite(requestedBackgroundMs)
+    ? Math.max(MIN_BACKGROUND_POLL_MS, Math.floor(requestedBackgroundMs))
+    : DEFAULT_BACKGROUND_POLL_MS;
+  if (STREAM_HISTORY_MAX_SAMPLES_OVERRIDE == null) {
+    setStreamHistorySampleCap(Math.ceil(86400000 / BACKGROUND_POLL_MS));
+  }
   const bgPollers = new Map();
   const STREAM_HISTORY_NS_SET = 'getty:stream-history:namespaces';
   const STREAM_HISTORY_HEALTH_KEY = 'getty:stream-history:health';
@@ -571,7 +904,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   }
 
   async function rememberNamespace(adminNs, claimId) {
-    if (!store || !store.redis) return;
+    if (forceFileStore || !store || !store.redis) return;
     if (!adminNs) return;
     const trimmed = typeof claimId === 'string' ? claimId.trim() : '';
     try {
@@ -581,7 +914,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   }
 
   async function recordHealth(key, info) {
-    if (!store || !store.redis || !key) return;
+    if (forceFileStore || !store || !store.redis || !key) return;
     try {
       await store.redis.hset(STREAM_HISTORY_HEALTH_KEY, key, JSON.stringify(info));
     } catch {}
@@ -610,7 +943,11 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         endSegment(hist, nowTs);
       }
       if (!Array.isArray(hist.samples)) hist.samples = [];
-      try { hist.samples.push({ ts: nowTs, live: nowLive, viewers: viewerCount }); } catch {}
+      const sample = { ts: nowTs, live: nowLive, viewers: viewerCount };
+      try {
+        hist.samples.push(sample);
+        markSampleAppended(hist, sample);
+      } catch {}
       truncateSegments(hist);
       await saveHistoryNS(reqLike, hist);
       const successTs = Date.now();
@@ -686,7 +1023,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       } catch {}
 
       const seen = new Set();
-      if (store && store.redis) {
+      if (!forceFileStore && store && store.redis) {
         try {
           const nsFromSet = await store.redis.smembers(STREAM_HISTORY_NS_SET);
           if (Array.isArray(nsFromSet)) nsFromSet.forEach(ns => { if (ns && ns !== 'local') seen.add(ns); });
@@ -747,7 +1084,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
             })
             .catch(() => {});
         }
-        if (store && store.redis) {
+        if (!forceFileStore && store && store.redis) {
           store.redis.smembers(STREAM_HISTORY_NS_SET)
             .then((nsList) => {
               if (!Array.isArray(nsList)) return;
@@ -839,22 +1176,26 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         } catch {}
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
-  const live = !!req.body?.live;
+      const live = !!req.body?.live;
       const at = typeof req.body?.at === 'number' ? req.body.at : Date.now();
-  const viewers = (() => { const v = Number(req.body?.viewers); return isNaN(v) || v < 0 ? 0 : Math.floor(v); })();
-  const hist = await loadHistoryNS(req);
-  if (!Array.isArray(hist.samples)) hist.samples = [];
+      const viewers = (() => { const v = Number(req.body?.viewers); return isNaN(v) || v < 0 ? 0 : Math.floor(v); })();
+      const hist = await loadHistoryNS(req);
+      if (!Array.isArray(hist.samples)) hist.samples = [];
       const last = hist.segments[hist.segments.length - 1];
       const isOpen = last && !last.end;
       if (live) {
         if (!isOpen) startSegment(hist, at);
-      } else {
-        if (isOpen) endSegment(hist, at);
+      } else if (isOpen) {
+        endSegment(hist, at);
       }
 
-  try { hist.samples.push({ ts: at, live: !!live, viewers }); } catch {}
+      const sample = { ts: at, live: !!live, viewers };
+      try {
+        hist.samples.push(sample);
+        markSampleAppended(hist, sample);
+      } catch {}
       truncateSegments(hist);
-  await saveHistoryNS(req, hist);
+      await saveHistoryNS(req, hist);
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: 'failed_to_record', details: e?.message }); }
   });
@@ -916,7 +1257,9 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (!last || last.end) return res.status(400).json({ error: 'no_open_segment' });
       const targetStart = Date.now() - hours * 3600000;
       if (typeof last.start !== 'number' || isNaN(last.start)) last.start = Date.now();
+      const prevStart = last.start;
       last.start = Math.min(last.start, targetStart);
+      if (last.start !== prevStart) markSegmentsDirty(hist);
       truncateSegments(hist);
   await saveHistoryNS(req, hist);
       return res.json({ ok: true, start: last.start });
@@ -939,6 +1282,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
   const empty = { segments: [], samples: [] };
+  markReplaceAll(empty);
   await saveHistoryNS(req, empty);
       return res.json({ ok: true });
     } catch (e) {
@@ -986,6 +1330,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       truncateSegments(data);
       if (!data.segments.length && hadSegments) data.segments = safeSegments;
       if (!data.samples.length && hadSamples) data.samples = safeSamples;
+      markReplaceAll(data);
       await saveHistoryNS(req, data);
       return res.json({ ok: true, segments: data.segments.length, samples: data.samples.length });
     } catch (e) {
@@ -1047,6 +1392,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           const closeAt = lastTs > 0 ? lastTs : (now - FRESH_MS);
           if (typeof seg.start === 'number' && closeAt >= seg.start) {
             seg.end = closeAt;
+            markSegmentsDirty(hist);
             await saveHistoryNS(req, hist);
           }
         }

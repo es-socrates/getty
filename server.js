@@ -236,7 +236,9 @@ try {
   }
 } catch {}
 const store = new NamespacedStore({ redis: redisClient, ttlSeconds: parseInt(process.env.SESSION_TTL_SECONDS || '259200', 10) });
+const historyStore = new NamespacedStore({ redis: redisClient, ttlSeconds: 0 });
 try { app.set('store', store); } catch {}
+try { app.set('historyStore', historyStore); } catch {}
 try {
   if (process.env.REDIS_URL && !store.redis && process.env.NODE_ENV !== 'test') {
     console.warn('[hosted] REDIS_URL is set but Redis client is not initialized. Check network/VPC/credentials.');
@@ -1510,7 +1512,7 @@ try {
 } catch {}
 
 registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs });
-registerStreamHistoryRoutes(app, limiter, { store, wss });
+registerStreamHistoryRoutes(app, limiter, { store, historyStore, wss });
 
 app.post('/api/chat/start', async (req, res) => {
   try {

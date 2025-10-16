@@ -419,6 +419,7 @@
   "show": "Show",
   "hide": "Hide",
   "welcomeUser": "Welcome, {token}",
+  "welcomeTokenExpired": "Session expired. Please log in again to refresh your dashboard link.",
   "welcomeCaptionTips": "Real-time tip notifications",
   "welcomeCaptionGoals": "Donation goals with celebratory effects",
   "welcomeCaptionChatRaffle": "Live chat overlay and raffles",

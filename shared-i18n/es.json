@@ -421,6 +421,7 @@
   "hide": "Ocultar",
   "welcomeCaptionTips": "Notificaciones de propinas en tiempo real",
   "welcomeUser": "Bienvenido, {token}",
+  "welcomeTokenExpired": "Sesión expirada. Vuelve a iniciar sesión para actualizar el enlace de tu panel.",
   "welcomeCaptionGoals": "Metas de propinas con efectos de celebración",
   "welcomeCaptionChatRaffle": "Overlay de chat en vivo y sorteos",
   "deltaPercentHuge": ">10k%",
