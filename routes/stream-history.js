@@ -4,6 +4,119 @@ const axios = require('axios');
 const crypto = require('crypto');
 const zlib = require('zlib');
 
+const STREAM_DB_ENABLED = process.env.GETTY_STREAM_HISTORY_DB === '1';
+let streamHistoryDb = null;
+let STREAM_DB_READY = false;
+
+if (STREAM_DB_ENABLED) {
+  try {
+    streamHistoryDb = require('../lib/db/stream-history');
+    STREAM_DB_READY = true;
+  } catch (err) {
+    console.error('[stream-history][db] failed to load Timescale helpers', err);
+  }
+}
+
+const ensuredTenantCache = new Map();
+
+function tenantIdForNamespace(adminNs) {
+  return adminNs || 'global';
+}
+
+async function maybeEnsureTenant(adminNs, claimId = null, pubNamespace = null) {
+  if (!STREAM_DB_READY) return null;
+  const tenantId = tenantIdForNamespace(adminNs);
+  const normalizedClaim = claimId && typeof claimId === 'string' ? claimId.trim() : null;
+  const normalizedPub = pubNamespace && typeof pubNamespace === 'string' ? pubNamespace.trim() : null;
+  const cache = ensuredTenantCache.get(tenantId);
+  if (cache && cache.claimId === normalizedClaim && cache.pubNamespace === normalizedPub) {
+    return cache.row || null;
+  }
+  try {
+    const row = await streamHistoryDb.ensureTenant({
+      tenantId,
+      claimId: normalizedClaim,
+      adminNamespace: adminNs || null,
+      pubNamespace: normalizedPub || null
+    });
+    ensuredTenantCache.set(tenantId, {
+      claimId: row?.claim_id || null,
+      pubNamespace: row?.pub_namespace || null,
+      row: row || null
+    });
+    return row || null;
+  } catch (err) {
+    console.error('[stream-history][db] ensureTenant failed', err);
+    ensuredTenantCache.delete(tenantId);
+    return null;
+  }
+}
+
+async function syncHistoryDb(adminNs, hist, opts = {}) {
+  if (!STREAM_DB_READY || !hist || typeof hist !== 'object') return true;
+  await maybeEnsureTenant(adminNs, opts.claimId || null, opts.pubNamespace || null);
+
+  const replaceAll = hist.__replaceAll === true;
+  const segmentsDirty = hist.__segmentsDirty === true;
+  const trimmed = Number(hist.__samplesTrimmed || 0) > 0;
+  const ingestVersion = opts.ingestVersion || 'v1';
+  const source = opts.source || 'sync';
+  const tenantId = tenantIdForNamespace(adminNs);
+  let ok = true;
+
+  if (replaceAll || segmentsDirty || trimmed) {
+    try {
+      await streamHistoryDb.replaceTenantHistory({
+        tenantId,
+        segments: Array.isArray(hist.segments) ? hist.segments : [],
+        samples: Array.isArray(hist.samples) ? hist.samples : [],
+        source,
+        ingestVersion
+      });
+    } catch (err) {
+      console.error('[stream-history][db] replaceTenantHistory failed', err);
+      ok = false;
+    }
+    return ok;
+  }
+
+  const pending = Array.isArray(hist.__pendingSamples) ? hist.__pendingSamples : [];
+  if (!pending.length) return ok;
+
+  for (const sample of pending) {
+    const ts = Number(sample?.ts);
+    if (!Number.isFinite(ts)) continue;
+    const sampleAt = new Date(ts);
+    const rawViewers = Number(sample?.viewers);
+    const viewers = Number.isFinite(rawViewers) ? rawViewers : 0;
+    try {
+      await streamHistoryDb.recordSample({
+        tenantId,
+        sampleAt,
+        live: !!sample?.live,
+        viewers,
+        payload: sample || null,
+        ingestVersion,
+        sessionId: null
+      });
+    } catch (err) {
+      console.error('[stream-history][db] recordSample failed', err);
+      ok = false;
+    }
+  }
+
+  return ok;
+}
+
+async function maybeSyncHistoryDb(adminNs, hist, opts = {}) {
+  try {
+    return await syncHistoryDb(adminNs, hist, opts);
+  } catch (err) {
+    console.error('[stream-history][db] sync error', err);
+    return false;
+  }
+}
+
 const STREAM_HISTORY_MAX_SAMPLES_OVERRIDE = (() => {
   const raw = Number(process.env.GETTY_STREAM_HISTORY_MAX_SAMPLES);
   if (Number.isFinite(raw) && raw >= 0) return Math.floor(raw);
@@ -978,21 +1091,40 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   async function saveConfigNS(req, cfg) {
     const claimid = (cfg.claimid || '').trim();
-    if (saveTenantConfig) {
+    const adminNs = await resolveAdminNs(req);
+    let saved = false;
+
+    if (saveTenantConfig && !saved) {
       try {
         await saveTenantConfig(req, configStore, CONFIG_FILE, 'stream-history-config.json', { claimid });
-        return true;
+        saved = true;
       } catch {}
     }
-    const adminNs = await resolveAdminNs(req);
-    if (!forceFileStore && store && adminNs) {
+
+    if (!saved && !forceFileStore && store && adminNs) {
       try {
         await store.set(adminNs, 'stream-history-config', { claimid });
         await rememberNamespace(adminNs, claimid);
-        return true;
-      } catch { return false; }
+        saved = true;
+      } catch {
+        return false;
+      }
     }
-    try { fs.writeFileSync(CONFIG_FILE, JSON.stringify({ claimid }, null, 2)); return true; } catch { return false; }
+
+    if (!saved) {
+      try {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify({ claimid }, null, 2));
+        saved = true;
+      } catch {
+        return false;
+      }
+    }
+
+    if (saved) {
+      await maybeEnsureTenant(adminNs, claimid);
+      return true;
+    }
+    return false;
   }
 
   async function loadHistoryNS(req) {
@@ -1022,30 +1154,38 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     return fileHist;
   }
 
-  async function saveHistoryNS(req, data) {
+  async function saveHistoryNS(req, data, syncOptions = {}) {
     const adminNs = await resolveAdminNs(req);
+    let persisted = false;
+
     if (!forceFileStore && redis && adminNs) {
       const ok = await persistHistoryToRedis(adminNs, data);
-      if (ok) clearPersistenceMarkers(data);
-      return ok;
-    }
-    if (!forceFileStore && store && adminNs) {
+      if (!ok) return false;
+      persisted = true;
+    } else if (!forceFileStore && store && adminNs) {
       try {
         await store.set(adminNs, 'stream-history-data', data);
-        clearPersistenceMarkers(data);
-        return true;
+        persisted = true;
+      } catch {
+        return false;
+      }
+    } else {
+      const historyFile = getHistoryFilePath(adminNs);
+      try {
+        saveHistoryToFile(historyFile, data);
+        persisted = true;
       } catch {
         return false;
       }
     }
-    const historyFile = getHistoryFilePath(adminNs);
-    try {
-      saveHistoryToFile(historyFile, data);
+
+    if (!persisted) return false;
+
+    const dbOk = await maybeSyncHistoryDb(adminNs, data, syncOptions);
+    if (dbOk) {
       clearPersistenceMarkers(data);
-      return true;
-    } catch {
-      return false;
     }
+    return true;
   }
 
   const DEFAULT_POLL_EVERY_MS = 5000;
@@ -1133,7 +1273,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         markSampleAppended(hist, sample);
       } catch {}
       truncateSegments(hist);
-      await saveHistoryNS(reqLike, hist);
+      await saveHistoryNS(reqLike, hist, {
+        claimId: cfgClaim,
+        source: 'poller'
+      });
       const successTs = Date.now();
       const entry = bgPollers.get(key);
       if (entry) entry.lastSuccess = successTs;
@@ -1379,7 +1522,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         markSampleAppended(hist, sample);
       } catch {}
       truncateSegments(hist);
-      await saveHistoryNS(req, hist);
+      await saveHistoryNS(req, hist, { source: 'event-api' });
       return res.json({ ok: true });
     } catch (e) { return res.status(500).json({ error: 'failed_to_record', details: e?.message }); }
   });
@@ -1516,8 +1659,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const prevStart = last.start;
       last.start = Math.min(last.start, targetStart);
       if (last.start !== prevStart) markSegmentsDirty(hist);
-      truncateSegments(hist);
-  await saveHistoryNS(req, hist);
+    truncateSegments(hist);
+  await saveHistoryNS(req, hist, { source: 'backfill' });
       return res.json({ ok: true, start: last.start });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_backfill', details: e?.message });
@@ -1539,7 +1682,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
   const empty = { segments: [], samples: [] };
   markReplaceAll(empty);
-  await saveHistoryNS(req, empty);
+  await saveHistoryNS(req, empty, { source: 'clear' });
       return res.json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_clear', details: e?.message });
@@ -1587,7 +1730,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (!data.segments.length && hadSegments) data.segments = safeSegments;
       if (!data.samples.length && hadSamples) data.samples = safeSamples;
       markReplaceAll(data);
-      await saveHistoryNS(req, data);
+  await saveHistoryNS(req, data, { source: 'import-api' });
       return res.json({ ok: true, segments: data.segments.length, samples: data.samples.length });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_import', details: e?.message });
@@ -1649,7 +1792,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           if (typeof seg.start === 'number' && closeAt >= seg.start) {
             seg.end = closeAt;
             markSegmentsDirty(hist);
-            await saveHistoryNS(req, hist);
+            await saveHistoryNS(req, hist, {
+              claimId: cfg.claimid,
+              source: 'status-auto-close'
+            });
           }
         }
       } catch {}
