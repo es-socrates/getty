@@ -31,7 +31,9 @@
     "lint": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --cache --max-warnings=0",
     "lint:fix": "eslint admin-frontend/src modules routes scripts server.js --ext .js,.vue --fix --cache",
     "report:unused-css": "node scripts/unused-css-report.js",
-    "verify:hosted": "node scripts/hosted-verify.js"
+    "verify:hosted": "node scripts/hosted-verify.js",
+    "db:migrate": "node scripts/db-run-migrations.js",
+    "db:import-history": "node scripts/import-stream-history.js"
   },
   "engines": {
     "node": ">=22 <23"
@@ -64,7 +66,8 @@
     "vue-i18n": "^11.1.12",
     "vue-router": "^4.3.0",
     "ws": "^8.13.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "pg": "^8.12.0"
   },
   "devDependencies": {
     "@swc/core": "^1.6.0",
