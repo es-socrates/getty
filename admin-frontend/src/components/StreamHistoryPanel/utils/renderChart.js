@@ -22,6 +22,43 @@ function formatViewerCount(value) {
   }
 }
 
+function formatAverageCount(value) {
+  const safe = Number.isFinite(Number(value)) ? Number(value) : 0;
+  const abs = Math.abs(safe);
+  const digits = abs >= 10 ? 0 : 1;
+  try {
+    return new Intl.NumberFormat(getActiveLocale(), {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(safe);
+  } catch {
+    return safe.toFixed(digits);
+  }
+}
+
+function formatRangeDateString(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  const m = raw.match(/^\s*(\d{4})-(\d{2})-(\d{2})\s*$/);
+  if (!m) return raw;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return raw;
+  const utcDate = new Date(Date.UTC(y, mo - 1, d));
+  if (Number.isNaN(utcDate.getTime())) return raw;
+  try {
+    return new Intl.DateTimeFormat(getActiveLocale(), {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      weekday: 'short',
+      timeZone: 'UTC',
+    }).format(utcDate);
+  } catch {
+    return raw;
+  }
+}
+
 function formatSignedCount(value) {
   const safe = Number.isFinite(Number(value)) ? Number(value) : 0;
   const rounded = Math.round(safe);
@@ -200,14 +237,92 @@ function renderStreamHistoryChart(el, data, {
   };
   const fmtX = (bucket) => {
     try {
+      if (period === 'week' && Number.isFinite(Number(bucket?.rangeStartEpoch))) {
+        const offset = Number(bucket?.tzOffsetMinutes || 0);
+        const startDate = new Date(Number(bucket.rangeStartEpoch) + offset * 60000);
+        if (!Number.isNaN(startDate.getTime())) return String(startDate.getDate()).padStart(2, '0');
+      }
       const d = dateFromBucket(bucket);
       if (d) {
-        if (['day', 'week'].includes(period)) return String(d.getDate()).padStart(2, '0');
+        if (period === 'day') return String(d.getDate()).padStart(2, '0');
+        if (period === 'week') return String(d.getDate()).padStart(2, '0');
         return d.toLocaleDateString(undefined, { month: 'short' });
       }
     } catch {}
     const s = bucket && bucket.date ? bucket.date : '';
     return s.slice(0, 6);
+  };
+
+  const getBucketOffset = (bucket) => {
+    const offsetVal = Number(bucket?.tzOffsetMinutes || 0);
+    return Number.isFinite(offsetVal) ? offsetVal : 0;
+  };
+  const formatEpochWithOffset = (epoch, bucket, fallbackDate) => {
+    const offsetMinutes = getBucketOffset(bucket);
+    if (Number.isFinite(epoch)) {
+      try {
+        const d = new Date(Number(epoch) + offsetMinutes * 60000);
+        if (!Number.isNaN(d.getTime())) {
+          try {
+            return new Intl.DateTimeFormat(getActiveLocale(), {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              weekday: 'short',
+            }).format(d);
+          } catch {
+            return d.toDateString();
+          }
+        }
+      } catch {}
+    }
+    if (typeof fallbackDate === 'string' && fallbackDate) {
+      const formatted = formatRangeDateString(fallbackDate);
+      if (formatted) return formatted;
+    }
+    return null;
+  };
+  const formatRangeTitle = (bucket) => {
+    let startLabel = null;
+    let endLabel = null;
+
+    if (typeof bucket?.rangeStartDate === 'string' && bucket.rangeStartDate) {
+      startLabel = formatRangeDateString(bucket.rangeStartDate);
+    }
+    if (!startLabel) {
+      startLabel = formatEpochWithOffset(bucket?.rangeStartEpoch, bucket, null);
+    }
+    if (typeof bucket?.rangeEndDate === 'string' && bucket.rangeEndDate) {
+      endLabel = formatRangeDateString(bucket.rangeEndDate);
+    }
+    if (!endLabel) {
+      endLabel = formatEpochWithOffset(bucket?.rangeEndEpoch, bucket, null);
+    }
+    if (startLabel && endLabel) {
+      if (startLabel === endLabel) return startLabel;
+      try {
+        return t('chartTooltipRange', { start: startLabel, end: endLabel });
+      } catch {
+        return `${startLabel} – ${endLabel}`;
+      }
+    }
+    return startLabel || endLabel || fmtDate(bucket);
+  };
+  const buildTooltipHtml = (bucket, hoursValue, avgViewersValue) => {
+    const hoursSafe = Number(hoursValue || 0);
+    const avgVal = Number.isFinite(Number(avgViewersValue)) ? Number(avgViewersValue) : Number(bucket?.avgViewers || 0);
+    const peakVal = Number(bucket?.peakViewers || 0);
+    const title = formatRangeTitle(bucket);
+    const hoursLabel = (() => {
+      try { return formatHours ? formatHours(hoursSafe) : hoursSafe.toFixed(2); } catch { return hoursSafe.toFixed(2); }
+    })();
+    let html = `<div class="tip-title">${title}</div>`;
+    html += `<div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${hoursLabel}</div>`;
+    html += `<div class="tip-viewers">${t('chartTooltipParticipants')} ${formatAverageCount(avgVal)}</div>`;
+    if (peakVal > 0) {
+      html += `<div class="tip-viewers">${t('chartTooltipPeakParticipants')} ${formatViewerCount(peakVal)}</div>`;
+    }
+    return html;
   };
 
   if (mode === 'line') {
@@ -366,13 +481,13 @@ function renderStreamHistoryChart(el, data, {
       } else {
         c.style.opacity = '1';
       }
-      c.addEventListener('mouseenter', (e) => {
-      const title = fmtDate(p);
-        tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(hoursValue)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${avgViewersValue.toFixed(1)}</div>`;
+      const showTip = (e) => {
+        tip.innerHTML = buildTooltipHtml(p, hoursValue, avgViewersValue);
         tip.style.display = 'block';
         placeTipFromMouse(e, hoursValue === 0);
-      });
-      c.addEventListener('mousemove', (e) => placeTipFromMouse(e, hoursValue === 0));
+      };
+      c.addEventListener('mouseenter', showTip);
+      c.addEventListener('mousemove', showTip);
       c.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
       svg.appendChild(c);
       if (animateLine) {
@@ -393,9 +508,9 @@ function renderStreamHistoryChart(el, data, {
           cv.style.opacity = '1';
         }
         const show = (e) => {
-          const title = fmtDate(p);
-          tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(hoursValue)}</div><div class="tip-viewers">${t('chartTooltipAverageViewers')} ${avgViewersValue.toFixed(1)}</div>`;
-          tip.style.display = 'block'; placeTipFromMouse(e, hoursValue === 0);
+          tip.innerHTML = buildTooltipHtml(p, hoursValue, avgViewersValue);
+          tip.style.display = 'block';
+          placeTipFromMouse(e, hoursValue === 0);
         };
         cv.addEventListener('mouseenter', show);
         cv.addEventListener('mousemove', show);
@@ -500,11 +615,24 @@ function renderStreamHistoryChart(el, data, {
   const bottomAxis = 24; const padY = 10; const innerHeight = Math.max(1, h - bottomAxis - padY * 2); container.style.height = innerHeight + 'px'; container.style.marginTop = padY + 'px';
   const maxVal = maxHours; const available = innerHeight;
   display.forEach((d, idx) => {
-    const v = d.hours || 0; const bh = Math.round((v / maxVal) * available);
-  const bar = document.createElement('div');
-    bar.style.width = barW + 'px'; bar.style.height = Math.max(2, bh) + 'px';
+    const v = d.hours || 0;
+    const bh = Math.round((v / maxVal) * available);
+    const bar = document.createElement('div');
+    bar.style.width = barW + 'px';
+    bar.style.height = Math.max(2, bh) + 'px';
     const ariaTitle = (() => {
-      try { const label = fmtDate(d); return `${label ? label + '. ' : ''}${t('chartTooltipHoursStreamed')} ${formatHours(v)}${showViewers ? `. ${t('chartTooltipAverageViewers')} ${Number(d.avgViewers || 0).toFixed(1)}` : ''}`; } catch { return ''; }
+      try {
+        const fragments = [];
+        const rangeTitle = formatRangeTitle(d);
+        if (rangeTitle) fragments.push(rangeTitle);
+        fragments.push(`${t('chartTooltipHoursStreamed')} ${formatHours ? formatHours(v) : v}`);
+        fragments.push(`${t('chartTooltipParticipants')} ${formatAverageCount(Number(d.avgViewers || 0))}`);
+        const peakVal = Number(d.peakViewers || 0);
+        if (peakVal > 0) fragments.push(`${t('chartTooltipPeakParticipants')} ${formatViewerCount(peakVal)}`);
+        return fragments.join('. ');
+      } catch {
+        return '';
+      }
     })();
     if (ariaTitle) { bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', ariaTitle); }
     const meetsGoal = goal > 0 && v >= goal;
@@ -534,7 +662,13 @@ function renderStreamHistoryChart(el, data, {
       }
       bar.appendChild(wrap);
     }
-  const show = (e) => { try { const title = fmtDate(d); const vv = Number(d.avgViewers||0).toFixed(1); tip.innerHTML = `<div class="tip-title">${title}</div><div class="tip-subtle">${t('chartTooltipHoursStreamed')} ${formatHours(v)}</div>${showViewers ? `<div class="tip-viewers">${t('chartTooltipAverageViewers')} ${vv}</div>`:''}`; tip.style.display = 'block'; placeTipFromMouse(e, v === 0); } catch {} };
+    const show = (e) => {
+      try {
+        tip.innerHTML = buildTooltipHtml(d, v, Number(d.avgViewers || 0));
+        tip.style.display = 'block';
+        placeTipFromMouse(e, v === 0);
+      } catch {}
+    };
     const hide = () => { tip.style.display = 'none'; };
     bar.addEventListener('mouseenter', show);
     bar.addEventListener('mousemove', show);

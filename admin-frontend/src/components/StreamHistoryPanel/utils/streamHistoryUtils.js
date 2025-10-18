@@ -32,17 +32,42 @@ function usdFromAr(arAmount, usdRate) {
   return a * r;
 }
 
+function getBucketTimestamp(bucket) {
+  if (!bucket) return null;
+  const { epoch, date } = bucket;
+  const epochNumber = Number(epoch);
+  if (Number.isFinite(epochNumber)) return epochNumber;
+  if (typeof date === 'string' && date) {
+    const parsed = Date.parse(date);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return null;
+}
+
 function buildDisplayData(source) {
-  const arr = Array.isArray(source) ? [...source] : [];
-  let i = 0;
-  while (i < arr.length && (!arr[i] || !arr[i].hours || arr[i].hours === 0)) i++;
-  if (i === 0) return arr;
-  if (i >= arr.length) return arr;
-  const trimmed = arr.slice(i);
-  const removed = i;
-  const display = [...trimmed];
-  for (let k = 0; k < removed; k++) display.push({ hours: 0, date: '' });
-  return display;
+  const arr = Array.isArray(source) ? source.filter((item) => item != null) : [];
+  if (arr.length === 0) return [];
+
+  const withMeta = arr.map((item, idx) => ({ item, idx, ts: getBucketTimestamp(item) }));
+
+  withMeta.sort((a, b) => {
+    const { ts: ta } = a;
+    const { ts: tb } = b;
+    if (ta == null && tb == null) return a.idx - b.idx;
+    if (ta == null) return a.idx - b.idx;
+    if (tb == null) return a.idx - b.idx;
+    if (ta === tb) return a.idx - b.idx;
+    return ta - tb;
+  });
+
+  const now = Date.now();
+  const FUTURE_TOLERANCE_MS = 6 * 3600 * 1000;
+  const filtered = withMeta
+    .filter(({ ts }) => ts == null || ts <= now + FUTURE_TOLERANCE_MS)
+    .map(({ item }) => item);
+
+  if (filtered.length > 0) return filtered;
+  return withMeta.map(({ item }) => item);
 }
 
 export { formatHours, formatTotalHours, usdFromAr, buildDisplayData };

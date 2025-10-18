@@ -348,156 +348,340 @@ function extendIntervalsWithSegments(intervals, segments, opts = {}) {
   return mergeIntervals(out);
 }
 
-function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
+function formatLocalDateParts(epoch, offsetMinutes) {
+  if (!Number.isFinite(epoch)) return null;
+  const local = new Date(epoch + (offsetMinutes || 0) * 60000);
+  if (Number.isNaN(local.getTime())) return null;
+  return {
+    year: local.getUTCFullYear(),
+    month: String(local.getUTCMonth() + 1).padStart(2, '0'),
+    day: String(local.getUTCDate()).padStart(2, '0'),
+  };
+}
+
+function formatLocalDateYMD(epoch, offsetMinutes) {
+  const parts = formatLocalDateParts(epoch, offsetMinutes);
+  if (!parts) return '';
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function formatLocalYearMonth(epoch, offsetMinutes) {
+  const parts = formatLocalDateParts(epoch, offsetMinutes);
+  if (!parts) return '';
+  return `${parts.year}-${parts.month}`;
+}
+
+function formatLocalYear(epoch, offsetMinutes) {
+  const parts = formatLocalDateParts(epoch, offsetMinutes);
+  if (!parts) return '';
+  return String(parts.year);
+}
+
+function parseLocalDateYMD(dateStr, offsetMinutes) {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  const m = trimmed.match(/^\d{4}-\d{2}-\d{2}$/);
+  if (!m) return null;
+  const year = Number(trimmed.slice(0, 4));
+  const month = Number(trimmed.slice(5, 7)) - 1;
+  const day = Number(trimmed.slice(8, 10));
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+  if (month < 0 || month > 11) return null;
+  const utc = Date.UTC(year, month, day);
+  if (!Number.isFinite(utc)) return null;
+  const offset = (offsetMinutes || 0) * 60000;
+  const epoch = utc - offset;
+  const checkParts = formatLocalDateParts(epoch, offsetMinutes || 0);
+  if (!checkParts) return null;
+  if (checkParts.year !== year) return null;
+  if (checkParts.month !== String(month + 1).padStart(2, '0')) return null;
+  if (checkParts.day !== String(day).padStart(2, '0')) return null;
+  return epoch;
+}
+
+function computeBucketEndEpoch(bucketStartEpoch, bucketPeriod, offsetMinutes) {
+  const offset = offsetMinutes || 0;
+  const startLocal = bucketStartEpoch + offset * 60000;
+  const startDate = new Date(startLocal);
+  const year = startDate.getUTCFullYear();
+  const month = startDate.getUTCMonth();
+  const day = startDate.getUTCDate();
+  let endLocal;
+  if (bucketPeriod === 'week') {
+    endLocal = Date.UTC(year, month, day + 7);
+  } else if (bucketPeriod === 'month') {
+    endLocal = Date.UTC(year, month + 1, 1);
+  } else if (bucketPeriod === 'year') {
+    endLocal = Date.UTC(year + 1, 0, 1);
+  } else {
+    endLocal = startLocal + 86400000;
+  }
+  return endLocal - offset * 60000;
+}
+
+function computeRangeEndEpoch(bucketStartEpoch, bucketPeriod, offsetMinutes) {
+  const offset = offsetMinutes || 0;
+  const startLocal = bucketStartEpoch + offset * 60000;
+  const startDate = new Date(startLocal);
+  const year = startDate.getUTCFullYear();
+  const month = startDate.getUTCMonth();
+  const day = startDate.getUTCDate();
+  let endLocal;
+  if (bucketPeriod === 'week') {
+    endLocal = Date.UTC(year, month, day + 6);
+  } else if (bucketPeriod === 'month') {
+    endLocal = Date.UTC(year, month + 1, 0);
+  } else if (bucketPeriod === 'year') {
+    endLocal = Date.UTC(year, 11, 31);
+  } else {
+    endLocal = startLocal;
+  }
+  return endLocal - offset * 60000;
+}
+
+function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options = {}) {
   const offset = tzOffsetMinutes || 0;
-  const nowTs = Date.now();
-  const todayStart = dayStartUTC(nowTs, offset);
-  if (period === 'day') {
-    const buckets = [];
-    const fmtYMD = (dayStart) => {
-      const dLocal = new Date(dayStart + offset * 60000);
-      const y = dLocal.getFullYear();
-      const m = String(dLocal.getMonth() + 1).padStart(2, '0');
-      const dd = String(dLocal.getDate()).padStart(2, '0');
-      return `${y}-${m}-${dd}`;
-    };
-    for (let i = span - 1; i >= 0; i--) {
-      const dayStart = todayStart - i * 86400000;
-      buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0 });
+  const windowEndOverride = Number.isFinite(options?.windowEndEpoch)
+    ? Number(options.windowEndEpoch)
+    : null;
+  const runtimeNow = Date.now();
+  const anchorNow = windowEndOverride != null ? windowEndOverride : runtimeNow;
+  const todayStart = dayStartUTC(anchorNow, offset);
+  const span = Math.max(1, Math.floor(Number(spanDays) || 0));
+  const buckets = [];
+  const fmtYMD = (dayStart) => formatLocalDateYMD(dayStart, offset);
+  for (let i = span - 1; i >= 0; i--) {
+    const dayStart = todayStart - i * 86400000;
+    buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0, peak: 0 });
+  }
+  if (!buckets.length) return [];
+  const bmap = new Map(buckets.map(b => [b.key, b]));
+  const rangeStart = buckets[0].key;
+  const rangeEndCandidate = buckets[buckets.length - 1].key + 86400000;
+  const rangeEnd = windowEndOverride != null
+    ? Math.min(rangeEndCandidate, windowEndOverride + 1)
+    : rangeEndCandidate;
+
+  const clampCandidate = windowEndOverride != null ? Math.min(windowEndOverride, rangeEnd) : rangeEnd;
+  const clampNow = Math.max(rangeStart, Math.min(runtimeNow, clampCandidate));
+
+  const segments = sanitizeSegments(hist.segments, clampNow);
+  const samples = sortSamples(hist.samples);
+  const liveIntervals = buildLiveIntervals(samples, clampNow);
+  const paddedIntervals = extendIntervalsWithSegments(liveIntervals, segments, {
+    maxPadMs: 2 * 3600000,
+    padRatio: 1,
+    padExtraMs: 5 * 60000,
+  });
+  const hasLiveSamples = samples.some(s => s && s.live);
+
+  let liveMsFromIntervals = 0;
+  for (const interval of paddedIntervals) {
+    const s = Math.max(rangeStart, interval.start);
+    const e = Math.min(rangeEnd, interval.end);
+    if (e <= s) continue;
+    liveMsFromIntervals += (e - s);
+    for (const part of splitSpanByDayTz(s, e, offset)) {
+      const b = bmap.get(part.day);
+      if (b) b.ms += part.ms;
     }
-    const bmap = new Map(buckets.map(b => [b.key, b]));
-    const rangeStart = buckets[0]?.key ?? todayStart;
-    const rangeEnd = (buckets[buckets.length - 1]?.key ?? todayStart) + 86400000;
+  }
 
-    const segments = sanitizeSegments(hist.segments, nowTs);
-    const samples = sortSamples(hist.samples);
-    const liveIntervals = buildLiveIntervals(samples, nowTs);
-    const paddedIntervals = extendIntervalsWithSegments(liveIntervals, segments, {
-      maxPadMs: 2 * 3600000,
-      padRatio: 1,
-      padExtraMs: 5 * 60000,
-    });
-    const hasLiveSamples = samples.some(s => s && s.live);
-
-    let liveMsFromIntervals = 0;
-    for (const interval of paddedIntervals) {
-      const s = Math.max(rangeStart, interval.start);
-      const e = Math.min(rangeEnd, interval.end);
+  if (liveMsFromIntervals === 0 && !hasLiveSamples) {
+    for (const seg of segments) {
+      const s = Math.max(seg.start, rangeStart);
+      const e = Math.min(seg.end, rangeEnd);
       if (e <= s) continue;
-      liveMsFromIntervals += (e - s);
       for (const part of splitSpanByDayTz(s, e, offset)) {
         const b = bmap.get(part.day);
         if (b) b.ms += part.ms;
       }
     }
+  }
 
-    if (liveMsFromIntervals === 0 && !hasLiveSamples) {
-      for (const seg of segments) {
-        const s = Math.max(seg.start, rangeStart);
-        const e = Math.min(seg.end, rangeEnd);
-        if (e <= s) continue;
-        for (const part of splitSpanByDayTz(s, e, offset)) {
+  try {
+    for (let i = 0; i < samples.length; i++) {
+      const cur = samples[i];
+      const next = samples[i + 1] || null;
+      const curTs = Number(cur?.ts || 0);
+  const nextTs = Number(next ? next.ts : clampNow);
+      if (!isFinite(curTs) || !isFinite(nextTs)) continue;
+      const t0 = Math.max(rangeStart, curTs);
+      const t1 = Math.min(rangeEnd, nextTs);
+      if (t1 <= t0) continue;
+      if (cur && cur.live) {
+        const v = Math.max(0, Number(cur.viewers || 0));
+        for (const part of splitSpanByDayTz(t0, t1, offset)) {
           const b = bmap.get(part.day);
-          if (b) b.ms += part.ms;
+          if (!b) continue;
+          const sec = Math.max(0, part.ms / 1000);
+          b.vsec += v * sec;
+          b.lsec += sec;
+          if (Number.isFinite(v)) b.peak = Math.max(b.peak || 0, v);
         }
       }
     }
+  } catch {}
 
-    try {
-      for (let i = 0; i < samples.length; i++) {
-        const cur = samples[i];
-        const next = samples[i + 1] || null;
-        const curTs = Number(cur?.ts || 0);
-        const nextTs = Number(next ? next.ts : nowTs);
-        if (!isFinite(curTs) || !isFinite(nextTs)) continue;
-        const t0 = Math.max(rangeStart, curTs);
-        const t1 = Math.min(rangeEnd, nextTs);
-        if (t1 <= t0) continue;
-        if (cur && cur.live) {
-          const v = Math.max(0, Number(cur.viewers || 0));
-          for (const part of splitSpanByDayTz(t0, t1, offset)) {
-            const b = bmap.get(part.day);
-            if (!b) continue;
-            const sec = Math.max(0, part.ms / 1000);
-            b.vsec += v * sec;
-            b.lsec += sec;
-          }
-        }
-      }
-    } catch {}
-    return buckets.map(b => ({
-      date: b.label,
-      epoch: b.key,
-      tzOffsetMinutes: offset,
-      hours: +(b.ms / 3600000).toFixed(2),
-      avgViewers: b.lsec > 0 ? +(b.vsec / b.lsec).toFixed(2) : 0,
-    }));
-  }
-
-  const dailySpan = span * (period === 'week' ? 7 : period === 'month' ? 30 : 365);
-  const daily = aggregate(hist, 'day', dailySpan, offset);
-
-  const map = new Map();
-  function localDateFromEpoch(epoch) { return new Date(epoch + offset * 60000); }
-  for (const item of daily) {
-    const dLocal = localDateFromEpoch(item.epoch);
-    let keyEpoch;
-    let label;
-    if (period === 'week') {
-      const dow = (dLocal.getDay() + 6) % 7;
-      const weekStartLocal = new Date(dLocal.getFullYear(), dLocal.getMonth(), dLocal.getDate() - dow).getTime();
-      keyEpoch = weekStartLocal - offset * 60000;
-      const wd = new Date(weekStartLocal);
-      const y = wd.getFullYear();
-      const m = String(wd.getMonth() + 1).padStart(2, '0');
-      const dd = String(wd.getDate()).padStart(2, '0');
-      label = `${y}-${m}-${dd}`;
-    } else if (period === 'month') {
-      const monthStartLocal = new Date(dLocal.getFullYear(), dLocal.getMonth(), 1).getTime();
-      keyEpoch = monthStartLocal - offset * 60000;
-      const ms = new Date(monthStartLocal);
-      const y = ms.getFullYear();
-      const m = String(ms.getMonth() + 1).padStart(2, '0');
-      label = `${y}-${m}`;
-    } else { // year
-      const yearStartLocal = new Date(dLocal.getFullYear(), 0, 1).getTime();
-      keyEpoch = yearStartLocal - offset * 60000;
-      const ys = new Date(yearStartLocal);
-      label = `${ys.getFullYear()}`;
-    }
-    const cur = map.get(keyEpoch) || { hours: 0, vsec: 0, lsec: 0, label, epoch: keyEpoch };
-    cur.hours += Number(item.hours || 0);
-    const inferredLsec = Math.max(0, Number(item.hours || 0)) * 3600;
-    if (inferredLsec > 0 && isFinite(Number(item.avgViewers || 0))) {
-      cur.vsec += Number(item.avgViewers) * inferredLsec;
-      cur.lsec += inferredLsec;
-    }
-    map.set(keyEpoch, cur);
-  }
-  const arr = Array.from(map.values()).map(v => ({
-    date: v.label,
-    epoch: v.epoch,
+  return buckets.map(b => ({
+    date: b.label,
+    epoch: b.key,
     tzOffsetMinutes: offset,
-    hours: +Number(v.hours || 0).toFixed(2),
-    avgViewers: v.lsec > 0 ? +Number(v.vsec / v.lsec).toFixed(2) : 0,
+    hours: +(b.ms / 3600000).toFixed(2),
+    avgViewers: b.lsec > 0 ? +(b.vsec / b.lsec).toFixed(2) : 0,
+    peakViewers: Number(b.peak || 0),
+    bucketStartEpoch: b.key,
+    bucketEndEpoch: computeBucketEndEpoch(b.key, 'day', offset),
+    bucketLabel: b.label,
+    rangeStartEpoch: b.key,
+    rangeEndEpoch: computeRangeEndEpoch(b.key, 'day', offset),
+    rangeStartDate: formatLocalDateYMD(b.key, offset),
+    rangeEndDate: formatLocalDateYMD(b.key, offset),
   }));
-  arr.sort((a, b) => a.epoch - b.epoch);
-  return arr.slice(-span);
 }
 
-function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0) {
+function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options = {}) {
   const offset = tzOffsetMinutes || 0;
-  const nowTs = Date.now();
-  const todayStart = dayStartUTC(nowTs, offset);
+  const bucketPeriod = options.bucketPeriod || period;
+  const normalizedSpan = Math.max(1, Math.floor(Number(span) || 0));
+  if (bucketPeriod === 'day' && period === 'day') {
+    return aggregateDailyBuckets(hist, normalizedSpan, offset, options);
+  }
+
+  const daysPerUnit = period === 'day' ? 1 : (period === 'week' ? 7 : (period === 'month' ? 30 : 365));
+  const totalDays = normalizedSpan * daysPerUnit;
+  const daily = aggregateDailyBuckets(hist, totalDays, offset, options);
+  if (bucketPeriod === 'day') {
+    return daily;
+  }
+
+  const map = new Map();
+  const localFromEpoch = (epoch) => new Date(epoch + offset * 60000);
+
+  for (const item of daily) {
+    const dayEpoch = Number(item?.epoch);
+    if (!Number.isFinite(dayEpoch)) continue;
+    const dLocal = localFromEpoch(dayEpoch);
+    if (Number.isNaN(dLocal.getTime())) continue;
+
+    let bucketStartLocal;
+    let bucketStartEpoch;
+    let bucketLabel;
+
+    const year = dLocal.getUTCFullYear();
+    const month = dLocal.getUTCMonth();
+    const date = dLocal.getUTCDate();
+
+    if (bucketPeriod === 'week') {
+      const dow = dLocal.getUTCDay();
+      bucketStartLocal = Date.UTC(year, month, date - dow);
+      bucketStartEpoch = bucketStartLocal - offset * 60000;
+      bucketLabel = formatLocalDateYMD(bucketStartEpoch, offset);
+    } else if (bucketPeriod === 'month') {
+      bucketStartLocal = Date.UTC(year, month, 1);
+      bucketStartEpoch = bucketStartLocal - offset * 60000;
+      bucketLabel = formatLocalYearMonth(bucketStartEpoch, offset);
+    } else {
+      bucketStartLocal = Date.UTC(year, 0, 1);
+      bucketStartEpoch = bucketStartLocal - offset * 60000;
+      bucketLabel = formatLocalYear(bucketStartEpoch, offset);
+    }
+
+    const bucketEndEpoch = computeBucketEndEpoch(bucketStartEpoch, bucketPeriod, offset);
+    const rangeEndEpoch = computeRangeEndEpoch(bucketStartEpoch, bucketPeriod, offset);
+
+    const key = bucketStartEpoch;
+    const entry = map.get(key) || {
+      bucketStartEpoch,
+      bucketEndEpoch,
+      bucketLabel,
+      rangeStartEpoch: bucketStartEpoch,
+      rangeEndEpoch,
+      hours: 0,
+      vsec: 0,
+      lsec: 0,
+      peakViewers: 0,
+      firstActiveEpoch: null,
+      lastActiveEpoch: null,
+    };
+
+    const hoursVal = Number(item?.hours || 0);
+    if (Number.isFinite(hoursVal)) entry.hours += hoursVal;
+    const positiveHours = Math.max(0, hoursVal);
+    if (positiveHours > 0) {
+      if (!Number.isFinite(entry.firstActiveEpoch) || dayEpoch < entry.firstActiveEpoch) {
+        entry.firstActiveEpoch = dayEpoch;
+      }
+      if (!Number.isFinite(entry.lastActiveEpoch) || dayEpoch > entry.lastActiveEpoch) {
+        entry.lastActiveEpoch = dayEpoch;
+      }
+    }
+
+    const inferredLsec = positiveHours * 3600;
+    if (inferredLsec > 0 && Number.isFinite(Number(item?.avgViewers || 0))) {
+      const viewers = Number(item.avgViewers);
+      entry.vsec += viewers * inferredLsec;
+      entry.lsec += inferredLsec;
+    }
+
+    const peakCandidate = Number(item?.peakViewers || 0);
+    if (Number.isFinite(peakCandidate)) {
+      entry.peakViewers = Math.max(entry.peakViewers, peakCandidate);
+    }
+
+    map.set(key, entry);
+  }
+
+  const aggregates = Array.from(map.values())
+    .sort((a, b) => a.bucketStartEpoch - b.bucketStartEpoch)
+    .map((entry) => {
+      const anchorEpoch = Number.isFinite(entry.lastActiveEpoch)
+        ? entry.lastActiveEpoch
+        : (Number.isFinite(entry.firstActiveEpoch) ? entry.firstActiveEpoch : entry.bucketStartEpoch);
+      const totalHours = Number(entry.hours || 0);
+      return {
+        date: formatLocalDateYMD(anchorEpoch, offset) || entry.bucketLabel,
+        epoch: anchorEpoch,
+        bucketStartEpoch: entry.bucketStartEpoch,
+        bucketEndEpoch: entry.bucketEndEpoch,
+        bucketLabel: entry.bucketLabel,
+        tzOffsetMinutes: offset,
+        hours: +totalHours.toFixed(2),
+        avgViewers: entry.lsec > 0 ? +Number(entry.vsec / entry.lsec).toFixed(2) : 0,
+        peakViewers: Number(entry.peakViewers || 0),
+        rangeStartEpoch: entry.rangeStartEpoch,
+        rangeEndEpoch: entry.rangeEndEpoch,
+        rangeStartDate: formatLocalDateYMD(entry.rangeStartEpoch, offset),
+        rangeEndDate: formatLocalDateYMD(entry.rangeEndEpoch, offset),
+      };
+    });
+
+  return aggregates.slice(-normalizedSpan);
+}
+
+function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0, options = {}) {
+  const offset = tzOffsetMinutes || 0;
+  const windowEndOverride = Number.isFinite(options?.windowEndEpoch)
+    ? Number(options.windowEndEpoch)
+    : null;
+  const anchorNow = windowEndOverride != null ? windowEndOverride : Date.now();
+  const todayStart = dayStartUTC(anchorNow, offset);
   const days = period === 'day' ? span : (period === 'week' ? span * 7 : (period === 'month' ? span * 30 : span * 365));
   const start = todayStart - (days - 1) * 86400000;
-  const end = todayStart + 86400000;
+  const rangeEndCandidate = todayStart + 86400000;
+  const windowEndExclusive = windowEndOverride != null ? (windowEndOverride + 1) : rangeEndCandidate;
+  const end = Math.max(start, Math.min(rangeEndCandidate, windowEndExclusive));
   return { start, end };
 }
 
-function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0) {
-  const { start, end } = rangeWindow(period, span, tzOffsetMinutes);
-  const nowTs = Date.now();
+function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options = {}) {
+  const { start, end } = rangeWindow(period, span, tzOffsetMinutes, options);
+  const windowEndOverride = Number.isFinite(options?.windowEndEpoch)
+    ? Number(options.windowEndEpoch)
+    : null;
+  const runtimeNow = Date.now();
+  const clampCandidate = windowEndOverride != null ? Math.min(windowEndOverride, end) : end;
+  const nowTs = Math.max(start, Math.min(runtimeNow, clampCandidate));
 
   const segments = sanitizeSegments(hist.segments, nowTs);
   const sortedSamples = sortSamples(hist.samples);
@@ -524,7 +708,7 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
   }
   const hoursStreamed = +(liveMsInRange / 3600000).toFixed(2);
 
-  const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000), tzOffsetMinutes);
+  const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000), tzOffsetMinutes, options);
   const activeDays = daily.filter(d => (d.hours || 0) > 0).length;
 
   let peakViewers = 0;
@@ -1202,23 +1386,95 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   app.get('/api/stream-history/summary', async (req, res) => {
     try {
-      const period = (req.query?.period || 'day').toString();
-      const span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
+      let period = (req.query?.period || 'day').toString();
+      let span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
       let tz = parseInt(req.query?.tz ?? '0', 10); if (isNaN(tz)) tz = 0; tz = Math.max(-840, Math.min(840, tz));
+      const startDateRaw = (req.query?.startDate || '').toString().trim();
+      const endDateRaw = (req.query?.endDate || '').toString().trim();
+      let rangeOverride = null;
+      if (startDateRaw && endDateRaw) {
+        const startEpochRaw = parseLocalDateYMD(startDateRaw, tz);
+        const endEpochRaw = parseLocalDateYMD(endDateRaw, tz);
+        if (Number.isFinite(startEpochRaw) && Number.isFinite(endEpochRaw)) {
+          let startEpoch = Math.min(startEpochRaw, endEpochRaw);
+          let endEpoch = Math.max(startEpochRaw, endEpochRaw) + 86400000 - 1;
+          const nowTs = Date.now();
+          endEpoch = Math.max(startEpoch, Math.min(endEpoch, nowTs));
+          const totalDays = Math.max(1, Math.floor((endEpoch - startEpoch) / 86400000) + 1);
+          if (totalDays <= 120) {
+            period = 'day';
+            span = Math.min(365, totalDays);
+          } else {
+            period = 'week';
+            span = Math.min(365, Math.ceil(totalDays / 7));
+          }
+          rangeOverride = {
+            startEpoch,
+            endEpoch,
+            startDate: formatLocalDateYMD(startEpoch, tz),
+            endDate: formatLocalDateYMD(endEpoch, tz),
+          };
+        }
+      }
       const hist = await loadHistoryNS(req);
-      const data = aggregate(hist, period, span, tz);
-      return res.json({ period, span, tzOffsetMinutes: tz, data });
+      const options = rangeOverride ? { windowEndEpoch: rangeOverride.endEpoch } : {};
+      const data = aggregate(hist, period, span, tz, options);
+      const appliedRange = rangeOverride
+        ? {
+            startDate: rangeOverride.startDate,
+            endDate: rangeOverride.endDate,
+            startEpoch: rangeOverride.startEpoch,
+            endEpoch: rangeOverride.endEpoch,
+          }
+        : null;
+      return res.json({ period, span, tzOffsetMinutes: tz, data, appliedRange });
     } catch (e) { return res.status(500).json({ error: 'failed_to_summarize', details: e?.message }); }
   });
 
   app.get('/api/stream-history/performance', async (req, res) => {
     try {
-      const period = (req.query?.period || 'day').toString();
-      const span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
+      let period = (req.query?.period || 'day').toString();
+      let span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
       let tz = parseInt(req.query?.tz ?? '0', 10); if (isNaN(tz)) tz = 0; tz = Math.max(-840, Math.min(840, tz));
+      const startDateRaw = (req.query?.startDate || '').toString().trim();
+      const endDateRaw = (req.query?.endDate || '').toString().trim();
+      let rangeOverride = null;
+      if (startDateRaw && endDateRaw) {
+        const startEpochRaw = parseLocalDateYMD(startDateRaw, tz);
+        const endEpochRaw = parseLocalDateYMD(endDateRaw, tz);
+        if (Number.isFinite(startEpochRaw) && Number.isFinite(endEpochRaw)) {
+          let startEpoch = Math.min(startEpochRaw, endEpochRaw);
+          let endEpoch = Math.max(startEpochRaw, endEpochRaw) + 86400000 - 1;
+          const nowTs = Date.now();
+          endEpoch = Math.max(startEpoch, Math.min(endEpoch, nowTs));
+          const totalDays = Math.max(1, Math.floor((endEpoch - startEpoch) / 86400000) + 1);
+          if (totalDays <= 120) {
+            period = 'day';
+            span = Math.min(365, totalDays);
+          } else {
+            period = 'week';
+            span = Math.min(365, Math.ceil(totalDays / 7));
+          }
+          rangeOverride = {
+            startEpoch,
+            endEpoch,
+            startDate: formatLocalDateYMD(startEpoch, tz),
+            endDate: formatLocalDateYMD(endEpoch, tz),
+          };
+        }
+      }
       const hist = await loadHistoryNS(req);
-      const perf = computePerformance(hist, period, span, tz);
-      return res.json({ period, span, tzOffsetMinutes: tz, ...perf });
+      const options = rangeOverride ? { windowEndEpoch: rangeOverride.endEpoch } : {};
+      const perf = computePerformance(hist, period, span, tz, options);
+      const appliedRange = rangeOverride
+        ? {
+            startDate: rangeOverride.startDate,
+            endDate: rangeOverride.endDate,
+            startEpoch: rangeOverride.startEpoch,
+            endEpoch: rangeOverride.endEpoch,
+          }
+        : null;
+      return res.json({ period, span, tzOffsetMinutes: tz, appliedRange, ...perf });
     } catch (e) { return res.status(500).json({ error: 'failed_to_compute_performance', details: e?.message }); }
   });
 
@@ -1431,4 +1687,5 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 }
 
 module.exports = registerStreamHistoryRoutes;
+module.exports._testHooks = { aggregate, aggregateDailyBuckets };
 
