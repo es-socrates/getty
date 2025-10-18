@@ -297,99 +297,6 @@
             v-if="!overlayCollapsed"
             class="chart-overlay chart-overlay-popover"
             aria-label="viewer-stats">
-            <div class="overlay-header">
-              <div class="overlay-title flex items-center gap-1.5">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true">
-                  <path
-                    d="M3 12h4l3-7 4 14 3-7h4"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-                <span>{{ t('activity') }}</span>
-              </div>
-              <div v-if="showBackfill" class="overlay-actions" ref="overlayMenuEl">
-                <button
-                  type="button"
-                  class="overlay-action-btn"
-                  :aria-expanded="String(menuOpen)"
-                  :title="t('actions') || 'Actions'"
-                  @click.stop="toggleMenu">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true">
-                    <circle cx="5" cy="12" r="2" fill="currentColor" />
-                    <circle cx="12" cy="12" r="2" fill="currentColor" />
-                    <circle cx="19" cy="12" r="2" fill="currentColor" />
-                  </svg>
-                </button>
-                <div v-if="menuOpen" class="overlay-menu" role="menu">
-                  <div class="overlay-menu-title">
-                    {{ t('streamHistoryBackfillTitle') || 'Backfill current segment' }}
-                  </div>
-                  <button
-                    type="button"
-                    class="overlay-item"
-                    role="menuitem"
-                    @click="onBackfillClick(24)">
-                    +24h
-                  </button>
-                  <button
-                    type="button"
-                    class="overlay-item"
-                    role="menuitem"
-                    @click="onBackfillClick(48)">
-                    +48h
-                  </button>
-                  <button
-                    type="button"
-                    class="overlay-item"
-                    role="menuitem"
-                    @click="onBackfillClick(72)">
-                    +72h
-                  </button>
-                  <div class="overlay-sep"></div>
-                  <button
-                    type="button"
-                    class="overlay-item overlay-danger"
-                    role="menuitem"
-                    @click="onBackfillDismiss">
-                    {{ t('commonClose') }}
-                  </button>
-                </div>
-              </div>
-              <button
-                type="button"
-                class="overlay-toggle"
-                :aria-expanded="String(!overlayCollapsed)"
-                @click="overlayCollapsed = true"
-                aria-label="Collapse">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M6 9l6 6 6-6"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </button>
-            </div>
             <div class="overlay-row">
               <span class="dot dot-teal" aria-hidden="true"></span>
               <span class="ov-label">{{ t('kpiAvgViewers') }}</span>
@@ -408,60 +315,203 @@
           </div>
         </div>
 
-        <div class="relative h-full overflow-hidden rounded-full">
-          <select
-            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
-            v-model="filterQuick"
-            @change="onQuickFilterChange"
-            aria-label="Quick period">
-            <option value="day">{{ t('quickToday') }}</option>
-            <option value="week">{{ t('quickThisWeek') }}</option>
-            <option value="month">{{ t('quickThisMonth') }}</option>
-            <option value="year">{{ t('quickThisYear') }}</option>
-          </select>
-          <svg
-            class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2"
-            width="17"
-            height="16"
-            viewBox="0 0 17 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M13.1673 6L8.50065 10.6667L3.83398 6"
-              stroke="#0C1523"
-              stroke-width="1.5"
+        <div class="relative flex items-center gap-1">
+          <button
+            ref="calendarTriggerRef"
+            type="button"
+            class="range-trigger"
+            :class="customRangeActive ? 'range-trigger-active' : ''"
+            :aria-expanded="String(calendarOpen)"
+            aria-haspopup="dialog"
+            :title="rangeLabel"
+            @click="toggleCalendar"
+            @keydown.enter.prevent="toggleCalendar"
+            @keydown.space.prevent="toggleCalendar">
+            <span class="range-trigger-icon" aria-hidden="true">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M3 10h18" />
+                <path d="M8 2v4" />
+                <path d="M16 2v4" />
+              </svg>
+            </span>
+            <span class="range-trigger-label">{{ rangeLabel }}</span>
+            <span class="range-trigger-icon" aria-hidden="true">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+          <button
+            v-if="customRangeActive || hasDraft"
+            type="button"
+            class="range-clear-btn"
+            :title="t('streamHistoryRangeClear')"
+            @click="onClearRangeClick">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
               stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
+              stroke-linejoin="round"
+              aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <div
+            v-if="calendarOpen"
+            ref="calendarPopoverRef"
+            class="range-popover"
+            role="dialog"
+            :aria-label="t('streamHistoryRangePlaceholder')">
+            <div class="range-popover-body">
+              <label>
+                <span>{{ t('streamHistoryRangeStart') }}</span>
+                <input type="date" v-model="rangeDraft.start" :max="todayIso" />
+              </label>
+              <label>
+                <span>{{ t('streamHistoryRangeEnd') }}</span>
+                <input
+                  type="date"
+                  v-model="rangeDraft.end"
+                  :min="rangeDraft.start || undefined"
+                  :max="todayIso" />
+              </label>
+              <p v-if="rangeError" class="range-error">{{ rangeError }}</p>
+            </div>
+            <div class="range-popover-footer">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs font-medium hover:opacity-100 disabled:opacity-60"
+                :disabled="!customRangeActive && !hasDraft"
+                @click="onClearRangeClick">
+                {{ t('streamHistoryRangeClear') }}
+              </button>
+              <div class="range-actions">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-transparent bg-transparent text-xs font-medium text-[var(--text-secondary,#475569)] hover:underline"
+                  @click="closeCalendar">
+                  {{ t('commonCancel') }}
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-1 rounded-md border border-transparent bg-[#2563eb] text-xs font-semibold text-white disabled:opacity-60 disabled:cursor-not-allowed range-apply-btn"
+                  :disabled="applyDisabled"
+                  @click="applyCalendarRange">
+                  {{ t('streamHistoryRangeApply') }}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="relative h-full overflow-hidden rounded-full">
-          <select
-            class="quick-select appearance-none py-1.5 pl-3.5 pr-10 text-sm text-neutral-600 font-medium w-full h-full bg-light outline-none cursor-pointer border border-[var(--card-border)] rounded-full bg-[var(--bg-chat)]"
-            v-model.number="filterQuickSpan"
-            @change="onQuickRangeChange"
-            aria-label="Quick range span">
-            <option :value="7">7d</option>
-            <option :value="14">14d</option>
-            <option :value="30">30d</option>
-            <option :value="90">90d</option>
-            <option :value="180">180d</option>
-            <option :value="365">365d</option>
-          </select>
-          <svg
-            class="pointer-events-none absolute top-1/2 right-4 transform -translate-y-1/2"
-            width="17"
-            height="16"
-            viewBox="0 0 17 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M13.1673 6L8.50065 10.6667L3.83398 6"
-              stroke="#0C1523"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"></path>
-          </svg>
+        <div class="relative">
+          <button
+            ref="quickPeriodTriggerRef"
+            type="button"
+            class="quick-select-trigger"
+            :class="quickPeriodOpen ? 'quick-select-trigger-active' : ''"
+            :aria-expanded="String(quickPeriodOpen)"
+            aria-haspopup="listbox"
+            @click="toggleQuickPeriod">
+            <span class="quick-select-label">{{ quickPeriodLabel }}</span>
+            <span class="quick-select-caret" aria-hidden="true">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+          <div
+            v-if="quickPeriodOpen"
+            ref="quickPeriodPopoverRef"
+            class="quick-select-popover"
+            role="listbox"
+            :aria-label="t('streamHistoryRangePlaceholder')">
+            <button
+              v-for="option in quickPeriodOptions"
+              :key="option.value"
+              type="button"
+              class="quick-select-option"
+              :class="filterQuick === option.value ? 'quick-select-option-active' : ''"
+              role="option"
+              :aria-selected="filterQuick === option.value ? 'true' : 'false'"
+              @click="selectQuickPeriod(option.value)">
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+
+        <div class="relative">
+          <button
+            ref="quickSpanTriggerRef"
+            type="button"
+            class="quick-select-trigger"
+            :class="quickSpanOpen ? 'quick-select-trigger-active' : ''"
+            :aria-expanded="String(quickSpanOpen)"
+            aria-haspopup="listbox"
+            @click="toggleQuickSpan">
+            <span class="quick-select-label">{{ quickSpanLabel }}</span>
+            <span class="quick-select-caret" aria-hidden="true">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </button>
+          <div
+            v-if="quickSpanOpen"
+            ref="quickSpanPopoverRef"
+            class="quick-select-popover"
+            role="listbox"
+            :aria-label="t('streamHistoryRangePlaceholder')">
+            <button
+              v-for="option in quickSpanOptions"
+              :key="option.value"
+              type="button"
+              class="quick-select-option"
+              :class="Number(filterQuickSpan) === option.value ? 'quick-select-option-active' : ''"
+              role="option"
+              :aria-selected="Number(filterQuickSpan) === option.value ? 'true' : 'false'"
+              @click="selectQuickSpan(option.value)">
+              {{ option.label }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -709,10 +759,10 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
 import { createStreamHistoryPanel } from './createStreamHistoryPanel.js';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { metrics } from '../../stores/metricsStore.js';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const state = createStreamHistoryPanel(t);
 
 const {
@@ -729,12 +779,6 @@ const {
   filterQuickSpan,
   onQuickRangeChange,
   overlayCollapsed,
-  showBackfill,
-  overlayMenuEl,
-  menuOpen,
-  toggleMenu,
-  onBackfillClick,
-  onBackfillDismiss,
   perf,
   chartEl,
   sparklineEl,
@@ -758,6 +802,10 @@ const {
   showViewerTrend,
   sparklineAvailable,
   peakSessionSummary,
+  customRange,
+  customRangeActive,
+  applyCustomRange,
+  clearCustomRange,
 } = state;
 
 const usingWalletBalance = computed(() => {
@@ -788,6 +836,305 @@ const displayedUSD = computed(() => {
     if (arUsd.value != null) return usdFromAr(totalAR.value, arUsd.value);
   } catch {}
   return null;
+});
+
+const quickPeriodOpen = ref(false);
+const quickSpanOpen = ref(false);
+const quickPeriodTriggerRef = ref(null);
+const quickPeriodPopoverRef = ref(null);
+const quickSpanTriggerRef = ref(null);
+const quickSpanPopoverRef = ref(null);
+
+const calendarOpen = ref(false);
+const calendarTriggerRef = ref(null);
+const calendarPopoverRef = ref(null);
+const rangeDraft = reactive({ start: '', end: '' });
+
+const todayIso = computed(() => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+});
+
+const dateFormatter = computed(() => {
+  try {
+    return new Intl.DateTimeFormat(locale.value || 'en-US', { dateStyle: 'medium' });
+  } catch {
+    return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' });
+  }
+});
+
+const parseInputDate = (value) => {
+  if (typeof value !== 'string' || value.length !== 10) return null;
+  const [yRaw, mRaw, dRaw] = value.split('-');
+  const y = Number(yRaw);
+  const m = Number(mRaw);
+  const d = Number(dRaw);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null;
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const candidate = new Date(y, m - 1, d);
+  if (Number.isNaN(candidate.getTime())) return null;
+  if (candidate.getFullYear() !== y || candidate.getMonth() !== m - 1 || candidate.getDate() !== d)
+    return null;
+  return candidate;
+};
+
+const formatDateDisplay = (iso) => {
+  const date = parseInputDate(iso);
+  if (!date) return '';
+  try {
+    return dateFormatter.value.format(date);
+  } catch {
+    return iso;
+  }
+};
+
+const syncDraftFromRange = () => {
+  const range = customRange.value || {};
+  if (customRangeActive.value && range.startDate && range.endDate) {
+    rangeDraft.start = range.startDate;
+    rangeDraft.end = range.endDate;
+  } else {
+    rangeDraft.start = '';
+    rangeDraft.end = '';
+  }
+};
+
+const hasDraft = computed(() => !!(rangeDraft.start || rangeDraft.end));
+
+const draftValid = computed(() => {
+  return !!(parseInputDate(rangeDraft.start) && parseInputDate(rangeDraft.end));
+});
+
+const draftOrdered = computed(() => {
+  if (!draftValid.value) return false;
+  const start = parseInputDate(rangeDraft.start);
+  const end = parseInputDate(rangeDraft.end);
+  return start && end ? start.getTime() <= end.getTime() : false;
+});
+
+const rangeError = computed(() => {
+  if (!draftValid.value || draftOrdered.value) return '';
+  return t('streamHistoryRangeErrorOrder');
+});
+
+const applyDisabled = computed(() => !draftValid.value || !draftOrdered.value);
+
+const rangeLabel = computed(() => {
+  if (!customRangeActive.value || !customRange.value) {
+    return t('streamHistoryRangePlaceholder');
+  }
+  const { startDate, endDate } = customRange.value;
+  const startLabel = formatDateDisplay(startDate);
+  const endLabel = formatDateDisplay(endDate);
+  if (!startLabel || !endLabel) return t('streamHistoryRangePlaceholder');
+  if (startLabel === endLabel) return startLabel;
+  try {
+    return t('chartTooltipRange', { start: startLabel, end: endLabel });
+  } catch {
+    return `${startLabel} - ${endLabel}`;
+  }
+});
+
+const quickPeriodOptions = computed(() => [
+  { value: 'day', label: t('quickToday') },
+  { value: 'week', label: t('quickThisWeek') },
+  { value: 'month', label: t('quickThisMonth') },
+  { value: 'year', label: t('quickThisYear') },
+]);
+
+const quickPeriodLabel = computed(() => {
+  if (filterQuick.value === 'custom') return t('streamHistoryRangeCustom');
+  const option = quickPeriodOptions.value.find((item) => item.value === filterQuick.value);
+  return option ? option.label : t('quickToday');
+});
+
+const quickSpanOptions = computed(() => [
+  { value: 7, label: '7d' },
+  { value: 14, label: '14d' },
+  { value: 30, label: '30d' },
+  { value: 90, label: '90d' },
+  { value: 180, label: '180d' },
+  { value: 365, label: '365d' },
+]);
+
+const quickSpanLabel = computed(() => {
+  const current = Number(filterQuickSpan.value);
+  const option = quickSpanOptions.value.find((item) => item.value === current);
+  return option ? option.label : `${filterQuickSpan.value || 30}d`;
+});
+
+const toggleCalendar = () => {
+  calendarOpen.value = !calendarOpen.value;
+  if (calendarOpen.value) {
+    quickPeriodOpen.value = false;
+    quickSpanOpen.value = false;
+  }
+};
+
+const closeCalendar = () => {
+  calendarOpen.value = false;
+};
+
+const applyCalendarRange = () => {
+  if (applyDisabled.value) return;
+  const start = parseInputDate(rangeDraft.start);
+  const end = parseInputDate(rangeDraft.end);
+  if (!start || !end) return;
+  applyCustomRange([start, end]);
+  closeCalendar();
+};
+
+const onClearRangeClick = () => {
+  if (customRangeActive.value) {
+    clearCustomRange();
+  }
+  rangeDraft.start = '';
+  rangeDraft.end = '';
+};
+
+const toggleQuickPeriod = () => {
+  quickPeriodOpen.value = !quickPeriodOpen.value;
+  if (quickPeriodOpen.value) {
+    calendarOpen.value = false;
+    quickSpanOpen.value = false;
+  }
+};
+
+const toggleQuickSpan = () => {
+  quickSpanOpen.value = !quickSpanOpen.value;
+  if (quickSpanOpen.value) {
+    calendarOpen.value = false;
+    quickPeriodOpen.value = false;
+  }
+};
+
+const selectQuickPeriod = (value) => {
+  quickPeriodOpen.value = false;
+  if (filterQuick.value === value) return;
+  filterQuick.value = value;
+  onQuickFilterChange();
+};
+
+const selectQuickSpan = (value) => {
+  quickSpanOpen.value = false;
+  if (Number(filterQuickSpan.value) === value) return;
+  filterQuickSpan.value = value;
+  onQuickRangeChange();
+};
+
+watch(calendarOpen, (open) => {
+  if (open) {
+    syncDraftFromRange();
+  }
+});
+
+watch(customRangeActive, (active) => {
+  if (!active) {
+    rangeDraft.start = '';
+    rangeDraft.end = '';
+  } else if (!calendarOpen.value) {
+    syncDraftFromRange();
+  }
+});
+
+watch(
+  () => {
+    const range = customRange.value || {};
+    return `${range.startDate || ''}/${range.endDate || ''}`;
+  },
+  () => {
+    if (calendarOpen.value) {
+      syncDraftFromRange();
+    }
+  }
+);
+
+watch(quickPeriodOpen, (open) => {
+  if (open) {
+    quickSpanOpen.value = false;
+  }
+});
+
+watch(quickSpanOpen, (open) => {
+  if (open) {
+    quickPeriodOpen.value = false;
+  }
+});
+
+watch(filterQuick, () => {
+  quickPeriodOpen.value = false;
+});
+
+watch(filterQuickSpan, () => {
+  quickSpanOpen.value = false;
+});
+
+const handlePointerDown = (event) => {
+  if (!calendarOpen.value && !quickPeriodOpen.value && !quickSpanOpen.value) {
+    return;
+  }
+  const target = event.target;
+  const within = (triggerRef, popoverRef) => {
+    try {
+      if (triggerRef && triggerRef.contains(target)) return true;
+      if (popoverRef && popoverRef.contains(target)) return true;
+    } catch {}
+    return false;
+  };
+  if (calendarOpen.value && !within(calendarTriggerRef.value, calendarPopoverRef.value)) {
+    closeCalendar();
+  }
+  if (quickPeriodOpen.value && !within(quickPeriodTriggerRef.value, quickPeriodPopoverRef.value)) {
+    quickPeriodOpen.value = false;
+  }
+  if (quickSpanOpen.value && !within(quickSpanTriggerRef.value, quickSpanPopoverRef.value)) {
+    quickSpanOpen.value = false;
+  }
+};
+
+const handleKeydown = (event) => {
+  if (event.key === 'Escape') {
+    let handled = false;
+    if (calendarOpen.value) {
+      closeCalendar();
+      handled = true;
+    }
+    if (quickPeriodOpen.value) {
+      quickPeriodOpen.value = false;
+      handled = true;
+    }
+    if (quickSpanOpen.value) {
+      quickSpanOpen.value = false;
+      handled = true;
+    }
+    if (handled) {
+      try {
+        event.preventDefault();
+        event.stopPropagation();
+      } catch {}
+    }
+  }
+};
+
+onMounted(() => {
+  try {
+    document.addEventListener('pointerdown', handlePointerDown, true);
+  } catch {}
+  try {
+    window.addEventListener('keydown', handleKeydown);
+  } catch {}
+});
+
+onBeforeUnmount(() => {
+  try {
+    document.removeEventListener('pointerdown', handlePointerDown, true);
+  } catch {}
+  try {
+    window.removeEventListener('keydown', handleKeydown);
+  } catch {}
 });
 
 const SETTINGS_KEY = 'getty_stream_history_settings_panel_v1';

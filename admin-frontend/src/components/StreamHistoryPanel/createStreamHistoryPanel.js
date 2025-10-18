@@ -30,10 +30,6 @@ export function createStreamHistoryPanel(t) {
     avgSampleIntervalSec: null,
     latestSampleIntervalSec: null,
   });
-  const backfillDismissed = ref(false);
-  const showBackfill = computed(
-    () => status.value.live && !backfillDismissed.value && period.value === 'day' && Number(perf.value?.range?.hoursStreamed || 0) < 2,
-  );
   const anyModalOpen = computed(() => showClearModal.value || showClaimChangeModal.value);
   const overlayCollapsed = ref(false);
   const OVERLAY_KEY = 'streamHistory.overlayCollapsed';
@@ -46,8 +42,11 @@ export function createStreamHistoryPanel(t) {
   const arUsd = ref(null);
   const earningsHidden = ref(false);
   const lastSummaryData = ref([]);
-  const menuOpen = ref(false);
-  const overlayMenuEl = ref(null);
+  const customRange = ref({ startDate: null, endDate: null });
+  const customRangeActive = computed(() => {
+    const { startDate, endDate } = customRange.value || {};
+    return !!(startDate && endDate);
+  });
   const TZ_KEY = 'streamHistory.tzOffset';
   const tzOffsetMinutes = ref(-new Date().getTimezoneOffset());
   const effectiveTzOffset = ref(tzOffsetMinutes.value);
@@ -160,7 +159,68 @@ export function createStreamHistoryPanel(t) {
     }
   };
 
-  let clickAwayHandler = null; let ro = null; let resizeTimer = null; let refreshDebounceTimer = null; let pollTimer = null; let nowTimer = null;
+  const toLocalYMD = (dateObj) => {
+    if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const normalizeDateRange = (range = []) => {
+    if (!Array.isArray(range) || range.length < 2) return null;
+    const [a, b] = range;
+    if (!(a instanceof Date) || !(b instanceof Date)) return null;
+    const start = a.getTime() <= b.getTime() ? a : b;
+    const end = a.getTime() <= b.getTime() ? b : a;
+    const startIso = toLocalYMD(start);
+    const endIso = toLocalYMD(end);
+    if (!startIso || !endIso) return null;
+    return { startDate: startIso, endDate: endIso, start, end };
+  };
+
+  const calcDaySpan = (start, end) => {
+    if (!(start instanceof Date) || !(end instanceof Date)) return 0;
+    const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+    const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+    const diff = Math.max(0, endUtc - startUtc);
+    return Math.floor(diff / 86400000) + 1;
+  };
+
+  function applyCustomRange(range) {
+    const normalized = normalizeDateRange(range);
+    if (!normalized) return;
+    const { startDate, endDate, start, end } = normalized;
+    customRange.value = { startDate, endDate };
+    filterQuick.value = 'custom';
+    const totalDays = calcDaySpan(start, end);
+    if (totalDays <= 120) {
+      period.value = 'day';
+      span.value = Math.min(365, totalDays);
+    } else {
+      period.value = 'week';
+      span.value = Math.min(365, Math.ceil(totalDays / 7));
+    }
+    scheduleRefresh(true);
+  }
+
+  function applyRangeFromResponse(range) {
+    if (!range || typeof range !== 'object') return;
+    const startDate = typeof range.startDate === 'string' ? range.startDate : null;
+    const endDate = typeof range.endDate === 'string' ? range.endDate : null;
+    if (startDate && endDate) {
+      customRange.value = { startDate, endDate };
+    }
+  }
+
+  function clearCustomRange(autoRefresh = true) {
+    if (!customRangeActive.value) return;
+    customRange.value = { startDate: null, endDate: null };
+    if (filterQuick.value === 'custom') filterQuick.value = period.value;
+    if (autoRefresh) scheduleRefresh(true);
+  }
+
+  let ro = null; let resizeTimer = null; let refreshDebounceTimer = null; let pollTimer = null; let nowTimer = null;
   const REFRESH_DEBOUNCE_MS = 150;
 
   function setScrollLock(lock) {
@@ -173,7 +233,6 @@ export function createStreamHistoryPanel(t) {
     setScrollLock(false);
     try { window.removeEventListener('keydown', onKeydown); } catch {}
     try { if (ro && ro.disconnect) ro.disconnect(); } catch {}
-    try { if (clickAwayHandler) document.removeEventListener('click', clickAwayHandler, true); } catch {}
     try { if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer); } catch {}
     try { if (nowTimer) { clearInterval(nowTimer); nowTimer = null; } } catch {}
     try { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } } catch {}
@@ -196,10 +255,28 @@ export function createStreamHistoryPanel(t) {
   async function refresh() {
     try {
       const tz = effectiveTzOffset.value;
-  const r = await api.get(`/api/stream-history/summary?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
+      const params = new URLSearchParams({
+        period: period.value,
+        span: span.value,
+        tz,
+      });
+      if (customRangeActive.value && customRange.value?.startDate && customRange.value?.endDate) {
+        params.set('startDate', customRange.value.startDate);
+        params.set('endDate', customRange.value.endDate);
+      }
+      const query = params.toString();
+      const summaryUrl = `/api/stream-history/summary?${query}`;
+      const perfUrl = `/api/stream-history/performance?${query}`;
+      const r = await api.get(summaryUrl);
       lastSummaryData.value = r?.data?.data || [];
-  renderCharts(lastSummaryData.value);
-  const p = await api.get(`/api/stream-history/performance?period=${encodeURIComponent(period.value)}&span=${span.value}&tz=${tz}`);
+      if (customRangeActive.value && r?.data?.appliedRange) {
+        applyRangeFromResponse(r.data.appliedRange);
+      }
+      renderCharts(lastSummaryData.value);
+      const p = await api.get(perfUrl);
+      if (customRangeActive.value && p?.data?.appliedRange) {
+        applyRangeFromResponse(p.data.appliedRange);
+      }
       perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
   try { const pr = await api.get('/api/ar-price'); arUsd.value = pr?.data?.arweave?.usd || arUsd.value; } catch {}
   try { const er = await api.get('/api/last-tip/earnings'); totalAR.value = Number(er?.data?.totalAR || 0); } catch {}
@@ -225,8 +302,28 @@ export function createStreamHistoryPanel(t) {
 
   function scheduleRefresh(immediate = false) { try { if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer); } catch {}; if (immediate) { refresh(); return; } refreshDebounceTimer = setTimeout(() => { refresh(); }, REFRESH_DEBOUNCE_MS); }
 
-  function onQuickFilterChange() { try { if (['day','week','month','year'].includes(filterQuick.value)) { period.value = filterQuick.value; scheduleRefresh(); } } catch {} }
-  function onQuickRangeChange() { try { const v = Number(filterQuickSpan.value || 30); if ([7,14,30,90,180,365].includes(v)) { span.value = v; scheduleRefresh(); } } catch {} }
+  function onQuickFilterChange() {
+    try {
+      if (filterQuick.value === 'custom') {
+        return;
+      }
+      if (['day', 'week', 'month', 'year'].includes(filterQuick.value)) {
+        if (customRangeActive.value) customRange.value = { startDate: null, endDate: null };
+        period.value = filterQuick.value;
+        scheduleRefresh();
+      }
+    } catch {}
+  }
+  function onQuickRangeChange() {
+    try {
+      const v = Number(filterQuickSpan.value || 30);
+      if ([7, 14, 30, 90, 180, 365].includes(v)) {
+        if (customRangeActive.value) customRange.value = { startDate: null, endDate: null };
+        span.value = v;
+        scheduleRefresh();
+      }
+    } catch {}
+  }
   function clearHistory() { showClearModal.value = true; }
   async function confirmClear() { try { clearBusy.value = true; await api.post('/api/stream-history/clear'); await refresh(); showClearModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
   async function confirmClearAfterClaimChange() { try { clearBusy.value = true; await api.post('/api/stream-history/clear'); await refresh(); showClaimChangeModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
@@ -260,14 +357,26 @@ export function createStreamHistoryPanel(t) {
     }
   }
   async function onImport(e) { try { const file = e?.target?.files?.[0]; if (!file) return; const text = await file.text(); const json = JSON.parse(text); await api.post('/api/stream-history/import', json); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryImported') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryImportFailed') }); } catch {} } finally { try { e.target.value = ''; } catch {} } }
-  function toggleMenu() { menuOpen.value = !menuOpen.value; }
-  function onBackfillClick(h) { menuOpen.value = false; backfill(h); }
-  function onBackfillDismiss() { menuOpen.value = false; backfillDismissed.value = true; }
   function toggleEarningsHidden() { earningsHidden.value = !earningsHidden.value; }
 
   watch([mode, period, span], () => { scheduleRefresh(); });
-  watch(period, (p) => { if (['day','week','month','year'].includes(p)) filterQuick.value = p; });
-  watch(span, (s) => { if ([7,14,30,90,180,365].includes(Number(s))) filterQuickSpan.value = Number(s); });
+  watch(period, (p) => {
+    if (!['day','week','month','year'].includes(p)) return;
+    if (customRangeActive.value) return;
+    filterQuick.value = p;
+  });
+  watch(span, (s) => {
+    if (customRangeActive.value) return;
+    const num = Number(s);
+    if ([7, 14, 30, 90, 180, 365].includes(num)) filterQuickSpan.value = num;
+  });
+  watch(customRangeActive, (active) => {
+    if (active) {
+      filterQuick.value = 'custom';
+    } else if (filterQuick.value === 'custom') {
+      filterQuick.value = period.value;
+    }
+  });
   watch(overlayCollapsed, (v) => { try { localStorage.setItem(OVERLAY_KEY, v ? '1':'0'); } catch {} });
 
   watch(
@@ -330,8 +439,6 @@ export function createStreamHistoryPanel(t) {
     peakSessionSummary.value = formatPeakSummary(fallbackCandidate);
   }
   function toggleShowViewers() { showViewers.value = !showViewers.value; }
-  async function backfill(hours) { try { await api.post('/api/stream-history/backfill-current', { hours }); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryBackfilled') }); } catch {} }
-    catch { try { pushToast({ type: 'error', message: t('streamHistoryBackFillFailed') }); } catch {} } }
 
   onMounted(async () => {
     try { const v = localStorage.getItem(OVERLAY_KEY); if (v==='1'||v==='0') overlayCollapsed.value = (v==='1'); } catch {}
@@ -373,14 +480,13 @@ export function createStreamHistoryPanel(t) {
       pollTimer = setTimeout(pollStatus, 5000);
     }
     pollStatus();
-    try { clickAwayHandler = (evt) => { try { if (!menuOpen.value) return; const root = overlayMenuEl.value; if (root && !root.contains(evt.target)) menuOpen.value = false; } catch {} }; document.addEventListener('click', clickAwayHandler, true); } catch {}
   });
 
   function acceptNewTimezone() { try { previousTzOffset.value = effectiveTzOffset.value; effectiveTzOffset.value = tzOffsetMinutes.value; localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value)); tzChangeVisible.value = false; scheduleRefresh(true); try { pushToast({ type: 'success', message: t('streamHistoryUseNewTz') }); } catch {} } catch {} }
   function keepPreviousTimezone() { try { tzChangeVisible.value = false; localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value)); try { pushToast({ type: 'info', message: t('streamHistoryKeepPrevTz') }); } catch {} } catch {} }
   function forceRefreshTimezone() { try { tzOffsetMinutes.value = -new Date().getTimezoneOffset(); if (tzOffsetMinutes.value !== effectiveTzOffset.value) { previousTzOffset.value = effectiveTzOffset.value; tzChangeVisible.value = true; } } catch {} }
 
-  function dispose() { try { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } } catch {}; try { if (refreshDebounceTimer) { clearTimeout(refreshDebounceTimer); refreshDebounceTimer = null; } } catch {}; try { if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; } } catch {}; try { if (nowTimer) { clearInterval(nowTimer); nowTimer = null; } } catch {}; try { if (ro && ro.disconnect) { ro.disconnect(); ro = null; } } catch {}; try { if (clickAwayHandler) { document.removeEventListener('click', clickAwayHandler, true); clickAwayHandler = null; } } catch {} }
+  function dispose() { try { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } } catch {}; try { if (refreshDebounceTimer) { clearTimeout(refreshDebounceTimer); refreshDebounceTimer = null; } } catch {}; try { if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; } } catch {}; try { if (nowTimer) { clearInterval(nowTimer); nowTimer = null; } } catch {}; try { if (ro && ro.disconnect) { ro.disconnect(); ro = null; } } catch {} }
 
   return {
     chartEl,
@@ -401,10 +507,9 @@ export function createStreamHistoryPanel(t) {
     totalAR,
     arUsd,
     earningsHidden,
-    menuOpen,
-    overlayMenuEl,
-    showBackfill,
     lastSummaryData,
+    customRange,
+    customRangeActive,
     initialClaimid,
     showViewers,
     tzDisplay,
@@ -429,11 +534,9 @@ export function createStreamHistoryPanel(t) {
     confirmClearAfterClaimChange,
     downloadExport,
     onImport,
-    toggleMenu,
-    onBackfillClick,
-    onBackfillDismiss,
     toggleEarningsHidden,
-    backfill,
+    applyCustomRange,
+    clearCustomRange,
     toggleShowViewers,
     dispose,
     fmtHours: formatHours,

@@ -24,11 +24,38 @@ describe('streamHistoryUtils', () => {
     expect(usdFromAr(1, 0)).toBe(0);
   });
 
-  test('buildDisplayData trims leading zeros and re-appends', () => {
-    const src = [ { hours:0 }, { hours:0 }, { hours: 5, date:'2025-01-01' }, { hours:2, date:'2025-01-02' } ];
+  test('buildDisplayData preserves chronological order and past zeros', () => {
+    const now = Date.now();
+    const day = 24 * 3600 * 1000;
+    const day4 = new Date(now - 4 * day).toISOString().slice(0, 10);
+    const day3 = new Date(now - 3 * day).toISOString().slice(0, 10);
+    const day2 = new Date(now - 2 * day).toISOString().slice(0, 10);
+    const day1 = new Date(now - day).toISOString().slice(0, 10);
+    const src = [
+      { hours: 0, date: day4 },
+      { hours: 0, date: day3 },
+      { hours: 5, date: day2 },
+      { hours: 2, date: day1 },
+    ];
     const out = buildDisplayData(src);
-    expect(out.length).toBe(src.length);
-    expect(out[0].hours).toBe(5);
-    expect(out[out.length-1].hours).toBe(0);
+    expect(out).toHaveLength(src.length);
+    expect(out.map((item) => item.date)).toEqual(src.map((item) => item.date));
+  });
+
+  test('buildDisplayData sorts by date when needed and discards future buckets', () => {
+    const now = Date.now();
+    const day = 24 * 3600 * 1000;
+    const past2 = new Date(now - 2 * day).toISOString().slice(0, 10);
+    const past1 = new Date(now - day).toISOString().slice(0, 10);
+    const future = new Date(now + 2 * day).toISOString().slice(0, 10);
+    const src = [
+      { hours: 1, date: past1 },
+      { hours: 3, date: past2 },
+      { hours: 0, epoch: now + day },
+      { hours: 6, date: future },
+    ];
+    const out = buildDisplayData(src);
+    expect(out.map((item) => item.date)).toEqual([past2, past1]);
+    expect(out.every((item) => item.hours >= 0)).toBe(true);
   });
 });

@@ -18,8 +18,6 @@ const showClaimChangeModal = ref(false);
 const clearBusy = ref(false);
 const perf = ref({ range: { hoursStreamed: 0, avgViewers: 0, peakViewers: 0, hoursWatched: 0, activeDays: 0 }, allTime: { totalHoursStreamed: 0, highestViewers: 0 } });
 const status = ref({ connected: false, live: false });
-const backfillDismissed = ref(false);
-const showBackfill = computed(() => status.value.live && !backfillDismissed.value && period.value === 'day' && Number(perf.value?.range?.hoursStreamed || 0) < 2);
 const anyModalOpen = computed(() => showClearModal.value || showClaimChangeModal.value);
 const overlayCollapsed = ref(false);
 const OVERLAY_KEY = 'streamHistory.overlayCollapsed';
@@ -28,9 +26,6 @@ const totalAR = ref(0);
 const arUsd = ref(null);
 const earningsHidden = ref(false);
 const lastSummaryData = ref([]);
-const menuOpen = ref(false);
-const overlayMenuEl = ref(null);
-let clickAwayHandler = null;
 let ro = null;
 let resizeTimer = null;
 
@@ -69,7 +64,6 @@ onUnmounted(() => {
   setScrollLock(false);
   try { window.removeEventListener('keydown', onKeydown); } catch {}
   try { if (ro && ro.disconnect) ro.disconnect(); } catch {}
-  try { if (clickAwayHandler) document.removeEventListener('click', clickAwayHandler, true); } catch {}
 });
 
 async function loadConfig() {
@@ -587,21 +581,7 @@ onMounted(async () => {
   setTimeout(pollStatus, 10000);
   }
   pollStatus();
-  try {
-    clickAwayHandler = (evt) => {
-      try {
-        if (!menuOpen.value) return;
-        const root = overlayMenuEl.value;
-        if (root && !root.contains(evt.target)) menuOpen.value = false;
-      } catch {}
-    };
-    document.addEventListener('click', clickAwayHandler, true);
-  } catch {}
 });
-
-function toggleMenu() { menuOpen.value = !menuOpen.value; }
-function onBackfillClick(h) { menuOpen.value = false; backfill(h); }
-function onBackfillDismiss() { menuOpen.value = false; backfillDismissed.value = true; }
 
 function toggleEarningsHidden() {
   earningsHidden.value = !earningsHidden.value;
@@ -654,16 +634,6 @@ function fmtTotal(h) {
   return v.toFixed(2) + ' h';
 }
 
-async function backfill(hours) {
-  try {
-  await api.post('/api/stream-history/backfill-current', { hours });
-    await refresh();
-    try { pushToast({ type: 'success', message: t('streamHistoryBackfilled') }); } catch {}
-  } catch {
-    try { pushToast({ type: 'error', message: t('streamHistoryBackfillFailed') }); } catch {}
-  }
-}
-
 defineExpose({
   chartEl,
   period,
@@ -682,8 +652,6 @@ defineExpose({
   totalAR,
   arUsd,
   earningsHidden,
-  menuOpen,
-  overlayMenuEl,
   saveConfig,
   refresh,
   onQuickFilterChange,
@@ -693,15 +661,10 @@ defineExpose({
   confirmClearAfterClaimChange,
   downloadExport,
   onImport,
-  toggleMenu,
-  onBackfillClick,
-  onBackfillDismiss,
   toggleEarningsHidden,
   usdFromAr,
   fmtHours,
   fmtTotal,
-  backfill,
-  showBackfill,
   lastSummaryData,
   initialClaimid,
 });
