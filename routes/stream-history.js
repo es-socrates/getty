@@ -769,7 +769,17 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
       };
     });
 
-  return aggregates.slice(-normalizedSpan);
+  if (!aggregates.length) return aggregates;
+
+  const lastActiveIndex = aggregates.reduce((acc, entry, i) => (entry.hours > 0 ? i : acc), -1);
+
+  if (lastActiveIndex >= 0) {
+    const startIndex = Math.max(0, lastActiveIndex - normalizedSpan + 1);
+    return aggregates.slice(startIndex, lastActiveIndex + 1);
+  }
+
+  const fallback = aggregates.slice(-normalizedSpan);
+  return fallback.length ? fallback : [aggregates[aggregates.length - 1]];
 }
 
 function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0, options = {}) {
