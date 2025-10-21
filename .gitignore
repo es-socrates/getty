@@ -20,3 +20,4 @@ tenant/
 data/*
 docs/ROUTES_INTERNAL.md
 docs/stream-history-migration.md
+MONITORING.md

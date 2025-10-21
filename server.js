@@ -25,6 +25,7 @@ try {
 const axios = require('axios');
 const fs = require('fs');
 const multer = require('multer');
+const promClient = require('prom-client');
 
 const OBS_WS_CONFIG_FILE = path.join(__dirname, 'config', 'obs-ws-config.json');
 
@@ -740,6 +741,45 @@ const __moduleUptime = {};
 const __MAX_ACTIVITY = 2000;
 const __auditLog = [];
 const __MAX_AUDIT = 3000;
+
+const register = promClient.register;
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+collectDefaultMetrics({ register });
+
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route']
+});
+
+const websocketConnectionsTotal = new promClient.Gauge({
+  name: 'websocket_connections_total',
+  help: 'Total number of active WebSocket connections'
+});
+
+const bytesTransferredTotal = new promClient.Counter({
+  name: 'bytes_transferred_total',
+  help: 'Total bytes transferred'
+});
+
+const arweaveGatewayErrors = new promClient.Counter({
+  name: 'arweave_gateway_errors_total',
+  help: 'Total number of Arweave gateway errors'
+});
+
+global.arweaveGatewayErrors = arweaveGatewayErrors;
+
+const tipEventsTotal = new promClient.Counter({
+  name: 'tip_events_total',
+  help: 'Total number of tip events'
+});
+
 app.use((req, res, next) => {
   try { __requestTimestamps.push(Date.now()); if (__requestTimestamps.length > 50000) __requestTimestamps.splice(0, __requestTimestamps.length - 50000); } catch {}
   const start = Date.now();
@@ -770,6 +810,17 @@ app.use((req, res, next) => {
         entry.durationMs = Date.now() - start;
         if (typeof entry.message === 'string') {
           entry.message = `${req.method} ${__safeUrl} -> ${res.statusCode} in ${entry.durationMs}ms`;
+        }
+
+        const route = req.route ? req.route.path : req.path || 'unknown';
+        httpRequestsTotal.inc({ method: req.method, route, status_code: res.statusCode.toString() });
+        httpRequestDuration.observe({ method: req.method, route }, (Date.now() - start) / 1000);
+
+        if (res.getHeader('content-length')) {
+          const contentLength = parseInt(res.getHeader('content-length'), 10);
+          if (!isNaN(contentLength)) {
+            bytesTransferredTotal.inc(contentLength);
+          }
         }
       } catch {}
     });
@@ -3760,6 +3811,22 @@ app.get('/api/metrics', async (req, res) => {
   }
 });
 
+app.get('/metrics', async (req, res) => {
+  try {
+    const wsClients = (() => {
+      try { return Array.from(wss.clients).filter(c => c && c.readyState === 1).length; } catch { return 0; }
+    })();
+    websocketConnectionsTotal.set(wsClients);
+
+    res.set('Content-Type', register.contentType);
+    const metrics = await register.metrics();
+    res.end(metrics);
+  } catch (error) {
+    console.error('Error generating Prometheus metrics:', error);
+    res.status(500).end('# Error generating metrics\n');
+  }
+});
+
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 app.get('/readyz', (_req, res) => res.json({ ok: true }));
 
@@ -3769,6 +3836,8 @@ try {
 
 wss.on('connection', async (ws) => {
   try {
+    websocketConnectionsTotal.inc();
+
     let ns = null;
     try { ns = ws.nsToken || null; } catch {}
 
@@ -3920,6 +3989,7 @@ wss.on('connection', async (ws) => {
   });
 
   ws.on('close', () => {
+    websocketConnectionsTotal.dec();
     if (process.env.NODE_ENV !== 'test') {
   // console.warn('WebSocket connection closed');
     }
@@ -4306,6 +4376,8 @@ if (process.env.NODE_ENV !== 'test') {
   try {
     wss.on('tip', async (tipData, ns) => {
       try {
+        tipEventsTotal.inc();
+
         let payload = tipData || {};
         const amount = Number(payload.amount || 0) || 0;
         const hasUsd = typeof payload.usd === 'number' && !Number.isNaN(payload.usd);

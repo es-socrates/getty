@@ -175,9 +175,13 @@ class TipWidgetModule {
       const gws = this.ARWEAVE_GATEWAYS.slice();
       let results = [];
       if (typeof Promise.any === 'function') {
-        try { results = await Promise.any(gws.map(g => tryGateway(g))); } catch {}
+        try { results = await Promise.any(gws.map(g => tryGateway(g))); } catch {
+          try { global.arweaveGatewayErrors.inc(); } catch {}
+        }
       } else {
-        for (const g of gws) { try { results = await tryGateway(g); break; } catch {} }
+        for (const g of gws) { try { results = await tryGateway(g); break; } catch {
+          try { global.arweaveGatewayErrors.inc(); } catch {}
+        } }
       }
 
       if (Array.isArray(results) && results.length) return results;
