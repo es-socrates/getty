@@ -18,7 +18,6 @@ class LastTipModule {
       }
     } catch {}
     this.GRAPHQL_TIMEOUT = Number(process.env.LAST_TIP_GRAPHQL_TIMEOUT_MS || 10000);
-    this.VIEWBLOCK_TIMEOUT = Number(process.env.LAST_TIP_VIEWBLOCK_TIMEOUT_MS || 6000);
     this.walletAddress = null;
     this._loadedMeta = null;
     this._lastReqForSave = null;
@@ -309,32 +308,6 @@ class LastTipModule {
 
     if (Array.isArray(graphqlResults) && graphqlResults.length) {
       return graphqlResults;
-    }
-
-    const vbKey = process.env.VIEWBLOCK_API_KEY || '';
-    if (vbKey) {
-      try {
-        const vb = await axios.get(
-          `https://api.viewblock.io/arweave/addresses/${address}/transactions`,
-          {
-            timeout: this.VIEWBLOCK_TIMEOUT,
-            headers: { 'X-APIKEY': vbKey }
-          }
-        );
-        if (Array.isArray(vb.data) && vb.data.length > 0) {
-          if (!this._lastFetchSucceededGateway) this._lastFetchSucceededGateway = 'viewblock';
-          return vb.data
-            .filter((tx) => tx?.owner && tx?.id && (typeof tx.quantity === 'number' || typeof tx.quantity === 'string'))
-            .map((tx) => ({
-              id: tx.id,
-              owner: tx.owner,
-              amount: typeof tx.quantity === 'number' ? tx.quantity : tx.quantity,
-              timestamp: tx.timestamp || Math.floor(Date.now() / 1000)
-            }));
-        }
-  } catch {
-        this._lastFetchErrorCount += 1;
-      }
     }
 
     if (process.env.NODE_ENV !== 'test') {

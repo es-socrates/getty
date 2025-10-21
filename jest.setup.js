@@ -15,7 +15,6 @@ if (typeof global.crypto === 'undefined') {
   };
 }
 
-// Reset environment variables to ensure test isolation
 process.env.GETTY_REQUIRE_SESSION = undefined;
 process.env.GETTY_REQUIRE_ADMIN_WRITE = undefined;
 process.env.GETTY_TENANT_DEBUG = undefined;
@@ -32,12 +31,9 @@ if (process.env.NODE_ENV === 'test') {
     buildGatewayList: () => [
       'https://arweave.net',
       'https://ar-io.net',
-      'https://arweave.live',
       'https://arweave-search.goldsky.com',
       'https://permagate.io',
       'https://ar-io.dev',
-      'https://ar.io',
-      'https://arweave-search.g8way.io',
       'https://zigza.xyz',
       'https://ario-gateway.nethermind.dev',
       'https://zerosettle.online'
