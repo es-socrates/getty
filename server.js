@@ -7,6 +7,7 @@ try {
   }
 } catch {}
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
+const STREAM_HISTORY_CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
 
 let loadTenantConfig = null;
 try { ({ loadTenantConfig } = require('./lib/tenant-config')); } catch {}
@@ -310,7 +311,7 @@ try {
         'https://arweave.net', 'https://*.arweave.net',
         ...imgExtra
       ],
-  fontSrc: [self, 'data:', 'blob:', ...(enableGoogleFonts ? ['https://fonts.gstatic.com'] : []), ...fontExtra],
+      fontSrc: [self, 'data:', 'blob:', ...(enableGoogleFonts ? ['https://fonts.gstatic.com'] : []), ...fontExtra],
       mediaSrc: [
         self,
         'blob:',
@@ -1007,6 +1008,38 @@ function getLiveviewsConfigWithDefaults(partial) {
     claimid: typeof partial?.claimid === 'string' ? partial.claimid : '',
     viewersLabel: typeof partial?.viewersLabel === 'string' && partial.viewersLabel.trim() ? partial.viewersLabel : 'viewers'
   };
+}
+
+async function resolveStreamHistoryClaimId(req, ns) {
+  let claim = '';
+  if (loadTenantConfig) {
+    try {
+      const wrapped = await loadTenantConfig(
+        req,
+        store,
+        STREAM_HISTORY_CONFIG_FILE,
+        'stream-history-config.json'
+      );
+      if (wrapped && wrapped.data && typeof wrapped.data.claimid === 'string') {
+        claim = wrapped.data.claimid;
+      }
+    } catch {}
+  }
+  if (!claim && store && ns) {
+    try {
+      const legacy = await store.get(ns, 'stream-history-config', null);
+      if (legacy && typeof legacy.claimid === 'string') claim = legacy.claimid;
+    } catch {}
+  }
+  if (!claim) {
+    try {
+      if (fs.existsSync(STREAM_HISTORY_CONFIG_FILE)) {
+        const raw = JSON.parse(fs.readFileSync(STREAM_HISTORY_CONFIG_FILE, 'utf8'));
+        if (raw && typeof raw.claimid === 'string') claim = raw.claimid;
+      }
+    } catch {}
+  }
+  return typeof claim === 'string' ? claim.trim() : '';
 }
 
 const languageConfig = new LanguageConfig();
@@ -3706,12 +3739,18 @@ app.get('/api/metrics', async (req, res) => {
           if (raw && typeof raw === 'object') cfgData = { ...(cfgData || {}), ...raw };
         } catch {}
       }
-      const cfg = getLiveviewsConfigWithDefaults(cfgData || {});
+      const baseCfg = { ...(cfgData || {}) };
+      if (!baseCfg.claimid) {
+        const fallbackClaim = await resolveStreamHistoryClaimId(req, ns);
+        if (fallbackClaim) baseCfg.claimid = fallbackClaim;
+      }
+      const cfg = getLiveviewsConfigWithDefaults(baseCfg);
       const claimid = (cfg.claimid || '').trim();
       if (claimid) {
         const cached = app.__lvCache[key];
         const now = Date.now();
-        if (cached && (now - cached.ts) < ttlMs) {
+        const cacheValid = cached && cached.claimid === claimid && (now - cached.ts) < ttlMs;
+        if (cacheValid) {
           liveviews.live = !!cached.data.Live;
           liveviews.viewerCount = typeof cached.data.ViewerCount === 'number' ? cached.data.ViewerCount : 0;
         } else {
@@ -3720,12 +3759,12 @@ app.get('/api/metrics', async (req, res) => {
             const resp = await axios.get(url, { timeout: 3000 });
             const data = resp?.data?.data || {};
             const out = { Live: !!data.Live, ViewerCount: (typeof data.ViewerCount === 'number' ? data.ViewerCount : 0) };
-            app.__lvCache[key] = { ts: now, data: out };
+            app.__lvCache[key] = { ts: now, data: out, claimid };
             liveviews.live = out.Live;
             liveviews.viewerCount = out.ViewerCount;
           } catch {
             const stale = app.__lvCache[key];
-            if (stale) {
+            if (stale && stale.claimid === claimid) {
               liveviews.live = !!stale.data.Live;
               liveviews.viewerCount = typeof stale.data.ViewerCount === 'number' ? stale.data.ViewerCount : 0;
             }

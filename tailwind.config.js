@@ -43,7 +43,7 @@ module.exports = {
         error: '#ff4d4f',
         background: {
           DEFAULT: 'var(--bg-background)',
-          dark: '#09080d',
+          dark: '#09090b',
           light: '#ffffff',
         },
         card: {
