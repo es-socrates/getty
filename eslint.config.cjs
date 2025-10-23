@@ -16,9 +16,12 @@ module.exports = [
   {
     files: [
       'server.js',
+      'createServer.js',
       'modules/**/*.js',
+      'app/**/*.js',
       'routes/**/*.js',
       'scripts/**/*.js',
+      'services/**/*.js',
       'lib/**/*.js',
       '*.cjs'
     ],

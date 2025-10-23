@@ -28,6 +28,8 @@ if (!window.languageManager && window.__i18n && typeof window.__i18n.t === 'func
   };
 }
 
+const LIVEVIEWS_FONT_STACK = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
+
 const liveviewsState = {
   live: false,
   count: 0,
@@ -219,7 +221,7 @@ async function fetchLiveviewsConfig() {
     return {
       bg: '#222222',
       color: '#ffffff',
-      font: 'Arial',
+      font: LIVEVIEWS_FONT_STACK,
       size: '32',
       icon: ''
     };
@@ -283,7 +285,7 @@ async function fetchViewerCountAndDisplay(url) {
     }
     let bg = config && config.bg ? config.bg : '#222222';
     let color = config && config.color ? config.color : '#ffffff';
-    let font = config && config.font ? config.font : 'Arial';
+    let font = config && config.font ? config.font : LIVEVIEWS_FONT_STACK;
     let size = config && config.size ? config.size : '32';
     liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
@@ -318,7 +320,7 @@ async function fetchViewerCountAndDisplay(url) {
     let config = window._liveviewsConfigCache || {};
     let bg = config && config.bg ? config.bg : '#222222';
     let color = config && config.color ? config.color : '#ffffff';
-    let font = config && config.font ? config.font : 'Arial';
+    let font = config && config.font ? config.font : LIVEVIEWS_FONT_STACK;
     let size = config && config.size ? config.size : '32';
     liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
@@ -377,7 +379,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
       try {
         const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-        setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || 'Arial', sizePx });
+  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || LIVEVIEWS_FONT_STACK, sizePx });
       } catch {}
     }
     renderLiveviewsUI();
@@ -434,7 +436,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     liveviewsState.count = 0;
     try {
   const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || 'Arial', sizePx });
+  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || LIVEVIEWS_FONT_STACK, sizePx });
     } catch {}
     renderLiveviewsUI();
   }
@@ -600,7 +602,7 @@ if (window.location.pathname.startsWith('/admin')) {
 
         if (!bg) bg = '#222222';
         if (!color) color = '#ffffff';
-        if (!font) font = 'Arial';
+        if (!font) font = LIVEVIEWS_FONT_STACK;
         if (!size) size = '32';
         if (!claimid) claimid = '';
         if (!viewersLabel) viewersLabel = 'viewers';
@@ -672,7 +674,7 @@ if (window.location.pathname.startsWith('/admin')) {
                 viewerCountSave.textContent = `${count} ${label}`;
                 try {
                   const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-                  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || 'Arial', sizePx });
+                  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || LIVEVIEWS_FONT_STACK, sizePx });
                 } catch {}
             }
     } catch (err) {

@@ -7,14 +7,32 @@
   --username: #fff;
   --donation: #ddb826;
   --donation-bg: #ececec;
-  --odysee-font-family: Inter, Roobert, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --odysee-font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   --odysee-chat-text-size: 22px;
 }
 
 body {
   background: #040509;
   margin: 0;
-  font-family: Inter, Roobert, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   color: var(--text);
 }
 
@@ -150,7 +168,7 @@ body {
   white-space: nowrap;
   margin-right: 6px;
   flex-shrink: 0;
-  background-color: rgba(17, 255, 121, 0.8);
+  background-color: rgba(17, 255, 121);
   color: #000;
   text-shadow: 0 0 8px rgba(17, 255, 121, 0.9);
   padding: 2px 4px;

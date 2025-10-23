@@ -1818,7 +1818,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (document.getElementById('liveviews-claimid')) document.getElementById('liveviews-claimid').value = cfg.claimid || '';
                 if (document.getElementById('liveviews-bg-color')) document.getElementById('liveviews-bg-color').value = cfg.bg || '#ffffff';
                 if (document.getElementById('liveviews-font-color')) document.getElementById('liveviews-font-color').value = cfg.color || '#222222';
-                if (document.getElementById('liveviews-font-family')) document.getElementById('liveviews-font-family').value = cfg.font || 'Arial';
+                                if (document.getElementById('liveviews-font-family'))
+                                    document.getElementById('liveviews-font-family').value =
+                                        cfg.font || 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
                 if (document.getElementById('liveviews-size')) document.getElementById('liveviews-size').value = cfg.size || 32;
                 
                 const iconPreview = document.getElementById('liveviews-icon-preview');

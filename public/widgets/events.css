@@ -1,7 +1,16 @@
 #events-widget {
   background: var(--bg-main, #080c10);
   color: var(--text, #e6edf3);
-  font-family: Inter, Roobert, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);

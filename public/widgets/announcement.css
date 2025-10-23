@@ -1,5 +1,14 @@
 :root {
-  --ann-font: 'Inter', Arial, sans-serif;
+  --ann-font: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   --ann-bg: rgba(14, 16, 20, 0.72);
   --ann-bg-alt: rgba(14, 16, 20, 0.56);
   --ann-border: #4f36ff;

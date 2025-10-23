@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   widget.style.height = height === 'auto' ? 'auto' : `${height}px`;
 
   widget.style.background = 'var(--bg-main, #080c10)';
-  widget.style.fontFamily = 'Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif';
+  widget.style.fontFamily = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
   widget.style.color = 'var(--text, #e6edf3)';
 
   if (urlParams.get('edit') === 'true') {
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (goalWidget) {
     goalWidget.classList.add('tip-goal-widget');
     goalWidget.style.background = 'var(--bg-main, #080c10)';
-    goalWidget.style.fontFamily = 'Inter, Roobert, "Helvetica Neue", Helvetica, Arial, sans-serif';
+    goalWidget.style.fontFamily = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
     goalWidget.style.color = 'var(--text, #e6edf3)';
   }
   

@@ -77,7 +77,16 @@
 body {
   background: #000;
   color: #ffe9a7;
-  font-family: Inter, Arial, sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   margin: 0;
   padding: 0;
 }

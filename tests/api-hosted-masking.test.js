@@ -79,7 +79,7 @@ describe('Hosted anonymous masking', () => {
     writeJson(LIVEVIEWS_CONFIG_FILE, {
       bg: '#fff',
       color: '#000',
-      font: 'Arial',
+      font: 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif',
       size: '28',
       icon: '',
       claimid: 'abcd1234efgh5678',

@@ -169,12 +169,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     connectWebSocket();
 
     const CYBERPUNK_PALETTE = [
-        { bg: 'rgba(17, 255, 121, 0.8)', text: '#000', border: 'rgba(17, 255, 121, 0.9)' },
-        { bg: 'rgba(255, 17, 121, 0.8)', text: '#fff', border: 'rgba(255, 17, 121, 0.9)' },
-        { bg: 'rgba(121, 17, 255, 0.8)', text: '#fff', border: 'rgba(121, 17, 255, 0.9)' },
-        { bg: 'rgba(17, 121, 255, 0.8)', text: '#fff', border: 'rgba(36, 98, 165, 0.9)' },
-        { bg: 'rgba(255, 231, 17, 0.8)', text: '#000', border: 'rgba(255, 231, 17, 0.9)' },
-        { bg: 'rgba(21, 25, 40, 0.93)', text: '#fff', border: 'rgba(19, 19, 19, 0.9)' }
+        { bg: 'rgba(17, 255, 121)', text: '#000', border: 'rgba(17, 255, 121, 0.9)' },
+        { bg: 'rgba(255, 17, 121)', text: '#fff', border: 'rgba(255, 17, 121, 0.9)' },
+        { bg: 'rgba(121, 17, 255)', text: '#fff', border: 'rgba(121, 17, 255, 0.9)' },
+        { bg: 'rgba(17, 121, 255)', text: '#fff', border: 'rgba(36, 98, 165, 0.9)' },
+        { bg: 'rgba(255, 231, 17)', text: '#000', border: 'rgba(255, 231, 17, 0.9)' },
+        { bg: 'rgba(21, 25, 40)', text: '#fff', border: 'rgba(19, 19, 19, 0.9)' }
     ];
 
     function getCyberpunkStyle(username) {

@@ -616,14 +616,32 @@
       <div class="kpi">
         <div class="kpi-label">{{ t('kpiHoursStreamed') }}</div>
         <div class="kpi-value">{{ fmtHours(perf.range.hoursStreamed) }}</div>
+        <div v-if="streamComparisons.hasCurrent" class="kpi-subtitle">
+          <span>{{ lastStreamSubtitle }}</span>
+          <span class="kpi-delta" :class="deltaClass(streamComparisons.durationDiffHours)">
+            {{ formatHoursDelta(streamComparisons.durationDiffHours) }}
+          </span>
+        </div>
       </div>
       <div class="kpi">
         <div class="kpi-label">{{ t('kpiAvgViewers') }}</div>
         <div class="kpi-value">{{ perf.range.avgViewers.toFixed(2) }}</div>
+        <div v-if="streamComparisons.hasCurrent" class="kpi-subtitle">
+          <span>{{ lastStreamSubtitle }}</span>
+          <span class="kpi-delta" :class="deltaClass(streamComparisons.avgViewersDiff)">
+            {{ formatAvgViewersDelta(streamComparisons.avgViewersDiff) }}
+          </span>
+        </div>
       </div>
       <div class="kpi">
         <div class="kpi-label">{{ t('kpiPeakViewers') }}</div>
         <div class="kpi-value">{{ perf.range.peakViewers }}</div>
+        <div v-if="streamComparisons.hasCurrent" class="kpi-subtitle">
+          <span>{{ lastStreamSubtitle }}</span>
+          <span class="kpi-delta" :class="deltaClass(streamComparisons.peakViewersDiff)">
+            {{ formatPeakViewersDelta(streamComparisons.peakViewersDiff) }}
+          </span>
+        </div>
       </div>
       <div class="kpi">
         <div class="kpi-label">{{ t('kpiHoursWatched') }}</div>
@@ -633,6 +651,12 @@
             t('kpiHoursWatchedTooltip') || 'Total hours all viewers spent watching (viewers × time)'
           ">
           {{ perf.range.hoursWatched.toFixed(2) }}
+        </div>
+        <div v-if="streamComparisons.hasCurrent" class="kpi-subtitle">
+          <span>{{ lastStreamSubtitle }}</span>
+          <span class="kpi-delta" :class="deltaClass(streamComparisons.viewerHoursDiff)">
+            {{ formatViewerHoursDelta(streamComparisons.viewerHoursDiff) }}
+          </span>
         </div>
       </div>
       <div class="kpi">
@@ -676,14 +700,14 @@
           <div class="line-amount">
             <span>{{ displayedAR.toFixed(4) }}</span>
             <span class="unit">AR</span>
-            <span v-if="displayedUSD != null" class="usd"
-              >≈ ${{
-                displayedUSD.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })
-              }}</span
-            >
+          </div>
+          <div v-if="displayedUSD != null" class="usd">
+            ≈ ${{
+              displayedUSD.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            }}
           </div>
           <span
             v-if="usingWalletBalance"
@@ -691,6 +715,23 @@
             :title="t('walletBalanceLabel') || 'Wallet balance (60s cache)'"
             >wallet</span
           >
+        </div>
+      </div>
+      <div class="kpi stream-duration-kpi">
+        <div class="kpi-label">{{ t('kpiStreamDuration') }}</div>
+        <div class="kpi-value">
+          <template v-if="streamComparisons.hasCurrent">
+            {{ fmtHours(streamComparisons.durationHours) }}
+          </template>
+          <template v-else>
+            {{ t('kpiNoStreamData') }}
+          </template>
+        </div>
+        <div v-if="streamComparisons.hasCurrent" class="kpi-subtitle">
+          <span>{{ lastStreamSubtitle }}</span>
+          <span class="kpi-delta" :class="deltaClass(streamComparisons.durationDiffHours)">
+            {{ formatHoursDelta(streamComparisons.durationDiffHours) }}
+          </span>
         </div>
       </div>
     </div>
@@ -806,6 +847,7 @@ const {
   customRangeActive,
   applyCustomRange,
   clearCustomRange,
+  streamComparisons,
 } = state;
 
 const usingWalletBalance = computed(() => {
@@ -837,6 +879,78 @@ const displayedUSD = computed(() => {
   } catch {}
   return null;
 });
+
+const streamDateFormatter = computed(() => {
+  try {
+    return new Intl.DateTimeFormat(locale.value || 'en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+  }
+});
+
+const formatActiveDayLabel = (dayKey) => {
+  if (typeof dayKey !== 'string' || dayKey.length !== 10) return '';
+  const [yearRaw, monthRaw, dayRaw] = dayKey.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return '';
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(candidate.getTime())) return '';
+  try {
+    return streamDateFormatter.value.format(candidate);
+  } catch {
+    return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
+  }
+};
+
+const hasStreamComparisons = computed(() => !!streamComparisons?.value?.hasCurrent);
+
+const lastStreamSubtitle = computed(() => {
+  if (!hasStreamComparisons.value) return '';
+  const dateLabel = formatActiveDayLabel(streamComparisons.value.activeDayKey);
+  if (dateLabel) return t('kpiLastStreamSubtitle', { date: dateLabel });
+  return t('kpiLastStreamSubtitleStandalone');
+});
+
+const toFixedTrim = (num, decimals) => {
+  const safeDecimals = Math.max(0, Number(decimals) || 0);
+  const str = num.toFixed(safeDecimals);
+  if (safeDecimals <= 0) return str;
+  return str.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+};
+
+const formatDeltaValue = (delta, decimals = 2, unit = '') => {
+  if (delta == null) return t('kpiNoPreviousStream');
+  const numeric = Number(delta);
+  if (!Number.isFinite(numeric)) return t('kpiNoPreviousStream');
+  const absVal = Math.abs(numeric);
+  const trimmed = toFixedTrim(absVal, decimals);
+  const valuePart = unit ? `${trimmed}${unit}` : trimmed;
+  const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
+  return `${sign}${valuePart} ${t('kpiVsPrevious')}`;
+};
+
+const formatHoursDelta = (delta) => {
+  const magnitude = Math.abs(Number(delta || 0));
+  const decimals = magnitude >= 10 ? 1 : 2;
+  return formatDeltaValue(delta, decimals, 'h');
+};
+
+const formatAvgViewersDelta = (delta) => formatDeltaValue(delta, 2);
+
+const formatPeakViewersDelta = (delta) => formatDeltaValue(delta, 0);
+
+const formatViewerHoursDelta = (delta) => formatDeltaValue(delta, 2, 'h');
+
+const deltaClass = (delta) => {
+  if (delta == null) return 'neutral';
+  const numeric = Number(delta);
+  if (!Number.isFinite(numeric)) return 'neutral';
+  if (numeric > 0) return 'positive';
+  if (numeric < 0) return 'negative';
+  return 'neutral';
+};
 
 const quickPeriodOpen = ref(false);
 const quickSpanOpen = ref(false);
