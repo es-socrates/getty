@@ -7,7 +7,16 @@
   color: var(--tn-text, #ffffff);
   padding: 0;
   border-radius: 4px;
-  font-family: Inter, 'Helvetica Neue', sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   display: none;
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
@@ -31,7 +40,16 @@
   position: absolute;
   bottom: 10px;
   left: 10px;
-  font-family: Inter, sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
 }
 .conn-online {
   color: var(--tn-amount, #00ff7f);

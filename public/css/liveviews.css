@@ -5,7 +5,10 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 #viewer-count {
-  font-family: var(--liveviews-font, Arial);
+  font-family: var(
+    --liveviews-font,
+    var(--font-sans, Roobert, Tajawal, Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif)
+  );
   font-size: var(--liveviews-size, 32px);
   color: var(--liveviews-color, #ffffff);
 }

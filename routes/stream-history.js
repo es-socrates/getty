@@ -461,6 +461,78 @@ function extendIntervalsWithSegments(intervals, segments, opts = {}) {
   return mergeIntervals(out);
 }
 
+function computeSessionStats(segments, samples, nowTs, tzOffsetMinutes = 0, limit = 5) {
+  if (!Array.isArray(segments) || !segments.length) return [];
+  const sortedSegments = [...segments].sort((a, b) => Number(a.start) - Number(b.start));
+  const safeSamples = Array.isArray(samples) ? samples : [];
+  const sessions = [];
+
+  for (const seg of sortedSegments) {
+    const start = Number(seg?.start);
+    const rawEnd = seg?.end == null ? nowTs : seg.end;
+    const end = Number(rawEnd);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+
+    let liveMs = 0;
+    let viewerSeconds = 0;
+    let peakViewers = 0;
+
+    for (let i = 0; i < safeSamples.length; i++) {
+      const sample = safeSamples[i];
+      const ts = Number(sample?.ts || 0);
+      if (!Number.isFinite(ts)) continue;
+      const nextSample = safeSamples[i + 1];
+      const nextTsRaw = nextSample ? Number(nextSample.ts || ts) : Number(nowTs);
+      const nextTs = Number.isFinite(nextTsRaw) ? nextTsRaw : ts;
+      if (nextTs <= start) continue;
+      if (ts >= end) break;
+
+      const windowStart = Math.max(start, ts);
+      const windowEnd = Math.min(end, nextTs);
+      if (windowEnd <= windowStart) continue;
+
+      if (sample?.live) {
+        const spanMs = windowEnd - windowStart;
+        liveMs += spanMs;
+        const viewers = Math.max(0, Number(sample.viewers || 0));
+        viewerSeconds += viewers * (spanMs / 1000);
+        if (Number.isFinite(viewers)) {
+          peakViewers = Math.max(peakViewers, viewers);
+        }
+      }
+    }
+
+    if (liveMs <= 0) {
+      liveMs = Math.max(0, end - start);
+    }
+
+    const durationHours = liveMs / 3600000;
+    const durationSeconds = liveMs / 1000;
+    const avgViewers = durationSeconds > 0
+      ? Number((viewerSeconds / durationSeconds).toFixed(2))
+      : 0;
+    const viewerHours = Number((viewerSeconds / 3600).toFixed(2));
+    const dayKey = formatLocalDateYMD(start, tzOffsetMinutes) || null;
+
+    sessions.push({
+      startEpoch: start,
+      endEpoch: end,
+      durationMs: liveMs,
+      durationHours: Number(durationHours.toFixed(4)),
+      avgViewers,
+      peakViewers: Number.isFinite(peakViewers) ? peakViewers : 0,
+      viewerHours,
+      activeDayKey: dayKey,
+      tzOffsetMinutes,
+    });
+  }
+
+  sessions.sort((a, b) => a.startEpoch - b.startEpoch);
+  if (!sessions.length) return sessions;
+  const cap = Math.max(1, Math.floor(Number(limit) || 0));
+  return sessions.slice(-cap);
+}
+
 function formatLocalDateParts(epoch, offsetMinutes) {
   if (!Number.isFinite(epoch)) return null;
   const local = new Date(epoch + (offsetMinutes || 0) * 60000);
@@ -871,6 +943,7 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
   }
   const totalHoursStreamed = +(totalLiveMs / 3600000).toFixed(2);
   const highestViewers = Array.isArray(hist.samples) && hist.samples.length ? Math.max(...hist.samples.map(s => Number(s.viewers || 0))) : 0;
+  const recentStreams = computeSessionStats(segments, sortedSamples, nowTs, tzOffsetMinutes, 6);
 
   return {
     range: {
@@ -884,6 +957,7 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
       totalHoursStreamed,
       highestViewers
     },
+    recentStreams,
     tzOffsetMinutes
   };
 }

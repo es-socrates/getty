@@ -16,7 +16,10 @@
 .viewer-count {
   background-color: var(--lv-bg, #1a1f27);
   color: var(--lv-fg, #fff);
-  font-family: var(--lv-font, inherit);
+  font-family: var(
+    --lv-font,
+    var(--font-sans, Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif)
+  );
   font-weight: 600;
   border-radius: 4px;
   font-size: var(--lv-size-px, 32px);
@@ -27,17 +30,17 @@
   display: inline-flex;
   align-items: center;
   border: none;
+#liveviews-widget {
+  padding: 10px;
+  border-radius: 4px;
+  background: var(--liveviews-bg, #222222);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
-
-.hidden {
-  display: none !important;
-}
-.liveviews-avatar {
-  height: 54px;
-  width: 54px;
-  border-radius: 50%;
-  object-fit: cover;
-  vertical-align: middle;
+#viewer-count {
+  font-family: var(
+    --liveviews-font,
+    var(--font-sans, Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif)
+  );
   margin-left: 10px;
   margin-right: 10px;
 }
@@ -60,7 +63,16 @@
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid rgba(0, 0, 0, 0.15);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif
+  );
 }
 .lv-toast-success {
   background: rgba(16, 185, 129, 0.15);

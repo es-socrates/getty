@@ -6,11 +6,13 @@ const axios = require('axios');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { getStorage } = require('../lib/supabase-storage');
 
+const LIVEVIEWS_FONT_STACK = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
+
 function getLiveviewsConfigWithDefaults(partial) {
   return {
     bg: typeof partial.bg === 'string' && partial.bg.trim() ? partial.bg : '#222222',
     color: typeof partial.color === 'string' && partial.color.trim() ? partial.color : '#ffffff',
-    font: typeof partial.font === 'string' && partial.font.trim() ? partial.font : 'Arial',
+    font: typeof partial.font === 'string' && partial.font.trim() ? partial.font : LIVEVIEWS_FONT_STACK,
     size: typeof partial.size === 'string' && partial.size.trim() ? partial.size : '32',
     icon: typeof partial.icon === 'string' ? partial.icon : '',
     claimid: typeof partial.claimid === 'string' ? partial.claimid : '',
@@ -190,11 +192,11 @@ function registerLiveviewsRoutes(app, strictLimiter, options = {}) {
     const configPath = LIVEVIEWS_CONFIG_FILE;
     fs.readFile(configPath, 'utf8', (err, data) => {
       let config;
-      if (err) {
-  config = { bg: '#222222', color: '#ffffff', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel };
-      } else {
-        try { config = JSON.parse(data); if (typeof config !== 'object' || config === null) config = {}; }
-  catch { config = { bg: '#222222', color: '#ffffff', font: 'Arial', size: 32, icon: '', claimid: '', viewersLabel }; }
+  if (err) {
+	config = { bg: '#222222', color: '#ffffff', font: LIVEVIEWS_FONT_STACK, size: 32, icon: '', claimid: '', viewersLabel };
+  } else {
+    try { config = JSON.parse(data); if (typeof config !== 'object' || config === null) config = {}; }
+	catch { config = { bg: '#222222', color: '#ffffff', font: LIVEVIEWS_FONT_STACK, size: 32, icon: '', claimid: '', viewersLabel }; }
         config.viewersLabel = viewersLabel;
       }
       fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf8', (err) => {

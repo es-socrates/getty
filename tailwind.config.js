@@ -75,7 +75,7 @@ module.exports = {
         os: '0 1px 2px rgba(15, 15, 15, 0.06), 0 1px 1px rgba(15, 15, 15, 0.04)',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Roobert', 'Tajawal', 'Inter', '"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
       },
     },
   },

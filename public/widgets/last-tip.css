@@ -7,7 +7,16 @@
   color: var(--lt-text, #fff);
   padding: 0;
   border-radius: 4px;
-  font-family: Inter, 'Helvetica Neue', sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   z-index: 10000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   overflow: hidden;
@@ -85,7 +94,16 @@
   bottom: 10px;
   left: 10px;
   color: #00ff7f;
-  font-family: Inter, sans-serif;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
   font-size: 16px;
 }
 

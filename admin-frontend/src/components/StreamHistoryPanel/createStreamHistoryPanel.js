@@ -22,6 +22,7 @@ export function createStreamHistoryPanel(t) {
     range: { hoursStreamed: 0, avgViewers: 0, peakViewers: 0, hoursWatched: 0, activeDays: 0 },
     allTime: { totalHoursStreamed: 0, highestViewers: 0 },
   });
+  const recentStreams = ref([]);
   const status = ref({
     connected: false,
     live: false,
@@ -56,6 +57,44 @@ export function createStreamHistoryPanel(t) {
   const showViewerTrend = ref(true);
   const peakSessionSummary = ref('');
   const nowTick = ref(Date.now());
+  const lastStream = computed(() => {
+    const arr = Array.isArray(recentStreams.value) ? recentStreams.value : [];
+    return arr.length ? arr[arr.length - 1] : null;
+  });
+  const previousStream = computed(() => {
+    const arr = Array.isArray(recentStreams.value) ? recentStreams.value : [];
+    return arr.length >= 2 ? arr[arr.length - 2] : null;
+  });
+  const streamComparisons = computed(() => {
+    const current = lastStream.value;
+    const prev = previousStream.value;
+    const hasCurrent = !!current;
+    const hasPrev = !!prev;
+    const toNumber = (val) => {
+      const num = Number(val);
+      return Number.isFinite(num) ? num : 0;
+    };
+    const delta = (curVal, prevVal) => (hasPrev ? toNumber(curVal) - toNumber(prevVal) : null);
+
+    return {
+      hasCurrent,
+      hasPrevious: hasPrev,
+      durationHours: hasCurrent ? toNumber(current.durationHours) : 0,
+      durationDiffHours: delta(current?.durationHours, prev?.durationHours),
+      avgViewers: hasCurrent ? toNumber(current.avgViewers) : 0,
+      avgViewersDiff: delta(current?.avgViewers, prev?.avgViewers),
+      peakViewers: hasCurrent ? toNumber(current.peakViewers) : 0,
+      peakViewersDiff: delta(current?.peakViewers, prev?.peakViewers),
+      viewerHours: hasCurrent ? toNumber(current.viewerHours) : 0,
+      viewerHoursDiff: delta(current?.viewerHours, prev?.viewerHours),
+      activeDayKey: current?.activeDayKey || null,
+      activeDayDiff: hasPrev
+        ? (current?.activeDayKey && prev?.activeDayKey && current.activeDayKey !== prev.activeDayKey ? 1 : 0)
+        : null,
+      totalHoursDiff: hasPrev ? toNumber(current?.durationHours) : null,
+      highestViewersDiff: delta(current?.peakViewers, prev?.peakViewers),
+    };
+  });
   const tzDisplay = computed(() => {
     const off = effectiveTzOffset.value;
     const sign = off >= 0 ? '+' : '-';
@@ -277,7 +316,13 @@ export function createStreamHistoryPanel(t) {
       if (customRangeActive.value && p?.data?.appliedRange) {
         applyRangeFromResponse(p.data.appliedRange);
       }
-      perf.value = p?.data ? { range: p.data.range, allTime: p.data.allTime } : perf.value;
+      if (p?.data) {
+        perf.value = {
+          range: p.data.range,
+          allTime: p.data.allTime,
+        };
+        recentStreams.value = Array.isArray(p.data.recentStreams) ? p.data.recentStreams : [];
+      }
   try { const pr = await api.get('/api/ar-price'); arUsd.value = pr?.data?.arweave?.usd || arUsd.value; } catch {}
   try { const er = await api.get('/api/last-tip/earnings'); totalAR.value = Number(er?.data?.totalAR || 0); } catch {}
   try {
@@ -508,6 +553,10 @@ export function createStreamHistoryPanel(t) {
     arUsd,
     earningsHidden,
     lastSummaryData,
+  recentStreams,
+  lastStream,
+  previousStream,
+  streamComparisons,
     customRange,
     customRangeActive,
     initialClaimid,

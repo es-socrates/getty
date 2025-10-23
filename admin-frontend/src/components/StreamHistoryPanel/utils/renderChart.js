@@ -202,6 +202,20 @@ function renderStreamHistoryChart(el, data, {
   const maxHours = Math.max(1, ...display.filter(d => d && d.hours != null).map(d => Number(d.hours || 0)));
   const maxViewers = showViewers ? Math.max(0, ...display.map(d => Number(d.avgViewers || 0))) : 0;
 
+  const trimTrailingEmptyBuckets = (source) => {
+    const copy = Array.isArray(source) ? [...source] : [];
+    while (copy.length > 1) {
+      const last = copy[copy.length - 1] || {};
+      const hoursVal = Number(last.hours || 0);
+      const avgVal = Number(last.avgViewers || 0);
+      const peakVal = Number(last.peakViewers || 0);
+      if (hoursVal > 0 || avgVal > 0 || peakVal > 0) break;
+      copy.pop();
+    }
+    return copy;
+  };
+  const barDisplay = trimTrailingEmptyBuckets(display);
+
   function parseBucketDateString(str) {
     if (typeof str !== 'string') return null;
     const m = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -521,21 +535,24 @@ function renderStreamHistoryChart(el, data, {
         }
       }
     });
-    const maxLabels = 8; const stride = Math.max(1, Math.ceil(display.length / maxLabels));
+  const maxLabels = 8; const stride = Math.max(1, Math.ceil(display.length / maxLabels));
     const labelColor = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#94a3b8';
     for (let i = 0; i < display.length; i += stride) {
-      const x = Math.round(axisLeft + padX + i * stepX);
+  const x = Math.round(axisLeft + padX + i * stepX);
       const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       txt.setAttribute('x', String(x)); txt.setAttribute('y', String(h - Math.max(6, Math.round(24 / 3))));
       txt.setAttribute('fill', labelColor); txt.setAttribute('font-size', '10'); txt.setAttribute('text-anchor', 'middle');
-      txt.textContent = fmtX(display[i]);
+  txt.textContent = fmtX(display[i]);
       svg.appendChild(txt);
     }
   el.appendChild(svg);
   return { peak: peakCandidate };
   }
 
-  const axisLeft = 44; const gap = 4; const barW = Math.max(8, Math.floor((w - axisLeft) / Math.max(1, display.length)) - (gap + 2));
+  const axisLeft = 44; const gap = 4;
+  const series = barDisplay;
+  const seriesLength = Math.max(1, series.length);
+  const barW = Math.max(8, Math.floor((w - axisLeft - gap * Math.max(0, seriesLength - 1)) / seriesLength));
   const animateBars = shouldAnimate(el, mode === 'candle' ? 'candle' : 'bar');
   const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   gridSvg.setAttribute('width', String(w)); gridSvg.setAttribute('height', String(h));
@@ -599,13 +616,13 @@ function renderStreamHistoryChart(el, data, {
     }
 
     const bottomLabelY = h - Math.max(6, Math.round(24 / 3));
-    const maxLabels = 8; const stride = Math.max(1, Math.ceil(display.length / maxLabels));
-    for (let i = 0; i < display.length; i += stride) {
+    const maxLabels = 8; const stride = Math.max(1, Math.ceil(series.length / maxLabels));
+    for (let i = 0; i < series.length; i += stride) {
       const centerX = Math.round(axisLeft + (barW + gap) * i + barW / 2);
       const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       txt.setAttribute('x', String(centerX)); txt.setAttribute('y', String(bottomLabelY));
       txt.setAttribute('fill', labelColor); txt.setAttribute('font-size', '10'); txt.setAttribute('text-anchor', 'middle');
-      txt.textContent = fmtX(display[i]);
+      txt.textContent = fmtX(series[i]);
       gridSvg.appendChild(txt);
     }
   } catch {}
@@ -614,7 +631,7 @@ function renderStreamHistoryChart(el, data, {
   Object.assign(container.style, { display: 'flex', alignItems: 'flex-end', gap: gap + 'px', position: 'relative', zIndex: '1', marginLeft: axisLeft + 'px' });
   const bottomAxis = 24; const padY = 10; const innerHeight = Math.max(1, h - bottomAxis - padY * 2); container.style.height = innerHeight + 'px'; container.style.marginTop = padY + 'px';
   const maxVal = maxHours; const available = innerHeight;
-  display.forEach((d, idx) => {
+  series.forEach((d, idx) => {
     const v = d.hours || 0;
     const bh = Math.round((v / maxVal) * available);
     const bar = document.createElement('div');
