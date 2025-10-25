@@ -117,6 +117,8 @@ async function maybeSyncHistoryDb(adminNs, hist, opts = {}) {
   }
 }
 
+const STREAM_HISTORY_DISABLE_TRIM = process.env.GETTY_STREAM_HISTORY_DISABLE_TRIM === '1';
+
 const STREAM_HISTORY_MAX_SAMPLES_OVERRIDE = (() => {
   const raw = Number(process.env.GETTY_STREAM_HISTORY_MAX_SAMPLES);
   if (Number.isFinite(raw) && raw >= 0) return Math.floor(raw);
@@ -278,6 +280,7 @@ function endSegment(hist, ts) {
 }
 
 function truncateSegments(hist, maxDays = 400) {
+  if (STREAM_HISTORY_DISABLE_TRIM) return;
   try {
     const cutoff = Date.now() - maxDays * 86400000;
     if (Array.isArray(hist.segments)) {
