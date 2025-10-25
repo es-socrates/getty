@@ -439,7 +439,7 @@ function renderStreamHistoryChart(el, data, {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', dPath);
     path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'var(--line-color, #10b981)');
+    path.setAttribute('stroke', 'var(--line-color, #2261ee)');
     path.setAttribute('stroke-width', '3');
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('class', 'line-path');
@@ -485,7 +485,7 @@ function renderStreamHistoryChart(el, data, {
       c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); c.setAttribute('r', '3');
       const meetsGoal = goal > 0 && hoursValue >= goal;
       const hourFill = hoursValue > 0
-        ? (goal > 0 ? (meetsGoal ? 'var(--chart-goal-met,#ee2264)' : 'var(--line-color,#10b981)') : 'var(--line-color,#10b981)')
+  ? (goal > 0 ? (meetsGoal ? 'var(--chart-goal-met,#ee2264)' : 'var(--line-color,#2261ee)') : 'var(--line-color,#2261ee)')
         : 'rgba(128,128,128,.65)';
       c.setAttribute('fill', hourFill);
       c.classList.add('line-point');
@@ -653,7 +653,7 @@ function renderStreamHistoryChart(el, data, {
     })();
     if (ariaTitle) { bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', ariaTitle); }
     const meetsGoal = goal > 0 && v >= goal;
-  const positiveColor = meetsGoal ? 'var(--chart-goal-met,#ee2264)' : 'var(--bar-positive,#10b981)';
+    const positiveColor = meetsGoal ? 'var(--chart-goal-met,#ee2264)' : 'var(--bar-positive,#2261ee)';
     const neutralColor = goal > 0 ? 'var(--chart-goal-base,rgba(148,163,184,0.45))' : 'rgba(128,128,128,.35)';
     bar.style.background = v > 0 ? positiveColor : neutralColor;
     bar.style.borderRadius = '4px';

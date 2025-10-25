@@ -118,7 +118,7 @@
   display: inline-block;
 }
 .dot-teal {
-  background: #10b981;
+  background: #2261ee;
 }
 .dot-red {
   background: #ef4444;
@@ -206,8 +206,8 @@ body:not(.dark) .kpi-delta.negative {
   background: var(--card-bg, #111827);
 }
 .badge.ok {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.08);
+  color: #2261ee;
+  background: rgba(34, 97, 238, 0.12);
 }
 .badge.err {
   color: #f59e0b;

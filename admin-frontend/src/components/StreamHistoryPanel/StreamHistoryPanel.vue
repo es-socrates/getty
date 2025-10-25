@@ -895,7 +895,7 @@ const formatActiveDayLabel = (dayKey) => {
   const month = Number(monthRaw);
   const day = Number(dayRaw);
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return '';
-  const candidate = new Date(Date.UTC(year, month - 1, day));
+  const candidate = new Date(year, month - 1, day);
   if (Number.isNaN(candidate.getTime())) return '';
   try {
     return streamDateFormatter.value.format(candidate);

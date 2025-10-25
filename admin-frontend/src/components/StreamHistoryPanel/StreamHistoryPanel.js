@@ -383,9 +383,9 @@ function renderChart(data) {
     lg.setAttribute('id', gradId);
     lg.setAttribute('x1', '0'); lg.setAttribute('y1', '0'); lg.setAttribute('x2', '0'); lg.setAttribute('y2', '1');
     const st0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    st0.setAttribute('offset', '0%'); st0.setAttribute('stop-color', '#10b981'); st0.setAttribute('stop-opacity', '0.24');
+    st0.setAttribute('offset', '0%'); st0.setAttribute('stop-color', '#2261ee'); st0.setAttribute('stop-opacity', '0.24');
     const st1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
-    st1.setAttribute('offset', '100%'); st1.setAttribute('stop-color', '#10b981'); st1.setAttribute('stop-opacity', '0');
+    st1.setAttribute('offset', '100%'); st1.setAttribute('stop-color', '#2261ee'); st1.setAttribute('stop-opacity', '0');
     lg.appendChild(st0); lg.appendChild(st1); defs.appendChild(lg); svg.appendChild(defs);
 
     let dPath = '';
@@ -408,7 +408,7 @@ function renderChart(data) {
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', dPath);
     path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'var(--line-color, #10b981)');
+    path.setAttribute('stroke', 'var(--line-color, #2261ee)');
     path.setAttribute('stroke-width', '2.5');
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('class', 'line-path');
@@ -422,6 +422,7 @@ function renderChart(data) {
       c.setAttribute('cy', String(y));
       c.setAttribute('r', String(3.0));
       c.setAttribute('fill', (p.hours || 0) > 0 ? 'var(--line-color, #10b981)' : 'rgba(128,128,128,.65)');
+      c.setAttribute('fill', (p.hours || 0) > 0 ? 'var(--line-color, #2261ee)' : 'rgba(128,128,128,.65)');
       c.setAttribute('class', 'line-point');
       c.style.cursor = 'default';
       c.addEventListener('mouseenter', (e) => {
@@ -511,7 +512,7 @@ function renderChart(data) {
     bar.style.width = barW + 'px';
     bar.style.height = Math.max(2, bh) + 'px';
     bar.title = `${d.date ? d.date + ': ' : ''}${v} h`;
-    bar.style.background = v > 0 ? 'var(--bar-positive, #10b981)' : 'rgba(128,128,128,.35)';
+    bar.style.background = v > 0 ? 'var(--bar-positive, #2261ee)' : 'rgba(128,128,128,.35)';
     bar.style.borderRadius = '6px';
     bar.style.boxShadow = v > 0 ? '0 1px 0 rgba(0,0,0,.06)' : 'none';
     bar.className = 'bar';
@@ -520,7 +521,7 @@ function renderChart(data) {
       bar.style.background = 'transparent';
       const fill = document.createElement('div');
       fill.style.height = Math.max(2, bh) + 'px';
-      fill.style.background = v > 0 ? 'var(--bar-positive, #10b981)' : 'rgba(128,128,128,.55)';
+      fill.style.background = v > 0 ? 'var(--bar-positive, #2261ee)' : 'rgba(128,128,128,.55)';
       fill.style.width = '100%';
       fill.style.borderRadius = '6px';
       bar.appendChild(fill);

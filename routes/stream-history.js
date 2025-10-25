@@ -431,6 +431,37 @@ function mergeIntervals(intervals) {
   return out;
 }
 
+function clampInterval(start, end, min = -Infinity, max = Infinity) {
+  const s = Math.max(min, start);
+  const e = Math.min(max, end);
+  if (e <= s) return null;
+  return { start: s, end: e };
+}
+
+function subtractCoveredSpans(start, end, coverageIntervals) {
+  if (!Array.isArray(coverageIntervals) || !coverageIntervals.length) {
+    return [[start, end]];
+  }
+  const relevant = coverageIntervals
+    .map(interval => ({ start: interval.start, end: interval.end }))
+    .filter(interval => interval.end > start && interval.start < end)
+    .sort((a, b) => a.start - b.start);
+  if (!relevant.length) return [[start, end]];
+
+  const gaps = [];
+  let cursor = start;
+  for (const interval of relevant) {
+    if (interval.start > cursor) {
+      const gapEnd = Math.min(interval.start, end);
+      if (gapEnd > cursor) gaps.push([cursor, gapEnd]);
+    }
+    cursor = Math.max(cursor, Math.min(interval.end, end));
+    if (cursor >= end) break;
+  }
+  if (cursor < end) gaps.push([cursor, end]);
+  return gaps.filter(span => span[1] > span[0]);
+}
+
 function extendIntervalsWithSegments(intervals, segments, opts = {}) {
   if (!intervals.length) return [];
   const maxPadMs = Math.max(0, Number(opts.maxPadMs ?? 2 * 3600000));
@@ -712,29 +743,14 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
     padRatio: 1,
     padExtraMs: 5 * 60000,
   });
-  const hasLiveSamples = samples.some(s => s && s.live);
 
-  let liveMsFromIntervals = 0;
   for (const interval of paddedIntervals) {
     const s = Math.max(rangeStart, interval.start);
     const e = Math.min(rangeEnd, interval.end);
     if (e <= s) continue;
-    liveMsFromIntervals += (e - s);
     for (const part of splitSpanByDayTz(s, e, offset)) {
       const b = bmap.get(part.day);
       if (b) b.ms += part.ms;
-    }
-  }
-
-  if (liveMsFromIntervals === 0 && !hasLiveSamples) {
-    for (const seg of segments) {
-      const s = Math.max(seg.start, rangeStart);
-      const e = Math.min(seg.end, rangeEnd);
-      if (e <= s) continue;
-      for (const part of splitSpanByDayTz(s, e, offset)) {
-        const b = bmap.get(part.day);
-        if (b) b.ms += part.ms;
-      }
     }
   }
 
@@ -761,6 +777,22 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
       }
     }
   } catch {}
+
+  const coverageIntervals = mergeIntervals(paddedIntervals)
+    .map(interval => clampInterval(interval.start, interval.end, rangeStart, rangeEnd))
+    .filter(Boolean);
+
+  for (const seg of segments) {
+    const clampedSeg = clampInterval(seg.start, seg.end, rangeStart, rangeEnd);
+    if (!clampedSeg) continue;
+    const residualSpans = subtractCoveredSpans(clampedSeg.start, clampedSeg.end, coverageIntervals);
+    for (const [resStart, resEnd] of residualSpans) {
+      for (const part of splitSpanByDayTz(resStart, resEnd, offset)) {
+        const b = bmap.get(part.day);
+        if (b) b.ms += part.ms;
+      }
+    }
+  }
 
   return buckets.map(b => ({
     date: b.label,
@@ -956,19 +988,22 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
     padRatio: 1,
     padExtraMs: 5 * 60000,
   });
-  const hasLiveSamples = sortedSamples.some(s => s && s.live);
+  const mergedIntervals = mergeIntervals(paddedIntervals);
+  const coverageInRange = mergedIntervals
+    .map(interval => clampInterval(interval.start, interval.end, start, end))
+    .filter(Boolean);
 
   let liveMsInRange = 0;
-  for (const interval of paddedIntervals) {
-    const s = Math.max(start, interval.start);
-    const e = Math.min(end, interval.end);
-    if (e > s) liveMsInRange += (e - s);
+  for (const interval of coverageInRange) {
+    liveMsInRange += Math.max(0, interval.end - interval.start);
   }
-  if (liveMsInRange === 0 && !hasLiveSamples) {
-    for (const seg of segments) {
-      const s = Math.max(start, seg.start);
-      const e = Math.min(end, seg.end);
-      if (e > s) liveMsInRange += (e - s);
+
+  for (const seg of segments) {
+    const clampedSeg = clampInterval(seg.start, seg.end, start, end);
+    if (!clampedSeg) continue;
+    const residualSpans = subtractCoveredSpans(clampedSeg.start, clampedSeg.end, coverageInRange);
+    for (const [resStart, resEnd] of residualSpans) {
+      liveMsInRange += Math.max(0, resEnd - resStart);
     }
   }
   const hoursStreamed = +(liveMsInRange / 3600000).toFixed(2);
@@ -1000,15 +1035,13 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
   const watchedHours = +rangeWatchedHours.toFixed(2);
 
   let totalLiveMs = 0;
-  if (paddedIntervals.length) {
-    for (const interval of paddedIntervals) {
-      const span = Math.max(0, interval.end - interval.start);
-      totalLiveMs += span;
-    }
-  } else {
-    for (const seg of segments) {
-      const span = Math.max(0, seg.end - seg.start);
-      totalLiveMs += span;
+  for (const interval of mergedIntervals) {
+    totalLiveMs += Math.max(0, interval.end - interval.start);
+  }
+  for (const seg of segments) {
+    const residualSpans = subtractCoveredSpans(seg.start, seg.end, mergedIntervals);
+    for (const [resStart, resEnd] of residualSpans) {
+      totalLiveMs += Math.max(0, resEnd - resStart);
     }
   }
   const totalHoursStreamed = +(totalLiveMs / 3600000).toFixed(2);
@@ -1988,5 +2021,3 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
 module.exports = registerStreamHistoryRoutes;
 module.exports._testHooks = { aggregate, aggregateDailyBuckets };
-
-
