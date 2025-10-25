@@ -627,6 +627,57 @@ function computeRangeEndEpoch(bucketStartEpoch, bucketPeriod, offsetMinutes) {
   return endLocal - offset * 60000;
 }
 
+function previousBucketStart(bucketStartEpoch, bucketPeriod, offsetMinutes = 0) {
+  if (!Number.isFinite(bucketStartEpoch)) return null;
+  const offset = offsetMinutes || 0;
+  if (bucketPeriod === 'week') {
+    return bucketStartEpoch - 7 * 86400000;
+  }
+  if (bucketPeriod === 'month') {
+    const local = new Date(bucketStartEpoch + offset * 60000);
+    const prevLocal = Date.UTC(local.getUTCFullYear(), local.getUTCMonth() - 1, 1);
+    return prevLocal - offset * 60000;
+  }
+  if (bucketPeriod === 'year') {
+    const local = new Date(bucketStartEpoch + offset * 60000);
+    const prevLocal = Date.UTC(local.getUTCFullYear() - 1, 0, 1);
+    return prevLocal - offset * 60000;
+  }
+  return bucketStartEpoch - 86400000;
+}
+
+function makeEmptyAggregate(bucketStartEpoch, bucketPeriod, offsetMinutes = 0) {
+  if (!Number.isFinite(bucketStartEpoch)) return null;
+  const bucketEndEpoch = computeBucketEndEpoch(bucketStartEpoch, bucketPeriod, offsetMinutes);
+  const rangeEndEpoch = computeRangeEndEpoch(bucketStartEpoch, bucketPeriod, offsetMinutes);
+  let bucketLabel;
+  if (bucketPeriod === 'month') {
+    bucketLabel = formatLocalYearMonth(bucketStartEpoch, offsetMinutes);
+  } else if (bucketPeriod === 'year') {
+    bucketLabel = formatLocalYear(bucketStartEpoch, offsetMinutes);
+  } else {
+    bucketLabel = formatLocalDateYMD(bucketStartEpoch, offsetMinutes);
+  }
+  const dateLabel = bucketPeriod === 'day'
+    ? bucketLabel
+    : formatLocalDateYMD(bucketStartEpoch, offsetMinutes);
+  return {
+    date: dateLabel,
+    epoch: bucketStartEpoch,
+    bucketStartEpoch,
+    bucketEndEpoch,
+    bucketLabel,
+    tzOffsetMinutes: offsetMinutes,
+    hours: 0,
+    avgViewers: 0,
+    peakViewers: 0,
+    rangeStartEpoch: bucketStartEpoch,
+    rangeEndEpoch,
+    rangeStartDate: formatLocalDateYMD(bucketStartEpoch, offsetMinutes),
+    rangeEndDate: formatLocalDateYMD(rangeEndEpoch, offsetMinutes),
+  };
+}
+
 function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options = {}) {
   const offset = tzOffsetMinutes || 0;
   const windowEndOverride = Number.isFinite(options?.windowEndEpoch)
@@ -847,14 +898,30 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
   if (!aggregates.length) return aggregates;
 
   const lastActiveIndex = aggregates.reduce((acc, entry, i) => (entry.hours > 0 ? i : acc), -1);
-
+  let window;
   if (lastActiveIndex >= 0) {
-    const startIndex = Math.max(0, lastActiveIndex - normalizedSpan + 1);
-    return aggregates.slice(startIndex, lastActiveIndex + 1);
+    const cap = normalizedSpan;
+    const startIndex = Math.max(0, lastActiveIndex - cap + 1);
+    window = aggregates.slice(startIndex, lastActiveIndex + 1);
+  } else {
+    window = aggregates.slice(-normalizedSpan);
+    if (!window.length && aggregates.length) {
+      window = [aggregates[aggregates.length - 1]];
+    }
   }
 
-  const fallback = aggregates.slice(-normalizedSpan);
-  return fallback.length ? fallback : [aggregates[aggregates.length - 1]];
+  if (window.length && window.length < normalizedSpan) {
+    let cursor = window[0].bucketStartEpoch;
+    for (let i = window.length; i < normalizedSpan; i++) {
+      cursor = previousBucketStart(cursor, bucketPeriod, offset);
+      if (!Number.isFinite(cursor)) break;
+      const placeholder = makeEmptyAggregate(cursor, bucketPeriod, offset);
+      if (!placeholder) break;
+      window.unshift(placeholder);
+    }
+  }
+
+  return window;
 }
 
 function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0, options = {}) {
