@@ -1989,3 +1989,4 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 module.exports = registerStreamHistoryRoutes;
 module.exports._testHooks = { aggregate, aggregateDailyBuckets };
 
+
