@@ -5,7 +5,7 @@ body.user-dashboard-mode #main-content {
 }
 
 body.user-dashboard-mode .os-header {
-  border-bottom-color: var(--text-primary);
+  border-bottom-color: var(--border-color);
 }
 
 #user-welcome-message {

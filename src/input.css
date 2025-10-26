@@ -234,6 +234,9 @@
   .os-card {
     @apply os-surface p-4;
   }
+  .os-card:is(.dark *) {
+    background-color: var(--bg-card);
+  }
   .os-card-title {
     @apply text-sm font-semibold mb-2 text-neutral-900 dark:text-neutral-100;
   }
@@ -297,7 +300,7 @@
   }
 
   .last-donation {
-    @apply text-white overflow-hidden border-l-8 border-[#eaeaea] rounded-[4px];
+    @apply text-white overflow-hidden rounded-[4px];
   }
 
   .last-donation-content {
