@@ -52,13 +52,13 @@ Want to take your stream to the next level? With getty, managing your widgets in
 ```bash
 corepack enable
 node -v   # should print v22.x.x
-pnpm -v   # Corepack will provision pnpm@9.12.3
+pnpm -v   # Corepack will provision pnpm@10.19.0
 ```
 
 - Optional: install pnpm manually (if you prefer not to use Corepack):
 
 ```bash
-npm i -g pnpm@9.12.3
+npm i -g pnpm@10.19.0
 ```
 
 ## Installation
