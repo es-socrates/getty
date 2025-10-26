@@ -13,7 +13,7 @@
     "admin:dev": "vite --config admin-frontend/vite.config.js",
     "admin:build": "vite build --config admin-frontend/vite.config.js",
     "dev-css": "tailwindcss -i ./src/input.css -o ./public/css/output.css --watch",
-    "test": "cross-env NODE_ENV=test jest --runInBand --forceExit",
+    "test": "cross-env NODE_ENV=test node scripts/run-tests.js",
     "lint:css": "stylelint \"src/**/*.css\" --cache",
     "lint:css:fix": "stylelint \"src/**/*.css\" --fix --cache",
     "build-css": "tailwindcss -i src/input.css -o public/css/output.css",
