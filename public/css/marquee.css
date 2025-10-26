@@ -12,6 +12,7 @@
   width: 260px;
   flex-shrink: 0;
   margin-right: 16px;
+  border-color: var(--border-color);
 }
 
 .marquee-content:hover {

@@ -21,7 +21,6 @@ body {
   padding: 14px;
   color: var(--tg-text, #ffffff);
   z-index: 10000;
-  border-left: 8px solid var(--tg-border, #eaeaea);
   margin: 12px auto;
 }
 
@@ -371,14 +370,6 @@ body {
   animation-delay: 10s;
 }
 
-#goal-widget:not(.modern-theme).celebrating {
-  border-left: 8px solid var(--tg-border, #eaeaea);
-}
-
-#goal-widget:not(.modern-theme):not(.celebrating) {
-  border-left: 8px solid var(--tg-border, #eaeaea);
-}
-
 #goal-widget:not(.modern-theme).tip-goal-widget.celebrating {
   border-left: 8px solid var(--tg-border, #00ff7f);
 }
@@ -601,7 +592,6 @@ body {
   background: var(--modern-accent);
 }
 
-/* Width percentage helpers for progress bars (0..100) */
 .w-pct-0 {
   width: 0%;
 }

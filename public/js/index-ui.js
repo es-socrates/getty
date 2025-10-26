@@ -439,8 +439,8 @@
     if (colors.secondary) root.style.setProperty('--user-secondary-color', colors.secondary);
     
     const header = document.querySelector('.os-header');
-    if (header && colors.primary) {
-      header.style.borderBottomColor = colors.primary;
+    if (header) {
+      header.style.borderBottomColor = 'rgb(39 39 42/var(--tw-border-opacity,1))';
     }
   }
 })();
