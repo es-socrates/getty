@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@primevue/themes':
-        specifier: ^4.4.0
-        version: 4.4.0
+        specifier: ^4.4.1
+        version: 4.4.1
       '@supabase/supabase-js':
         specifier: ^2.58.0
         version: 2.58.0
@@ -988,6 +988,10 @@ packages:
     resolution: {integrity: sha512-tQL/ZOPgCdD+NTimlUmhyD0ey8J1XmpZE4hDHM+/fnuBicVVmlKOd5HpS748LcOVRUKbWjmEPdHX4hi5XZoC1Q==}
     engines: {node: '>=12.11.0'}
 
+  '@primeuix/utils@0.6.2':
+    resolution: {integrity: sha512-l+li4z6UAwamqbu4xodN3lqr1G4S37DKEJ7Y/nE3MjEx7zJ+KIBkb5voF26Nuly1UCmIcRWQJokhLRF7+sRhyg==}
+    engines: {node: '>=12.11.0'}
+
   '@primevue/core@4.4.1':
     resolution: {integrity: sha512-RG56iDKIJT//EtntjQzOiWOHZZJczw/qWWtdL5vFvw8/QDS9DPKn8HLpXK7N5Le6KK1MLXUsxoiGTZK+poUFUg==}
     engines: {node: '>=12.11.0'}
@@ -998,8 +1002,8 @@ packages:
     resolution: {integrity: sha512-UfDimrIjVdY6EziwieyV4zPKzW6mnKHKhy4Dgyjv2oI6pNeuim+onbJo1ce22PEGXW78vfblG/3/JIzVHFweqQ==}
     engines: {node: '>=12.11.0'}
 
-  '@primevue/themes@4.4.0':
-    resolution: {integrity: sha512-O+NVKXbXKilLppLkitDs8w0UuTLI1y7MT1Ep5orG/ULiRfJ8LL5KNmZFhqQZJBHFSPfGaVmPIbfXQXmuVtQKjw==}
+  '@primevue/themes@4.4.1':
+    resolution: {integrity: sha512-3qofw+UhTG5rZXUU+RtYY1ea5Q84LvfHtDuzFLUSK9pL1SLS+S4CBnoMuVM9I009FdVyNGT0Bib3sLMf21SBVQ==}
     engines: {node: '>=12.11.0'}
 
   '@react-aria/autocomplete@3.0.0-rc.3':
@@ -6279,7 +6283,7 @@ snapshots:
 
   '@primeuix/styled@0.7.4':
     dependencies:
-      '@primeuix/utils': 0.6.1
+      '@primeuix/utils': 0.6.2
 
   '@primeuix/styles@1.2.5':
     dependencies:
@@ -6290,6 +6294,8 @@ snapshots:
       '@primeuix/styled': 0.7.4
 
   '@primeuix/utils@0.6.1': {}
+
+  '@primeuix/utils@0.6.2': {}
 
   '@primevue/core@4.4.1(vue@3.5.22(typescript@5.9.2))':
     dependencies:
@@ -6304,7 +6310,7 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  '@primevue/themes@4.4.0':
+  '@primevue/themes@4.4.1':
     dependencies:
       '@primeuix/styled': 0.7.4
       '@primeuix/themes': 1.2.5
