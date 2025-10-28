@@ -598,12 +598,50 @@ watch(
 
 watch(route, () => {});
 
-function applyTheme(dark) {
-  isDark.value = dark;
-  document.documentElement.classList.toggle('dark', dark);
+function resolveThemePreference() {
+  let stored = null;
   try {
-    localStorage.setItem('prefers-dark', dark ? '1' : '0');
+    stored = localStorage.getItem('theme');
   } catch {}
+  if (stored === 'dark') return true;
+  if (stored === 'light') return false;
+  let legacy = null;
+  try {
+    legacy = localStorage.getItem('prefers-dark');
+  } catch {}
+  if (legacy === '1') return true;
+  if (legacy === '0') return false;
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  } catch {
+    return true;
+  }
+}
+
+function applyTheme(dark, persist = true) {
+  if (isDark.value === dark && !persist) return;
+  isDark.value = dark;
+  const mode = dark ? 'dark' : 'light';
+  document.documentElement.classList.toggle('dark', dark);
+  document.documentElement.classList.toggle('light', !dark);
+  try {
+    document.documentElement.setAttribute('data-theme', mode);
+  } catch {}
+  try {
+    const body = document.body;
+    if (body) {
+      body.classList.toggle('dark', dark);
+      body.classList.toggle('light', !dark);
+    }
+  } catch {}
+  if (persist) {
+    try {
+      localStorage.setItem('theme', mode);
+    } catch {}
+    try {
+      localStorage.setItem('prefers-dark', dark ? '1' : '0');
+    } catch {}
+  }
 }
 function toggleTheme() {
   applyTheme(!isDark.value);
@@ -662,6 +700,7 @@ function setHeaderHeightVar() {
   }
 }
 let resizeTimer = null;
+let storageHandler = null;
 function onResize() {
   if (resizeTimer) clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
@@ -692,16 +731,8 @@ function setSidebarWidthVar() {
 }
 
 onMounted(() => {
-  let pref = null;
-  try {
-    pref = localStorage.getItem('prefers-dark');
-  } catch {}
-  if (
-    pref === '1' ||
-    (pref === null && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  ) {
-    applyTheme(true);
-  }
+  const initialDark = resolveThemePreference();
+  applyTheme(initialDark, true);
   window.addEventListener('click', handleClickOutside);
   setHeaderHeightVar();
   setContainerLeftVar();
@@ -711,6 +742,16 @@ onMounted(() => {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') setMobileSidebar(false);
   });
+
+  storageHandler = (event) => {
+    if (!event) return;
+    if (event.storageArea && event.storageArea !== localStorage) return;
+    if (event.key && event.key !== 'theme' && event.key !== 'prefers-dark') return;
+    applyTheme(resolveThemePreference(), false);
+  };
+  try {
+    window.addEventListener('storage', storageHandler);
+  } catch {}
 
   try {
     localStorage.removeItem('admin-compact');
@@ -728,6 +769,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('click', handleClickOutside);
   window.removeEventListener('resize', onResize);
   window.removeEventListener('scroll', onScroll);
+  if (storageHandler) {
+    try {
+      window.removeEventListener('storage', storageHandler);
+    } catch {}
+  }
 });
 
 let suppressNextDirtyPrompt = false;

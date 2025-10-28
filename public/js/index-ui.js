@@ -60,8 +60,45 @@
   const raffleRoot = document.getElementById('raffleContentContainer');
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const savedTheme = localStorage.getItem('theme') || 'dark';
-  document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+  function resolveThemePreference() {
+    let stored = null;
+    try { stored = localStorage.getItem('theme'); } catch (_) {}
+    if (stored === 'dark' || stored === 'light') return stored;
+    let legacy = null;
+    try { legacy = localStorage.getItem('prefers-dark'); } catch (_) {}
+    if (legacy === '1') return 'dark';
+    if (legacy === '0') return 'light';
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (_) {
+      return 'dark';
+    }
+  }
+
+  function applyTheme(mode, persist) {
+    const isDark = mode === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.classList.toggle('light', !isDark);
+    try { document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (_) {}
+    const body = document.body;
+    if (body) {
+      body.classList.toggle('dark', isDark);
+      body.classList.toggle('light', !isDark);
+    }
+    if (persist) {
+      try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (_) {}
+      try { localStorage.setItem('prefers-dark', isDark ? '1' : '0'); } catch (_) {}
+    }
+  }
+
+  function syncThemeToggleState(mode) {
+    if (!themeToggle) return;
+    try { themeToggle.setAttribute('aria-pressed', (mode === 'dark').toString()); } catch (_) {}
+  }
+
+  const initialTheme = resolveThemePreference();
+  applyTheme(initialTheme, false);
+  syncThemeToggleState(initialTheme);
 
   try {
     const themeCSS = localStorage.getItem('chatLiveThemeCSS') || '';
@@ -75,14 +112,22 @@
 
   if (themeToggle) {
     themeToggle.addEventListener('click', function() {
-      const isDark = document.documentElement.classList.contains('dark');
-      document.documentElement.classList.toggle('dark', !isDark);
-      localStorage.setItem('theme', isDark ? 'light' : 'dark');
-      try { themeToggle.setAttribute('aria-pressed', (!isDark).toString()); } catch(_) {}
+      const nextTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+      applyTheme(nextTheme, true);
+      syncThemeToggleState(nextTheme);
     });
-
-    try { themeToggle.setAttribute('aria-pressed', (document.documentElement.classList.contains('dark')).toString()); } catch(_) {}
   }
+
+  try {
+    window.addEventListener('storage', function(event) {
+      if (!event) return;
+      if (event.storageArea && event.storageArea !== localStorage) return;
+      if (event.key && event.key !== 'theme' && event.key !== 'prefers-dark') return;
+      const mode = resolveThemePreference();
+      applyTheme(mode, false);
+      syncThemeToggleState(mode);
+    });
+  } catch (_) {}
 
   if (langBtn && langMenu && langBtnLabel) {
     try {

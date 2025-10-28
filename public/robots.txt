@@ -1,0 +1,5 @@
+# getty robots policy
+User-agent: *
+Allow: /
+
+Sitemap: https://app.getty.sh/sitemap.xml

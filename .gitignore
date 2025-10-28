@@ -12,6 +12,7 @@ public/vendor/
 *.log
 language-settings.json
 tts-settings.json
+.vscode/
 config/*
 .stylelintcache
 .eslintcache
