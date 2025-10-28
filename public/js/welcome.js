@@ -13,17 +13,66 @@ window.addEventListener('DOMContentLoaded', function () {
     }
   } catch (_) {}
 
+  function resolveThemePreference() {
+    let stored = null;
+    try { stored = localStorage.getItem('theme'); } catch (_) {}
+    if (stored === 'dark' || stored === 'light') return stored;
+    let legacy = null;
+    try { legacy = localStorage.getItem('prefers-dark'); } catch (_) {}
+    if (legacy === '1') return 'dark';
+    if (legacy === '0') return 'light';
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch (_) {
+      return 'dark';
+    }
+  }
+
+  function applyTheme(mode, persist) {
+    const isDark = mode === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.classList.toggle('light', !isDark);
+    try { document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (_) {}
+    const body = document.body;
+    if (body) {
+      body.classList.toggle('dark', isDark);
+      body.classList.toggle('light', !isDark);
+    }
+    if (persist) {
+      try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (_) {}
+      try { localStorage.setItem('prefers-dark', isDark ? '1' : '0'); } catch (_) {}
+    }
+  }
+
+  function syncToggleState(mode) {
+    const toggle = document.getElementById('theme-toggle');
+    if (!toggle) return;
+    try { toggle.setAttribute('aria-pressed', (mode === 'dark').toString()); } catch (_) {}
+  }
+
+  const initialTheme = resolveThemePreference();
+  applyTheme(initialTheme, false);
+  syncToggleState(initialTheme);
+
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
     themeToggle.addEventListener('click', function () {
-      const isDark = document.documentElement.classList.contains('dark');
-      document.documentElement.classList.toggle('dark', !isDark);
-      document.documentElement.classList.toggle('light', isDark);
-      try {
-        localStorage.setItem('theme', isDark ? 'light' : 'dark');
-      } catch (e) {}
+      const nextTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+      applyTheme(nextTheme, true);
+      syncToggleState(nextTheme);
     });
   }
+
+  try {
+    window.addEventListener('storage', function (event) {
+      if (!event) return;
+      if (event.storageArea && event.storageArea !== localStorage) return;
+      if (event.key && event.key !== 'theme' && event.key !== 'prefers-dark') return;
+      const current = resolveThemePreference();
+      applyTheme(current, false);
+      syncToggleState(current);
+    });
+  } catch (_) {}
 
   function tr(key, fallback) {
     try {
