@@ -882,7 +882,7 @@ if (!store || !store.redis) try {
       let reqCtx = (process.env.GETTY_MULTI_TENANT_WALLET === '1' && process.env.GETTY_AUTO_LIVE_TENANT_HASH)
         ? { __forceWalletHash: process.env.GETTY_AUTO_LIVE_TENANT_HASH }
         : {};
-  let claim = '';
+      let claim = '';
       try {
         const shWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'stream-history-config.json'), 'stream-history-config.json');
         const c = shWrap && shWrap.data ? shWrap.data : {};
@@ -898,6 +898,7 @@ if (!store || !store.redis) try {
 
       const cfgWrap = await loadTenantConfig(reqCtx, null, path.join(process.cwd(), 'config', 'live-announcement-config.json'), 'live-announcement-config.json');
       let draft = cfgWrap?.data || null;
+      const autoEnabled = !!(draft && draft.auto);
       if (!claim && draft && typeof draft.channelUrl === 'string' && draft.channelUrl.trim()) {
         try {
           const { name, short } = (function __parse(u) { try { const url = new URL(u); if (!/^https?:$/i.test(url.protocol)) return { name:'', short:'' }; if (!/^(www\.)?odysee\.com$/i.test(url.hostname)) return { name:'', short:'' }; const parts = url.pathname.split('/').filter(Boolean); if (!parts.length) return { name:'', short:'' }; const m = parts[0].match(/^@([^:]+):?([^/]*)/i); return m ? { name: m[1]||'', short: m[2]||'' } : { name:'', short:'' }; } catch { return { name:'', short:'' }; } })(draft.channelUrl.trim());
@@ -945,14 +946,12 @@ if (!store || !store.redis) try {
         lastLive = null;
       }
 
-      if (!draft || !draft.auto) return;
+      const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
+      const resp = await axios.get(url, { timeout: 7000 });
+      const activeClaim = resp?.data?.data?.ActiveClaim;
+      const activeClaimId = activeClaim?.ClaimID;
 
-  const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(claim)}`;
-  const resp = await axios.get(url, { timeout: 7000 });
-  const activeClaim = resp?.data?.data?.ActiveClaim;
-  const activeClaimId = activeClaim?.ClaimID;
-
-  const nowLive = !!resp?.data?.data?.Live;
+      const nowLive = !!resp?.data?.data?.Live;
       const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
 
       console.warn('[auto-live][local] API response', { claim, activeClaimId, livePostClaimId, nowLive, viewerCount });      try {
@@ -974,7 +973,7 @@ if (!store || !store.redis) try {
         await recordHistoryEvent(nowLive);
 
         try {
-          if (nowLive === true && (prev === false || prev === null)) {
+          if (autoEnabled && nowLive === true && (prev === false || prev === null)) {
             const payload = {
               title: typeof draft.title === 'string' ? draft.title : undefined,
               description: typeof draft.description === 'string' ? draft.description : undefined,

@@ -114,6 +114,7 @@ function setupMiddlewares(app, {
   } catch {}
 
   try { app.set('trust proxy', 1); } catch {}
+  try { app.use('/api/stream-history/import', expressModule.json({ limit: '32mb' })); } catch {}
   try { app.use(expressModule.json({ limit: '1mb' })); } catch {}
   try { app.use(expressModule.urlencoded({ extended: true, limit: '1mb' })); } catch {}
   try { app.use(cookieParser()); } catch {}
