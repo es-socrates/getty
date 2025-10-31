@@ -17,7 +17,7 @@ let currentLanguage = normalizeLanguageCode(document.documentElement?.lang || 'e
 function notify(message, type = 'error') {
   try {
     if (window.showAlert) return window.showAlert(message, type);
-  } catch (e) {}
+  } catch {}
   try {
     const el = document.createElement('div');
     el.textContent = message;
@@ -27,8 +27,8 @@ function notify(message, type = 'error') {
     setTimeout(() => {
       el.remove();
     }, 2500);
-  } catch (err) {
-    console.log(`[${type}]`, message);
+  } catch {
+    console.warn(`[${type}]`, message);
   }
 }
 
@@ -38,7 +38,7 @@ function t(key) {
     if (window.languageManager && typeof window.languageManager.getText === 'function') {
       return window.languageManager.getText(key);
     }
-  } catch (e) {}
+  } catch {}
   const lang = FALLBACK_TRANSLATIONS[currentLanguage] ? currentLanguage : 'en';
   const bundle = FALLBACK_TRANSLATIONS[lang] || {};
   if (bundle && Object.prototype.hasOwnProperty.call(bundle, key)) {
@@ -69,13 +69,13 @@ function refreshLanguageFromGlobals() {
       setCurrentLanguage(window.__i18n.current);
       return;
     }
-  } catch (e) {}
+  } catch {}
   try {
     if (window.languageManager && typeof window.languageManager.current === 'string') {
       setCurrentLanguage(window.languageManager.current);
       return;
     }
-  } catch (e) {}
+  } catch {}
 }
 
 const LIVEVIEWS_FONT_STACK = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -135,14 +135,14 @@ if (typeof MutationObserver === 'function') {
           try {
             const newLang = mutation.target?.getAttribute?.('lang');
             if (newLang) setCurrentLanguage(newLang);
-          } catch (e) {}
+          } catch {}
           renderLiveviewsUI();
           break;
         }
       }
     });
     langObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
-  } catch (e) {}
+  } catch {}
 }
 
 function ensureLanguageHooks(attempts = 20) {
@@ -154,13 +154,13 @@ function ensureLanguageHooks(attempts = 20) {
         try {
           setCurrentLanguage(lang);
           renderLiveviewsUI();
-        } catch (e) {}
+  } catch {}
         return result;
       };
-      try { setCurrentLanguage(window.__i18n.current); } catch (e) {}
+  try { setCurrentLanguage(window.__i18n.current); } catch {}
       window.__i18n.__liveviewsHooked = true;
     }
-  } catch (e) {}
+  } catch {}
 
   try {
     if (window.languageManager && typeof window.languageManager.updatePageLanguage === 'function' && !window.languageManager.__liveviewsHooked) {
@@ -170,13 +170,13 @@ function ensureLanguageHooks(attempts = 20) {
         try {
           refreshLanguageFromGlobals();
           renderLiveviewsUI();
-        } catch (e) {}
+  } catch {}
         return result;
       };
-      try { refreshLanguageFromGlobals(); } catch (e) {}
+  try { refreshLanguageFromGlobals(); } catch {}
       window.languageManager.__liveviewsHooked = true;
     }
-  } catch (e) {}
+  } catch {}
 
   if (
     attempts > 0 &&
@@ -198,10 +198,10 @@ try {
         if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
           window.__i18n.setLanguage(event.newValue);
         }
-      } catch (e) {}
+  } catch {}
     }
   });
-} catch (e) {}
+} catch {}
 
 async function applyPreferredLanguage() {
   let preferred = '';
@@ -209,7 +209,7 @@ async function applyPreferredLanguage() {
     const url = new URL(window.location.href);
     const qp = url.searchParams.get('lang') || url.searchParams.get('language');
     if (qp) preferred = qp;
-  } catch (e) {}
+  } catch {}
   try {
     if (!preferred) {
       preferred = localStorage.getItem('getty-language') || localStorage.getItem('lang') || '';
@@ -220,14 +220,14 @@ async function applyPreferredLanguage() {
         preferred = localStorage.getItem('i18nextLng') || '';
       }
     }
-  } catch (e) {}
+  } catch {}
   if (!preferred) {
     try {
       const cookieMatch = document.cookie.match(/(?:^|; )getty_lang=([^;]+)/);
       if (cookieMatch && cookieMatch[1]) {
         preferred = decodeURIComponent(cookieMatch[1]);
       }
-    } catch (e) {}
+  } catch {}
   }
   if (!preferred) {
     try {
@@ -235,11 +235,11 @@ async function applyPreferredLanguage() {
       if (cookieMatch && cookieMatch[1]) {
         preferred = decodeURIComponent(cookieMatch[1]);
       }
-    } catch (e) {}
+  } catch {}
   }
   try {
-    console.debug('[Liveviews] preferred language candidate', preferred);
-  } catch (e) {}
+    console.warn('[liveviews] preferred language candidate', preferred);
+  } catch {}
   if (!preferred) return;
 
   try {
@@ -254,14 +254,14 @@ async function applyPreferredLanguage() {
       }
       setCurrentLanguage(window.languageManager.current || preferred);
     }
-  } catch (e) {}
+  } catch {}
 }
 
 function getNonce() {
   try {
     const meta = document.querySelector('meta[property="csp-nonce"]');
     return (meta && (meta.nonce || meta.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
-  } catch (e) {
+  } catch {
     return '';
   }
 }
@@ -278,7 +278,7 @@ function ensureStyleTag(id) {
     try {
       const nonce = getNonce();
       if (nonce && !tag.getAttribute('nonce')) tag.setAttribute('nonce', nonce);
-    } catch (e) {}
+  } catch {}
   }
   return tag;
 }
@@ -295,7 +295,7 @@ function setLiveviewsVars({ bg, fg, font, sizePx }) {
       .filter(Boolean)
       .join('');
     tag.textContent = declarations ? `#viewer-count{${declarations}}` : '';
-  } catch (e) {}
+  } catch {}
 }
 
 async function fetchLiveviewsConfig() {
@@ -303,7 +303,7 @@ async function fetchLiveviewsConfig() {
     const res = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error('No config file');
     return await res.json();
-  } catch (e) {
+  } catch {
     return {
       bg: '#222222',
       color: '#ffffff',
@@ -363,17 +363,17 @@ async function fetchViewerCountAndDisplay(url) {
       throw new Error(`Network response was not ok: status ${response.status}, ${response.statusText}`);
     }
     const data = await response.json();
-    try {
-      console.log('[Liveviews] endpoint:', url);
-      console.log('[Liveviews] API response:', data);
-    } catch (e) {}
+    if (import.meta.env.DEV) {
+      console.warn('[liveviews] endpoint:', url);
+      console.warn('[liveviews] API response:', data);
+    }
 
     let config = window._liveviewsConfigCache;
     if (!config) {
       try {
         const configRes = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
         if (configRes.ok) config = await configRes.json();
-      } catch (e) {
+      } catch {
         config = {};
       }
     }
@@ -386,7 +386,7 @@ async function fetchViewerCountAndDisplay(url) {
     try {
       const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
       setLiveviewsVars({ bg, fg: color, font, sizePx });
-    } catch (e) {}
+    } catch {}
     const previousLive = liveviewsState.live;
     if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
       const nowLive = !!data.data.Live;
@@ -421,7 +421,7 @@ async function fetchViewerCountAndDisplay(url) {
     try {
       const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
       setLiveviewsVars({ bg, fg: color, font, sizePx });
-    } catch (e) {}
+    } catch {}
     const previousLive = liveviewsState.live;
     liveviewsState.live = false;
     liveviewsState.count = 0;
@@ -435,10 +435,6 @@ async function fetchViewerCountAndDisplay(url) {
 async function startViewerCountUpdates(url, interval = 10000) {
   await fetchViewerCountAndDisplay(url);
   setTimeout(() => startViewerCountUpdates(url, interval), interval);
-}
-
-function isValidUrl() {
-  return true;
 }
 
 function validateIconSize(fileInput) {
@@ -455,9 +451,10 @@ function validateIconSize(fileInput) {
 window.addEventListener('DOMContentLoaded', async () => {
   await applyPreferredLanguage();
   try {
-    console.debug('[Liveviews] current lang', window.__i18n && window.__i18n.current);
-    console.debug('[Liveviews] liveNow translation', window.__i18n && window.__i18n.t ? window.__i18n.t('liveNow') : 'n/a');
-  } catch (e) {}
+    console.warn('[liveviews] current lang', window.__i18n && window.__i18n.current);
+    const liveNowTranslation = window.__i18n && window.__i18n.t ? window.__i18n.t('liveNow') : 'n/a';
+    console.warn('[liveviews] liveNow translation', liveNowTranslation);
+  } catch {}
   renderLiveviewsUI();
 
   function updateLiveviewsStatusAdmin(liveviews) {
@@ -481,7 +478,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           font: config.font || LIVEVIEWS_FONT_STACK,
           sizePx
         });
-      } catch (e) {}
+  } catch {}
     }
     renderLiveviewsUI();
   }
@@ -493,7 +490,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (msg.type === 'liveviews_state') {
           updateLiveviewsStatusAdmin(msg);
         }
-      } catch (e) {}
+  } catch {}
     });
   }
 
@@ -502,10 +499,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       const response = await fetch(url, { cache: 'no-cache' });
       if (!response.ok) throw new Error('Network error');
       const data = await response.json();
-      try {
-        console.log('[Liveviews Admin] endpoint:', url);
-        console.log('[Liveviews Admin] API response:', data);
-      } catch (e) {}
+      if (import.meta.env.DEV) {
+        console.warn('[liveviews admin] endpoint:', url);
+        console.warn('[liveviews admin] API response:', data);
+      }
       if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
         updateLiveviewsStatusAdmin({ active: data.data.Live, count: data.data.ViewerCount });
       } else if (data && data.data && typeof data.data.Live !== 'undefined') {
@@ -513,7 +510,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       } else {
         updateLiveviewsStatusAdmin({ active: false, count: 0 });
       }
-    } catch (e) {
+    } catch {
       updateLiveviewsStatusAdmin({ active: false, count: 0 });
     }
   }
@@ -548,7 +545,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         font: config.font || LIVEVIEWS_FONT_STACK,
         sizePx
       });
-    } catch (e) {}
+  } catch {}
     renderLiveviewsUI();
   }
 
@@ -598,8 +595,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 function reportStreamState(isLive, viewers) {
   try {
-    const url = new URL(window.location.href);
-    const token = url.searchParams.get('token') || '';
     const endpoint = '/api/stream-history/event';
     fetch(endpoint, {
       method: 'POST',
@@ -610,7 +605,7 @@ function reportStreamState(isLive, viewers) {
         viewers: typeof viewers === 'number' ? viewers : undefined
       })
     }).catch(() => {});
-  } catch (e) {}
+  } catch {}
 }
 
 async function loadLiveviewsViewersLabel() {
@@ -624,7 +619,7 @@ async function loadLiveviewsViewersLabel() {
           input.value = config.viewersLabel;
         }
       }
-    } catch (e) {}
+  } catch {}
   }
 }
 
@@ -643,11 +638,13 @@ async function saveLiveviewsViewersLabel() {
         body: JSON.stringify({ viewersLabel: label })
       });
       if (!res.ok) throw new Error('Could not save to backend');
-    } catch (e) {
-      notify('Error saving the label in the backend: ' + (e.message || e), 'error');
+    } catch (error) {
+      notify('Error saving the label in the backend: ' + (error.message || error), 'error');
     }
   }
 }
+
+window.saveLiveviewsViewersLabel = saveLiveviewsViewersLabel;
 
 if (window.location.pathname.startsWith('/admin')) {
   document.addEventListener('DOMContentLoaded', async () => {
@@ -794,10 +791,10 @@ if (window.location.pathname.startsWith('/admin')) {
             font: newConfig.font || LIVEVIEWS_FONT_STACK,
             sizePx
           });
-        } catch (err) {}
+        } catch {}
       }
-    } catch (err) {
-      notify('Error saving configuration: ' + (err.message || err), 'error');
+    } catch (error) {
+      notify('Error saving configuration: ' + (error.message || error), 'error');
     }
   });
 }

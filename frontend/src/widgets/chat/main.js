@@ -7,12 +7,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const isDev = import.meta.env.DEV;
+    const debugLog = isDev
+        ? (...args) => {
+            console.warn('[chat widget]', ...args);
+        }
+        : () => {};
     const backendPort = import.meta.env.VITE_BACKEND_PORT || '3000';
     let wsPortOverride = null;
     let attemptedDevFallback = false;
 
     let messageCount = 0;
     let isAutoScroll = true;
+    const isHorizontal = window.location.search.includes('horizontal=1') || window.location.hash.includes('horizontal');
 
     let EMOJI_MAPPING = {};
     try {
@@ -22,22 +28,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error loading emojis:', e);
     }
 
-    function getCookie(name){
-        try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
-    }
-
     const DEFAULT_AVATAR_URL = 'https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png';
     const DEFAULT_AVATAR_BG_COLORS = [
         '#00bcd4', '#ff9800', '#8bc34a', '#e91e63', '#9c27b0',
         '#3f51b5', '#ff5722', '#4caf50', '#2196f3', '#ffc107'
     ];
-    function colorForUsername(name = 'Anonymous') {
-        let h = 0;
-        for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-        const idx = Math.abs(h) % DEFAULT_AVATAR_BG_COLORS.length;
-        return DEFAULT_AVATAR_BG_COLORS[idx];
-    }
-
     let randomAvatarBgPerMessage = false;
     try {
         const ls = localStorage.getItem('chat_avatar_random_bg');
@@ -65,13 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     } catch {}
-    function colorForAvatar(name = 'Anonymous') {
-        if (randomAvatarBgPerMessage) {
-            const idx = Math.floor(Math.random() * DEFAULT_AVATAR_BG_COLORS.length);
-            return DEFAULT_AVATAR_BG_COLORS[idx];
-        }
-        return colorForUsername(name);
-    }
     function resolveSocketHost() {
         if (wsPortOverride) {
             return `${window.location.hostname}:${wsPortOverride}`;
@@ -98,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!text) return '';
       let cleaned = text.replace(/:[^:\s]+:/g, '');
       cleaned = cleaned.replace(/<stkr>.*?<\/stkr>/g, '');
-      cleaned = cleaned.replace(/<img[^>]*class=\"(?:comment-emoji|comment-sticker)[^>]*>/gi, '');
+    cleaned = cleaned.replace(/<img[^>]*class="(?:comment-emoji|comment-sticker)[^>]*>/gi, '');
       cleaned = cleaned.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
       cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
       return cleaned;
@@ -111,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) return; const cleaned = stripEmojis(text); if (!cleaned) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(cleaned); u.volume = 0.9; u.rate = 1; u.pitch = 0.9; let voices = window.speechSynthesis.getVoices(); if (voices.length === 0) { window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); selectVoice(u, voices); window.speechSynthesis.speak(u); }; } else { selectVoice(u, voices); window.speechSynthesis.speak(u); }
     }
     async function loadTtsSettings() {
-      try { const s = await fetch('/api/tts-setting'); if (s.ok) { const j = await s.json(); console.log('Chat TTS settings:', j); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; } const l = await fetch('/api/tts-language'); if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; } } catch {}
+    try { const s = await fetch('/api/tts-setting'); if (s.ok) { const j = await s.json(); debugLog('Chat TTS settings:', j); ttsEnabled = !!j.ttsEnabled; ttsAllChat = !!j.ttsAllChat; } const l = await fetch('/api/tts-language'); if (l.ok) { const j2 = await l.json(); ttsLanguage = j2.ttsLanguage || 'en'; } } catch {}
     }
     loadTtsSettings();
 
@@ -122,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const wsUrl = buildWsUrl();
         try {
-            console.log('Connecting to WebSocket:', wsUrl);
+            debugLog('Connecting to WebSocket:', wsUrl);
         } catch {}
 
         try {
@@ -139,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         ws.onopen = () => {
-            console.log('WebSocket connected');
+            debugLog('WebSocket connected');
             reconnectAttempts = 0;
             if (reconnectInterval) {
                 clearInterval(reconnectInterval);
@@ -187,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         ws.onclose = () => {
-            console.log('WebSocket closed, attempting to reconnect...');
+            debugLog('WebSocket closed, attempting to reconnect...');
             if (
                 isDev &&
                 !attemptedDevFallback &&
@@ -227,17 +215,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         { bg: 'rgba(21, 25, 40)', text: '#fff', border: 'rgba(19, 19, 19, 0.9)' }
     ];
 
-    function getCyberpunkStyle(username) {
-        let hash = 0;
-        for (let i = 0; i < username.length; i++) {
-            hash = username.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const index = Math.abs(hash) % CYBERPUNK_PALETTE.length;
-        return CYBERPUNK_PALETTE[index];
-    }
-
     const isOBSWidget = window.location.pathname.includes('/widgets/');
     let chatColors = {};
+    let serverHasTheme = false;
     function getNonce() {
         try {
             const m = document.querySelector('meta[property="csp-nonce"]');
@@ -266,8 +246,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const current = tag.textContent || '';
             const re = new RegExp(`${name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*:\\s*[^;]+;?`, 'i');
             const decl = value ? `${name}: ${value};` : '';
-            const base = /:root\\s*\{[\s\S]*?\}/.test(current) ? current : ':root{}';
-            const updated = base.replace(/:root\\s*\{([\s\S]*?)\}/, (m, body) => {
+                const base = /:root\s*\{[\s\S]*?\}/.test(current) ? current : ':root{}';
+                const updated = base.replace(/:root\s*\{([\s\S]*?)\}/, (m, body) => {
                 const body2 = re.test(body) ? body.replace(re, decl) : (decl ? (body + (body.trim()? ' ' : '') + decl) : body);
                 return `:root{${body2}}`;
             });
@@ -278,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateDonationVars() {
         try {
             const themeStyleTag = document.getElementById('chat-theme-style');
-            const anyThemeActive = (typeof serverHasTheme !== 'undefined' && serverHasTheme) ||
+            const anyThemeActive = serverHasTheme ||
                 !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
             if (anyThemeActive) return;
         } catch {}
@@ -309,47 +289,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                     donationBgColor: data.chat.donationBgColor
                 };
             }
-        } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     }
 
     function setIfCustomVar(varName, value, defaultValue) {
         try { setCssVar(varName, (value && value !== defaultValue) ? value : ''); } catch {}
     }
 
-    function setIfCustomInline() { /* deprecated */ }
-
-    const originalAddMessage = addMessage;
-    addMessage = function(msg) {
-        originalAddMessage(msg);
+    function applyMessageThemeAdjustments() {
         if (!isOBSWidget) return;
-    const messages = chatContainer.querySelectorAll('.message');
-        const isLightThemeActive = !!(chatContainer && chatContainer.classList.contains('theme-light'));
-        const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
-    messages.forEach((messageEl) => {
 
-            const themeStyleTag = document.getElementById('chat-theme-style');
-            const anyThemeActive = (typeof serverHasTheme !== 'undefined' && serverHasTheme) ||
-                !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
-            if (anyThemeActive) {
-                return;
-            }
+        const themeStyleTag = document.getElementById('chat-theme-style');
+        const anyThemeActive = serverHasTheme ||
+            !!(themeStyleTag && typeof themeStyleTag.textContent === 'string' && themeStyleTag.textContent.trim().length > 0);
+        if (anyThemeActive) {
+            return;
+        }
 
-            if (!isLightThemeActive) {
-                setIfCustomVar('--bg-message', chatColors.msgBgColor, '#0a0e12');
-                setIfCustomVar('--bg-message-alt', chatColors.msgBgAltColor, '#0d1114');
-            }
-            setIfCustomVar('--border', chatColors.borderColor, '#161b22');
-            setIfCustomVar('--text', chatColors.textColor, '#e6edf3');
+        const isLightThemeActive = chatContainer?.classList.contains('theme-light');
 
-            const uname = messageEl.querySelector('.message-username.cyberpunk');
-        });
+        if (!isLightThemeActive) {
+            setIfCustomVar('--bg-message', chatColors.msgBgColor, '#0a0e12');
+            setIfCustomVar('--bg-message-alt', chatColors.msgBgAltColor, '#0d1114');
+        }
+        setIfCustomVar('--border', chatColors.borderColor, '#161b22');
+        setIfCustomVar('--text', chatColors.textColor, '#e6edf3');
 
         if (isHorizontal) {
             chatContainer.scrollLeft = chatContainer.scrollWidth;
         }
-    };
-
-    window.addMessage = addMessage;
+    }
 
     async function applyChatColors() {
         if (!isOBSWidget) return;
@@ -388,9 +357,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             let bgIdxForThisMsg = 0;
             try {
                 if (randomAvatarBgPerMessage) {
-                    bgIdxForThisMsg = Math.floor(Math.random() * 10);
+                    bgIdxForThisMsg = Math.floor(Math.random() * DEFAULT_AVATAR_BG_COLORS.length);
                 } else {
-                    bgIdxForThisMsg = Math.abs(username.split('').reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0)) % 10;
+                    bgIdxForThisMsg = Math.abs(username.split('').reduce((a, c) => c.charCodeAt(0) + ((a << 5) - a), 0)) % DEFAULT_AVATAR_BG_COLORS.length;
                 }
             } catch { bgIdxForThisMsg = 0; }
 
@@ -414,12 +383,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const userContainer = document.createElement('div');
         userContainer.className = 'message-user-container';
-        const displayUsername = username.length > 17 ? username.slice(0, 17) + '' : username;
-        const style = getCyberpunkStyle(username);
+    const displayUsername = username.length > 17 ? username.slice(0, 17) : username;
 
         const usernameElement = document.createElement('span');
         usernameElement.className = 'message-username cyberpunk';
-        usernameElement.textContent = displayUsername + '';
+    usernameElement.textContent = displayUsername;
 
         const membershipIcons = [
             'crown', 'star', 'hamburger', 'heart', 'tongue',
@@ -436,12 +404,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         iconElement.className = `membership-icon ${iconType}`;
         usernameElement.insertBefore(iconElement, usernameElement.firstChild);
 
-    const cpIndex = Math.abs(hash) % CYBERPUNK_PALETTE.length;
-    usernameElement.classList.add(`cp-${cpIndex + 1}`);
-
-    const hasExplicitUserColors = !!(chatColors.usernameColor || chatColors.usernameBgColor);
-    if (!serverHasTheme && !hasExplicitUserColors) {
-        }
+        const cpIndex = Math.abs(hash) % CYBERPUNK_PALETTE.length;
+        usernameElement.classList.add(`cp-${cpIndex + 1}`);
         userContainer.appendChild(usernameElement);
 
         const cleanMessage = (msg.message || '').replace(/&lt;stkr&gt;(.*?)&lt;\/stkr&gt;/g, '<stkr>$1</stkr>');
@@ -463,7 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             textElement.innerHTML = formatText(normalText.length > 0 ? normalText : cleanMessage);
             userContainer.appendChild(textElement);
 
-            if (ttsAllChat && (normalText || cleanMessage)) {
+            if (ttsEnabled && ttsAllChat && (normalText || cleanMessage)) {
                 speakMessage(normalText || cleanMessage);
             }
         }
@@ -541,7 +505,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }, 11000);
         }
+
+        applyMessageThemeAdjustments();
     }
+
+    window.addMessage = addMessage;
 
     function formatText(text) {
         if (!text) return '';
@@ -554,7 +522,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return `<img src="${decodedUrl}" alt="Sticker" class="comment-sticker" loading="lazy" />`;
                 }
                 return match;
-            } catch (e) {
+            } catch {
                 return match;
             }
         });
@@ -585,13 +553,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         isAutoScroll = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight;
     });
 
-    const isHorizontal = window.location.search.includes('horizontal=1') || window.location.hash.includes('horizontal');
     if (isHorizontal) {
         chatContainer.classList.add('horizontal-chat');
     }
 
     function applyChatTheme(themeCSS, isLightTheme) {
-    let styleTag = ensureStyleTag('chat-theme-style');
+        const styleTag = ensureStyleTag('chat-theme-style');
 
         styleTag.textContent = themeCSS;
         if (chatContainer) {
@@ -606,7 +573,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let lastThemeCSS = '';
-    let serverHasTheme = false;
     async function fetchAndApplyTheme() {
         try {
             const res = await fetch(`/api/chat-config?nocache=${Date.now()}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
@@ -632,7 +598,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 }
 
                                 try {
-                                    const localAuto = (localStorage.getItem('chatLiveThemeCSS') || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+                                    const localAuto = (localStorage.getItem('chatLiveThemeCSS') || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
                                     if (localAuto && !/AUTO_FONT_SIZES_START/.test(finalCss)) {
                                         const merged = finalCss + '\n' + localAuto[0];
                                         if (merged !== lastThemeCSS) {
@@ -651,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const local = (localStorage.getItem('chatLiveThemeCSS') || '').trim();
                                 if (local && local !== lastThemeCSS) {
 
-                                        const sizeBlock = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+                                        const sizeBlock = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
                                         let combined = local;
                                         if (sizeBlock && !/AUTO_FONT_SIZES_START/.test(local)) {
                                             combined = local + '\n' + sizeBlock[0];
@@ -693,7 +659,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     applyChatTheme(css, isLightTheme);
                 }
             }
-        } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     }
 
     fetchAndApplyTheme();
@@ -713,10 +679,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const local = (e.newValue || '').trim();
         if (!local) return;
 
-        const sizeBlockMatch = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+    const sizeBlockMatch = local.match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
         let finalCss = local;
         if (!sizeBlockMatch) {
-            const existing = (lastThemeCSS || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\u0000-\uFFFF]*?\/\* AUTO_FONT_SIZES_END \*\//);
+            const existing = (lastThemeCSS || '').match(/\/\* AUTO_FONT_SIZES_START \*\/[\s\S]*?\/\* AUTO_FONT_SIZES_END \*\//);
             if (existing) finalCss += '\n' + existing[0];
         }
         if (finalCss !== lastThemeCSS) {

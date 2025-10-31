@@ -264,7 +264,7 @@ if (!window.__tip_notification_widget_started) {
             audio.addEventListener(
               'ended',
               () => {
-                console.log(label, `(linear=${(audioSettings.volume || 0).toFixed(2)}, applied=${appliedVolume})`);
+                console.warn(label, `(linear=${(audioSettings.volume || 0).toFixed(2)}, applied=${appliedVolume})`);
                 resolve();
               },
               { once: true }
@@ -336,11 +336,11 @@ if (!window.__tip_notification_widget_started) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const textData = await response.text();
-        console.log('[tip-notification] Exchange rate response:', textData);
+  console.warn('[tip-notification] Exchange rate response:', textData);
         const payload = JSON.parse(textData);
         if (payload?.arweave?.usd) {
           AR_TO_USD = payload.arweave.usd;
-          console.log(`[tip-notification] Updated exchange rate: 1 AR = $${AR_TO_USD} USD`);
+          console.warn(`[tip-notification] Updated exchange rate: 1 AR = $${AR_TO_USD} USD`);
         } else if (!AR_TO_USD) {
           AR_TO_USD = 5;
         }
@@ -600,7 +600,7 @@ if (!window.__tip_notification_widget_started) {
 
       try {
         const wsUrl = buildWsUrl();
-        console.log('[tip-notification] Connecting to WebSocket:', wsUrl);
+  console.warn('[tip-notification] Connecting to WebSocket:', wsUrl);
         ws = new WebSocket(wsUrl);
       } catch (error) {
         console.error('[tip-notification] WebSocket init failed:', error);
@@ -609,7 +609,7 @@ if (!window.__tip_notification_widget_started) {
       }
 
       ws.onopen = () => {
-        console.log('[tip-notification] WebSocket connected');
+  console.warn('[tip-notification] WebSocket connected');
         reconnectAttempts = 0;
         showConnectionStatus(true);
       };
@@ -676,7 +676,7 @@ if (!window.__tip_notification_widget_started) {
       };
 
       ws.onclose = () => {
-        console.log('[tip-notification] WebSocket closed, attempting to reconnect...');
+  console.warn('[tip-notification] WebSocket closed, attempting to reconnect...');
         showConnectionStatus(false);
         if (
           isDev &&

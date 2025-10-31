@@ -261,7 +261,7 @@ if (!window.__tip_goal_widget_started) {
         const audio = new Audio(audioUrl);
         audio.volume = 0.9;
         await audio.play();
-        console.log('Tip goal celebration sound played');
+  console.warn('Tip goal celebration sound played');
       } catch (error) {
         console.error('Error playing goal audio, falling back to remote sound:', error);
         if (audioUrl !== REMOTE_SOUND_URL) {
@@ -269,7 +269,7 @@ if (!window.__tip_goal_widget_started) {
             const fallback = new Audio(REMOTE_SOUND_URL);
             fallback.volume = 0.9;
             await fallback.play();
-            console.log('Tip goal fallback sound played');
+            console.warn('Tip goal fallback sound played');
           } catch (fallbackError) {
             console.error('Error playing fallback goal audio:', fallbackError);
           }

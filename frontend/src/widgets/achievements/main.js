@@ -12,7 +12,6 @@ const embedMaxItems = (() => {
   }
 })();
 
-const qs = (selector, el = document) => el.querySelector(selector);
 const h = (tag, cls) => {
   const el = document.createElement(tag);
   if (cls) el.className = cls;
@@ -482,7 +481,7 @@ async function boot() {
     const newNamespace = tokenFromUrl ? tokenFromUrl : await getCurrentNamespace();
     if (newNamespace !== currentNamespace) {
       try {
-        console.log('Namespace changed, reconnecting WebSocket...');
+  console.warn('Namespace changed, reconnecting WebSocket...');
       } catch {}
       currentNamespace = newNamespace;
       if (ws) {

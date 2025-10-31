@@ -4,8 +4,18 @@ if (typeof globalThis.setImmediate === 'undefined') {
 }
 
 const { TextEncoder, TextDecoder } = require('util');
-if (typeof global.TextEncoder === 'undefined') global.TextEncoder = TextEncoder;
-if (typeof global.TextDecoder === 'undefined') global.TextDecoder = TextDecoder;
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+if (!(new global.TextEncoder().encode('') instanceof Uint8Array)) {
+  class GettyTextEncoder extends TextEncoder {
+    encode(input = '') {
+      const encoded = super.encode(input);
+      return encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
+    }
+  }
+  global.TextEncoder = GettyTextEncoder;
+}
 
 if (typeof global.crypto === 'undefined') {
   const crypto = require('crypto');
@@ -24,6 +34,20 @@ process.env.GETTY_TEST_OPEN_MODE = undefined;
 
 if (process.env.NODE_ENV === 'test') {
   try {
+  jest.mock('vite', () => {
+    const noopMiddleware = (req, res, next) => {
+      if (typeof next === 'function') next();
+    };
+    noopMiddleware.use = () => noopMiddleware;
+
+    return {
+      createServer: jest.fn(async () => ({
+        transformIndexHtml: async (_url, html) => html,
+        middlewares: noopMiddleware,
+        close: async () => {}
+      }))
+    };
+  });
   jest.mock('ws', () => require('./tests/mocks/ws'));
   jest.mock('obs-websocket-js', () => ({ OBSWebSocket: class MockOBS { async connect(){ return { connected:true }; } async call(){ return {}; } on(){} off(){} } }));
 

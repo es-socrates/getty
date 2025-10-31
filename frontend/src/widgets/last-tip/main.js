@@ -72,8 +72,7 @@ if (!window.__last_tip_started) {
 
     let colorsLoaded = false;
     let lastTipColors = {};
-    let customTitle = '';
-    let hasRenderedOnce = false;
+  let customTitle = '';
 
     const getNonce = () => {
       try {
@@ -252,7 +251,6 @@ if (!window.__last_tip_started) {
         return;
       }
 
-      hasRenderedOnce = true;
 
       await ensureExchangeRate();
 
