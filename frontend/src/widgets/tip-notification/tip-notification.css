@@ -1,0 +1,259 @@
+.notification {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 380px;
+  background: var(--tn-bg, #080c10);
+  color: var(--tn-text, #ffffff);
+  padding: 0;
+  border-radius: 4px;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
+  display: none;
+  z-index: 10000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  border-left: 8px solid var(--tn-border, #00ff7f);
+  transform: translateX(100%);
+  animation: slideIn 0.5s forwards;
+  opacity: 1;
+  transition: opacity 0.5s linear;
+}
+
+#notification:not(.hidden),
+.notification:not(.hidden) {
+  display: block;
+}
+
+.hidden {
+  display: none !important;
+}
+.conn-status {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
+}
+.conn-online {
+  color: var(--tn-amount, #00ff7f);
+}
+.conn-offline {
+  color: #f55;
+}
+
+.notification.tip-notification-widget {
+  border-left: 8px solid var(--tn-border, #00ff7f) !important;
+}
+
+.notification-content {
+  padding: 10px;
+  border-radius: 4px;
+  background: var(--tn-bg, #080c10);
+}
+
+.notification-content.error {
+  color: #f55;
+}
+
+.notification-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  float: left;
+  width: 36px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.notification-icon img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+}
+
+.notification-text {
+  overflow: hidden;
+}
+
+.notification-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 5px;
+  color: var(--tn-text, #ffffff);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.amount-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ar-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--tn-amount, #00ff7f);
+  text-shadow: 0 0 1px color-mix(in oklab, var(--tn-amount, #00ff7f) 47%, transparent);
+}
+
+#notification.tip-notification-widget .ar-amount,
+.notification.tip-notification-widget .ar-amount {
+  color: var(--tn-amount, #00ff7f) !important;
+}
+
+.usd-value {
+  font-size: 16px;
+  color: var(--tn-text, #ffffff);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.notification-from {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tn-from, #ffffff);
+  display: flex;
+  align-items: center;
+}
+
+.notification-emoji {
+  width: 18px;
+  height: 18px;
+  margin: 0 1px;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.notification-sticker {
+  max-width: 18px;
+  max-height: 18px;
+  margin: 2px 0;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.notification-message {
+  font-size: 15px;
+  color: var(--tn-text, #ffffff);
+  text-overflow: ellipsis;
+  margin-top: 8px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.notification-sticker.responsive {
+  max-width: 100%;
+  height: auto;
+}
+
+.tip-wrapper {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10000;
+}
+
+.tip-wrapper.position-left {
+  flex-direction: row;
+}
+.tip-wrapper.position-right {
+  flex-direction: row-reverse;
+}
+.tip-wrapper.position-top {
+  flex-direction: column;
+}
+.tip-wrapper.position-bottom {
+  flex-direction: column-reverse;
+}
+
+.notification-gif-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.notification-gif-slot img {
+  display: block;
+  object-fit: contain;
+  opacity: 1;
+  transition: opacity 0.5s linear;
+}
+
+.position-right .notification-gif-slot img,
+.position-left .notification-gif-slot img {
+  max-width: 190px;
+  max-height: 132px;
+  border-radius: 4px;
+}
+
+.position-top .notification-gif-slot img,
+.position-bottom .notification-gif-slot img {
+  max-width: 200px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+}
+
+.tip-wrapper .notification {
+  position: static;
+  bottom: auto;
+  right: auto;
+}
+
+.fade-out {
+  opacity: 0 !important;
+}
+
+.text-success {
+  color: var(--tn-amount, #00ff7f) !important;
+}
+
+.notification-message img.comment-emoji,
+.notification-message img.comment-sticker,
+.notification-message .comment-emoji,
+.notification-message .comment-sticker {
+  max-height: 1.25rem;
+  height: 1.25rem;
+  width: auto;
+  vertical-align: middle;
+}

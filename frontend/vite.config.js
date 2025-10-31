@@ -18,6 +18,20 @@ const pageEntries = {
   notFound: path.resolve(rootDir, '404.html')
 };
 
+const widgetEntries = {
+  'widgets/announcement': path.resolve(rootDir, 'widgets/announcement.html'),
+  'widgets/liveviews': path.resolve(rootDir, 'widgets/liveviews.html'),
+  'widgets/achievements': path.resolve(rootDir, 'widgets/achievements.html'),
+  'widgets/chat': path.resolve(rootDir, 'widgets/chat.html'),
+  'widgets/events': path.resolve(rootDir, 'widgets/events.html'),
+  'widgets/last-tip': path.resolve(rootDir, 'widgets/last-tip.html'),
+  'widgets/persistent-notifications': path.resolve(rootDir, 'widgets/persistent-notifications.html'),
+  'widgets/raffle': path.resolve(rootDir, 'widgets/raffle.html'),
+  'widgets/socialmedia': path.resolve(rootDir, 'widgets/socialmedia.html'),
+  'widgets/tip-goal': path.resolve(rootDir, 'widgets/tip-goal.html'),
+  'widgets/tip-notification': path.resolve(rootDir, 'widgets/tip-notification.html')
+};
+
 let appVersion = 'dev';
 try {
   const rootPkgPath = path.resolve(__dirname, '..', 'package.json');
@@ -47,7 +61,10 @@ export default defineConfig({
     outDir: path.resolve(__dirname, '..', 'dist-frontend'),
     emptyOutDir: true,
     rollupOptions: {
-      input: pageEntries
+      input: {
+        ...pageEntries,
+        ...widgetEntries
+      }
     }
   },
   publicDir: path.resolve(__dirname, '../public'),

@@ -73,10 +73,14 @@ npm i -g pnpm@10.19.0
    ```
 
 5. Install dependencies with pnpm (via Corepack): **pnpm install**
-6. Run the **pnpm run build** command to build the app.
-7. Then run **pnpm run start:prod**.
-8. The server will run the app with the address http://localhost:3000.
-9. Open getty in your web browser and configure your widgets in admin.
+6. Build the app with **pnpm run build** (runs the full pipeline: copies assets, builds admin + widgets with Vite, syncs `dist-frontend/` into `public/`, reapplies SRI, minifies legacy JS).
+7. Alternatively, for faster widget-only iterations:
+   - `pnpm frontend:build` – compile Vite widgets into `dist-frontend/`.
+   - `pnpm sync:frontend` – copy the build into `public/` and refresh SRI attributes.
+   - `pnpm add-sri` – re-run integrity hashing manually if you copy files by hand.
+8. Start the server in production mode with **pnpm run start:prod**.
+9. The server will run the app with the address http://localhost:3000.
+10. Open getty in your web browser and configure your widgets in admin.
 
 **Important:** If you download an update from getty, you must repeat the installation process. In some cases, there may be new dependencies to install, so the process may need to be repeated.
 
@@ -93,6 +97,17 @@ npm i -g pnpm@10.19.0
 - To disable Vite while developing static assets, set `GETTY_DISABLE_VITE_MIDDLEWARE=1` before running the command. Without Vite, the server falls back to the latest files inside `public/` or `dist-frontend/`.
 
 - The standalone Vite port is no longer required; keep your browser pointed to `http://localhost:3000` for the entire experience.
+
+- Widget build shortcuts:
+
+  ```bash
+  pnpm frontend:build  # compile only the Vite frontend
+  pnpm sync:frontend   # copy dist-frontend/ → public/ with SRI reapplication
+  ```
+
+  These two commands are useful when iterating on OBS overlays without running the full `pnpm run build` pipeline.
+
+- OBS smoke tests: see `docs/widget-validation-notes.md` for the checklist used to validate each migrated widget (URLs, tokens, audio/TTS checks).
 
 ## Visit getty in the browser:
 

@@ -1,0 +1,284 @@
+.raffle-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+  background: #080c10;
+  color: #ffffff;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
+}
+
+.raffle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.raffle-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.raffle-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  line-height: 1;
+}
+
+.raffle-status-badge .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.raffle-status-badge.active {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+}
+
+.raffle-status-badge.paused {
+  background: rgba(250, 204, 21, 0.16);
+  color: #facc15;
+}
+
+.raffle-status-badge.inactive {
+  background: rgba(148, 163, 184, 0.16);
+  color: #94a3b8;
+}
+
+.raffle-participant-count {
+  font-size: 14px;
+  color: #cbd5f5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.raffle-participant-count strong {
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.raffle-prize {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.prize-image {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid rgba(250, 203, 21, 0.35);
+  display: block;
+}
+
+.prize-image.hidden {
+  display: none;
+}
+
+.prize-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prize-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.prize-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #facc15;
+}
+
+.participants-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  margin: 12px 0;
+  padding-right: 6px;
+  max-height: 240px;
+  scrollbar-width: thin;
+  scrollbar-color: #4ade80 #1f2937;
+}
+
+.participants-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.participants-list::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 999px;
+}
+
+.participants-list::-webkit-scrollbar-thumb {
+  background: #4ade80;
+  border-radius: 999px;
+}
+
+.participant {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+}
+
+.participant:last-child {
+  border-bottom: none;
+}
+
+.participants-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.stats .value {
+  font-weight: 600;
+  color: #ffffff;
+  margin-left: 6px;
+}
+
+.raffle-message {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  margin-top: 32px;
+}
+
+.raffle-message strong {
+  color: #ffffff;
+}
+
+.winner-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  text-align: center;
+  padding: 32px 16px;
+  gap: 12px;
+}
+
+.winner-icon {
+  font-size: 48px;
+}
+
+.winner-icon-sm {
+  font-size: 32px;
+}
+
+.winner-title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.winner-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #4ade80;
+}
+
+.winner-name .winner-name-fade {
+  display: inline-block;
+  min-width: 6ch;
+}
+
+.winner-name-fade {
+  display: inline-block;
+  min-width: 6ch;
+  transition: opacity 0.4s ease;
+  animation: winnerPulse 4s ease-in-out infinite;
+}
+
+.opacity-0 {
+  opacity: 0 !important;
+}
+
+@keyframes winnerPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0px #00ff7f);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px #00ff7f);
+  }
+}
+
+.winner-prize {
+  font-size: 20px;
+  font-weight: 600;
+  color: #facc15;
+}
+
+.winner-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.winner-command {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.winner-timestamp {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.raffle-timer {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #facc15;
+  margin-bottom: 12px;
+}
+
+.hidden {
+  display: none !important;
+}

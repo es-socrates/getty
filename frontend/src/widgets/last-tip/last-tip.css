@@ -1,0 +1,155 @@
+.last-donation {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 380px;
+  background: var(--lt-bg, #080c10);
+  color: var(--lt-text, #fff);
+  padding: 0;
+  border-radius: 4px;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
+  z-index: 10000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  border-left: 8px solid var(--lt-border, #00ff7f);
+}
+
+.last-donation-content {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.notification-from-lasttip {
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  color: var(--lt-from, var(--lt-text, #fff));
+}
+
+.notification-icon,
+.notification-icon-lasttip {
+  width: 78px;
+  height: 78px;
+  min-width: 78px;
+  min-height: 78px;
+  border-radius: 4px;
+  background: var(--lt-icon-bg, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  margin-left: 5px;
+}
+
+.notification-icon svg,
+.notification-icon-lasttip svg {
+  width: 58px;
+  height: 58px;
+  display: block;
+  color: #fff;
+  margin-top: 5px;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.notification-text {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.notification-amount {
+  font-size: 24px;
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.notification-from {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 3px;
+  color: var(--lt-from, var(--lt-text, #fff));
+}
+
+.notification-timestamp {
+  font-size: 12px;
+  color: #777;
+  margin-top: 8px;
+  text-align: right;
+}
+
+#connection-status {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  color: #00ff7f;
+  font-family: var(
+    --font-sans,
+    Roobert,
+    Tajawal,
+    Inter,
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif
+  );
+  font-size: 16px;
+}
+
+@keyframes coinWobble {
+  0% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+  20% {
+    transform: translateX(-6px) rotate(-8deg) scale(1.02);
+  }
+  50% {
+    transform: translateX(6px) rotate(8deg) scale(1.02);
+  }
+  80% {
+    transform: translateX(-3px) rotate(-4deg) scale(1.01);
+  }
+  100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+  }
+}
+
+.update-animation .notification-icon svg,
+.update-animation .notification-icon-lasttip svg {
+  animation: coinWobble 650ms ease-out;
+}
+
+.usd-value {
+  font-size: 16px;
+  color: var(--lt-text, #fff);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.amount-container {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ar-amount {
+  font-size: 24px;
+  font-weight: 800;
+  text-shadow: none;
+  color: var(--lt-amount, #00ff7f);
+}

@@ -1911,21 +1911,20 @@ app.post('/api/chat/test-message', limiter, async (req, res) => {
   }
 });
 
-app.get('/widgets/persistent-notifications', (req, res, next) => {
+app.get('/widgets/persistent-notifications', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'persistent-notifications.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/persistent-notifications.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
 app.get('/obs/widgets', (req, res) => {
@@ -1998,131 +1997,134 @@ app.get('/obs/widgets', (req, res) => {
   res.json(widgets);
 });
 
-app.get('/widgets/last-tip', (req, res, next) => {
+app.get('/widgets/last-tip', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'last-tip.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/last-tip.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
-app.get('/widgets/tip-goal', (req, res, next) => {
+app.get('/widgets/tip-goal', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'tip-goal.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/tip-goal.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
-app.get('/widgets/tip-notification', (req, res, next) => {
+app.get('/widgets/tip-notification', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'tip-notification.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/tip-notification.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
 try { registerTipNotificationRoutes(app, limiter, { wss, store }); } catch {}
 registerTipNotificationGifRoutes(app, limiter, { store });
 
-app.get('/widgets/chat', (req, res, next) => {
+app.get('/widgets/chat', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'chat.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/chat.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
-app.get('/widgets/announcement', (req, res, next) => {
+app.get('/widgets/announcement', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'announcement.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/announcement.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
-app.get('/widgets/achievements', (req, res, next) => {
+app.get('/widgets/achievements', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'achievements.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
-
-    if (nonce) {
-      html = html.replace(/<style(\s[^>]*)?>/gi, function (m) {
-        return m.includes('nonce=') ? m : m.replace('<style', `<style nonce="${nonce}"`);
-      });
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/achievements.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
-app.get('/widgets/events', (req, res, next) => {
+app.get('/widgets/events', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'events.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/events.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+app.get('/widgets/raffle', async (req, res, next) => {
+  try {
+    const html = await loadFrontendHtmlTemplate('widgets/raffle.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
 app.get('/api/channel/avatar', async (req, res) => {
@@ -2170,38 +2172,36 @@ app.get('/obs-help', (req, res, next) => {
   } catch { return next(); }
 });
 
-app.get('/widgets/socialmedia', (req, res, next) => {
+app.get('/widgets/socialmedia', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'socialmedia.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/socialmedia.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
-app.get('/widgets/liveviews', (req, res, next) => {
+app.get('/widgets/liveviews', async (req, res, next) => {
   try {
-    const filePath = path.join(__dirname, 'public', 'widgets', 'liveviews.html');
-    const nonce = res.locals?.cspNonce || '';
-    let html = fs.readFileSync(filePath, 'utf8');
-    if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-    }
+    const html = await loadFrontendHtmlTemplate('widgets/liveviews.html', req);
+    if (!html) return next();
+    const finalHtml = finalizeHtmlResponse(html, res);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-    return res.send(html);
-  } catch { return next(); }
+    if (res.locals?.cspNonce) {
+      try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+    }
+    return res.send(finalHtml);
+  } catch (err) {
+    return next(err);
+  }
 });
 
 const AUDIO_CONFIG_FILE = path.join(__CONFIG_DIR, 'audio-settings.json');

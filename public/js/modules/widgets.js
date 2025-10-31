@@ -19,12 +19,7 @@ export async function loadTipGoal() {
   markLoaded('tip-goal');
 }
 export async function loadTipWidget() {
-  try {
-    const m = await import('./tip-notification.js');
-    if (m && typeof m.initNotifications === 'function') await m.initNotifications();
-  } catch {
-    await loadScriptOnce('/js/min/tip-widget.js', 'tip-widget-js');
-  }
+  await loadNotifications();
   markLoaded('tip-widget');
 }
 export async function loadNotifications() {

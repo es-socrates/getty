@@ -4,15 +4,16 @@ Thank you for your interest in contributing to getty! Here you'll find how to pr
 
 ## Requirements
 
-- Node.js >= 18
-- npm (the one that comes with Node 18 is recommended)
-- Windows, macOS, or Linux (the project runs on any OS with Node 18)
+- Node.js >= 22 (< 23). We rely on features introduced in 22.x.
+- pnpm 10.x (managed automatically through Corepack; see below).
+- Windows, macOS, or Linux.
 
 ## Initial setup
 
 ```bash
-# 1) Install dependencies
-npm install
+# 1) Enable Corepack (once per machine) and install dependencies
+corepack enable
+pnpm install
 
 # 2) Environment variables (optional, depending on your needs)
 # Create a .env file at the repo root if you need to tweak behavior
@@ -38,7 +39,7 @@ Quick notes:
 - Server + CSS + public pages in development (watch):
 
   ```bash
-  npm run dev
+  pnpm run dev
   ```
 
   This starts nodemon (server), Tailwind in watch mode, and the Vite dev server embedded behind Express so every page (landing, welcome, dashboard, 404) is served from http://localhost:3000 with HMR.
@@ -46,7 +47,7 @@ Quick notes:
 - Admin SPA (Vite) in development:
 
   ```bash
-  npm run admin:dev
+  pnpm run admin:dev
   ```
 
   Use it in a separate terminal while the server is running.
@@ -54,21 +55,21 @@ Quick notes:
 - Lint (JS/Vue and CSS):
 
   ```bash
-  npm run lint      # ESLint (admin-frontend/src, modules, routes, scripts, server.js)
-  npm run lint:fix  # Auto-fixes
-  npm run lint:css
-  npm run lint:css:fix
+  pnpm run lint      # ESLint (admin-frontend/src, modules, routes, scripts, server.js)
+  pnpm run lint:fix  # Auto-fixes
+  pnpm run lint:css
+  pnpm run lint:css:fix
   ```
 
 - Tests (Jest):
 
   ```bash
-  npm test
+  pnpm test
   ```
 
 - Production build (CSS, i18n, admin, minified HTML and JS):
   ```bash
-  npm run build
+  pnpm run build
   ```
 
 ## Relevant structure
@@ -77,24 +78,25 @@ Quick notes:
 - `routes/`: APIs for widgets and admin.
 - `modules/`: product logic (tip goal, last tip, chat, etc.).
 - `admin-frontend/`: Vue (Vite) SPA for administration.
-- `public/`: static assets, widget HTML/JS/CSS, and builds.
+- `public/`: static assets and the synced output from `dist-frontend/`.
 - `shared-i18n/`: language strings (en/es). Generate runtime with `npm run build:i18n`.
 - `config/`: JSON configuration persisted in local mode.
 - `tests/`: integration/unit tests with Jest and Supertest.
 
 ## Widget and styles development
 
-- CSS: Tailwind. During development use `npm run dev` (watch). For production:
+- CSS: Tailwind. During development use `pnpm run dev` (watch). For one-off builds:
   ```bash
-  npm run build-css && npm run minify-css
+  pnpm run build-css && pnpm run minify-css
   ```
-- Widget JS: files in `public/js/*.js` are minified to `public/js/min` with:
+- Widgets (OBS overlays) now live under `frontend/widgets/**` + `frontend/src/widgets/**` and are built with Vite:
   ```bash
-  npm run minify-js
+  pnpm frontend:build   # compile widget bundles into dist-frontend/
+  pnpm sync:frontend    # copy dist-frontend/ into public/ and refresh SRI
   ```
-- Landing, welcome, dashboard, and 404 pages are built via Vite (also used automatically by `npm run dev`):
+- Landing, welcome, dashboard, and 404 pages are built via Vite (also used automatically by `pnpm run dev`):
   ```bash
-  npm run frontend:build
+  pnpm frontend:build
   ```
 
 ## i18n
@@ -102,7 +104,7 @@ Quick notes:
 - Edit `shared-i18n/en.json` and/or `shared-i18n/es.json`.
 - Generate the runtime for the admin:
   ```bash
-  npm run build:i18n
+  pnpm run build:i18n
   ```
 - Add tests if you introduce critical keys or change user-facing texts in routes.
 
@@ -118,9 +120,9 @@ Quick notes:
 Before opening a PR, make sure to run:
 
 ```bash
-npm run lint
-npm test
-npm run build
+pnpm run lint
+pnpm test
+pnpm run build
 ```
 
 ## Tips

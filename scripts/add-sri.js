@@ -9,6 +9,12 @@ function integrityFor(filePath) {
   return `sha384-${hash}`;
 }
 
+function stripSriAttrs(segment) {
+  return segment
+    .replace(/\s+integrity=["'][^"']+["']/gi, '')
+    .replace(/\s+crossorigin(?:=["'][^"']+["'])?/gi, '');
+}
+
 function addSriToHtml(htmlPath, rootDir) {
   let html = fs.readFileSync(htmlPath, 'utf8');
   let changed = false;
@@ -19,8 +25,8 @@ function addSriToHtml(htmlPath, rootDir) {
     if (!fs.existsSync(fileFs)) return m;
     const sri = integrityFor(fileFs);
 
-    let newPre = pre.replace(/\s+integrity=["'][^"']+["']/i, '').replace(/\s+crossorigin=["'][^"']+["']/i, '');
-    let newPost = post.replace(/\s+integrity=["'][^"']+["']/i, '').replace(/\s+crossorigin=["'][^"']+["']/i, '');
+    const newPre = stripSriAttrs(pre);
+    const newPost = stripSriAttrs(post);
     changed = true;
     return `<script ${newPre}src="${src}" integrity="${sri}" crossorigin="anonymous"${newPost}></script>`;
   });
@@ -32,8 +38,8 @@ function addSriToHtml(htmlPath, rootDir) {
     if (!fs.existsSync(fileFs)) return m;
     const sri = integrityFor(fileFs);
 
-    let newPre = pre.replace(/\s+integrity=["'][^"']+["']/i, '').replace(/\s+crossorigin=["'][^"']+["']/i, '');
-    let newPost = post.replace(/\s+integrity=["'][^"']+["']/i, '').replace(/\s+crossorigin=["'][^"']+["']/i, '');
+    const newPre = stripSriAttrs(pre);
+    const newPost = stripSriAttrs(post);
     changed = true;
     return `<link ${newPre}href="${href}" integrity="${sri}" crossorigin="anonymous"${newPost}>`;
   });
@@ -41,8 +47,7 @@ function addSriToHtml(htmlPath, rootDir) {
   return changed;
 }
 
-function main() {
-  const publicDir = path.join(process.cwd(), 'public');
+function collectHtmlFiles(rootDir) {
   const htmlFiles = [];
   function scan(dir) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -52,13 +57,30 @@ function main() {
       else if (e.isFile() && p.endsWith('.html')) htmlFiles.push(p);
     }
   }
-  scan(publicDir);
-  let count = 0;
-  for (const f of htmlFiles) {
-    const changed = addSriToHtml(f, publicDir);
-    if (changed) count++;
-  }
-  try { console.warn(`[SRI] Processed ${htmlFiles.length} HTML files, updated ${count} with integrity attributes.`); } catch {}
+  if (fs.existsSync(rootDir)) scan(rootDir);
+  return htmlFiles;
 }
 
-if (require.main === module) main();
+function processDirectory(rootDir) {
+  const htmlFiles = collectHtmlFiles(rootDir);
+  let updated = 0;
+  for (const file of htmlFiles) {
+    const changed = addSriToHtml(file, rootDir);
+    if (changed) updated++;
+  }
+  return { processed: htmlFiles.length, updated };
+}
+
+module.exports = {
+  integrityFor,
+  stripSriAttrs,
+  addSriToHtml,
+  collectHtmlFiles,
+  processDirectory
+};
+
+if (require.main === module) {
+  const publicDir = path.join(process.cwd(), 'public');
+  const { processed, updated } = processDirectory(publicDir);
+  try { console.warn(`[SRI] Processed ${processed} HTML files, updated ${updated} with integrity attributes.`); } catch {}
+}
