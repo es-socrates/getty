@@ -35,13 +35,13 @@ Quick notes:
 
 ## Main scripts
 
-- Server + CSS in development (watch):
+- Server + CSS + public pages in development (watch):
 
   ```bash
   npm run dev
   ```
 
-  This starts nodemon (server) and Tailwind in watch mode. Open http://localhost:3000.
+  This starts nodemon (server), Tailwind in watch mode, and the Vite dev server embedded behind Express so every page (landing, welcome, dashboard, 404) is served from http://localhost:3000 with HMR.
 
 - Admin SPA (Vite) in development:
 
@@ -92,9 +92,9 @@ Quick notes:
   ```bash
   npm run minify-js
   ```
-- Minified HTML (landing):
+- Landing, welcome, dashboard, and 404 pages are built via Vite (also used automatically by `npm run dev`):
   ```bash
-  npm run minify-html
+  npm run frontend:build
   ```
 
 ## i18n

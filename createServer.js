@@ -25,6 +25,7 @@ try {
 } catch {}
 const axios = require('axios');
 const fs = require('fs');
+const fsp = fs.promises;
 const multer = require('multer');
 const promClient = require('prom-client');
 const {
@@ -33,12 +34,63 @@ const {
 } = require('./services/metrics/liveviews');
 const { setupMiddlewares } = require('./app/setupMiddlewares');
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const FRONTEND_ROOT_DIR = path.join(__dirname, 'frontend');
+const FRONTEND_DIST_DIR = path.join(__dirname, 'dist-frontend');
+const FRONTEND_PUBLIC_DIR = path.join(__dirname, 'public');
+const FRONTEND_PAGE_FILES = {
+  landing: 'index.html',
+  welcome: 'welcome.html',
+  dashboard: 'dashboard.html',
+  notFound: '404.html'
+};
+
+let viteDevServerPromise = null;
+
+const enableViteMiddleware = !IS_PRODUCTION && process.env.GETTY_DISABLE_VITE_MIDDLEWARE !== '1';
+
+if (enableViteMiddleware) {
+  try {
+    const { createServer: createViteServer } = require('vite');
+    const watchConfig = {};
+    if (process.env.GETTY_VITE_POLLING === '1') {
+      watchConfig.usePolling = true;
+      if (process.env.GETTY_VITE_POLL_INTERVAL) {
+        const interval = parseInt(process.env.GETTY_VITE_POLL_INTERVAL, 10);
+        if (!Number.isNaN(interval)) {
+          watchConfig.interval = interval;
+        }
+      }
+    }
+
+    viteDevServerPromise = createViteServer({
+      configFile: path.join(FRONTEND_ROOT_DIR, 'vite.config.js'),
+      root: FRONTEND_ROOT_DIR,
+      server: {
+        middlewareMode: true,
+        hmr: {
+          port: process.env.GETTY_VITE_HMR_PORT ? Number(process.env.GETTY_VITE_HMR_PORT) : undefined
+        },
+        watch: Object.keys(watchConfig).length ? watchConfig : undefined
+      },
+      appType: 'custom'
+    }).then((vite) => {
+      try { console.warn('[frontend] Vite middleware enabled'); } catch {}
+      return vite;
+    }).catch((err) => {
+      try { console.error('[frontend] Failed to start Vite in middleware mode:', err?.message || err); } catch {}
+      return null;
+    });
+  } catch (err) {
+    try { console.error('[frontend] Unable to load Vite for dev integration:', err?.message || err); } catch {}
+  }
+}
+
 const OBS_WS_CONFIG_FILE = path.join(__dirname, 'config', 'obs-ws-config.json');
 
 try {
-  const isProd = process.env.NODE_ENV === 'production';
   const keepSri = process.env.GETTY_KEEP_SRI_DEV === '1';
-  if (!isProd && !keepSri) {
+  if (!IS_PRODUCTION && !keepSri) {
     const PUBLIC_DIR = path.join(process.cwd(), 'public');
     const stripSriInHtml = (html) => {
       try {
@@ -66,6 +118,80 @@ try {
     if (fs.existsSync(PUBLIC_DIR)) walk(PUBLIC_DIR);
   }
 } catch {}
+
+function shouldStripSriInResponse() {
+  return !IS_PRODUCTION && process.env.GETTY_KEEP_SRI_DEV !== '1';
+}
+
+function applyNonceToHtml(html, nonce) {
+  if (!html) return html;
+  let output = html;
+  if (nonce) {
+    if (!/property=["']csp-nonce["']/i.test(output)) {
+      const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
+      const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
+      output = output.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    output = output.replace(/__CSP_NONCE__/g, nonce);
+    output = output.replace(/<style(\s[^>]*)?>/gi, (match) => (match.includes('nonce=') ? match : match.replace('<style', `<style nonce="${nonce}"`)));
+  } else {
+    output = output.replace(/\snonce="__CSP_NONCE__"/g, '');
+  }
+  return output;
+}
+
+function finalizeHtmlResponse(html, res) {
+  if (!html) return html;
+  const nonce = res.locals?.cspNonce || '';
+  let output = applyNonceToHtml(html, nonce);
+  if (shouldStripSriInResponse()) {
+    output = output
+      .replace(/\s+integrity=["'][^"']+["']/gi, '')
+      .replace(/\s+crossorigin=["'][^"']+["']/gi, '');
+  }
+  return output;
+}
+
+async function loadFrontendHtmlTemplate(filename, req) {
+  try {
+    if (!filename) return null;
+    const normalized = String(filename).replace(/^[\\/]+/, '');
+    if (!normalized || normalized.includes('..')) return null;
+
+    if (viteDevServerPromise) {
+      const vite = await viteDevServerPromise;
+      if (vite) {
+        try {
+          const sourcePath = path.join(FRONTEND_ROOT_DIR, normalized);
+          const rawTemplate = await fsp.readFile(sourcePath, 'utf8');
+          return await vite.transformIndexHtml(req.originalUrl || '/', rawTemplate);
+        } catch (err) {
+          try {
+            console.error(`[frontend] Failed to load ${normalized} via Vite:`, err?.message || err);
+          } catch {}
+        }
+      }
+    }
+
+    const searchOrder = [];
+    if (IS_PRODUCTION || fs.existsSync(FRONTEND_DIST_DIR)) {
+      searchOrder.push(FRONTEND_DIST_DIR);
+    }
+    searchOrder.push(FRONTEND_PUBLIC_DIR);
+    searchOrder.push(FRONTEND_ROOT_DIR);
+
+    for (const baseDir of searchOrder) {
+      try {
+        const absolute = path.resolve(baseDir, normalized);
+        if (!absolute.startsWith(baseDir)) continue;
+        const stats = await fsp.stat(absolute);
+        if (!stats.isFile()) continue;
+        return await fsp.readFile(absolute, 'utf8');
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
 
 const LastTipModule = require('./modules/last-tip');
 const TipWidgetModule = require('./modules/tip-widget');
@@ -111,32 +237,42 @@ const LAST_TIP_CONFIG_FILE = path.join(__CONFIG_DIR, 'last-tip-config.json');
 const CHAT_CONFIG_FILE = path.join(__CONFIG_DIR, 'chat-config.json');
 const RAFFLE_CONFIG_FILE = path.join(__CONFIG_DIR, 'raffle-config.json');
 const GOAL_AUDIO_UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'goal-audio');
-const DASHBOARD_TEMPLATE_PATH = path.join(__dirname, 'public', 'dashboard.html');
-const DASHBOARD_TEMPLATE_FALLBACK = path.join(process.cwd(), 'src', 'dashboard-shell.html');
+const DASHBOARD_TEMPLATE_PRIMARY = path.join(__dirname, 'dist-frontend', FRONTEND_PAGE_FILES.dashboard);
+const DASHBOARD_TEMPLATE_SECONDARY = path.join(__dirname, 'public', FRONTEND_PAGE_FILES.dashboard);
+const DASHBOARD_TEMPLATE_SOURCE = path.join(__dirname, 'frontend', FRONTEND_PAGE_FILES.dashboard);
 
 let __dashboardTemplateCache = { html: null, mtimeMs: 0, file: null };
-function loadDashboardTemplate() {
-  const loadFrom = (filePath) => {
-    try {
-      const stat = fs.statSync(filePath);
-      if (!__dashboardTemplateCache.html || stat.mtimeMs !== __dashboardTemplateCache.mtimeMs || __dashboardTemplateCache.file !== filePath) {
-        __dashboardTemplateCache = {
-          html: fs.readFileSync(filePath, 'utf8'),
-          mtimeMs: stat.mtimeMs,
-          file: filePath
-        };
+async function loadDashboardTemplate(req) {
+  if (viteDevServerPromise) {
+    const vite = await viteDevServerPromise;
+    if (vite) {
+      try {
+        const sourceTemplate = await fsp.readFile(DASHBOARD_TEMPLATE_SOURCE, 'utf8');
+        return await vite.transformIndexHtml(req.originalUrl || '/dashboard', sourceTemplate);
+      } catch (err) {
+        try { console.error('[dashboard] Failed to load dashboard template via Vite:', err?.message || err); } catch {}
       }
-      return __dashboardTemplateCache.html;
-    } catch {
-      return null;
     }
-  };
+  }
 
-  const built = loadFrom(DASHBOARD_TEMPLATE_PATH);
-  if (built) return built;
-  const fallback = loadFrom(DASHBOARD_TEMPLATE_FALLBACK);
-  if (fallback) return fallback;
-  try { console.warn('[dashboard] template unavailable in public or src directories'); } catch {}
+  const candidates = [DASHBOARD_TEMPLATE_PRIMARY, DASHBOARD_TEMPLATE_SECONDARY, DASHBOARD_TEMPLATE_SOURCE];
+  for (const filePath of candidates) {
+    try {
+      const stat = await fsp.stat(filePath);
+      if (!stat.isFile()) continue;
+      if (
+        __dashboardTemplateCache.html &&
+        __dashboardTemplateCache.file === filePath &&
+        __dashboardTemplateCache.mtimeMs === stat.mtimeMs
+      ) {
+        return __dashboardTemplateCache.html;
+      }
+      const html = await fsp.readFile(filePath, 'utf8');
+      __dashboardTemplateCache = { html, mtimeMs: stat.mtimeMs, file: filePath };
+      return html;
+    } catch {}
+  }
+  try { console.warn('[dashboard] template unavailable in frontend dist, public, or source directories'); } catch {}
   return null;
 }
 
@@ -258,6 +394,19 @@ setupMiddlewares(app, {
   __allow,
   __LOG_LEVEL
 });
+
+if (viteDevServerPromise) {
+  app.use(async (req, res, next) => {
+    try {
+      const vite = await viteDevServerPromise;
+      if (!vite) return next();
+      return vite.middlewares(req, res, next);
+    } catch (err) {
+      try { console.error('[frontend] Vite middleware error:', err?.message || err); } catch {}
+      return next();
+    }
+  });
+}
 
 const ADMIN_COOKIE = 'getty_admin_token';
 const PUBLIC_COOKIE = 'getty_public_token';
@@ -2119,8 +2268,20 @@ try {
 } catch {}
 
 try {
-  app.get(['/welcome','/welcome/'], (_req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'welcome.html'));
+  app.get(['/welcome','/welcome/'], async (req, res, next) => {
+    try {
+      const html = await loadFrontendHtmlTemplate(FRONTEND_PAGE_FILES.welcome, req);
+      if (!html) return next();
+      const finalHtml = finalizeHtmlResponse(html, res);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      if (res.locals?.cspNonce) {
+        try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+      }
+      return res.send(finalHtml);
+    } catch (err) {
+      return next(err);
+    }
   });
 } catch {}
 
@@ -2131,50 +2292,40 @@ try {
 } catch {}
 
 try {
-  app.get('/', (req, res, next) => {
+  app.get('/', async (req, res, next) => {
     try {
-      const indexPath = path.join(__dirname, 'public', 'index.html');
-      if (!fs.existsSync(indexPath)) return next();
-      const nonce = res.locals?.cspNonce || '';
-      let html = fs.readFileSync(indexPath, 'utf8');
-      if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-        const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-        const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-        html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-      }
-      if (nonce) {
-        html = html.replace(/<style(\s[^>]*)?>/gi, function (m) {
-          return m.includes('nonce=') ? m : m.replace('<style', `<style nonce="${nonce}"`);
-        });
-      }
+      const html = await loadFrontendHtmlTemplate(FRONTEND_PAGE_FILES.landing, req);
+      if (!html) return next();
+      const finalHtml = finalizeHtmlResponse(html, res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-      return res.send(html);
-    } catch { return next(); }
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      if (res.locals?.cspNonce) {
+        try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+      }
+      return res.send(finalHtml);
+    } catch (err) {
+      return next(err);
+    }
   });
 } catch {}
 
 try {
-  app.get(/^(?!\/admin)(.*\.html)$/i, (req, res, next) => {
+  app.get(/^(?!\/admin)(.*\.html)$/i, async (req, res, next) => {
     try {
-      const reqPath = req.path.replace(/\/+/, '/');
-      const unsafeFsPath = path.join(__dirname, 'public', reqPath);
-      const publicDir = path.join(__dirname, 'public');
-      const filePath = path.resolve(unsafeFsPath);
-      if (!filePath.startsWith(publicDir + path.sep)) return next();
-      if (!fs.existsSync(filePath)) return next();
-      let html = fs.readFileSync(filePath, 'utf8');
-      const nonce = res.locals?.cspNonce || '';
-      if (nonce && !/property=["']csp-nonce["']/.test(html)) {
-        const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
-        const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
-        html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
-      }
+      const relativePath = String(req.path || '').replace(/^\/+/, '');
+      if (!relativePath) return next();
+      const html = await loadFrontendHtmlTemplate(relativePath, req);
+      if (!html) return next();
+      const finalHtml = finalizeHtmlResponse(html, res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
-      return res.send(html);
-    } catch { return next(); }
+      if (res.locals?.cspNonce) {
+        try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+      }
+      return res.send(finalHtml);
+    } catch (err) {
+      return next(err);
+    }
   });
 } catch {}
 
@@ -2697,12 +2848,11 @@ try {
         }
       }
 
-      const template = loadDashboardTemplate();
+      const template = await loadDashboardTemplate(req);
       if (!template) {
         return res.status(500).send('Dashboard template missing. Please rebuild assets.');
       }
 
-      const nonce = res.locals?.cspNonce || '';
       const bootstrap = {
         widgetToken: rawToken,
         hasAdminSession: !!(req.auth?.isAdmin),
@@ -2711,16 +2861,12 @@ try {
 
       const safeBootstrap = JSON.stringify(bootstrap).replace(/</g, '\\u003c');
       let html = template.replace('__DASHBOARD_BOOTSTRAP__', safeBootstrap);
-      if (nonce) {
-        html = html.replace(/__CSP_NONCE__/g, nonce);
-      } else {
-        html = html.replace(/\snonce="__CSP_NONCE__"/g, '');
-      }
+      html = finalizeHtmlResponse(html, res);
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      if (nonce) {
-        try { res.setHeader('X-CSP-Nonce', nonce); } catch {}
+      if (res.locals?.cspNonce) {
+        try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
       }
       return res.send(html);
     } catch (err) {

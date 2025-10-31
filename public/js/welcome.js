@@ -1,4 +1,36 @@
-window.addEventListener('DOMContentLoaded', function () {
+function waitForWelcomeLayout(root) {
+  if (!root) return Promise.resolve(root);
+  if (root.childElementCount > 0) return Promise.resolve(root);
+  return new Promise((resolve) => {
+    let settled = false;
+    const complete = (target) => {
+      if (settled) return;
+      settled = true;
+      resolve(target || root);
+      window.removeEventListener('getty-welcome-vue-ready', onReady);
+      if (window.__GETTY_WELCOME_VUE_READY__ === bridge) {
+        try {
+          delete window.__GETTY_WELCOME_VUE_READY__;
+        } catch (_) {
+          window.__GETTY_WELCOME_VUE_READY__ = undefined;
+        }
+      }
+    };
+    const onReady = (event) => {
+      complete(event?.detail?.root || root);
+    };
+    window.addEventListener('getty-welcome-vue-ready', onReady, { once: true });
+    const bridge = () => complete(root);
+    window.__GETTY_WELCOME_VUE_READY__ = bridge;
+  });
+}
+
+window.addEventListener('DOMContentLoaded', async function () {
+  const root = document.getElementById('app-root') || document.getElementById('app');
+  const isVueWelcome = root && root.hasAttribute && root.hasAttribute('data-welcome-vue');
+  if (isVueWelcome) {
+    await waitForWelcomeLayout(root);
+  }
   try {
     var isLocal = (
       location.protocol === 'file:' ||

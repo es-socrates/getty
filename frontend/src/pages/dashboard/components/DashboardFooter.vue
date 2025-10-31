@@ -1,0 +1,137 @@
+<template>
+  <footer class="py-6 border-[var(--background)] text-center text-xs">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <p class="font-bold" data-i18n="copyright">
+            © 2025
+            <a
+              href="https://getty.sh/"
+              target="_blank"
+              class="hover:text-primary-200 transition-colors font-bold"
+              >getty</a
+            >
+            ·
+            <a
+              href="https://opensource.org/licenses/MIT"
+              target="_blank"
+              class="hover:text-primary-200 transition-colors font-bold"
+              >MIT License</a
+            >
+          </p>
+        </div>
+        <div class="flex items-center gap-4">
+          <a
+            href="https://getty.sh/"
+            target="_blank"
+            aria-label="getty.sh"
+            class="hover:text-primary-200 transition-colors">
+            <img
+              :src="faviconHref"
+              alt="getty"
+              width="18"
+              height="18"
+              class="rounded"
+              loading="lazy"
+              decoding="async" />
+          </a>
+          <a
+            href="https://odysee.com"
+            target="_blank"
+            aria-label="Odysee"
+            class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 192 192" width="20" height="20" fill="none" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="12.096"
+                d="M98.612 39.193c7.085.276 9.76 4.503 12.192 10.124 3.249 7.494.988 10.141-12.192 13.85-13.187 3.74-19.535-1.171-20.404-10.115-.976-10.115 11.684-12.729 11.684-12.729 3.495-.876 6.36-1.226 8.72-1.13zm65.362 107.42c2.54-9.665-6.121-19.201-11.2-27.806-4.998-8.467-11.972-17.925-18.629-22.87a4.832 4.832 0 0 1-.378-7.376c6.57-6.21 18.15-18.329 21.813-24.725 3.413-6.664 7.628-14.488 5.34-21.513-2.058-6.317-8.8-14.298-15.274-12.806-7.342 1.692-6.837 10.98-9.216 20.638-3.222 13.187-10.86 11.697-13.968 11.697-3.108 0-1.24-4.658-8.46-25.377-7.217-20.72-26.002-15.526-40.27-6.985-18.14 10.874-10.046 34.054-5.562 48.992-2.546 2.453-12.118 4.368-20.834 9.06-10.75 5.78-21.645 9.363-24.66 19.372-1.883 6.254.172 15.997 6.162 18.602 6.645 2.889 12.633-1.694 19.751-9.073a36.226 36.226 0 0 1 7.089-5.482 75.994 75.994 0 0 1 18.276-8.59s6.97 10.707 13.432 23.393c6.457 12.686-6.968 16.918-8.459 16.918-1.497 0-22.675-1.973-17.95 15.926 4.726 17.9 30.598 11.437 43.785 2.728 13.187-8.708 9.947-37.06 9.947-37.06 12.94-1.985 16.915 11.684 18.158 18.628 1.243 6.944 4.06 18.052 11.449 19.412 8.248 1.517 17.528-7.593 19.659-15.705z"></path>
+            </svg>
+          </a>
+          <a
+            href="https://getty.sh/en/guide/privacypolicy/"
+            target="_blank"
+            aria-label="Privacy Policy"
+            class="hover:text-primary-200 transition-colors">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="currentColor"
+              aria-hidden="true"
+              class="text-[#1d1d1d] dark:text-white transition-colors">
+              <path
+                d="M17 9.99V7A5 5 0 0 0 7 7v2.99A4.482 4.482 0 0 0 4.5 14v3A4.507 4.507 0 0 0 9 21.5h6a4.507 4.507 0 0 0 4.5-4.5v-3A4.482 4.482 0 0 0 17 9.99ZM13 16a1 1 0 0 1-2 0v-1a1 1 0 0 1 2,0Zm2-6.5H9V7a3 3 0 0 1 6,0Z"></path>
+            </svg>
+          </a>
+          <a
+            href="https://getty.sh/en/guide/terms/"
+            target="_blank"
+            aria-label="Terms"
+            class="hover:text-primary-200 transition-colors">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"></path>
+              <path d="M14 2v6h6"></path>
+              <path d="M9 13h6"></path>
+              <path d="M9 17h3"></path>
+            </svg>
+          </a>
+          <a
+            href="https://github.com/es-socrates/getty"
+            target="_blank"
+            aria-label="GitHub"
+            class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.68 7.68 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path>
+            </svg>
+          </a>
+          <a
+            href="https://x.com/getty_sh"
+            target="_blank"
+            aria-label="X"
+            class="hover:text-primary-200 transition-colors">
+            <svg viewBox="0 0 1024 1024" width="20" height="20" aria-hidden="true">
+              <g
+                fill="none"
+                fill-rule="evenodd"
+                stroke="none"
+                stroke-width="1"
+                transform="translate(112 112)">
+                <path
+                  class="footer-x-bg"
+                  d="M711.111 800H88.89C39.8 800 0 760.2 0 711.111V88.89C0 39.8 39.8 0 88.889 0H711.11C760.2 0 800 39.8 800 88.889V711.11C800 760.2 760.2 800 711.111 800"></path>
+                <path
+                  class="footer-x-fg"
+                  fill-rule="nonzero"
+                  d="M628 623H484.942L174 179h143.058zm-126.012-37.651h56.96L300.013 216.65h-56.96z"></path>
+                <path
+                  class="footer-x-fg"
+                  fill-rule="nonzero"
+                  d="M219.296885 623 379 437.732409 358.114212 410 174 623z"></path>
+                <path
+                  class="footer-x-fg"
+                  fill-rule="nonzero"
+                  d="M409 348.387347 429.212986 377 603 177 558.330417 177z"></path>
+              </g>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</template>
+
+<script setup>
+const faviconHref = '/favicon.ico';
+</script>

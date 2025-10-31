@@ -56,7 +56,7 @@ This document describes the internationalization system implemented in Getty to 
 
 1. Copy `shared-i18n/en.json` to `shared-i18n/<lang>.json` and translate values.
 2. Run `npm run build:i18n` (validator enforces identical key sets).
-3. Add `<option value="<lang>">` to the language selector in `src/index.html` (and any widget if needed).
+3. Add `<option value="<lang>">` to the language selectors in the Vue pages (for example `frontend/src/pages/landing/App.vue` and `frontend/src/pages/welcome/App.vue`, plus any widgets that expose language controls).
 4. Optionally update server accepted locales if you restrict them (`modules/language-config.js`).
 
 ## Translation Structure
