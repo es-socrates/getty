@@ -22,6 +22,50 @@
     } catch (_) {}
   }
 
+  function waitForLandingLayout(root) {
+    if (!root) return Promise.resolve(root);
+    if (root.childElementCount > 0) return Promise.resolve(root);
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (target) => {
+        if (settled) return;
+        settled = true;
+        resolve(target || root);
+        window.removeEventListener('getty-landing-vue-ready', onReady);
+        if (window.__GETTY_LANDING_VUE_READY__ === bridge) {
+          try {
+            delete window.__GETTY_LANDING_VUE_READY__;
+          } catch (_) {
+            window.__GETTY_LANDING_VUE_READY__ = undefined;
+          }
+        }
+      };
+      const onReady = (event) => {
+        finish(event?.detail?.root || root);
+      };
+      window.addEventListener('getty-landing-vue-ready', onReady, { once: true });
+      const bridge = () => finish(root);
+      window.__GETTY_LANDING_VUE_READY__ = bridge;
+    });
+  }
+
+  function whenDomReady() {
+    return new Promise((resolve) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => resolve(), { once: true });
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  whenDomReady().then(async () => {
+    const landingRoot = document.getElementById('app-root') || document.getElementById('app');
+    const isVueLanding = !!(landingRoot && landingRoot.hasAttribute && landingRoot.hasAttribute('data-landing-vue'));
+    if (isVueLanding) {
+      await waitForLandingLayout(landingRoot);
+    }
+
   try {
     const langSel = document.getElementById('language-selector');
     let savedLang = null;
@@ -488,4 +532,5 @@
       header.style.borderBottomColor = 'rgb(39 39 42/var(--tw-border-opacity,1))';
     }
   }
+  });
 })();

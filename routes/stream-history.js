@@ -811,17 +811,46 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
   }));
 }
 
+function resolveWindowEndEpoch(hist, fallbackEpoch) {
+
+  const base = Number.isFinite(fallbackEpoch) ? fallbackEpoch : Date.now();
+  let latest = Number.NEGATIVE_INFINITY;
+  if (!hist || typeof hist !== 'object') return base;
+  const segments = Array.isArray(hist.segments) ? hist.segments : [];
+  for (const seg of segments) {
+    const start = Number(seg?.start);
+    if (Number.isFinite(start)) latest = Math.max(latest, start);
+    if (seg && seg.end == null) {
+      latest = Math.max(latest, base);
+    } else {
+      const end = Number(seg?.end);
+      if (Number.isFinite(end)) latest = Math.max(latest, end);
+    }
+  }
+  const samples = Array.isArray(hist.samples) ? hist.samples : [];
+  for (const sample of samples) {
+    const ts = Number(sample?.ts);
+    if (Number.isFinite(ts)) latest = Math.max(latest, ts);
+  }
+  return Number.isFinite(latest) ? latest : base;
+}
+
 function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options = {}) {
   const offset = tzOffsetMinutes || 0;
   const bucketPeriod = options.bucketPeriod || period;
   const normalizedSpan = Math.max(1, Math.floor(Number(span) || 0));
+  const runtimeNow = Date.now();
+  const baseOptions = { ...options };
+  if (!Number.isFinite(baseOptions.windowEndEpoch)) {
+    baseOptions.windowEndEpoch = resolveWindowEndEpoch(hist, runtimeNow);
+  }
   if (bucketPeriod === 'day' && period === 'day') {
-    return aggregateDailyBuckets(hist, normalizedSpan, offset, options);
+    return aggregateDailyBuckets(hist, normalizedSpan, offset, baseOptions);
   }
 
   const daysPerUnit = period === 'day' ? 1 : (period === 'week' ? 7 : (period === 'month' ? 30 : 365));
   const totalDays = normalizedSpan * daysPerUnit;
-  const daily = aggregateDailyBuckets(hist, totalDays, offset, options);
+  const daily = aggregateDailyBuckets(hist, totalDays, offset, baseOptions);
   if (bucketPeriod === 'day') {
     return daily;
   }

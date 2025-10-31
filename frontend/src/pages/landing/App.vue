@@ -1,0 +1,700 @@
+<template>
+  <a
+    href="#main-content"
+    class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2">
+    Skip to main content
+  </a>
+  <div class="max-w-7xl mx-auto px-6 pb-16">
+    <header
+      class="os-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border py-6">
+      <div class="flex items-center gap-3">
+        <a href="/" class="logo-link" aria-label="getty home">
+          <img
+            src="https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ"
+            alt="getty"
+            class="h-10 w-auto dark-logo"
+            decoding="async"
+            fetchpriority="high"
+            height="40" />
+          <img
+            src="https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak"
+            alt="getty"
+            class="h-10 w-auto light-logo"
+            decoding="async"
+            height="40" />
+        </a>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="connection-status" title="Wallet connection status">
+          <span class="status-dot disconnected"></span>
+        </div>
+        <button
+          id="public-wallet-login"
+          class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+          data-state="logged-out">
+          <svg
+            viewBox="0 0 24 24"
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <path d="M16 12h.01" />
+          </svg>
+          <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
+        </button>
+        <div class="relative" id="lang-picker-wrapper">
+          <button
+            id="lang-btn"
+            type="button"
+            class="pointer-events-auto items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+            data-visible="false"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="lang-menu"
+            title="Language">
+            <svg
+              viewBox="0 0 24 24"
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M2 12h20"></path>
+              <path
+                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"></path>
+            </svg>
+            <span id="lang-btn-label" class="font-medium">EN</span>
+            <svg
+              viewBox="0 0 24 24"
+              class="w-4 h-4 opacity-70"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </button>
+          <div
+            id="lang-menu"
+            class="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-lg p-2 z-50 hidden"
+            role="menu"
+            aria-labelledby="lang-btn">
+            <p class="px-2 py-1 text-xs uppercase tracking-wide text-[var(--text-secondary)]">
+              Language
+            </p>
+            <ul class="space-y-1">
+              <li>
+                <button
+                  type="button"
+                  data-lang="en"
+                  class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
+                  role="menuitem">
+                  English
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  data-lang="es"
+                  class="w-full text-left px-3 py-2 rounded-md text-sm hover:bg-[var(--bg-chat)]"
+                  role="menuitem">
+                  Español
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <button
+          id="theme-toggle"
+          class="theme-toggle"
+          title="Toggle theme"
+          aria-pressed="false"
+          aria-label="Toggle dark mode">
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.52,9.22 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.22 6.91,16.84 7.51,17.35L3.36,17M20.65,7L18.88,10.77C18.74,10 18.47,9.22 18.05,8.5C17.63,7.78 17.09,7.16 16.49,6.65L20.65,7M20.64,17L16.5,17.35C17.1,16.84 17.64,16.22 18.06,15.5C18.48,14.78 18.75,14 18.89,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.86,19 13.67,18.83 14.41,18.56L12,22Z" />
+          </svg>
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M17.75,4.09L15.22,6.03L16.13,9.09L13.5,7.28L10.87,9.09L11.78,6.03L9.25,4.09L12.44,4L13.5,1L14.56,4L17.75,4.09M21.25,11L19.61,12.25L20.2,14.23L18.5,13.06L16.8,14.23L17.39,12.25L15.75,11L17.81,10.95L18.5,9L19.19,10.95L21.25,11M18.97,15.95C19.8,15.87 20.69,17.05 20.16,17.8C19.84,18.25 19.5,18.67 19.08,19.07C15.17,23 8.84,23 4.94,19.07C1.03,15.17 1.03,8.83 4.94,4.93C5.34,4.53 5.76,4.17 6.21,3.85C6.96,3.32 8.14,4.21 8.06,5.04C7.79,7.9 8.75,10.87 10.95,13.06C13.14,15.26 16.1,16.22 18.97,15.95M17.33,17.97C14.5,17.81 11.7,16.64 9.53,14.5C7.36,12.31 6.2,9.5 6.04,6.68C3.23,9.82 3.34,14.4 6.35,17.41C9.37,20.43 14,20.54 17.33,17.97Z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="main-content" class="mt-8 space-y-8" role="main">
+      <div
+        id="landing-session-status"
+        class="hidden mt-6 rounded-xl border border-[#553fee]/30 bg-[#553fee] px-4 py-3 text-sm text-[#ffffff]"
+        role="alert"></div>
+      <section class="grid gap-10 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+        <div class="space-y-6">
+          <span
+            class="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <span class="h-2 w-2 rounded-full bg-[#f1226e]"></span>
+            <span data-i18n="landingHeroBadge"></span>
+          </span>
+          <h1
+            class="text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-5xl"
+            data-i18n="landingHeroTitle"></h1>
+          <p
+            class="text-base text-[var(--text-secondary)] sm:text-lg"
+            data-i18n="landingHeroSubtitle"></p>
+          <div class="flex flex-wrap gap-3">
+            <button
+              id="public-wallet-login-hero"
+              class="inline-flex items-center gap-2 rounded-xl bg-[#553fee] px-5 py-3 text-sm font-semibold !text-white shadow transition hover:bg-[#111111]"
+              data-i18n="landingHeroCTA"></button>
+            <a
+              href="#features"
+              class="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold transition hover:bg-card">
+              <span data-i18n="landingHeroSecondary"></span>
+              <svg
+                viewBox="0 0 24 24"
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </a>
+            <a
+              href="https://getty.sh/en/guide/intro/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="See documentation"
+              class="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold transition hover:bg-card">
+              <span>Docs</span>
+              <svg
+                viewBox="0 0 24 24"
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </a>
+          </div>
+          <div class="flex flex-wrap items-center gap-6 text-xs text-[var(--text-secondary)]">
+            <div
+              class="flex items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
+              <span
+                class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-color,#2563eb)]/20 text-[var(--accent-color,#2563eb)]">
+                <i class="pi pi-check text-[20px] leading-none" aria-hidden="true"></i>
+              </span>
+              <div>
+                <p class="font-semibold text-white" data-i18n="landingHeroStatOne"></p>
+                <p data-i18n="landingHeroStatTwo"></p>
+              </div>
+            </div>
+            <div
+              class="flex items-center gap-3 rounded-xl border border-border bg-card/40 px-4 py-3">
+              <span
+                class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-color,#2563eb)]/20 text-[var(--accent-color,#2563eb)]">
+                <i class="pi pi-dollar text-[20px] leading-none" aria-hidden="true"></i>
+              </span>
+              <div>
+                <p class="font-semibold text-white" data-i18n="landingHeroStatThree"></p>
+                <p data-i18n="landingHeroStatFour"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="relative">
+          <div
+            class="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-2xl">
+            <div
+              class="mb-4 flex items-center justify-between text-xs text-[var(--text-secondary)]">
+              <span class="font-bold" data-i18n="landingPreviewLabel"></span>
+              <div class="flex gap-1">
+                <span class="h-3 w-3 rounded-full bg-red-400/90"></span>
+                <span class="h-3 w-3 rounded-full bg-yellow-300/90"></span>
+                <span class="h-3 w-3 rounded-full bg-emerald-400/90"></span>
+              </div>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <article class="os-card p-4">
+                <h3 class="os-panel-title text-xl pl-0" data-i18n="landingPreviewLastTip"></h3>
+                <p
+                  class="mt-3 text-1xl font-semibold text-white"
+                  data-i18n="landingPreviewLastTipExample"></p>
+                <p
+                  class="mt-1 text-xs text-[var(--text-secondary)]"
+                  data-i18n="landingPreviewLastTipSub"></p>
+              </article>
+              <article class="os-card p-4">
+                <h3 class="os-panel-title text-xl pl-0" data-i18n="landingPreviewGoal"></h3>
+                <div class="mt-3">
+                  <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                    <div class="h-full rounded-full bg-[#00ff7f] w-[68%]"></div>
+                  </div>
+                  <p class="mt-2 text-xs text-[var(--text-secondary)]">68% • 68 / 100 USD</p>
+                </div>
+              </article>
+              <article class="os-card p-4 sm:col-span-2">
+                <h3 class="os-panel-title text-xl pl-0" data-i18n="landingPreviewChat"></h3>
+                <p
+                  class="mt-3 text-sm text-[var(--text-secondary)]"
+                  data-i18n="landingPreviewChatSub"></p>
+                <div
+                  class="mt-4 space-y-2 rounded-xl border border-border bg-card/40 p-3 text-xs text-[var(--text-secondary)]">
+                  <div class="font-bold flex items-center justify-between text-white">
+                    <span>@spaceman:2</span>
+                    <span
+                      class="font-bold text-[12px] text-[#553fee] inline-flex items-center gap-1">
+                      <span
+                        class="inline-flex h-4 w-4 items-center justify-center rounded-full overflow-hidden border border-border">
+                        <img
+                          :src="assetPaths.odysee"
+                          alt=""
+                          class="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async" />
+                      </span>
+                      <span>Tip: 0.8 AR</span>
+                    </span>
+                  </div>
+                  <p class="text-sm text-white" data-i18n="landingPreviewChatQuote"></p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="marquee-section" class="py-0">
+        <h2 class="text-2xl font-bold text-white text-center mb-8" data-i18n="marqueeTitle"></h2>
+        <div class="marquee-container overflow-hidden relative">
+          <div class="marquee-content" id="marquee-content"></div>
+        </div>
+      </section>
+
+      <section id="features" class="space-y-8">
+        <div class="max-w-3xl space-y-4">
+          <h2 class="text-2xl font-bold text-white" data-i18n="landingFeaturesTitle"></h2>
+          <p class="text-[var(--text-secondary)]" data-i18n="landingFeaturesCopy"></p>
+        </div>
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <article class="os-card flex h-full flex-col gap-4 p-5">
+            <div
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(175,175,175,0.2)] text-[var(--accent-color,#2563eb)]"
+              aria-hidden="true">
+              <i class="pi pi-credit-card text-[20px] leading-none" aria-hidden="true"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureLastTip"></h3>
+            <p
+              class="text-sm text-[var(--text-secondary)]"
+              data-i18n="landingFeatureLastTipCopy"></p>
+          </article>
+          <article class="os-card flex h-full flex-col gap-4 p-5">
+            <div
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400"
+              aria-hidden="true">
+              <i class="pi pi-flag text-[20px] leading-none" aria-hidden="true"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureGoals"></h3>
+            <p class="text-sm text-[var(--text-secondary)]" data-i18n="landingFeatureGoalsCopy"></p>
+          </article>
+          <article class="os-card flex h-full flex-col gap-4 p-5">
+            <div
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-amber-400"
+              aria-hidden="true">
+              <i class="pi pi-microphone text-[20px] leading-none" aria-hidden="true"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureTTS"></h3>
+            <p class="text-sm text-[var(--text-secondary)]" data-i18n="landingFeatureTTSCopy"></p>
+          </article>
+          <article class="os-card flex h-full flex-col gap-4 p-5">
+            <div
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/20 text-purple-400"
+              aria-hidden="true">
+              <i class="pi pi-comments text-[20px] leading-none" aria-hidden="true"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureChat"></h3>
+            <p class="text-sm text-[var(--text-secondary)]" data-i18n="landingFeatureChatCopy"></p>
+          </article>
+          <article class="os-card flex h-full flex-col gap-4 p-5">
+            <div
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-400"
+              aria-hidden="true">
+              <i class="pi pi-chart-line text-[20px] leading-none" aria-hidden="true"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureAnalytics"></h3>
+            <p
+              class="text-sm text-[var(--text-secondary)]"
+              data-i18n="landingFeatureAnalyticsCopy"></p>
+          </article>
+          <article class="os-card flex h-full flex-col gap-4 p-5">
+            <div
+              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/20 text-rose-400"
+              aria-hidden="true">
+              <i class="pi pi-cog text-[20px] leading-none" aria-hidden="true"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureAutomation"></h3>
+            <p
+              class="text-sm text-[var(--text-secondary)]"
+              data-i18n="landingFeatureAutomationCopy"></p>
+          </article>
+        </div>
+      </section>
+
+      <section id="widgets" class="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-center">
+        <div class="space-y-4">
+          <h2 class="text-2xl font-bold text-white" data-i18n="landingWidgetsTitle"></h2>
+          <p class="text-[var(--text-secondary)]" data-i18n="landingWidgetsCopy"></p>
+          <ul class="space-y-3 text-sm text-[var(--text-secondary)]">
+            <li class="flex items-center gap-2">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#111111] text-[#ffffff] dark:bg-[#ffffff] dark:text-[#111111]">
+                1
+              </span>
+              <span data-i18n="landingWidgetsStepOne"></span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#111111] text-[#ffffff] dark:bg-[#ffffff] dark:text-[#111111]">
+                2
+              </span>
+              <span data-i18n="landingWidgetsStepTwo"></span>
+            </li>
+            <li class="flex items-center gap-2">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#111111] text-[#ffffff] dark:bg-[#ffffff] dark:text-[#111111]">
+                3
+              </span>
+              <span data-i18n="landingWidgetsStepThree"></span>
+            </li>
+          </ul>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <article
+            class="os-card flex h-full flex-col justify-between rounded-xl border border-border bg-card p-5">
+            <div class="space-y-3">
+              <h3
+                class="text-lg font-semibold text-white"
+                data-i18n="landingWidgetTipNotificationTitle"></h3>
+              <p
+                class="text-sm text-[var(--text-secondary)]"
+                data-i18n="landingWidgetTipNotificationCopy"></p>
+            </div>
+            <span
+              class="mt-6 inline-flex w-max items-center gap-2 rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 text-xs tracking-wide">
+              <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+              <span data-i18n="landingWidgetRealtime"></span>
+            </span>
+          </article>
+          <article
+            class="os-card flex h-full flex-col justify-between rounded-xl border border-border bg-card p-5">
+            <div class="space-y-3">
+              <h3
+                class="text-lg font-semibold text-white"
+                data-i18n="landingWidgetTipGoalTitle"></h3>
+              <p
+                class="text-sm text-[var(--text-secondary)]"
+                data-i18n="landingWidgetTipGoalCopy"></p>
+            </div>
+            <span
+              class="mt-6 inline-flex w-max items-center gap-2 rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 text-xs tracking-wide">
+              <span class="h-2 w-2 rounded-full bg-sky-400"></span>
+              <span data-i18n="landingWidgetSynced"></span>
+            </span>
+          </article>
+          <article
+            class="os-card flex h-full flex-col justify-between rounded-xl border border-border bg-card p-5 sm:col-span-2">
+            <div class="space-y-3">
+              <h3 class="text-lg font-semibold text-white" data-i18n="landingGiveawaysTitle"></h3>
+              <p class="text-sm text-[var(--text-secondary)]" data-i18n="landingGiveawaysCopy"></p>
+            </div>
+            <div class="mt-6 flex flex-wrap gap-3 text-xs text-[var(--text-secondary)]">
+              <span
+                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1"
+                data-i18n="landingGiveawaysStepOne"></span>
+              <span
+                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1"
+                data-i18n="landingGiveawaysStepTwo"></span>
+              <span
+                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1"
+                data-i18n="landingGiveawaysStepThree"></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="automation" class="rounded-xl border border-border bg-card/40 p-8 sm:p-12">
+        <div class="grid gap-8 sm:grid-cols-2 sm:items-center">
+          <div class="space-y-4">
+            <span
+              class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide"
+              data-i18n="landingAutomationBadge"></span>
+            <h2 class="text-2xl font-bold" data-i18n="landingAutomationTitle"></h2>
+            <p class="text-[var(--text-secondary)]" data-i18n="landingAutomationCopy"></p>
+            <ul class="space-y-3 text-sm text-[var(--text-secondary)]">
+              <li class="flex items-center gap-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <span data-i18n="landingAutomationItemOne"></span>
+              </li>
+              <li class="flex items-center gap-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <span data-i18n="landingAutomationItemTwo"></span>
+              </li>
+              <li class="flex items-center gap-2">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+                <span data-i18n="landingAutomationItemThree"></span>
+              </li>
+            </ul>
+          </div>
+          <div
+            class="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-lg">
+            <div class="space-y-4">
+              <div class="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                <span class="font-semibold" data-i18n="landingAutomationPanelTitle"></span>
+                <span
+                  class="rounded-full border border-border px-2 py-1"
+                  data-i18n="landingAutomationSecure"></span>
+              </div>
+              <ol class="space-y-4 text-sm">
+                <li class="rounded-xl border border-border bg-card/30 p-4">
+                  <p
+                    class="text-xs font-semibold uppercase tracking-wide"
+                    data-i18n="landingAutomationStepOneLabel"></p>
+                  <p class="text-sm text-white" data-i18n="landingAutomationStepOne"></p>
+                </li>
+                <li class="rounded-xl border border-border bg-card/30 p-4">
+                  <p
+                    class="text-xs font-semibold uppercase tracking-wide"
+                    data-i18n="landingAutomationStepTwoLabel"></p>
+                  <p class="text-sm text-white" data-i18n="landingAutomationStepTwo"></p>
+                </li>
+                <li class="rounded-xl border border-border bg-card/30 p-4">
+                  <p
+                    class="text-xs font-semibold uppercase tracking-wide"
+                    data-i18n="landingAutomationStepThreeLabel"></p>
+                  <p class="text-sm text-white" data-i18n="landingAutomationStepThree"></p>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer
+      class="mt-10 pt-6 border-t border-border text-xs text-[var(--text-secondary)]"
+      role="contentinfo">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <p class="font-bold" data-i18n="copyright">
+            © 2025
+            <a
+              href="https://getty.sh/"
+              target="_blank"
+              class="hover:text-primary-200 transition-colors font-bold">
+              λ getty
+            </a>
+            ·
+            <a
+              href="https://opensource.org/licenses/MIT"
+              target="_blank"
+              class="hover:text-primary-200 transition-colors font-bold">
+              MIT License
+            </a>
+          </p>
+        </div>
+        <nav class="flex items-center gap-4" aria-label="Footer">
+          <a
+            href="https://getty.sh/"
+            aria-label="getty site"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center hover:text-[var(--text-primary)]"
+            title="getty site">
+            <img :src="assetPaths.favicon" alt="" class="w-4 h-4 rounded" />
+          </a>
+          <a
+            href="https://odysee.com"
+            aria-label="Odysee"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center hover:text-[var(--text-primary)]"
+            title="Odysee">
+            <svg viewBox="0 0 192 192" width="16" height="16" fill="none" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="12.096"
+                d="M98.612 39.193c7.085.276 9.76 4.503 12.192 10.124 3.249 7.494.988 10.141-12.192 13.85-13.187 3.74-19.535-1.171-20.404-10.115-.976-10.115 11.684-12.729 11.684-12.729 3.495-.876 6.36-1.226 8.72-1.13zm65.362 107.42c2.54-9.665-6.121-19.201-11.2-27.806-4.998-8.467-11.972-17.925-18.629-22.87a4.832 4.832 0 0 1-.378-7.376c6.57-6.21 18.15-18.329 21.813-24.725 3.413-6.664 7.628-14.488 5.34-21.513-2.058-6.317-8.8-14.298-15.274-12.806-7.342 1.692-6.837 10.98-9.216 20.638-3.222 13.187-10.86 11.697-13.968 11.697-3.108 0-1.24-4.658-8.46-25.377-7.217-20.72-26.002-15.526-40.27-6.985-18.14 10.874-10.046 34.054-5.562 48.992-2.546 2.453-12.118 4.368-20.834 9.06-10.75 5.78-21.645 9.363-24.66 19.372-1.883 6.254.172 15.997 6.162 18.602 6.645 2.889 12.633-1.694 19.751-9.073a36.226 36.226 0 0 1 7.089-5.482 75.994 75.994 0 0 1 18.276-8.59s6.97 10.707 13.432 23.393c6.457 12.686-6.968 16.918-8.459 16.918-1.497 0-22.675-1.973-17.95 15.926 4.726 17.9 30.598 11.437 43.785 2.728 13.187-8.708 9.947-37.06 9.947-37.06 12.94-1.985 16.915 11.684 18.158 18.628 1.243 6.944 4.06 18.052 11.449 19.412 8.248 1.517 17.528-7.593 19.659-15.705z" />
+            </svg>
+          </a>
+          <a
+            href="https://getty.sh/en/guide/privacypolicy/"
+            aria-label="Privacy Policy"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center hover:text-[var(--text-primary)]"
+            title="Privacy Policy">
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+              aria-hidden="true"
+              class="text-[#1d1d1d] dark:text-white transition-colors">
+              <path
+                d="M17 9.99V7A5 5 0 0 0 7 7v2.99A4.482 4.482 0 0 0 4.5 14v3A4.507 4.507 0 0 0 9 21.5h6a4.507 4.507 0 0 0 4.5-4.5v-3A4.482 4.482 0 0 0 17 9.99ZM13 16a1 1 0 0 1-2 0v-1a1 1 0 0 1 2 0Zm2-6.5H9V7a3 3 0 0 1 6 0Z" />
+            </svg>
+          </a>
+          <a
+            href="https://getty.sh/en/guide/terms/"
+            aria-label="Terms of Service"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center hover:text-[var(--text-primary)]"
+            title="Terms of Service">
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true">
+              <path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
+              <path d="M14 2v6h6" />
+              <path d="M9 13h6" />
+              <path d="M9 17h3" />
+            </svg>
+          </a>
+          <a
+            href="https://github.com/es-socrates/getty"
+            aria-label="GitHub"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center hover:text-[var(--text-primary)]"
+            title="GitHub">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5C5.73.5.98 5.24.98 11.5c0 4.84 3.14 8.94 7.49 10.39.55.1.75-.24.75-.53 0-.26-.01-1.13-.02-2.05-3.05.66-3.7-1.3-3.7-1.3-.5-1.27-1.22-1.61-1.22-1.61-.99-.68.08-.67.08-.67 1.1.08 1.68 1.13 1.68 1.13.97 1.67 2.54 1.19 3.15.91.1-.7.38-1.19.69-1.46-2.43-.28-4.98-1.22-4.98-5.43 0-1.2.43-2.18 1.13-2.95-.11-.28-.49-1.42.11-2.95 0 0 .93-.3 3.05 1.13a10.6 10.6 0 0 1 5.56 0c2.12-1.43 3.05-1.13 3.05-1.13.6 1.53.22 2.67.11 2.95.7.77 1.13 1.75 1.13 2.95 0 4.22-2.56 5.14-5 5.42.39.33.74.98.74 1.98 0 1.43-.01 2.58-.01 2.93 0 .29.2.64.75.53 4.35-1.45 7.49-5.55 7.49-10.39C23.02 5.24 18.27.5 12 .5Z" />
+            </svg>
+          </a>
+          <a
+            href="https://x.com/getty_sh"
+            aria-label="X (Twitter)"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center hover:text-[var(--text-primary)]"
+            title="X (Twitter)">
+            <svg viewBox="0 0 1024 1024" width="16" height="16" aria-hidden="true">
+              <g
+                fill="none"
+                fill-rule="evenodd"
+                stroke="none"
+                stroke-width="1"
+                transform="translate(112 112)">
+                <path
+                  class="footer-x-bg"
+                  d="M711.111 800H88.89C39.8 800 0 760.2 0 711.111V88.89C0 39.8 39.8 0 88.889 0H711.11C760.2 0 800 39.8 800 88.889V711.11C800 760.2 760.2 800 711.111 800" />
+                <path
+                  class="footer-x-fg"
+                  fill-rule="nonzero"
+                  d="M628 623H484.942L174 179h143.058zm-126.012-37.651h56.96L300.013 216.65h-56.96z" />
+                <path
+                  class="footer-x-fg"
+                  fill-rule="nonzero"
+                  d="M219.296885 623 379 437.732409 358.114212 410 174 623z" />
+                <path
+                  class="footer-x-fg"
+                  fill-rule="nonzero"
+                  d="M409 348.387347 429.212986 377 603 177 558.330417 177z" />
+              </g>
+            </svg>
+          </a>
+        </nav>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import { nextTick, onBeforeUnmount, onMounted } from 'vue';
+
+const assetPaths = {
+  odysee: '/assets/odysee.png',
+  favicon: '/favicon.ico',
+};
+
+const bodyClasses = ['landing', 'bg-background', 'text-gray-100', 'font-sans'];
+
+function notifyLegacyBridge() {
+  const root = document.getElementById('app');
+  window.dispatchEvent(
+    new CustomEvent('getty-landing-vue-ready', {
+      detail: { root },
+    })
+  );
+  if (typeof window.__GETTY_LANDING_VUE_READY__ === 'function') {
+    try {
+      window.__GETTY_LANDING_VUE_READY__();
+    } catch (error) {
+      console.warn('[landing] failed to notify legacy bridge', error);
+    }
+  }
+}
+
+// Ensure the legacy CSS selectors targeting body continue to work once the Vue view mounts.
+onMounted(() => {
+  bodyClasses.forEach((className) => {
+    if (!document.body.classList.contains(className)) {
+      document.body.classList.add(className);
+    }
+  });
+  nextTick(() => {
+    notifyLegacyBridge();
+  });
+});
+
+onBeforeUnmount(() => {
+  bodyClasses.forEach((className) => {
+    document.body.classList.remove(className);
+  });
+});
+</script>

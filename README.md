@@ -80,6 +80,20 @@ npm i -g pnpm@10.19.0
 
 **Important:** If you download an update from getty, you must repeat the installation process. In some cases, there may be new dependencies to install, so the process may need to be repeated.
 
+## Development workflow
+
+- Run the backend in watch mode with Tailwind and the embedded Vite dev server:
+
+  ```bash
+  pnpm run dev
+  ```
+
+  This single command serves every public page (landing, welcome, dashboard, 404) through Express on `http://localhost:3000`, while hot-module reloading is proxied internally from Vite.
+
+- To disable Vite while developing static assets, set `GETTY_DISABLE_VITE_MIDDLEWARE=1` before running the command. Without Vite, the server falls back to the latest files inside `public/` or `dist-frontend/`.
+
+- The standalone Vite port is no longer required; keep your browser pointed to `http://localhost:3000` for the entire experience.
+
 ## Visit getty in the browser:
 
 1. Welcome & landing: http://localhost:3000/ (first-time visits redirect to `/welcome` so you can choose a language and connect your wallet).

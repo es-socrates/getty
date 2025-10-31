@@ -6,6 +6,8 @@ node_modules/
 public/css/output.css
 public/index.html
 dist/
+dist-frontend/
+public/assets/
 public/min/*.js
 public/vendor/
 .DS_Store
@@ -14,6 +16,7 @@ language-settings.json
 tts-settings.json
 .vscode/
 config/*
+.sass-cache/
 .stylelintcache
 .eslintcache
 reports/
