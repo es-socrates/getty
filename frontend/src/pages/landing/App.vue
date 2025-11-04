@@ -222,14 +222,16 @@
               class="mb-4 flex items-center justify-between text-xs text-[var(--text-secondary)]">
               <span class="font-bold" data-i18n="landingPreviewLabel"></span>
               <div class="flex gap-1">
-                <span class="h-3 w-3 rounded-full bg-red-400/90"></span>
-                <span class="h-3 w-3 rounded-full bg-yellow-300/90"></span>
-                <span class="h-3 w-3 rounded-full bg-emerald-400/90"></span>
+                <span class="h-3 w-3 rounded-full bg-[rgb(85,63,238)]"></span>
+                <span class="h-3 w-3 rounded-full bg-[rgb(53,53,53)]"></span>
+                <span class="h-3 w-3 rounded-full bg-[rgb(52,211,153)]"></span>
               </div>
             </div>
             <div class="grid gap-4 sm:grid-cols-2">
               <article class="os-card p-4">
-                <h3 class="os-panel-title text-xl pl-0" data-i18n="landingPreviewLastTip"></h3>
+                <h3
+                  class="os-panel-title text-xl font-bold pl-0"
+                  data-i18n="landingPreviewLastTip"></h3>
                 <p
                   class="mt-3 text-1xl font-semibold text-white"
                   data-i18n="landingPreviewLastTipExample"></p>
@@ -238,16 +240,23 @@
                   data-i18n="landingPreviewLastTipSub"></p>
               </article>
               <article class="os-card p-4">
-                <h3 class="os-panel-title text-xl pl-0" data-i18n="landingPreviewGoal"></h3>
+                <h3
+                  class="os-panel-title text-xl font-bold pl-0"
+                  data-i18n="landingPreviewGoal"></h3>
                 <div class="mt-3">
                   <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                    <div class="h-full rounded-full bg-[#00ff7f] w-[68%]"></div>
+                    <div class="h-full rounded-full bg-[rgb(52,211,153)]"></div>
                   </div>
                   <p class="mt-2 text-xs text-[var(--text-secondary)]">68% • 68 / 100 USD</p>
+                  <p
+                    class="mt-2 text-xs text-[var(--text-secondary)]"
+                    data-i18n="landingPreviewGoalThanks"></p>
                 </div>
               </article>
               <article class="os-card p-4 sm:col-span-2">
-                <h3 class="os-panel-title text-xl pl-0" data-i18n="landingPreviewChat"></h3>
+                <h3
+                  class="os-panel-title text-xl font-bold pl-0"
+                  data-i18n="landingPreviewChat"></h3>
                 <p
                   class="mt-3 text-sm text-[var(--text-secondary)]"
                   data-i18n="landingPreviewChatSub"></p>
@@ -266,7 +275,7 @@
                           loading="lazy"
                           decoding="async" />
                       </span>
-                      <span>Tip: 0.8 AR</span>
+                      <span>Tip: 0.8 AR (USD)</span>
                     </span>
                   </div>
                   <p class="text-sm text-white" data-i18n="landingPreviewChatQuote"></p>
@@ -292,7 +301,7 @@
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(175,175,175,0.2)] text-[var(--accent-color,#2563eb)]"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(175,175,175,0.2)] text-[var(--accent-color,#2563eb)]"
               aria-hidden="true">
               <i class="pi pi-credit-card text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -303,7 +312,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400"
               aria-hidden="true">
               <i class="pi pi-flag text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -312,7 +321,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-amber-400"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400"
               aria-hidden="true">
               <i class="pi pi-microphone text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -321,7 +330,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/20 text-purple-400"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/20 text-purple-400"
               aria-hidden="true">
               <i class="pi pi-comments text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -330,7 +339,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/20 text-sky-400"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400"
               aria-hidden="true">
               <i class="pi pi-chart-line text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -341,7 +350,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/20 text-rose-400"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-rose-500/20 text-rose-400"
               aria-hidden="true">
               <i class="pi pi-cog text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -439,7 +448,7 @@
         <div class="grid gap-8 sm:grid-cols-2 sm:items-center">
           <div class="space-y-4">
             <span
-              class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-wide"
+              class="inline-flex items-center gap-2 rounded-full bg-[rgb(248,250,252)] dark:bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wide"
               data-i18n="landingAutomationBadge"></span>
             <h2 class="text-2xl font-bold" data-i18n="landingAutomationTitle"></h2>
             <p class="text-[var(--text-secondary)]" data-i18n="landingAutomationCopy"></p>
@@ -698,3 +707,14 @@ onBeforeUnmount(() => {
   });
 });
 </script>
+
+<style>
+body.landing {
+  --text-secondary: #171717;
+}
+
+.dark body.landing,
+body.landing.dark {
+  --text-secondary: #f9f9f9;
+}
+</style>
