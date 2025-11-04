@@ -245,7 +245,7 @@
                   data-i18n="landingPreviewGoal"></h3>
                 <div class="mt-3">
                   <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                    <div class="h-full rounded-full bg-[rgb(52,211,153)]"></div>
+                    <div class="h-full w-[68%] rounded-full bg-[rgb(52,211,153)]"></div>
                   </div>
                   <p class="mt-2 text-xs text-[var(--text-secondary)]">68% • 68 / 100 USD</p>
                   <p
