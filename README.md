@@ -6,8 +6,6 @@ Complete and customizable app with tools for live streaming. Tip notifications, 
 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
-![getty](https://thumbs.odycdn.com/3e7033f1ae0262c62ae3969c8f51ed91.webp)
-
 ## Go live on Odysee
 
 Odysee is a blockchain-based media platform. We host all kinds of media such as images, articles, PDFs, audio files, etc., but we're best known for hosting videos. Odysee seeks to recapture the spirit of the early 2000s era internet. Rather than favouring corporate content such as late night talk shows, network television, and TV news, Odysee is a place for everyone, including independent creators. [Create a channel and go live](https://odysee.com).
@@ -35,9 +33,7 @@ Wander App is a secure and easy-to-use digital wallet for Odysee, allowing you t
 
 ![getty](https://thumbs.odycdn.com/cd1523ead8d64ea78c60d0f8f26f27a7.webp)
 
-# Do you want to use getty locally?
-
-## Prerequisites to start getty
+## Do you want to use getty locally?
 
 ### Node.js
 
@@ -123,7 +119,7 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 4. Adjust the size, position and color of each widget.
 5. You're done! The widgets will appear in your stream. Let's stream!
 
-> getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
+> getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates.
 
 Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
 
