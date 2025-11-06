@@ -267,7 +267,7 @@
                     <span
                       class="font-bold text-[12px] text-[#553fee] inline-flex items-center gap-1">
                       <span
-                        class="inline-flex h-4 w-4 items-center justify-center rounded-full overflow-hidden border border-border">
+                        class="inline-flex h-4 w-4 items-center justify-center rounded-full overflow-hidden">
                         <img
                           :src="assetPaths.odysee"
                           alt=""
@@ -665,9 +665,10 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted } from 'vue';
+import odyseeLogoUrl from '../../assets/odysee.svg?url';
 
 const assetPaths = {
-  odysee: '/assets/odysee.png',
+  odysee: odyseeLogoUrl,
   favicon: '/favicon.ico',
 };
 
