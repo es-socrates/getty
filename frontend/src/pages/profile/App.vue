@@ -492,6 +492,22 @@ function ensureAbsoluteUrl(url) {
   }
 }
 
+function clampTimezoneOffset(minutes) {
+  if (!Number.isFinite(minutes)) return 0;
+  if (minutes > 840) return 840;
+  if (minutes < -840) return -840;
+  return Math.round(minutes);
+}
+
+function resolveLocalTimezoneOffset() {
+  try {
+    const offset = -new Date().getTimezoneOffset();
+    return clampTimezoneOffset(offset);
+  } catch {
+    return 0;
+  }
+}
+
 const SEO_META_TARGETS = [
   { attr: 'name', value: 'description' },
   { attr: 'property', value: 'og:title' },
@@ -919,6 +935,7 @@ const loading = ref(true);
 const errorState = ref(null);
 const payload = ref(null);
 const slug = ref('');
+const tzOffsetMinutes = ref(resolveLocalTimezoneOffset());
 const locale = ref(mapLanguageToLocale(lang.value));
 const bodyClasses = ['profile-page-mode'];
 const isDark = ref(true);
@@ -1531,7 +1548,12 @@ async function loadProfile() {
   loading.value = true;
   clearError();
   try {
-    const res = await fetch(`/api/user-profile/public/${encodeURIComponent(slug.value)}`);
+    const params = new URLSearchParams();
+    params.set('tz', String(Number.isFinite(tzOffsetMinutes.value) ? tzOffsetMinutes.value : 0));
+    const endpoint = `/api/user-profile/public/${encodeURIComponent(
+      slug.value
+    )}?${params.toString()}`;
+    const res = await fetch(endpoint);
     if (!res.ok) {
       let responseData = null;
       try {
@@ -1604,6 +1626,7 @@ onMounted(() => {
   if (match) {
     slug.value = match[1].toLowerCase();
   }
+  tzOffsetMinutes.value = resolveLocalTimezoneOffset();
   loadProfile();
 });
 
