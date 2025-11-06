@@ -15,6 +15,7 @@ const pageEntries = {
   index: path.resolve(rootDir, 'index.html'),
   welcome: path.resolve(rootDir, 'welcome.html'),
   dashboard: path.resolve(rootDir, 'dashboard.html'),
+  profile: path.resolve(rootDir, 'profile.html'),
   notFound: path.resolve(rootDir, '404.html')
 };
 

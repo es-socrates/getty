@@ -2037,6 +2037,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     }
   });
 
+  app.locals.streamHistoryHelpers = {
+    makeReqLike,
+    loadHistory: async (reqLike) => loadHistoryNS(reqLike),
+    aggregate: (hist, period, span, tz, options = {}) => aggregate(hist, period, span, tz, options),
+    computePerformance: (hist, period, span, tz, options = {}) =>
+      computePerformance(hist, period, span, tz, options),
+    loadConfig: async (reqLike) => loadConfigNS(reqLike),
+  };
+
   if (!app.__shBootstrapScheduled) {
     app.__shBootstrapScheduled = true;
     setTimeout(() => {

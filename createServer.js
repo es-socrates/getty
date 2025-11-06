@@ -42,6 +42,7 @@ const FRONTEND_PAGE_FILES = {
   landing: 'index.html',
   welcome: 'welcome.html',
   dashboard: 'dashboard.html',
+  profile: 'profile.html',
   notFound: '404.html'
 };
 
@@ -215,6 +216,7 @@ const registerLastTipRoutes = require('./routes/last-tip');
 const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
 const registerStreamHistoryRoutes = require('./routes/stream-history');
+const { registerUserProfileRoutes } = require('./routes/user-profile');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
 const registerTipNotificationRoutes = require('./routes/tip-notification');
 const registerAnnouncementRoutes = require('./routes/announcement');
@@ -1508,6 +1510,7 @@ try {
 
 registerChatRoutes(app, chat, limiter, CHAT_CONFIG_FILE, { store, chatNs });
 registerStreamHistoryRoutes(app, limiter, { store, historyStore, wss });
+registerUserProfileRoutes(app, { store });
 
 app.post('/api/chat/start', async (req, res) => {
   try {
@@ -2295,6 +2298,24 @@ try {
   app.get('/', async (req, res, next) => {
     try {
       const html = await loadFrontendHtmlTemplate(FRONTEND_PAGE_FILES.landing, req);
+      if (!html) return next();
+      const finalHtml = finalizeHtmlResponse(html, res);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      if (res.locals?.cspNonce) {
+        try { res.setHeader('X-CSP-Nonce', res.locals.cspNonce); } catch {}
+      }
+      return res.send(finalHtml);
+    } catch (err) {
+      return next(err);
+    }
+  });
+} catch {}
+
+try {
+  app.get(['/profile/:slug', '/profile/:slug/'], async (req, res, next) => {
+    try {
+      const html = await loadFrontendHtmlTemplate(FRONTEND_PAGE_FILES.profile, req);
       if (!html) return next();
       const finalHtml = finalizeHtmlResponse(html, res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
