@@ -66,7 +66,8 @@
                   target="_blank"
                   rel="noopener"
                   class="channel-link">
-                  {{ t('userProfileChannelLink') }}
+                  <img class="channel-link-icon" :src="odyseeLogo" alt="" aria-hidden="true" />
+                  <span>{{ t('userProfileChannelLink') }}</span>
                 </a>
                 <span v-if="updatedAtLabel" class="updated-at">{{ updatedAtLabel }}</span>
               </div>
@@ -211,7 +212,7 @@ import CopyField from '../shared/CopyField.vue';
 import ChannelPerformanceChart from './ChannelPerformanceChart.vue';
 import { fetchJson } from '../../services/api';
 import { pushToast } from '../../services/toast';
-
+import odyseeLogo from '../../assets/odysee.svg?url';
 const { t, locale } = useI18n();
 
 const defaultSections = Object.freeze({
@@ -891,9 +892,17 @@ watch(
   align-items: center;
 }
 .channel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.85rem;
   font-weight: 700;
   color: #eb2565;
+}
+.channel-link-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 .updated-at {
   font-size: 0.8rem;

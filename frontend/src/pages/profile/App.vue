@@ -95,7 +95,8 @@
                     target="_blank"
                     rel="noopener"
                     class="profile-link">
-                    {{ t('publicProfileViewOnOdysee', 'View on Odysee') }}
+                    <img class="profile-link-icon" :src="odyseeLogo" alt="" aria-hidden="true" />
+                    <span>{{ t('publicProfileViewOnOdysee', 'View on Odysee') }}</span>
                   </a>
                 </div>
               </div>
@@ -155,14 +156,132 @@
                 {{ t('publicProfileUpdatedAt', 'Updated {value}', { value: updatedAtLabel }) }}
               </span>
             </div>
-            <div v-if="chartHasData" class="chart-grid">
-              <div v-for="bucket in chartData" :key="bucketKey(bucket)" class="chart-bar">
-                <div
-                  class="chart-bar-fill"
-                  :style="{ height: chartBarHeight(bucket.hours) }"
-                  :title="chartBarTitle(bucket)"></div>
-                <span class="chart-bar-label">{{ chartBarLabel(bucket) }}</span>
+            <div v-if="chartHasData" class="chart-visual">
+              <div
+                class="chart-legend"
+                role="toolbar"
+                :aria-label="t('publicProfileStreamActivity', 'Stream activity')">
+                <button
+                  type="button"
+                  class="legend-item legend-viewers"
+                  :class="showAvgSeries ? 'legend-active' : 'legend-inactive'"
+                  @click="toggleAvgSeries"
+                  :aria-pressed="String(showAvgSeries)">
+                  <span class="legend-swatch legend-swatch-line" aria-hidden="true"></span>
+                  <span>{{ t('publicProfileLegendAvgViewers', 'Avg viewers') }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="legend-item legend-hours"
+                  :class="showHoursSeries ? 'legend-active' : 'legend-inactive'"
+                  @click="toggleHoursSeries"
+                  :aria-pressed="String(showHoursSeries)">
+                  <span class="legend-swatch legend-swatch-bar" aria-hidden="true"></span>
+                  <span>{{ t('publicProfileLegendHoursStreamed', 'Hours streamed') }}</span>
+                </button>
               </div>
+              <svg
+                class="activity-chart"
+                :viewBox="chartGeometry.viewBox"
+                preserveAspectRatio="none"
+                role="img"
+                aria-labelledby="profile-chart-title">
+                <title id="profile-chart-title">
+                  {{ t('publicProfileStreamActivity', 'Stream activity') }}
+                </title>
+                <g class="chart-guides">
+                  <line
+                    v-for="guide in chartGeometry.guides"
+                    :key="guide.key"
+                    :x1="
+                      chartGeometry.guideRange
+                        ? chartGeometry.guideRange.start
+                        : chartGeometry.bounds.left
+                    "
+                    :x2="
+                      chartGeometry.guideRange
+                        ? chartGeometry.guideRange.end
+                        : chartGeometry.bounds.right
+                    "
+                    :y1="guide.y"
+                    :y2="guide.y"
+                    class="chart-guide-line" />
+                </g>
+                <line
+                  class="chart-baseline"
+                  :x1="chartGeometry.bounds.left"
+                  :x2="chartGeometry.bounds.right"
+                  :y1="chartGeometry.bounds.bottom"
+                  :y2="chartGeometry.bounds.bottom" />
+                <g class="chart-bars">
+                  <rect
+                    v-for="bar in chartGeometry.bars"
+                    :key="bar.key"
+                    class="chart-bar-rect"
+                    :x="bar.x"
+                    :y="bar.y"
+                    :width="bar.width"
+                    :height="bar.height"
+                    rx="4"
+                    ry="4">
+                    <title>{{ bar.tooltip }}</title>
+                  </rect>
+                </g>
+                <path
+                  v-if="chartGeometry.areaPath"
+                  class="chart-line-area"
+                  :d="chartGeometry.areaPath" />
+                <path
+                  v-if="chartGeometry.linePath"
+                  class="chart-line-path"
+                  :d="chartGeometry.linePath" />
+                <g class="chart-points" v-if="chartGeometry.points.length">
+                  <circle
+                    v-for="point in chartGeometry.points"
+                    :key="point.key"
+                    class="chart-point"
+                    :cx="point.x"
+                    :cy="point.y"
+                    r="6">
+                    <title>{{ point.tooltip }}</title>
+                  </circle>
+                </g>
+                <g class="chart-axis-left">
+                  <text
+                    v-for="tick in chartGeometry.leftTicks"
+                    :key="tick.key"
+                    :x="chartGeometry.bounds.left - 12"
+                    :y="tick.y"
+                    class="chart-axis-text"
+                    text-anchor="end"
+                    dominant-baseline="middle">
+                    {{ tick.label }}
+                  </text>
+                </g>
+                <g class="chart-axis-right" v-if="chartGeometry.rightTicks.length">
+                  <text
+                    v-for="tick in chartGeometry.rightTicks"
+                    :key="tick.key"
+                    :x="chartGeometry.bounds.right + 12"
+                    :y="tick.y"
+                    class="chart-axis-text chart-axis-text-right"
+                    text-anchor="start"
+                    dominant-baseline="middle">
+                    {{ tick.label }}
+                  </text>
+                </g>
+                <g class="chart-axis-bottom">
+                  <text
+                    v-for="label in chartGeometry.bottomLabels"
+                    :key="label.key"
+                    :x="label.x"
+                    :y="chartGeometry.bounds.bottom + 28"
+                    class="chart-axis-text"
+                    text-anchor="middle">
+                    {{ label.label }}
+                  </text>
+                </g>
+              </svg>
             </div>
             <div v-else class="chart-empty">
               {{ t('publicProfileNoChartData', 'No chart data available yet.') }}
@@ -177,9 +296,12 @@
               <article v-for="item in recentStreams" :key="item.startEpoch" class="recent-item">
                 <header class="recent-meta">
                   <span class="recent-date">{{ formatDateTime(item.startEpoch) }}</span>
-                  <span class="recent-duration">{{ formatDuration(item.durationHours) }}</span>
                 </header>
                 <dl class="recent-stats">
+                  <div class="recent-stat recent-stat-duration">
+                    <dt>{{ t('publicProfileStreamDuration', 'Duration') }}</dt>
+                    <dd>{{ formatDuration(item.durationHours) }}</dd>
+                  </div>
                   <div class="recent-stat recent-stat-avg">
                     <dt>{{ t('publicProfileAverageViewers', 'Average viewers') }}</dt>
                     <dd>{{ formatNumber(item.avgViewers, 1) }}</dd>
@@ -209,11 +331,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import enTranslations from 'shared-i18n/en.json';
 import esTranslations from 'shared-i18n/es.json';
+import odyseeLogoUrl from '../../assets/odysee.svg?url';
 
 const FALLBACK_TRANSLATIONS = {
   en: enTranslations,
   es: esTranslations,
 };
+
+const odyseeLogo = odyseeLogoUrl;
 
 const DEFAULT_LANGUAGE = 'en';
 
@@ -873,6 +998,7 @@ const FALLBACK_AVATAR_COLORS = [
   '#ffc107',
 ];
 
+const MAX_CHART_BUCKETS = 30;
 const summaryMetrics = computed(() => payload.value?.performance?.range || defaultSummary());
 const lifetimeMetrics = computed(() => payload.value?.performance?.allTime || defaultLifetime());
 const recentStreams = computed(() =>
@@ -881,7 +1007,9 @@ const recentStreams = computed(() =>
     : []
 );
 const chartData = computed(() =>
-  Array.isArray(payload.value?.summary?.data) ? payload.value.summary.data : []
+  Array.isArray(payload.value?.summary?.data)
+    ? payload.value.summary.data.slice(-MAX_CHART_BUCKETS)
+    : []
 );
 const chartHasData = computed(() =>
   chartData.value.some((bucket) => {
@@ -895,6 +1023,13 @@ const chartHasData = computed(() =>
     );
   })
 );
+
+const showHoursSeries = ref(true);
+const showAvgSeries = ref(true);
+
+const CHART_VIEWBOX_WIDTH = 1200;
+const CHART_VIEWBOX_HEIGHT = 360;
+const CHART_PADDING = Object.freeze({ top: 40, right: 64, bottom: 76, left: 64 });
 
 const numberFormatter = computed(() => new Intl.NumberFormat(locale.value || 'en-US'));
 const decimalFormatter = computed(
@@ -1008,6 +1143,201 @@ const chartMaxHours = computed(() => {
   return Math.max(max, 1);
 });
 
+const chartMaxAvgViewers = computed(() => {
+  const values = chartData.value
+    .map((bucket) => Number(bucket?.avgViewers || bucket?.peakViewers || 0))
+    .filter((value) => Number.isFinite(value));
+  const max = values.length ? Math.max(...values) : 0;
+  return Math.max(max, 0);
+});
+
+const chartPreparedBuckets = computed(() =>
+  chartData.value.map((bucket, index) => {
+    const hours = Math.max(0, Number(bucket?.hours || 0));
+    const avgViewers = Math.max(0, Number(bucket?.avgViewers || 0));
+    const peakViewers = Math.max(0, Number(bucket?.peakViewers || 0));
+    const date = resolveBucketDate(bucket);
+    const label = (() => {
+      if (!date) return '';
+      try {
+        return chartLabelFormatter.value.format(date);
+      } catch {
+        return date.toLocaleDateString();
+      }
+    })();
+    return {
+      key: `${bucketKey(bucket)}-${index}`,
+      bucket,
+      hours,
+      avgViewers,
+      peakViewers,
+      date,
+      label,
+      tooltip: buildChartTooltip(bucket),
+      index,
+    };
+  })
+);
+
+const chartGeometry = computed(() => {
+  const prepared = chartPreparedBuckets.value;
+  const viewBox = `0 0 ${CHART_VIEWBOX_WIDTH} ${CHART_VIEWBOX_HEIGHT}`;
+  const bounds = {
+    left: CHART_PADDING.left,
+    right: CHART_VIEWBOX_WIDTH - CHART_PADDING.right,
+    top: CHART_PADDING.top,
+    bottom: CHART_VIEWBOX_HEIGHT - CHART_PADDING.bottom,
+  };
+  bounds.width = Math.max(0, bounds.right - bounds.left);
+  bounds.height = Math.max(0, bounds.bottom - bounds.top);
+  const guideRange = {
+    start: Math.max(0, bounds.left - 24),
+    end: Math.min(CHART_VIEWBOX_WIDTH, bounds.right + 24),
+  };
+
+  const includeHours = showHoursSeries.value;
+  const includeAvg = showAvgSeries.value;
+
+  if (
+    !prepared.length ||
+    (!includeHours && !includeAvg) ||
+    bounds.width <= 0 ||
+    bounds.height <= 0
+  ) {
+    return {
+      viewBox,
+      bounds,
+      guideRange,
+      bars: [],
+      points: [],
+      guides: [],
+      leftTicks: [],
+      rightTicks: [],
+      bottomLabels: [],
+      linePath: '',
+      areaPath: '',
+    };
+  }
+
+  const count = prepared.length;
+  const hoursMax = includeHours ? Math.max(chartMaxHours.value, 1) : 0;
+  const viewersMax = includeAvg ? Math.max(chartMaxAvgViewers.value, 0) : 0;
+  const segmentWidth = count > 0 ? bounds.width / count : bounds.width;
+  const barWidth = Math.min(90, Math.max(18, segmentWidth * 0.55));
+  const innerBottom = bounds.top + bounds.height;
+
+  const bars = includeHours
+    ? prepared.map((entry, index) => {
+        const ratio = hoursMax > 0 ? entry.hours / hoursMax : 0;
+        const barHeight = Math.max(4, ratio * bounds.height);
+        const x = bounds.left + index * segmentWidth + (segmentWidth - barWidth) / 2;
+        const y = innerBottom - barHeight;
+        return {
+          key: `bar-${entry.key}`,
+          x,
+          y,
+          width: barWidth,
+          height: barHeight,
+          tooltip: entry.tooltip,
+        };
+      })
+    : [];
+
+  const showLine = includeAvg && viewersMax > 0;
+  const points = showLine
+    ? prepared.map((entry, index) => {
+        const ratio = viewersMax > 0 ? entry.avgViewers / viewersMax : 0;
+        const x = bounds.left + index * segmentWidth + segmentWidth / 2;
+        const y = innerBottom - ratio * bounds.height;
+        return {
+          key: `point-${entry.key}`,
+          x,
+          y,
+          tooltip: entry.tooltip,
+        };
+      })
+    : [];
+
+  let linePath = '';
+  let areaPath = '';
+  if (points.length >= 2) {
+    linePath = points
+      .map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(' ');
+    areaPath = points
+      .map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(' ');
+    const last = points[points.length - 1];
+    const first = points[0];
+    areaPath += ` L ${last.x.toFixed(2)} ${innerBottom.toFixed(2)} L ${first.x.toFixed(
+      2
+    )} ${innerBottom.toFixed(2)} Z`;
+  } else {
+    linePath = '';
+    areaPath = '';
+  }
+
+  const guideSteps = 4;
+  const guides = Array.from({ length: guideSteps + 1 }, (_, idx) => {
+    const ratio = idx / guideSteps;
+    const y = bounds.top + bounds.height * ratio;
+    return {
+      key: `guide-${idx}`,
+      y,
+      hoursValue: hoursMax * (1 - ratio),
+      viewersValue: viewersMax * (1 - ratio),
+    };
+  });
+
+  const axisFormatter = (value, kind) => {
+    if (kind === 'hours') {
+      return formatHours(value);
+    }
+    return formatNumber(value, 0);
+  };
+
+  const leftTicks = includeHours
+    ? guides.map((guide) => ({
+        key: `lh-${guide.key}`,
+        y: guide.y,
+        label: axisFormatter(guide.hoursValue, 'hours'),
+      }))
+    : [];
+
+  const rightTicks =
+    includeAvg && viewersMax
+      ? guides.map((guide) => ({
+          key: `rv-${guide.key}`,
+          y: guide.y,
+          label: axisFormatter(guide.viewersValue, 'viewers'),
+        }))
+      : [];
+
+  const labelInterval = Math.max(1, Math.round(count / 8));
+  const bottomLabels = prepared
+    .map((entry, index) => ({ entry, index }))
+    .filter(({ index }) => index % labelInterval === 0 || index === count - 1)
+    .map(({ entry, index }) => ({
+      guideRange,
+      key: `lbl-${entry.key}`,
+      x: bounds.left + index * segmentWidth + segmentWidth / 2,
+      label: entry.label,
+    }));
+
+  return {
+    viewBox,
+    bounds: { ...bounds, innerBottom },
+    bars,
+    points,
+    guides,
+    leftTicks,
+    rightTicks,
+    bottomLabels,
+    linePath,
+    areaPath,
+  };
+});
+
 function bucketKey(bucket) {
   if (!bucket) return Math.random().toString(36).slice(2, 10);
   if (bucket.date) return `d-${bucket.date}`;
@@ -1016,25 +1346,7 @@ function bucketKey(bucket) {
   return Math.random().toString(36).slice(2, 10);
 }
 
-function chartBarHeight(hours) {
-  const safe = Number(hours || 0);
-  const max = chartMaxHours.value;
-  if (max <= 0) return '4%';
-  const ratio = Math.max(0, safe) / max;
-  return `${Math.max(8, Math.round(ratio * 100))}%`;
-}
-
-function chartBarLabel(bucket) {
-  const date = resolveBucketDate(bucket);
-  if (!date) return '';
-  try {
-    return chartLabelFormatter.value.format(date);
-  } catch {
-    return date.toLocaleDateString();
-  }
-}
-
-function chartBarTitle(bucket) {
+function buildChartTooltip(bucket) {
   const date = resolveBucketDate(bucket);
   const dateLabel = (() => {
     if (!date) return '';
@@ -1055,6 +1367,16 @@ function chartBarTitle(bucket) {
     lines.push(t('publicProfileTooltipPeak', 'Peak viewers: {value}', { value: peakLabel }));
   }
   return lines.filter(Boolean).join('\n');
+}
+
+function toggleHoursSeries() {
+  if (showHoursSeries.value && !showAvgSeries.value) return;
+  showHoursSeries.value = !showHoursSeries.value;
+}
+
+function toggleAvgSeries() {
+  if (showAvgSeries.value && !showHoursSeries.value) return;
+  showAvgSeries.value = !showAvgSeries.value;
 }
 
 function resolveBucketDate(bucket) {
@@ -1790,15 +2112,27 @@ if (typeof window !== 'undefined') {
 }
 
 .profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 0.9rem;
   font-weight: 600;
   color: #eb2565;
   text-decoration: none;
+  transition: opacity 0.2s ease;
 }
 
 .profile-link:hover,
 .profile-link:focus-visible {
   text-decoration: underline;
+}
+
+.profile-link-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .profile-tz {
@@ -1889,99 +2223,160 @@ if (typeof window !== 'undefined') {
   color: var(--text-secondary);
 }
 
-.chart-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-  gap: 12px;
-  padding-inline: 4px;
-  align-items: end;
-  isolation: isolate;
-}
-
-.chart-grid::before {
-  content: '';
-  position: absolute;
-  inset: 0 clamp(4px, 0.8vw, 8px);
-  border-radius: 6px;
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(148, 163, 184, 0.16) 0,
-    rgba(148, 163, 184, 0.16) 1px,
-    transparent 0,
-    transparent 40px
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-.public-profile-page.theme-dark .chart-grid::before {
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(63, 63, 70, 0.32) 0,
-    rgba(63, 63, 70, 0.32) 1px,
-    transparent 0,
-    transparent 40px
-  );
-}
-
-.chart-bar {
-  position: relative;
-  z-index: 1;
+.chart-visual {
+  margin-top: 12px;
+  padding: 8px 0px 0px;
+  background: var(--surface-card);
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.legend-item {
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 8px;
-  height: 200px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-card);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.chart-grid-lines {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  pointer-events: none;
-  display: grid;
-  grid-template-rows: repeat(5, 1fr);
+.legend-item > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.chart-grid-lines > div {
-  border-top: 1px solid var(--chart-grid-line, rgba(148, 163, 184, 0.18));
+.legend-item:hover {
+  opacity: 0.85;
 }
 
-.public-profile-page.theme-dark .chart-grid-lines > div {
-  border-top-color: rgba(63, 63, 70, 0.35);
+.legend-item:focus-visible {
+  outline: 2px solid rgba(34, 97, 238, 0.6);
+  outline-offset: 2px;
 }
 
-.chart-grid-lines > div:last-child {
-  border-bottom: 1px solid var(--chart-grid-line, rgba(148, 163, 184, 0.18));
+.legend-viewers.legend-active {
+  border-color: rgba(235, 37, 101, 0.5);
+  background: rgba(235, 37, 101, 0.08);
+  color: var(--text-primary);
 }
 
-.public-profile-page.theme-dark .chart-grid-lines > div:last-child {
-  border-bottom-color: rgba(63, 63, 70, 0.35);
+.legend-hours.legend-active {
+  border-color: rgba(34, 97, 238, 0.5);
+  background: rgba(34, 97, 238, 0.08);
+  color: var(--text-primary);
 }
 
-.chart-grid-lines > div:first-child {
-  border-top: 1px solid var(--chart-grid-line-strong, rgba(148, 163, 184, 0.32));
+.legend-inactive {
+  opacity: 0.45;
 }
 
-.public-profile-page.theme-dark .chart-grid-lines > div:first-child {
-  border-top-color: rgba(99, 102, 241, 0.35);
+.legend-swatch {
+  display: inline-block;
+  border-radius: 999px;
 }
 
-.chart-bar-fill {
-  width: 100%;
-  min-height: 4px;
+.legend-swatch-line {
+  width: 12px;
+  height: 6px;
+  position: relative;
+  background: #eb2565;
+  border-radius: 999px;
+}
+
+.legend-swatch-bar {
+  width: 16px;
+  height: 14px;
   border-radius: 4px;
   background: #2261ee;
-  transition: height 0.3s ease;
 }
 
-.chart-bar-label {
-  font-size: 0.75rem;
+.activity-chart {
+  width: 100%;
+  height: auto;
+  min-height: 260px;
+  display: block;
   color: var(--text-secondary);
+}
+
+.chart-guide-line {
+  stroke: rgba(148, 163, 184, 0.24);
+  stroke-width: 1;
+  stroke-dasharray: 2 8;
+}
+
+.public-profile-page.theme-dark .chart-guide-line {
+  stroke: rgba(63, 63, 70, 0.42);
+}
+
+.chart-baseline {
+  stroke: rgba(148, 163, 184, 0.4);
+  stroke-width: 1.2;
+}
+
+.public-profile-page.theme-dark .chart-baseline {
+  stroke: rgba(99, 102, 241, 0.5);
+}
+
+.chart-bar-rect {
+  fill: #2261ee;
+}
+
+.chart-line-area {
+  fill: rgba(235, 37, 101, 0.12);
+}
+
+.chart-line-path {
+  fill: none;
+  stroke: #eb2565;
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.public-profile-page.theme-dark .chart-line-path {
+  stroke: #ff4f8a;
+}
+
+.chart-point {
+  fill: #eb2565;
+  stroke: #ffffff;
+  stroke-width: 2.2;
+}
+
+.public-profile-page.theme-dark .chart-point {
+  fill: #ff4f8a;
+  stroke: rgba(15, 23, 42, 0.95);
+}
+
+.chart-axis-text {
+  font-size: 0.75rem;
+  fill: var(--text-secondary);
+}
+
+.chart-axis-text-right {
+  fill: var(--text-secondary);
+}
+
+.chart-axis-bottom text {
+  font-size: 0.78rem;
 }
 
 .chart-empty {
@@ -2028,10 +2423,6 @@ if (typeof window !== 'undefined') {
   color: var(--recent-meta-color);
 }
 
-.recent-duration {
-  color: var(--recent-meta-color);
-}
-
 .recent-stats {
   display: flex;
   flex-direction: column;
@@ -2057,6 +2448,10 @@ if (typeof window !== 'undefined') {
 .recent-stat dd {
   margin: 0;
   font-weight: 700;
+}
+
+.recent-stat-duration {
+  background: #fbbf24e6;
 }
 
 .recent-stat-avg {
