@@ -303,6 +303,40 @@ function registerUserProfileRoutes(app, options = {}) {
     return payload;
   }
 
+  async function resolvePublicProfileContext(req, rawSlug, options = {}) {
+    const slug = (rawSlug || '').toString().trim().toLowerCase();
+    if (!slug || !/^[a-z0-9-]{8,32}$/.test(slug)) {
+      return null;
+    }
+
+    const adminNsRaw = await lookupShareSlug(slug);
+    if (!adminNsRaw) return null;
+
+    const adminNs = adminNsRaw === '__global__' ? null : adminNsRaw;
+    const helpers = ensureHelpers();
+    const reqLike = helpers.makeReqLike(adminNs);
+    reqLike.headers = req.headers;
+
+    const config = await loadProfileConfig(reqLike);
+    if (!config.shareEnabled || config.shareSlug !== slug) {
+      await clearShareSlug(slug);
+      return null;
+    }
+
+    const payload = await buildOverviewPayload(req, adminNs, { shareContext: true, ...options });
+    const shareUrl = config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
+
+    return {
+      slug,
+      adminNs,
+      shareUrl,
+      config,
+      payload,
+      claimId: payload.claimId,
+      channel: payload.channel,
+    };
+  }
+
   app.get('/config/user-profile-config.json', async (req, res) => {
     try {
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
@@ -372,29 +406,18 @@ function registerUserProfileRoutes(app, options = {}) {
 
   app.get('/api/user-profile/public/:slug', async (req, res) => {
     try {
-      const slug = (req.params.slug || '').toString().trim().toLowerCase();
-      if (!slug || !/^[a-z0-9-]{8,32}$/.test(slug)) {
+      const context = await resolvePublicProfileContext(req, req.params.slug);
+      if (!context) {
         return res.status(404).json({ error: 'not_found' });
       }
-      const adminNs = await lookupShareSlug(slug);
-      if (!adminNs) return res.status(404).json({ error: 'not_found' });
-      const helpers = ensureHelpers();
-      const reqLike = helpers.makeReqLike(adminNs === '__global__' ? null : adminNs);
-      reqLike.headers = req.headers;
-      const config = await loadProfileConfig(reqLike);
-      if (!config.shareEnabled || config.shareSlug !== slug) {
-        await clearShareSlug(slug);
-        return res.status(404).json({ error: 'not_found' });
-      }
-      const payload = await buildOverviewPayload(req, adminNs === '__global__' ? null : adminNs, {
-        shareContext: true,
-      });
       res.setHeader('Cache-Control', 'public, max-age=120');
-      res.json(payload);
+      res.json(context.payload);
     } catch (err) {
       res.status(500).json({ error: 'failed_to_build_public_profile', details: err?.message });
     }
   });
+
+  app.locals.resolvePublicProfileContext = resolvePublicProfileContext;
 }
 
 module.exports = { registerUserProfileRoutes };

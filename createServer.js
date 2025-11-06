@@ -153,6 +153,158 @@ function finalizeHtmlResponse(html, res) {
   return output;
 }
 
+const PROFILE_FALLBACK_AVATAR_URL =
+  'https://thumbnails.odycdn.com/optimize/s:0:0/quality:85/plain/https://player.odycdn.com/speech/spaceman-png:2.png';
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function truncateText(value, max) {
+  const str = String(value ?? '').trim();
+  if (!str) return '';
+  if (str.length <= max) return str;
+  return `${str.slice(0, max - 1).trim()}…`;
+}
+
+function ensureAbsoluteProfileUrl(candidate, req) {
+  if (!candidate || typeof candidate !== 'string') return '';
+  const value = candidate.trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith('//')) return `https:${value}`;
+  if (!value.startsWith('/')) return '';
+  const host = req.get('host');
+  if (!host) return '';
+  const protoHeader = (req.headers['x-forwarded-proto'] || '').split(',')[0]?.trim();
+  const protocol = protoHeader || req.protocol || 'https';
+  return `${protocol}://${host}${value}`;
+}
+
+function buildProfileSeoMeta(req, context) {
+  if (!context) return null;
+  const channel = context.channel || {};
+  const fallbackName = 'My Channel';
+  const displayName = (channel.title || channel.name || '').trim() || fallbackName;
+  const suffix = 'getty profile';
+  const title = `${displayName} · ${suffix}`;
+
+  const descriptionSource = (channel.description || '').replace(/\s+/g, ' ').trim();
+  const descriptionFallback = `Explore streaming analytics and recent highlights for ${displayName} on getty.`;
+  const description = truncateText(descriptionSource || descriptionFallback, 200);
+
+  const canonical = ensureAbsoluteProfileUrl(context.shareUrl, req)
+    || ensureAbsoluteProfileUrl(`/profile/${context.slug}`, req);
+
+  const imageCandidates = [channel.cover, channel.thumbnail, PROFILE_FALLBACK_AVATAR_URL];
+  let image = '';
+  for (const candidate of imageCandidates) {
+    const resolved = ensureAbsoluteProfileUrl(candidate, req);
+    if (resolved) {
+      image = resolved;
+      break;
+    }
+  }
+
+  const imageAlt = `Public profile preview for ${displayName}`;
+  const twitterCard = image ? 'summary_large_image' : 'summary';
+  const rawHandle = (channel.name || '').trim();
+  const handle = rawHandle ? (rawHandle.startsWith('@') ? rawHandle : `@${rawHandle}`) : '';
+  const acceptsLang = typeof req.acceptsLanguages === 'function' ? req.acceptsLanguages() : [];
+  const locale = Array.isArray(acceptsLang) && acceptsLang.length
+    ? acceptsLang[0].replace(/-/g, '_')
+    : 'en_US';
+
+  let twitterDomain = '';
+  try {
+    if (canonical) {
+      const url = new URL(canonical);
+      twitterDomain = url.hostname || '';
+    }
+  } catch {}
+  if (!twitterDomain) {
+    const host = req.get('host');
+    if (host) twitterDomain = host;
+  }
+
+  return {
+    title,
+    description,
+    canonical,
+    siteName: 'getty',
+    image,
+    imageAlt,
+    ogLocale: locale,
+    twitterCard,
+    twitterCreator: handle,
+    twitterDomain,
+  };
+}
+
+function injectProfileSeoMeta(html, meta) {
+  if (!html || !meta) return html;
+  let output = html;
+
+  if (meta.title) {
+    const safeTitle = escapeHtml(meta.title);
+    output = output.replace(/<title>[^<]*<\/title>/i, `<title>${safeTitle}</title>`);
+  }
+
+  if (meta.description) {
+    const safeDescription = escapeHtml(meta.description);
+    const descTag = `<meta name="description" content="${safeDescription}" />`;
+    if (/<meta\s+name=["']description["'][^>]*>/i.test(output)) {
+      output = output.replace(/<meta\s+name=["']description["'][^>]*>/i, descTag);
+    } else {
+      output = output.replace('</head>', `    ${descTag}\n</head>`);
+    }
+  }
+
+  if (meta.canonical) {
+    const safeCanonical = escapeHtml(meta.canonical);
+    const canonicalTag = `<link rel="canonical" href="${safeCanonical}" />`;
+    if (/<link\s+rel=["']canonical["'][^>]*>/i.test(output)) {
+      output = output.replace(/<link\s+rel=["']canonical["'][^>]*>/i, canonicalTag);
+    } else {
+      output = output.replace('</head>', `    ${canonicalTag}\n</head>`);
+    }
+  }
+
+  const lines = [];
+  if (meta.title) lines.push(`<meta property="og:title" content="${escapeHtml(meta.title)}" />`);
+  if (meta.description) lines.push(`<meta property="og:description" content="${escapeHtml(meta.description)}" />`);
+  if (meta.canonical) lines.push(`<meta property="og:url" content="${escapeHtml(meta.canonical)}" />`);
+  lines.push(`<meta property="og:type" content="website" />`);
+  lines.push(`<meta property="og:site_name" content="${escapeHtml(meta.siteName || 'getty')}" />`);
+  if (meta.ogLocale) lines.push(`<meta property="og:locale" content="${escapeHtml(meta.ogLocale)}" />`);
+  if (meta.image) {
+    lines.push(`<meta property="og:image" content="${escapeHtml(meta.image)}" />`);
+    if (meta.imageAlt) {
+      lines.push(`<meta property="og:image:alt" content="${escapeHtml(meta.imageAlt)}" />`);
+    }
+  }
+
+  if (meta.twitterCard) lines.push(`<meta name="twitter:card" content="${escapeHtml(meta.twitterCard)}" />`);
+  if (meta.title) lines.push(`<meta name="twitter:title" content="${escapeHtml(meta.title)}" />`);
+  if (meta.description) lines.push(`<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`);
+  if (meta.image) lines.push(`<meta name="twitter:image" content="${escapeHtml(meta.image)}" />`);
+  if (meta.imageAlt) lines.push(`<meta name="twitter:image:alt" content="${escapeHtml(meta.imageAlt)}" />`);
+  if (meta.twitterCreator) lines.push(`<meta name="twitter:creator" content="${escapeHtml(meta.twitterCreator)}" />`);
+  if (meta.twitterDomain) lines.push(`<meta name="twitter:domain" content="${escapeHtml(meta.twitterDomain)}" />`);
+
+  if (lines.length) {
+    const block = lines.map((line) => `    ${line}`).join('\n');
+    output = output.replace('</head>', `${block}\n</head>`);
+  }
+
+  return output;
+}
+
 async function loadFrontendHtmlTemplate(filename, req) {
   try {
     if (!filename) return null;
@@ -2315,8 +2467,26 @@ try {
 try {
   app.get(['/profile/:slug', '/profile/:slug/'], async (req, res, next) => {
     try {
-      const html = await loadFrontendHtmlTemplate(FRONTEND_PAGE_FILES.profile, req);
+      let html = await loadFrontendHtmlTemplate(FRONTEND_PAGE_FILES.profile, req);
       if (!html) return next();
+
+      const resolver = app.locals?.resolvePublicProfileContext;
+      if (typeof resolver === 'function') {
+        try {
+          const context = await resolver(req, req.params.slug);
+          if (context) {
+            const seoMeta = buildProfileSeoMeta(req, context);
+            if (seoMeta) {
+              html = injectProfileSeoMeta(html, seoMeta);
+            }
+          }
+        } catch (err) {
+          try {
+            console.warn('[profile] failed to resolve share context for SSR meta:', err?.message || err);
+          } catch {}
+        }
+      }
+
       const finalHtml = finalizeHtmlResponse(html, res);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
