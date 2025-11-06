@@ -97,7 +97,6 @@
                     class="profile-link">
                     {{ t('publicProfileViewOnOdysee', 'View on Odysee') }}
                   </a>
-                  <span v-if="timezoneLabel" class="profile-tz">{{ timezoneLabel }}</span>
                 </div>
               </div>
             </div>
@@ -341,6 +340,161 @@ function syncLanguageQueryParam(lang) {
     }
     window.history.replaceState(window.history.state ?? null, '', newUrl);
   } catch {}
+}
+
+function shortenText(value, maxLength) {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  if (!normalized) return '';
+  if (normalized.length <= maxLength) return normalized;
+  const slice = normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd();
+  return slice ? `${slice}...` : normalized.slice(0, maxLength);
+}
+
+function ensureAbsoluteUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (typeof window === 'undefined') return '';
+  try {
+    const resolved = new URL(trimmed, window.location.origin);
+    return resolved.toString();
+  } catch {
+    return '';
+  }
+}
+
+const SEO_META_TARGETS = [
+  { attr: 'name', value: 'description' },
+  { attr: 'property', value: 'og:title' },
+  { attr: 'property', value: 'og:description' },
+  { attr: 'property', value: 'og:url' },
+  { attr: 'property', value: 'og:site_name' },
+  { attr: 'property', value: 'og:type' },
+  { attr: 'property', value: 'og:locale' },
+  { attr: 'property', value: 'profile:username' },
+  { attr: 'property', value: 'og:image' },
+  { attr: 'property', value: 'og:image:alt' },
+  { attr: 'name', value: 'twitter:card' },
+  { attr: 'name', value: 'twitter:title' },
+  { attr: 'name', value: 'twitter:description' },
+  { attr: 'name', value: 'twitter:image' },
+  { attr: 'name', value: 'twitter:image:alt' },
+  { attr: 'name', value: 'twitter:url' },
+  { attr: 'name', value: 'twitter:creator' },
+  { attr: 'name', value: 'twitter:domain' },
+];
+
+const initialSeoState = {
+  captured: false,
+  metas: new Map(),
+  canonical: null,
+};
+
+function captureInitialSeoState() {
+  if (initialSeoState.captured || typeof document === 'undefined') return;
+  const head = document.head;
+  if (!head) return;
+  initialSeoState.captured = true;
+  for (const target of SEO_META_TARGETS) {
+    const selector = `${target.attr}:${target.value}`;
+    const element = head.querySelector(`meta[${target.attr}="${target.value}"]`);
+    initialSeoState.metas.set(selector, element ? element.getAttribute('content') ?? '' : null);
+  }
+  const canonical = head.querySelector('link[rel="canonical"]');
+  initialSeoState.canonical = canonical ? canonical.getAttribute('href') || '' : null;
+}
+
+function setMetaTag(attribute, value, content) {
+  if (typeof document === 'undefined') return;
+  const head = document.head;
+  if (!head) return;
+  const selector = `meta[${attribute}="${value}"]`;
+  let element = head.querySelector(selector);
+  if (content == null || content === '') {
+    if (element && element.parentNode) {
+      element.parentNode.removeChild(element);
+    }
+    return;
+  }
+  if (!element) {
+    element = document.createElement('meta');
+    element.setAttribute(attribute, value);
+    head.appendChild(element);
+  }
+  if (element.getAttribute('content') !== content) {
+    element.setAttribute('content', content);
+  }
+}
+
+function setCanonicalLink(href) {
+  if (typeof document === 'undefined') return;
+  const head = document.head;
+  if (!head) return;
+  let link = head.querySelector('link[rel="canonical"]');
+  if (!href) {
+    if (link && link.parentNode) {
+      link.parentNode.removeChild(link);
+    }
+    return;
+  }
+  if (!link) {
+    link = document.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    head.appendChild(link);
+  }
+  if (link.getAttribute('href') !== href) {
+    link.setAttribute('href', href);
+  }
+}
+
+function restoreSeoMeta() {
+  if (!initialSeoState.captured || typeof document === 'undefined') return;
+  const head = document.head;
+  if (!head) return;
+  for (const target of SEO_META_TARGETS) {
+    const selector = `${target.attr}:${target.value}`;
+    const original = initialSeoState.metas.get(selector);
+    if (original == null || original === '') {
+      const element = head.querySelector(`meta[${target.attr}="${target.value}"]`);
+      if (element && element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+    } else {
+      setMetaTag(target.attr, target.value, original);
+    }
+  }
+  setCanonicalLink(initialSeoState.canonical);
+  initialSeoState.captured = false;
+  initialSeoState.metas.clear();
+  initialSeoState.canonical = null;
+}
+
+function applySeoMeta(meta) {
+  if (!meta || typeof document === 'undefined') return;
+  captureInitialSeoState();
+  setMetaTag('name', 'description', meta.description || null);
+  setMetaTag('property', 'og:title', meta.title || null);
+  setMetaTag('property', 'og:description', meta.description || null);
+  setMetaTag('property', 'og:url', meta.canonical || null);
+  setMetaTag('property', 'og:site_name', meta.siteName || null);
+  setMetaTag('property', 'og:type', 'profile');
+  setMetaTag('property', 'og:locale', meta.ogLocale || null);
+  setMetaTag('property', 'profile:username', meta.profileUsername || null);
+  setMetaTag('property', 'og:image', meta.image || null);
+  setMetaTag('property', 'og:image:alt', meta.imageAlt || null);
+  setMetaTag('name', 'twitter:card', meta.twitterCard || null);
+  setMetaTag('name', 'twitter:title', meta.title || null);
+  setMetaTag('name', 'twitter:description', meta.description || null);
+  setMetaTag('name', 'twitter:image', meta.image || null);
+  setMetaTag('name', 'twitter:image:alt', meta.imageAlt || null);
+  setMetaTag('name', 'twitter:url', meta.canonical || null);
+  setMetaTag('name', 'twitter:creator', meta.twitterCreator || null);
+  setMetaTag('name', 'twitter:domain', meta.twitterDomain || null);
+  setCanonicalLink(meta.canonical || null);
 }
 
 function getLanguageFromQuery() {
@@ -776,8 +930,14 @@ const channelHandle = computed(() => {
   return name.startsWith('@') ? name : `@${name}`;
 });
 
-const channelDescription = computed(() => {
+const channelDescriptionFull = computed(() => {
   const text = channelInfo.value?.description;
+  if (!text || typeof text !== 'string') return '';
+  return text.trim();
+});
+
+const channelDescription = computed(() => {
+  const text = channelDescriptionFull.value;
   if (!text) return '';
   if (text.length <= 240) return text;
   return `${text.slice(0, 237)}...`;
@@ -829,18 +989,6 @@ const liveStatusText = computed(() =>
     ? t('publicProfileLiveNow', 'Live now')
     : t('publicProfileOffline', 'Offline')
 );
-
-const timezoneLabel = computed(() => {
-  const offset = Number(payload.value?.summary?.tzOffsetMinutes);
-  if (!Number.isFinite(offset)) return '';
-  const clamped = Math.max(-840, Math.min(840, offset));
-  const abs = Math.abs(clamped);
-  const hours = String(Math.floor(abs / 60)).padStart(2, '0');
-  const minutes = String(abs % 60).padStart(2, '0');
-  const sign = clamped >= 0 ? '+' : '-';
-  const display = `${sign}${hours}:${minutes}`;
-  return t('publicProfileTimezoneOffset', 'Timezone UTC{offset}', { offset: display });
-});
 
 const updatedAtLabel = computed(() => {
   const value = payload.value?.generatedAt;
@@ -1174,9 +1322,81 @@ onBeforeUnmount(() => {
     document.body.classList.toggle('dark', previousThemeState.bodyClassicDark);
     document.body.classList.toggle('light', previousThemeState.bodyClassicLight);
   }
+
+  restoreSeoMeta();
 });
 
 const documentTitleSuffix = computed(() => t('publicProfileDocumentSuffix', 'getty profile'));
+
+const pageTitle = computed(() => {
+  const suffix = documentTitleSuffix.value || 'getty';
+  if (payload.value && channelDisplayName.value) {
+    return `${channelDisplayName.value} · ${suffix}`;
+  }
+  return suffix;
+});
+
+const canonicalUrl = computed(() => {
+  const shareUrl = payload.value?.profile?.shareUrl;
+  if (typeof shareUrl === 'string' && shareUrl.trim()) {
+    const resolved = ensureAbsoluteUrl(shareUrl);
+    if (resolved) return resolved;
+  }
+  if (typeof window === 'undefined') return '';
+  const origin = window.location.origin || '';
+  const path = slug.value ? `/profile/${slug.value}` : window.location.pathname || '';
+  return origin ? `${origin}${path}` : path;
+});
+
+const seoSiteName = computed(() => t('publicProfileSeoSiteName', 'getty'));
+
+const seoDescription = computed(() => {
+  const full = channelDescriptionFull.value;
+  if (full) {
+    return shortenText(full, 200);
+  }
+  const name = channelDisplayName.value || t('publicProfileFallbackChannelTitle', 'My Channel');
+  const fallback = t(
+    'publicProfileSeoDescription',
+    'Explore streaming analytics and recent highlights for {name} on getty.',
+    { name }
+  );
+  return shortenText(fallback, 200);
+});
+
+const seoImage = computed(() => {
+  const sources = [channelInfo.value?.cover, channelInfo.value?.thumbnail, FALLBACK_AVATAR_URL];
+  for (const source of sources) {
+    const resolved = ensureAbsoluteUrl(source);
+    if (resolved) return resolved;
+  }
+  return '';
+});
+
+const seoImageAlt = computed(() => {
+  const name = channelDisplayName.value || t('publicProfileFallbackChannelTitle', 'My Channel');
+  return t('publicProfileSeoImageAlt', '{name} public profile preview', { name });
+});
+
+const openGraphLocale = computed(() => {
+  const candidate = locale.value || 'en-US';
+  return candidate.replace(/-/g, '_');
+});
+
+const twitterCardType = computed(() => (seoImage.value ? 'summary_large_image' : 'summary'));
+
+const profileUsername = computed(() => {
+  const handle = channelHandle.value;
+  if (!handle) return '';
+  return handle.replace(/^@/, '');
+});
+
+const twitterCreator = computed(() => channelHandle.value || '');
+
+const twitterDomain = computed(() => {
+  if (typeof window === 'undefined') return '';
+  return window.location.hostname || '';
+});
 
 watch(
   lang,
@@ -1188,17 +1408,61 @@ watch(
   { immediate: true }
 );
 
-watch(
-  () => [channelDisplayName.value, payload.value, documentTitleSuffix.value],
-  ([name, payloadValue, suffix]) => {
-    if (payloadValue && name) {
-      document.title = `${name} · ${suffix}`;
-    } else {
-      document.title = suffix || 'getty';
-    }
-  },
-  { immediate: true }
-);
+if (typeof window !== 'undefined') {
+  watch(
+    pageTitle,
+    (value) => {
+      if (typeof document !== 'undefined') {
+        document.title = value;
+      }
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => [
+      pageTitle.value,
+      seoDescription.value,
+      canonicalUrl.value,
+      seoImage.value,
+      seoSiteName.value,
+      openGraphLocale.value,
+      seoImageAlt.value,
+      profileUsername.value,
+      twitterCreator.value,
+      twitterCardType.value,
+      twitterDomain.value,
+    ],
+    ([
+      title,
+      description,
+      canonical,
+      image,
+      siteName,
+      ogLocale,
+      imageAlt,
+      profileUser,
+      creator,
+      cardType,
+      domain,
+    ]) => {
+      applySeoMeta({
+        title,
+        description,
+        canonical,
+        image,
+        siteName,
+        ogLocale,
+        imageAlt,
+        profileUsername: profileUser,
+        twitterCreator: creator,
+        twitterCard: cardType,
+        twitterDomain: domain,
+      });
+    },
+    { immediate: true }
+  );
+}
 </script>
 
 <style scoped>
