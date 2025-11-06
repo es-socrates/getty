@@ -6,7 +6,7 @@ Complete and customizable app with tools for live streaming. Tip notifications, 
 
 **The vision:** To provide Odysee streamers with comprehensive tools for their livestreams on Odysee. Everything is easy, free, and requires no registration. Enjoy the app and stay tuned for more updates in the future.
 
-![getty](https://thumbs.odycdn.com/a3a2b6dfa1498257a7c37ea4050e217b.webp)
+![getty](https://thumbs.odycdn.com/3e7033f1ae0262c62ae3969c8f51ed91.webp)
 
 ## Go live on Odysee
 
@@ -18,11 +18,7 @@ Odysee is a blockchain-based media platform. We host all kinds of media such as 
 
 Wander App is a secure and easy-to-use digital wallet for Odysee, allowing you to authenticate to getty without the need for traditional passwords. It is essential for accessing Getty features such as widget configuration and encrypted data management. Download Wander from [https://www.wander.app/](https://www.wander.app/) to get started.
 
-## The Ultimate Tool
-
-Want to take your stream to the next level? With getty, managing your widgets in OBS has never been so easy and customizable. Here are some of its amazing features: independent widgets.
-
-## More Features
+## Some features
 
 1. ⚡ Easy Setup: Run getty with a single command, either on your PC or server.
 2. 🔔 Real-Time Notifications: Get alerts for your AR token tips, chat messages, donation goals and the latest tip instantly.
@@ -37,7 +33,7 @@ Want to take your stream to the next level? With getty, managing your widgets in
 11. 📈 Real-time and historical statistics of your lives in Odysee.
 12. 🎉 Achievements System: Receive real-time achievement notifications.
 
-![image](https://thumbs.odycdn.com/1276aa291bbd9a6bd621e7cce65da845.webp)
+![getty](https://thumbs.odycdn.com/cd1523ead8d64ea78c60d0f8f26f27a7.webp)
 
 # Do you want to use getty locally?
 
@@ -127,11 +123,12 @@ The app's admin page has all the widget links for OBS. I recommend saving the ch
 4. Adjust the size, position and color of each widget.
 5. You're done! The widgets will appear in your stream. Let's stream!
 
-getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
+> getty's vision is to help streamers on Odysee manage their own widgets for community interaction. This opens the door to multiple options and resources never seen before. Enjoy the app and look forward to more updates in the future.
 
-**This is an independent project; it is not an official Odysee product.**
 Visit **getty's official** website for more information: [getty.sh](https://getty.sh/).
 
 ### With love for Odysee ❤️
 
 ## λ
+
+**This is an independent project; it is not an official Odysee product.**
