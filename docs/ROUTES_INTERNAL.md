@@ -125,6 +125,13 @@ This document maps HTTP endpoints to their route modules and main responsibiliti
 - POST `/api/stream-history/import` [RL]
 - GET `/api/stream-history/status`
 
+## User Profile — `routes/user-profile.js`
+
+- GET `/config/user-profile-config.json`
+- POST `/config/user-profile-config.json` [Session]
+- GET `/api/user-profile/overview` [Session]
+- GET `/api/user-profile/public/:slug`
+
 ## Announcement — `routes/announcement.js`
 
 - GET `/api/announcement` — config + messages [RL]
