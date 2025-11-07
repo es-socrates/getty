@@ -1,15 +1,6 @@
 <template>
   <div class="user-profile-panel">
     <OsCard class="user-profile-card">
-      <div v-if="config.shareEnabled && config.shareUrl" class="share-url">
-        <div class="share-input">
-          <CopyField :value="config.shareUrl" :aria-label="t('userProfileShareUrl')" />
-        </div>
-        <a :href="config.shareUrl" target="_blank" rel="noopener" class="share-open-btn">
-          {{ t('userProfileViewPublic') }}
-        </a>
-      </div>
-
       <div v-if="configError" class="status status-error">
         {{ t('userProfileConfigLoadFailed') }}
       </div>
@@ -69,6 +60,31 @@
                   <img class="channel-link-icon" :src="odyseeLogo" alt="" aria-hidden="true" />
                   <span>{{ t('userProfileChannelLink') }}</span>
                 </a>
+                <button
+                  v-if="config.shareEnabled && config.shareUrl"
+                  type="button"
+                  class="channel-share-btn"
+                  :title="t('userProfileShareButton')"
+                  @click="openShareModal">
+                  <span class="channel-share-btn-icon" aria-hidden="true">
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round">
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                  </span>
+                  <span>{{ t('userProfileShareButton') }}</span>
+                </button>
                 <span v-if="updatedAtLabel" class="updated-at">{{ updatedAtLabel }}</span>
               </div>
             </div>
@@ -202,10 +218,44 @@
         </div>
       </div>
     </OsCard>
+
+    <teleport to="body">
+      <div
+        v-if="shareModalOpen"
+        class="share-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-modal-title"
+        @click.self="closeShareModal">
+        <div class="share-modal-card">
+          <h3 id="share-modal-title" class="share-modal-title">
+            {{ t('userProfileShareModalTitle') }}
+          </h3>
+          <p class="share-modal-description">{{ t('userProfileShareModalDescription') }}</p>
+          <CopyField
+            class="share-modal-input"
+            :value="config.shareUrl || ''"
+            :aria-label="t('userProfileShareUrl')" />
+          <div class="share-modal-actions">
+            <a
+              class="share-modal-open"
+              :href="config.shareUrl || '#'"
+              target="_blank"
+              rel="noopener"
+              @click="closeShareModal">
+              {{ t('userProfileViewPublic') }}
+            </a>
+            <button type="button" class="share-modal-close" @click="closeShareModal">
+              {{ t('userProfileShareModalClose') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 <script setup>
-import { reactive, ref, computed, watch, onMounted } from 'vue';
+import { reactive, ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import OsCard from '../os/OsCard.vue';
 import CopyField from '../shared/CopyField.vue';
@@ -246,6 +296,9 @@ const loadError = ref('');
 const configError = ref('');
 const initialLoaded = ref(false);
 const lastUpdatedAt = ref(null);
+const shareModalOpen = ref(false);
+let previousOverflowDoc = '';
+let previousOverflowBody = '';
 
 const period = ref('day');
 const span = ref(30);
@@ -516,6 +569,21 @@ async function handleSectionToggle(key, nextValue) {
   }
 }
 
+function openShareModal() {
+  if (!config.shareEnabled || !config.shareUrl) return;
+  shareModalOpen.value = true;
+}
+
+function closeShareModal() {
+  shareModalOpen.value = false;
+}
+
+function onShareModalKeydown(event) {
+  if (event.key === 'Escape') {
+    closeShareModal();
+  }
+}
+
 function formatNumber(value, minimumFractionDigits = 0) {
   const num = Number(value || 0);
   if (!Number.isFinite(num)) return '0';
@@ -570,6 +638,19 @@ onMounted(async () => {
   initialLoaded.value = true;
 });
 
+onUnmounted(() => {
+  shareModalOpen.value = false;
+  try {
+    window.removeEventListener('keydown', onShareModalKeydown);
+  } catch {}
+  try {
+    const doc = document.documentElement;
+    const body = document.body;
+    if (doc) doc.style.overflow = previousOverflowDoc || '';
+    if (body) body.style.overflow = previousOverflowBody || '';
+  } catch {}
+});
+
 watch(
   () => period.value,
   () => {
@@ -586,6 +667,43 @@ watch(
   () => span.value,
   () => {
     if (initialLoaded.value) loadOverview();
+  }
+);
+
+watch(
+  () => shareModalOpen.value,
+  (open) => {
+    try {
+      if (open) {
+        window.addEventListener('keydown', onShareModalKeydown);
+      } else {
+        window.removeEventListener('keydown', onShareModalKeydown);
+      }
+    } catch {}
+    try {
+      const doc = document.documentElement;
+      const body = document.body;
+      if (open) {
+        previousOverflowDoc = doc?.style?.overflow || '';
+        previousOverflowBody = body?.style?.overflow || '';
+        if (doc) doc.style.overflow = 'hidden';
+        if (body) body.style.overflow = 'hidden';
+      } else {
+        if (doc) doc.style.overflow = previousOverflowDoc || '';
+        if (body) body.style.overflow = previousOverflowBody || '';
+        previousOverflowDoc = '';
+        previousOverflowBody = '';
+      }
+    } catch {}
+  }
+);
+
+watch(
+  () => config.shareEnabled,
+  (enabled) => {
+    if (!enabled) {
+      closeShareModal();
+    }
   }
 );
 </script>
@@ -653,55 +771,6 @@ watch(
 }
 .share-switch.switch-on .share-switch-thumb {
   transform: translateX(20px);
-}
-.share-url {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  justify-content: flex-start;
-}
-.share-input {
-  flex: 0 1 420px;
-  min-width: min(100%, 280px);
-}
-.share-input :deep(.input-group) {
-  width: 100%;
-}
-.share-open-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(37, 99, 235, 0.2);
-  background: transparent;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--primary, #2563eb);
-  text-decoration: none;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-.share-open-btn:hover,
-.share-open-btn:focus-visible {
-  background: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.35);
-}
-.share-open-btn:focus-visible {
-  outline: 2px solid var(--primary, #2563eb);
-  outline-offset: 2px;
-}
-@media (max-width: 640px) {
-  .share-url {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .share-input {
-    width: 100%;
-  }
-  .share-open-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 .section-toggles {
   border: 1px solid var(--card-border);
@@ -891,13 +960,48 @@ watch(
   gap: 12px;
   align-items: center;
 }
+.channel-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary, #2563eb);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.channel-share-btn:hover,
+.channel-share-btn:focus-visible {
+  background: rgba(37, 99, 235, 0.16);
+}
+.channel-share-btn:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+.channel-share-btn-icon {
+  display: inline-flex;
+}
 .channel-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
   font-weight: 700;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 6px 12px;
   color: #eb2565;
+}
+.channel-link:hover,
+.channel-link:focus-visible {
+  background: rgba(37, 99, 235, 0.16);
+}
+.channel-link:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
 }
 .channel-link-icon {
   width: 16px;
@@ -952,7 +1056,7 @@ watch(
   gap: 6px;
 }
 .summary-label {
-  font-size: 0.8rem;
+  font-size: 14px;
   font-weight: 700;
 }
 .summary-value {
@@ -1001,7 +1105,9 @@ watch(
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+}
+.recent-date {
+  font-weight: 600;
 }
 .recent-list {
   list-style: none;
@@ -1086,6 +1192,96 @@ watch(
   .tz-display {
     flex-direction: row;
     justify-content: space-between;
+  }
+}
+.share-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 16px;
+}
+.share-modal-card {
+  width: min(420px, 100%);
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.24);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.share-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.share-modal-description {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #475569);
+}
+.share-modal-input :deep(.input-group) {
+  width: 100%;
+}
+.share-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.share-modal-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.share-modal-open:hover,
+.share-modal-open:focus-visible {
+  background: #1e3a8a;
+  border-color: transparent;
+}
+.share-modal-close {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.share-modal-close:hover,
+.share-modal-close:focus-visible {
+  background: rgba(148, 163, 184, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  .share-modal-card {
+    background: var(--card-bg, #111827);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  }
+  .share-modal-description {
+    color: var(--text-secondary, #9ca3af);
+  }
+  .share-modal-close {
+    color: var(--text-primary, #e5e7eb);
+  }
+  .share-modal-close:hover,
+  .share-modal-close:focus-visible {
+    background: rgba(148, 163, 184, 0.18);
   }
 }
 </style>

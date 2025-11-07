@@ -228,12 +228,17 @@
         <button
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-os-sm border text-[0.75rem] hover:opacity-100"
-          style="background: rgb(255, 24, 76); color: #fff; border-color: rgb(255, 24, 76)"
+          style="
+            background: rgb(255, 24, 76);
+            color: #fff;
+            font-weight: 600;
+            border-color: rgb(255, 24, 76);
+          "
           @click="settingsCollapsed = !settingsCollapsed">
           <span>{{ t('settings') || 'Settings' }}</span>
           <svg
-            width="10"
-            height="10"
+            width="14"
+            height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -563,13 +568,13 @@
       <div class="chart-wrap">
         <div ref="chartEl" class="chart-canvas"></div>
       </div>
-      <div class="text-xs opacity-80 mt-1 flex flex-wrap items-center gap-2">
+      <div class="text-xs mt-1 flex flex-wrap items-center gap-2">
         <span>{{ t('streamHistoryHint') }}</span>
         <button
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
           :aria-pressed="showViewers ? 'true' : 'false'"
-          :class="showViewers ? 'ring-1 ring-[var(--card-border)]' : ''"
+          :class="showViewers ? 'ring-1 ring-[#ee2264]' : ''"
           @click="toggleShowViewers"
           :title="
             showViewers
@@ -584,7 +589,7 @@
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
           :aria-pressed="mode === 'candle' ? 'true' : 'false'"
-          :class="mode === 'candle' ? 'ring-1 ring-[var(--card-border)]' : ''"
+          :class="mode === 'candle' ? 'ring-1 ring-[#ee2264]' : ''"
           @click="mode = 'candle'">
           {{ t('chartCandle') }}
         </button>
@@ -592,7 +597,7 @@
           type="button"
           class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-[var(--card-border)] bg-[var(--bg-chat)] text-xs"
           :aria-pressed="mode === 'line' ? 'true' : 'false'"
-          :class="mode === 'line' ? 'ring-1 ring-[var(--card-border)]' : ''"
+          :class="mode === 'line' ? 'ring-1 ring-[#ee2264]' : ''"
           @click="mode = 'line'">
           {{ t('chartLine') }}
         </button>
