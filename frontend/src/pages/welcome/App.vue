@@ -77,18 +77,7 @@
         data-state="logged-out"
         data-i18n="walletLogin"
         aria-label="Login">
-        <svg
-          viewBox="0 0 24 24"
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true">
-          <rect x="2" y="6" width="20" height="12" rx="2" />
-          <path d="M16 12h.01" />
-        </svg>
+        <i class="pi pi-user text-[16px] leading-none" aria-hidden="true"></i>
         <span class="btn-label" data-default-label="Login">Login</span>
       </a>
       <button id="theme-toggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">

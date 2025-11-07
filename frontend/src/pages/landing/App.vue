@@ -32,18 +32,7 @@
           id="public-wallet-login"
           class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
           data-state="logged-out">
-          <svg
-            viewBox="0 0 24 24"
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true">
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <path d="M16 12h.01" />
-          </svg>
+          <i class="pi pi-user text-[16px] leading-none" aria-hidden="true"></i>
           <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
         </button>
         <div class="relative" id="lang-picker-wrapper">
@@ -217,7 +206,7 @@
         </div>
         <div class="relative">
           <div
-            class="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-2xl">
+            class="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-lg">
             <div
               class="mb-4 flex items-center justify-between text-xs text-[var(--text-secondary)]">
               <span class="font-bold" data-i18n="landingPreviewLabel"></span>
@@ -275,7 +264,7 @@
                           loading="lazy"
                           decoding="async" />
                       </span>
-                      <span>Tip: 0.8 AR (USD)</span>
+                      <span>Tip: $6.5 (AR)</span>
                     </span>
                   </div>
                   <p class="text-sm text-white" data-i18n="landingPreviewChatQuote"></p>
@@ -301,9 +290,9 @@
         <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgba(175,175,175,0.2)] text-[var(--accent-color,#2563eb)]"
+              class="feature-icon inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(38,38,38)]"
               aria-hidden="true">
-              <i class="pi pi-credit-card text-[20px] leading-none" aria-hidden="true"></i>
+              <i class="pi pi-sparkles text-[20px] leading-none" aria-hidden="true"></i>
             </div>
             <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureLastTip"></h3>
             <p
@@ -312,7 +301,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400"
+              class="feature-icon inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(27,217,154)]"
               aria-hidden="true">
               <i class="pi pi-flag text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -321,7 +310,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400"
+              class="feature-icon inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(255,204,51)]"
               aria-hidden="true">
               <i class="pi pi-microphone text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -330,7 +319,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/20 text-purple-400"
+              class="feature-icon inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(85,63,238)]"
               aria-hidden="true">
               <i class="pi pi-comments text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -339,7 +328,7 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400"
+              class="feature-icon inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(53,141,255)]"
               aria-hidden="true">
               <i class="pi pi-chart-line text-[20px] leading-none" aria-hidden="true"></i>
             </div>
@@ -350,9 +339,9 @@
           </article>
           <article class="os-card flex h-full flex-col gap-4 p-5">
             <div
-              class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-rose-500/20 text-rose-400"
+              class="feature-icon inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(239,68,84)]"
               aria-hidden="true">
-              <i class="pi pi-cog text-[20px] leading-none" aria-hidden="true"></i>
+              <i class="pi pi-megaphone text-[20px] leading-none" aria-hidden="true"></i>
             </div>
             <h3 class="text-lg font-semibold text-white" data-i18n="landingFeatureAutomation"></h3>
             <p
@@ -394,9 +383,12 @@
           <article
             class="os-card flex h-full flex-col justify-between rounded-xl border border-border bg-card p-5">
             <div class="space-y-3">
-              <h3
-                class="text-lg font-semibold text-white"
-                data-i18n="landingWidgetTipNotificationTitle"></h3>
+              <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                <span class="card-title-icon icon-tip-notification" aria-hidden="true">
+                  <i class="pi pi-bell"></i>
+                </span>
+                <span data-i18n="landingWidgetTipNotificationTitle"></span>
+              </h3>
               <p
                 class="text-sm text-[var(--text-secondary)]"
                 data-i18n="landingWidgetTipNotificationCopy"></p>
@@ -410,9 +402,12 @@
           <article
             class="os-card flex h-full flex-col justify-between rounded-xl border border-border bg-card p-5">
             <div class="space-y-3">
-              <h3
-                class="text-lg font-semibold text-white"
-                data-i18n="landingWidgetTipGoalTitle"></h3>
+              <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                <span class="card-title-icon icon-tip-goal" aria-hidden="true">
+                  <i class="pi pi-bullseye"></i>
+                </span>
+                <span data-i18n="landingWidgetTipGoalTitle"></span>
+              </h3>
               <p
                 class="text-sm text-[var(--text-secondary)]"
                 data-i18n="landingWidgetTipGoalCopy"></p>
@@ -426,25 +421,36 @@
           <article
             class="os-card flex h-full flex-col justify-between rounded-xl border border-border bg-card p-5 sm:col-span-2">
             <div class="space-y-3">
-              <h3 class="text-lg font-semibold text-white" data-i18n="landingGiveawaysTitle"></h3>
+              <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                <span class="card-title-icon icon-giveaways" aria-hidden="true">
+                  <i class="pi pi-gift"></i>
+                </span>
+                <span data-i18n="landingGiveawaysTitle"></span>
+              </h3>
               <p class="text-sm text-[var(--text-secondary)]" data-i18n="landingGiveawaysCopy"></p>
             </div>
             <div class="mt-6 flex flex-wrap gap-3 text-xs text-[var(--text-secondary)]">
               <span
-                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1"
-                data-i18n="landingGiveawaysStepOne"></span>
+                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 inline-flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                <span data-i18n="landingGiveawaysStepOne"></span>
+              </span>
               <span
-                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1"
-                data-i18n="landingGiveawaysStepTwo"></span>
+                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 inline-flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-sky-400"></span>
+                <span data-i18n="landingGiveawaysStepTwo"></span>
+              </span>
               <span
-                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1"
-                data-i18n="landingGiveawaysStepThree"></span>
+                class="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 inline-flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full bg-amber-400"></span>
+                <span data-i18n="landingGiveawaysStepThree"></span>
+              </span>
             </div>
           </article>
         </div>
       </section>
 
-      <section id="automation" class="rounded-xl border border-border bg-card/40 p-8 sm:p-12">
+      <section id="automation" class="rounded-xl border border-border bg-card/40 p-8 sm:p-8">
         <div class="grid gap-8 sm:grid-cols-2 sm:items-center">
           <div class="space-y-4">
             <span
@@ -492,29 +498,40 @@
             class="relative overflow-hidden rounded-xl border border-border bg-card p-4 shadow-lg">
             <div class="space-y-4">
               <div class="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                <span class="font-semibold" data-i18n="landingAutomationPanelTitle"></span>
+                <span class="automation-panel-title" data-i18n="landingAutomationPanelTitle"></span>
                 <span
                   class="rounded-full border border-border px-2 py-1"
                   data-i18n="landingAutomationSecure"></span>
               </div>
               <ol class="space-y-4 text-sm">
-                <li class="rounded-xl border border-border bg-card/30 p-4">
-                  <p
-                    class="text-xs font-semibold uppercase tracking-wide"
-                    data-i18n="landingAutomationStepOneLabel"></p>
-                  <p class="text-sm text-white" data-i18n="landingAutomationStepOne"></p>
+                <li class="rounded-xl border border-border bg-card/30 p-4 automation-step">
+                  <span class="card-title-icon icon-chat-activity" aria-hidden="true">
+                    <i class="pi pi-comments"></i>
+                  </span>
+                  <div class="automation-step-content">
+                    <p class="automation-step-label" data-i18n="landingAutomationStepOneLabel"></p>
+                    <p class="automation-step-copy" data-i18n="landingAutomationStepOne"></p>
+                  </div>
                 </li>
-                <li class="rounded-xl border border-border bg-card/30 p-4">
-                  <p
-                    class="text-xs font-semibold uppercase tracking-wide"
-                    data-i18n="landingAutomationStepTwoLabel"></p>
-                  <p class="text-sm text-white" data-i18n="landingAutomationStepTwo"></p>
+                <li class="rounded-xl border border-border bg-card/30 p-4 automation-step">
+                  <span class="card-title-icon icon-live-stream" aria-hidden="true">
+                    <i class="pi pi-video"></i>
+                  </span>
+                  <div class="automation-step-content">
+                    <p class="automation-step-label" data-i18n="landingAutomationStepTwoLabel"></p>
+                    <p class="automation-step-copy" data-i18n="landingAutomationStepTwo"></p>
+                  </div>
                 </li>
-                <li class="rounded-xl border border-border bg-card/30 p-4">
-                  <p
-                    class="text-xs font-semibold uppercase tracking-wide"
-                    data-i18n="landingAutomationStepThreeLabel"></p>
-                  <p class="text-sm text-white" data-i18n="landingAutomationStepThree"></p>
+                <li class="rounded-xl border border-border bg-card/30 p-4 automation-step">
+                  <span class="card-title-icon icon-tips-community" aria-hidden="true">
+                    <i class="pi pi-users"></i>
+                  </span>
+                  <div class="automation-step-content">
+                    <p
+                      class="automation-step-label"
+                      data-i18n="landingAutomationStepThreeLabel"></p>
+                    <p class="automation-step-copy" data-i18n="landingAutomationStepThree"></p>
+                  </div>
                 </li>
               </ol>
             </div>
@@ -717,5 +734,133 @@ body.landing {
 .dark body.landing,
 body.landing.dark {
   --text-secondary: #f9f9f9;
+}
+
+.feature-icon {
+  color: #ffffff !important;
+}
+
+.automation-panel-title {
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.automation-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  column-gap: 0.75rem;
+  align-items: start;
+}
+
+.automation-step-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.automation-step-copy {
+  font-size: 0.9rem;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.automation-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.card-title-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  font-size: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.card-title-icon i {
+  font-size: 15px;
+}
+
+body.landing .icon-tip-notification {
+  background: rgb(241, 34, 110);
+  color: #ffffff;
+}
+
+.dark body.landing .icon-tip-notification,
+body.landing.dark .icon-tip-notification {
+  background: rgb(241, 34, 110);
+  color: #ffffff;
+}
+
+body.landing .icon-tip-goal {
+  background: rgb(27, 217, 154);
+  color: #ffffff;
+}
+
+.dark body.landing .icon-tip-goal,
+body.landing.dark .icon-tip-goal {
+  background: rgb(27, 217, 154);
+  color: #ffffff;
+}
+
+body.landing .icon-giveaways {
+  background: rgb(250, 204, 21);
+  color: #ffffff;
+}
+
+.dark body.landing .icon-giveaways,
+body.landing.dark .icon-giveaways {
+  background: rgb(250, 204, 21);
+  color: #ffffff;
+}
+
+body.landing .icon-chat-activity {
+  background: rgb(85, 63, 238);
+  color: #ffffff;
+}
+
+.dark body.landing .icon-chat-activity,
+body.landing.dark .icon-chat-activity {
+  background: rgb(85, 63, 238);
+  color: #ffffff;
+}
+
+body.landing .icon-live-stream {
+  background: rgb(239, 68, 68);
+  color: #ffffff;
+}
+
+.dark body.landing .icon-live-stream,
+body.landing.dark .icon-live-stream {
+  background: rgb(239, 68, 68);
+  color: #ffffff;
+}
+
+body.landing .icon-tips-community {
+  background: rgb(20, 184, 166);
+  color: #ffffff;
+}
+
+.dark body.landing .icon-tips-community,
+body.landing.dark .icon-tips-community {
+  background: rgb(20, 184, 166);
+  color: #ffffff;
+}
+
+body.landing .automation-step-label,
+body.landing .automation-step-copy {
+  color: #171717;
+}
+
+.dark body.landing .automation-step-label,
+body.landing.dark .automation-step-label,
+.dark body.landing .automation-step-copy,
+body.landing.dark .automation-step-copy {
+  color: #f9f9f9;
 }
 </style>
