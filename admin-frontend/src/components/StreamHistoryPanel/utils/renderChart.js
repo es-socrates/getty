@@ -867,9 +867,10 @@ function renderViewersSparkline(el, data, { period: _period = 'day', smoothWindo
     peakMarker.setAttribute('opacity', '0.9');
     svg.appendChild(peakMarker);
 
-    const peakLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const peakLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const peakLabelOffset = 20;
     peakLabel.setAttribute('x', String(peakX + 6));
-    peakLabel.setAttribute('y', String(Math.max(12, peakY - 8)));
+    peakLabel.setAttribute('y', String(Math.max(20, peakY - peakLabelOffset)));
     peakLabel.setAttribute('fill', 'var(--sparkline-peak-color,#dc2626)');
     peakLabel.setAttribute('font-size', '10');
     peakLabel.setAttribute('font-weight', '600');

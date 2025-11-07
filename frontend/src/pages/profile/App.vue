@@ -2138,16 +2138,21 @@ if (typeof window !== 'undefined') {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 700;
   color: #eb2565;
   text-decoration: none;
-  transition: opacity 0.2s ease;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 6px 12px;
 }
-
 .profile-link:hover,
 .profile-link:focus-visible {
-  text-decoration: underline;
+  background: rgba(37, 99, 235, 0.16);
+}
+.profile-link:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
 }
 
 .profile-link-icon {
@@ -2180,9 +2185,8 @@ if (typeof window !== 'undefined') {
 }
 
 .summary-label {
-  font-size: 0.78rem;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
 }
 
 .summary-value {
@@ -2208,9 +2212,8 @@ if (typeof window !== 'undefined') {
 }
 
 .lifetime-label {
-  font-size: 0.8rem;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary);
 }
 
 .lifetime-value {
@@ -2443,7 +2446,10 @@ if (typeof window !== 'undefined') {
   justify-content: space-between;
   align-items: center;
   font-size: 0.85rem;
-  color: var(--recent-meta-color);
+}
+
+.recent-date {
+  font-weight: 500;
 }
 
 .recent-stats {

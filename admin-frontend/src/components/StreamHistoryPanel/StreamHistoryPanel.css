@@ -44,10 +44,9 @@
   gap: 0.35rem;
   padding: 2px 10px;
   border: 1px solid var(--card-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--card-bg, #ffffff);
   color: var(--text-primary, #0f172a);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 .peak-session-label {
@@ -71,7 +70,6 @@
   .peak-session-summary {
     background: var(--card-bg, #111827);
     color: var(--text-primary, #e5e7eb);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
   }
   .peak-session-value {
     color: var(--chart-goal-met, #ee2264);
@@ -159,9 +157,9 @@
   gap: 4px;
 }
 .kpi-label {
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 6px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .kpi-value {
   font-size: 24px;
@@ -570,7 +568,6 @@ select.quick-select::-ms-expand {
   justify-content: space-between;
   font-size: 12px;
   font-weight: 600;
-  opacity: 0.85;
   margin-bottom: 6px;
 }
 .sparkline-canvas {
