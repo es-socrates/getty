@@ -418,7 +418,7 @@ const adminExtra = {
     suggestion_getty_docs_cta: 'Ir a la documentación',
     gifSectionTitle: 'GIF para notificaciones',
     gifSectionDesc: 'Configura la posición y carga del GIF animado para las notificaciones.',
-    notificationGifLibraryBtn: 'Elegir desde biblioteca',
+    notificationGifLibraryBtn: 'Elegir en galería',
     gifLibraryTitle: 'Biblioteca de GIFs',
     gifLibrarySubtitle: 'Reutiliza los GIFs ya guardados y evita duplicados cuando alguno no esté disponible.',
     gifLibraryEmpty: 'Todavía no hay GIFs guardados.',
