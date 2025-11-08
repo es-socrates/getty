@@ -171,7 +171,7 @@
               :disabled="savingTts || (!sessionActive && hostedSupported)"
               @click="saveTts"
               :aria-busy="savingTts ? 'true' : 'false'">
-              {{ savingTts ? t('commonSaving') : t('saveSettings') }}
+              {{ savingTts ? t('commonSaving') : t('saveAudioButton') }}
             </button>
           </div>
         </div>

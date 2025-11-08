@@ -221,7 +221,7 @@ function fallbackName(id) {
 .audio-library-subtitle {
   font-size: 13px;
   opacity: 0.78;
-  max-width: 420px;
+  max-width: 500px;
 }
 
 .audio-library-header-actions {

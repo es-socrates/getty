@@ -230,7 +230,7 @@ function fallbackName(id) {
 .gif-library-subtitle {
   font-size: 13px;
   opacity: 0.78;
-  max-width: 420px;
+  max-width: 500px;
 }
 
 .gif-library-header-actions {
