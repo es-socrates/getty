@@ -25,6 +25,7 @@
 }
 
 .notif-root .btn-icon {
+  background: var(--danger, var(--btn-danger));
   width: 34px;
   height: 34px;
   padding: 0;
@@ -32,6 +33,11 @@
   align-items: center;
   justify-content: center;
   gap: 0;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.notif-root .btn-icon:not(:disabled):hover {
+  background: color-mix(in srgb, var(--danger, var(--btn-danger)) 85%, #000);
 }
 
 .notif-root .btn-icon .pi {
