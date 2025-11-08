@@ -12,12 +12,15 @@ function writeJsonSafe(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-const colorSchema = z.object({
+const themeSchema = z.literal('classic').or(z.literal('deterministic'));
+
+const configSchema = z.object({
   bgColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
   fontColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
   borderColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
   amountColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
   fromColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
+  theme: themeSchema.optional(),
 }).strict();
 
 const DEFAULTS = {
@@ -25,7 +28,8 @@ const DEFAULTS = {
   fontColor: '#ffffff',
   borderColor: '#00ff7f',
   amountColor: '#00ff7f',
-  fromColor: '#ffffff'
+  fromColor: '#ffffff',
+  theme: 'classic'
 };
 
 module.exports = function registerTipNotificationRoutes(app, strictLimiter, { wss, store } = {}) {
@@ -35,7 +39,8 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
 
   function normalize(raw) {
     const base = raw && typeof raw === 'object' ? raw : {};
-    return { ...DEFAULTS, ...base };
+    const theme = base.theme === 'deterministic' ? 'deterministic' : 'classic';
+    return { ...DEFAULTS, ...base, theme };
   }
 
   function broadcastUpdate(cfg) {
@@ -93,7 +98,7 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
-      const parsed = colorSchema.safeParse(req.body || {});
+  const parsed = configSchema.safeParse(req.body || {});
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid colors' });
       }

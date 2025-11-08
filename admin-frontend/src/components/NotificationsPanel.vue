@@ -90,13 +90,22 @@
               {{ t('notificationGifChooseBtn') }}
             </button>
             <button
+              class="btn-secondary btn-compact-secondary"
+              type="button"
+              @click="openGifLibrary"
+              :disabled="gifLibrary.loading || (!sessionActive && hostedSupported)"
+              :aria-busy="gifLibrary.loading ? 'true' : 'false'">
+              {{ t('notificationGifLibraryBtn') }}
+            </button>
+            <button
               v-if="gif.gifPath"
-              class="btn-danger"
+              class="btn-danger btn-icon"
               type="button"
               @click="removeGif"
               :disabled="!sessionActive && hostedSupported"
+              :title="t('notificationGifRemoveBtn')"
               :aria-label="t('notificationGifRemoveBtn')">
-              {{ t('notificationGifRemoveBtn') }}
+              <i class="pi pi-trash" aria-hidden="true"></i>
             </button>
             <button
               class="btn-save"
@@ -107,7 +116,6 @@
               {{ savingGif ? t('commonSaving') : t('saveSettings') }}
             </button>
           </div>
-          <div v-if="gif.fileName" class="small mt-1 opacity-80">{{ gif.fileName }}</div>
           <div v-if="errors.gif" class="small mt-2 text-red-700">{{ errors.gif }}</div>
         </div>
       </div>
@@ -157,17 +165,24 @@
               <option value="en">{{ t('english') }}</option>
               <option value="es">{{ t('spanish') }}</option>
             </select>
+            <button
+              class="btn-save"
+              type="button"
+              :disabled="savingTts || (!sessionActive && hostedSupported)"
+              @click="saveTts"
+              :aria-busy="savingTts ? 'true' : 'false'">
+              {{ savingTts ? t('commonSaving') : t('saveSettings') }}
+            </button>
           </div>
         </div>
-        <div class="notif-actions-row">
-          <button
-            class="btn-save"
-            type="button"
-            :disabled="savingTts || (!sessionActive && hostedSupported)"
-            @click="saveTts"
-            :aria-busy="savingTts ? 'true' : 'false'">
-            {{ savingTts ? t('commonSaving') : t('saveSettings') }}
-          </button>
+        <div class="notif-setting-item is-vertical">
+          <div class="notif-setting-text">
+            <div class="notif-setting-title">{{ t('notificationWidgetUrl') }}</div>
+            <div class="notif-setting-desc">{{ t('tipWidgetObsHint') }}</div>
+          </div>
+          <div class="copy-field-row">
+            <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" />
+          </div>
         </div>
       </div>
 
@@ -198,6 +213,8 @@
             :has-custom-audio="audioState.hasCustomAudio"
             :audio-file-name="audioState.audioFileName"
             :audio-file-size="audioState.audioFileSize"
+            :audio-library-id="audioState.audioLibraryId"
+            :library-enabled="true"
             force-stack
             compact
             @update:enabled="(v) => (audioCfg.enabled = v)"
@@ -273,7 +290,7 @@
         </div>
       </div>
 
-      <div class="notif-group-box" aria-labelledby="notif-preview-title">
+      <div class="notif-group-box notif-full" aria-labelledby="notif-theme-title">
         <div class="notif-group-head">
           <HeaderIcon>
             <svg
@@ -284,37 +301,47 @@
               stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
-              <circle cx="12" cy="12" r="3" />
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
             </svg>
           </HeaderIcon>
-          <h3 id="notif-preview-title" class="notif-group-title">{{ t('commonPreview') }}</h3>
+          <h3 id="notif-theme-title" class="notif-group-title">
+            {{ t('tipWidgetThemeTitle') }}
+          </h3>
         </div>
         <div class="notif-setting-item is-vertical">
-          <div class="tip-preview-wrapper">
-            <div
-              class="tip-preview-box"
-              :style="previewVarsStyle"
-              role="img"
-              aria-label="Tip notification preview">
-              <div class="tp-content">
-                <div class="tp-title">🎉 Tip Received. Woohoo!</div>
-                <div class="tp-amount">
-                  <span class="tp-ar-amount">0.50 AR</span>
-                  <span class="tp-usd">($2.50 USD)</span>
-                </div>
-                <div class="tp-from">📦 From: Spaceman… <span class="tp-thanks">👏</span></div>
-                <div class="tp-msg">This is a fake notification. Thanks for the stream!</div>
-              </div>
-            </div>
+          <div class="notif-theme-config">
+            <label class="notif-theme-label" for="tip-widget-theme-select">
+              <span class="notif-setting-title">{{ t('tipWidgetThemeLabel') }}</span>
+              <span class="notif-setting-desc">{{ t('tipWidgetThemeDesc') }}</span>
+            </label>
+            <select
+              id="tip-widget-theme-select"
+              class="input select"
+              v-model="widgetTheme"
+              aria-label="widget-theme-select">
+              <option v-for="opt in widgetThemeOptions" :key="opt.value" :value="opt.value">
+                {{ t(opt.labelKey) }}
+              </option>
+            </select>
           </div>
-          <div class="preview-footer">
-            <div class="small opacity-80">
-              {{ t('colorCustomizationTitle') }} → {{ t('saveSettings') }} →
-              {{ t('commonPreview') }}
-            </div>
+          <TipWidgetThemePreview
+            :theme="widgetTheme"
+            :colors="previewColors"
+            :gif-position="gif.position"
+            :gif-url="gif.gifPath" />
+          <div class="notif-actions-row">
             <button
-              class="btn-secondary btn-compact-secondary preview-refresh-btn"
+              class="btn"
+              type="button"
+              :disabled="savingColors || (!sessionActive && hostedSupported)"
+              @click="saveColors">
+              {{ savingColors ? t('commonSaving') : t('saveSettings') }}
+            </button>
+            <button
+              class="btn-secondary btn-compact-secondary theme-refresh-btn"
               type="button"
               @click="refreshPreview">
               {{ t('refresh') }}
@@ -322,35 +349,15 @@
           </div>
         </div>
       </div>
-
-      <div class="notif-group-box" aria-labelledby="notif-obs-title">
-        <div class="notif-group-head">
-          <HeaderIcon>
-            <svg
-              class="os-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-          </HeaderIcon>
-          <h3 id="notif-obs-title" class="notif-group-title">{{ t('obsIntegration') }}</h3>
-        </div>
-        <div class="notif-setting-item is-vertical">
-          <div class="notif-setting-text">
-            <div class="notif-setting-title">{{ t('notificationWidgetUrl') }}</div>
-          </div>
-          <div class="copy-field-row">
-            <CopyField :value="widgetUrl" :aria-label="t('notificationWidgetUrl')" />
-          </div>
-        </div>
-      </div>
     </div>
+    <TipGifLibraryDrawer
+      :open="gifLibrary.open"
+      :items="gifLibrary.items"
+      :loading="gifLibrary.loading"
+      :error="gifLibrary.error"
+      @close="gifLibrary.open = false"
+      @refresh="fetchGifLibrary(true)"
+      @select="onLibrarySelect" />
   </section>
 </template>
 <script setup>
@@ -366,6 +373,8 @@ import { usePublicToken } from '../composables/usePublicToken';
 import LegacyAudioControls from './shared/LegacyAudioControls.vue';
 import HeaderIcon from './shared/HeaderIcon.vue';
 import ColorInput from './shared/ColorInput.vue';
+import TipWidgetThemePreview from './NotificationsPanel/TipWidgetThemePreview.vue';
+import TipGifLibraryDrawer from './NotificationsPanel/TipGifLibraryDrawer.vue';
 
 const { t } = useI18n();
 
@@ -376,8 +385,25 @@ const gif = reactive({
   gifPath: '',
   file: null,
   fileName: '',
+  selectedId: '',
   original: '',
 });
+
+const gifLibrary = reactive({
+  open: false,
+  loading: false,
+  error: '',
+  /** @type {Array<{id: string, url: string, width?: number, height?: number, size?: number, originalName?: string, uploadedAt?: string}>} */
+  items: [],
+});
+
+const widgetThemeOptions = [
+  { value: 'classic', labelKey: 'tipWidgetThemeClassic' },
+  { value: 'deterministic', labelKey: 'tipWidgetThemeDeterministic' },
+];
+
+const widgetTheme = ref('classic');
+let originalTheme = 'classic';
 
 const posKeyMap = {
   left: 'positionLeft',
@@ -424,6 +450,7 @@ const audioState = reactive({
   hasCustomAudio: false,
   audioFileName: '',
   audioFileSize: 0,
+  audioLibraryId: '',
 });
 
 const posPulse = ref(false);
@@ -445,26 +472,56 @@ const previewColors = reactive({
   from: '#ffffff',
 });
 
-const previewVarsStyle = computed(() => ({
-  '--tn-bg': previewColors.bg,
-  '--tn-text': previewColors.font,
-  '--tn-border': previewColors.border,
-  '--tn-amount': previewColors.amount,
-  '--tn-from': previewColors.from,
-}));
-
 function isDirty() {
+  const gifState = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
   return (
-    JSON.stringify({ p: gif.position, g: !!gif.gifPath }) !== gif.original ||
+    gifState !== gif.original ||
+    !!gif.file ||
     JSON.stringify({ e: tts.enabled, l: tts.language }) !== tts.original ||
     JSON.stringify({ s: audio.audioSource, f: !!audio.fileName }) !== audio.original ||
-    (originalColors && originalColors !== JSON.stringify(colors))
+    (originalColors && originalColors !== JSON.stringify(colors)) ||
+    widgetTheme.value !== originalTheme
   );
 }
 registerDirty(isDirty);
 
 function triggerGif() {
   gifInput.value.click();
+}
+
+function openGifLibrary() {
+  gifLibrary.open = true;
+  if (!gifLibrary.items.length) {
+    fetchGifLibrary();
+  }
+}
+
+async function fetchGifLibrary(force = false) {
+  if (gifLibrary.loading) return;
+  try {
+    gifLibrary.loading = true;
+    gifLibrary.error = '';
+    const config = force ? { params: { ts: Date.now() } } : undefined;
+    const { data } = await api.get('/api/tip-notification-gif/library', config);
+    gifLibrary.items = Array.isArray(data?.items) ? data.items : [];
+  } catch (error) {
+    gifLibrary.error = t('gifLibraryLoadFailed');
+    console.error('[notif] gif library load failed', error);
+  } finally {
+    gifLibrary.loading = false;
+  }
+}
+
+/**
+ * @param {{ id: string, url: string, originalName?: string }} item
+ */
+function onLibrarySelect(item) {
+  if (!item || !item.url) return;
+  gif.gifPath = item.url;
+  gif.file = null;
+  gif.fileName = item.originalName || t('gifLibraryUnknown');
+  gif.selectedId = item.id || '';
+  gifLibrary.open = false;
 }
 
 function onGifChange(e) {
@@ -477,6 +534,7 @@ function onGifChange(e) {
   errors.gif = '';
   gif.file = f;
   gif.fileName = f.name;
+  gif.selectedId = '';
 }
 
 async function loadGif() {
@@ -484,7 +542,11 @@ async function loadGif() {
     const { data } = await api.get('/api/tip-notification-gif');
     gif.position = data.position || 'right';
     gif.gifPath = data.gifPath || '';
-    gif.original = JSON.stringify({ p: gif.position, g: !!gif.gifPath });
+    gif.selectedId = data.libraryId || '';
+    gif.original = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
+    if (gif.selectedId && !gifLibrary.items.length) {
+      fetchGifLibrary();
+    }
   } catch {}
 }
 
@@ -503,6 +565,9 @@ async function loadColors() {
       previewColors.border = colors.border;
       previewColors.amount = colors.amount;
       previewColors.from = colors.from;
+      const nextTheme = data.theme === 'deterministic' ? 'deterministic' : 'classic';
+      widgetTheme.value = nextTheme;
+      originalTheme = nextTheme;
     }
   } catch {}
 }
@@ -528,9 +593,11 @@ async function saveColors() {
       borderColor: colors.border,
       amountColor: colors.amount,
       fromColor: colors.from,
+      theme: widgetTheme.value,
     };
     await api.post('/api/tip-notification', payload);
     originalColors = JSON.stringify(colors);
+    originalTheme = widgetTheme.value;
     previewColors.bg = colors.bg;
     previewColors.font = colors.font;
     previewColors.border = colors.border;
@@ -553,6 +620,9 @@ async function refreshPreview() {
       previewColors.border = data.borderColor || previewColors.border;
       previewColors.amount = data.amountColor || previewColors.amount;
       previewColors.from = data.fromColor || previewColors.from;
+      if (data.theme) {
+        widgetTheme.value = data.theme === 'deterministic' ? 'deterministic' : 'classic';
+      }
     }
   } catch {}
 }
@@ -568,13 +638,28 @@ async function saveGif() {
     const fd = new FormData();
     fd.append('position', gif.position);
     if (gif.file) fd.append('gifFile', gif.file);
+    if (gif.selectedId && !gif.file) {
+      fd.append('selectedGifId', gif.selectedId);
+    }
     const { data } = await api.post('/api/tip-notification-gif', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    const libraryItem = data?.libraryItem || null;
     gif.gifPath = data.gifPath || '';
     gif.file = null;
-    gif.fileName = '';
-    gif.original = JSON.stringify({ p: gif.position, g: !!gif.gifPath });
+    gif.selectedId = data.libraryId || '';
+    gif.fileName = libraryItem?.originalName || (gif.selectedId ? gif.fileName : '');
+    if (!gif.selectedId) {
+      gif.fileName = '';
+    }
+    if (libraryItem) {
+      const existingIdx = gifLibrary.items.findIndex((item) => item.id === libraryItem.id);
+      if (existingIdx >= 0) {
+        gifLibrary.items.splice(existingIdx, 1);
+      }
+      gifLibrary.items.unshift(libraryItem);
+    }
+    gif.original = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
     pushToast({ type: 'success', message: t('savedNotifications') });
   } catch {
     pushToast({ type: 'error', message: t('saveFailedNotifications') });
@@ -593,7 +678,8 @@ async function removeGif() {
     gif.gifPath = '';
     gif.file = null;
     gif.fileName = '';
-    gif.original = JSON.stringify({ p: gif.position, g: false });
+    gif.selectedId = '';
+    gif.original = JSON.stringify({ p: gif.position, path: '', sid: '' });
     pushToast({ type: 'success', message: t('removedGif') });
   } catch {
     pushToast({ type: 'error', message: t('removeGifFailed') });
@@ -638,6 +724,7 @@ async function loadAudio() {
     audioState.hasCustomAudio = !!data.hasCustomAudio;
     audioState.audioFileName = data.audioFileName || '';
     audioState.audioFileSize = data.audioFileSize || 0;
+    audioState.audioLibraryId = data.audioLibraryId || '';
     if (typeof data.enabled === 'boolean') audioCfg.enabled = data.enabled;
     if (typeof data.volume === 'number') audioCfg.volume = Math.max(0, Math.min(1, data.volume));
     lastSavedAudio = {
@@ -721,6 +808,17 @@ watch(
     if (Math.abs(newVol - oldVol) > 0.01 && sessionActive.value) {
       persistAudioCfg(true); // silent save
     }
+  }
+);
+
+watch(
+  () => [colors.bg, colors.font, colors.border, colors.amount, colors.from],
+  () => {
+    previewColors.bg = colors.bg;
+    previewColors.font = colors.font;
+    previewColors.border = colors.border;
+    previewColors.amount = colors.amount;
+    previewColors.from = colors.from;
   }
 );
 </script>

@@ -31,7 +31,7 @@ describe('Tip Notification GIF API', () => {
   test('DELETE resets config safely (idempotent)', async () => {
   const res = await request(appRef).delete('/api/tip-notification-gif');
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ success: true, gifPath: '', position: 'right' });
+    expect(res.body).toMatchObject({ success: true, gifPath: '', position: 'right', libraryId: '' });
   });
 
   test('GET returns default-like structure', async () => {
@@ -41,6 +41,13 @@ describe('Tip Notification GIF API', () => {
     expect(res.body).toHaveProperty('position');
     expect(res.body).toHaveProperty('width');
     expect(res.body).toHaveProperty('height');
+    expect(res.body).toHaveProperty('libraryId');
+  });
+
+  test('Library endpoint returns array shape', async () => {
+  const res = await request(appRef).get('/api/tip-notification-gif/library');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.items)).toBe(true);
   });
 
   test('Rejects non-GIF file', async () => {
@@ -58,6 +65,7 @@ describe('Tip Notification GIF API', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.width).toBe(1200);
     expect(res.body.height).toBe(800);
+    expect(res.body).toHaveProperty('libraryId');
   });
 
   test('Accepts valid GIF and stores config', async () => {
@@ -67,6 +75,7 @@ describe('Tip Notification GIF API', () => {
     expect(res.body.position).toBe('left');
     expect(res.body.width).toBe(120);
     expect(res.body.height).toBe(100);
+    expect(res.body).toHaveProperty('libraryId');
     expect(res.body.gifPath).toMatch(/(https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/|https:\/\/mock\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/)/);
   });
 
@@ -79,6 +88,7 @@ describe('Tip Notification GIF API', () => {
     expect(res.body.position).toBe('bottom');
     expect(res.body.gifPath).toMatch(/(https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/|https:\/\/mock\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/)/);
     expect(res.body.width).toBeGreaterThan(0);
+    expect(res.body).toHaveProperty('libraryId');
   });
 
   test('DELETE removes stored GIF data', async () => {
@@ -88,5 +98,6 @@ describe('Tip Notification GIF API', () => {
     expect(res.body.gifPath).toBe('');
     expect(res.body.width).toBe(0);
     expect(res.body.height).toBe(0);
+    expect(res.body.libraryId).toBe('');
   });
 });

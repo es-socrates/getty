@@ -88,9 +88,22 @@
                 <button class="btn-secondary w-full" type="button" @click="triggerAudio">
                   {{ t('customAudioUploadLabel') }}
                 </button>
-                <span class="file-info" v-if="audioFileName"
-                  >{{ audioFileName }} ({{ formatSize(audioFileSize) }})</span
-                >
+              </div>
+              <div v-if="libraryEnabled" class="library-col">
+                <button
+                  class="btn-secondary w-full"
+                  type="button"
+                  :disabled="savingAudio || libraryLoading"
+                  @click="openLibrary">
+                  {{ libraryLoading ? t('commonLoading') : t('audioLibraryChoose') }}
+                </button>
+                <button
+                  v-if="pendingLibraryItem"
+                  type="button"
+                  class="library-clear-btn"
+                  @click="clearLibrarySelection">
+                  {{ t('audioLibraryClearSelection') }}
+                </button>
               </div>
               <div class="actions-col">
                 <button class="btn-save" type="button" :disabled="savingAudio" @click="saveAudio">
@@ -133,18 +146,40 @@
                 </div>
               </div>
             </div>
+            <div
+              v-if="selectionSummary && selectionSummary.name"
+              class="selection-summary"
+              aria-live="polite">
+              <span class="file-info">
+                <span class="file-label">{{ selectionSummary.label }}:</span>
+                <span class="file-name">{{ selectionSummary.name }}</span>
+                <span v-if="selectionSummary.size" class="file-size"
+                  >({{ selectionSummary.size }})</span
+                >
+              </span>
+            </div>
             <div v-if="errorMsg" class="small text-red-700 mt-2">{{ errorMsg }}</div>
           </div>
         </div>
       </div>
     </div>
+    <AudioLibraryDrawer
+      v-if="libraryEnabled"
+      :open="libraryDrawerOpen"
+      :items="libraryItems"
+      :loading="libraryLoading"
+      :error="libraryError"
+      @close="closeLibrary"
+      @refresh="fetchLibrary(true)"
+      @select="onLibrarySelect" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';
+import AudioLibraryDrawer from './AudioLibraryDrawer.vue';
 
 const props = defineProps({
   enabled: { type: Boolean, required: true },
@@ -160,6 +195,8 @@ const props = defineProps({
   saveEndpoint: { type: String, default: '/api/audio-settings' },
   deleteEndpoint: { type: String, default: '/api/audio-settings' },
   customAudioEndpoint: { type: String, default: '/api/custom-audio' },
+  audioLibraryId: { type: String, default: '' },
+  libraryEnabled: { type: Boolean, default: false },
 });
 const emit = defineEmits([
   'update:enabled',
@@ -176,6 +213,12 @@ const savingAudio = ref(false);
 const fileRef = ref(null);
 const errorMsg = ref('');
 const deleteArmed = ref(false);
+const libraryDrawerOpen = ref(false);
+const libraryLoading = ref(false);
+const libraryError = ref('');
+const libraryItems = ref([]);
+const pendingLibraryItem = ref(null);
+const selectedLibraryId = ref('');
 let deleteTimer = null;
 
 const volPercent = computed(() =>
@@ -236,6 +279,8 @@ function onAudioChange(e) {
   }
   errorMsg.value = '';
   fileRef.value = f;
+  pendingLibraryItem.value = null;
+  selectedLibraryId.value = '';
 }
 function formatSize(bytes) {
   if (!bytes) return '0 B';
@@ -252,10 +297,30 @@ async function saveAudio() {
     fd.append('volume', String(props.volume));
     if (props.audioSource === 'custom' && fileRef.value) {
       fd.append('audioFile', fileRef.value);
+    } else if (
+      props.libraryEnabled &&
+      props.audioSource === 'custom' &&
+      selectedLibraryId.value &&
+      !fileRef.value
+    ) {
+      fd.append('selectedAudioId', selectedLibraryId.value);
     }
-    await api.post(props.saveEndpoint, fd, {
+    const response = await api.post(props.saveEndpoint, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    const nextLibrary = response?.data?.libraryItem || null;
+    if (nextLibrary && nextLibrary.id) {
+      selectedLibraryId.value = nextLibrary.id;
+      pendingLibraryItem.value = null;
+      libraryItems.value = [
+        nextLibrary,
+        ...libraryItems.value.filter((entry) => entry && entry.id !== nextLibrary.id),
+      ].slice(0, 50);
+    }
+    fileRef.value = null;
+    if (audioInput.value) {
+      audioInput.value.value = '';
+    }
     emit('audio-saved');
     emit('toast', { type: 'success', messageKey: 'toastAudioSaved' });
   } catch {
@@ -283,6 +348,126 @@ async function deleteCustomAudio() {
     if (deleteTimer) clearTimeout(deleteTimer);
   }
 }
+
+function fallbackLibraryName(item) {
+  if (!item) return '';
+  const source = item.originalName || item.id || '';
+  return source.length > 48 ? `${source.slice(0, 48)}…` : source;
+}
+
+function selectionDetails() {
+  if (fileRef.value) {
+    return {
+      label: t('audioLibraryPendingUpload'),
+      name: fileRef.value.name,
+      size: formatSize(fileRef.value.size || 0),
+    };
+  }
+  if (pendingLibraryItem.value) {
+    const item = pendingLibraryItem.value;
+    return {
+      label: t('audioLibraryPendingLabel'),
+      name: fallbackLibraryName(item),
+      size: item.size ? formatSize(item.size) : '',
+    };
+  }
+  if (props.audioLibraryId) {
+    const name = props.audioFileName || props.audioLibraryId;
+    return {
+      label: t('audioLibrarySelectedLabel'),
+      name,
+      size: props.audioFileSize ? formatSize(props.audioFileSize) : '',
+    };
+  }
+  if (props.audioFileName) {
+    return {
+      label: t('customAudioFileName'),
+      name: props.audioFileName,
+      size: props.audioFileSize ? formatSize(props.audioFileSize) : '',
+    };
+  }
+  return { label: '', name: '', size: '' };
+}
+
+const selectionSummary = computed(() => selectionDetails());
+
+function clearLibrarySelection() {
+  pendingLibraryItem.value = null;
+  selectedLibraryId.value = '';
+}
+
+async function fetchLibrary(force = false) {
+  if (!props.libraryEnabled) return;
+  if (libraryLoading.value) return;
+  if (!force && libraryItems.value.length) return;
+  try {
+    libraryLoading.value = true;
+    libraryError.value = '';
+    const { data } = await api.get('/api/audio-settings/library');
+    if (data && Array.isArray(data.items)) {
+      libraryItems.value = data.items;
+    } else {
+      libraryItems.value = [];
+    }
+  } catch (error) {
+    console.error('Error loading audio library:', error);
+    libraryError.value = t('audioLibraryLoadFailed');
+  } finally {
+    libraryLoading.value = false;
+  }
+}
+
+function openLibrary() {
+  libraryDrawerOpen.value = true;
+  fetchLibrary(true);
+}
+
+function closeLibrary() {
+  libraryDrawerOpen.value = false;
+  libraryError.value = '';
+}
+
+function onLibrarySelect(item) {
+  if (!item || !item.id) return;
+  pendingLibraryItem.value = item;
+  selectedLibraryId.value = item.id;
+  fileRef.value = null;
+  if (audioInput.value) audioInput.value.value = '';
+  errorMsg.value = '';
+  closeLibrary();
+}
+
+watch(
+  () => props.audioLibraryId,
+  (next) => {
+    if (!next) {
+      if (!pendingLibraryItem.value) {
+        selectedLibraryId.value = '';
+      }
+      return;
+    }
+    if (pendingLibraryItem.value && pendingLibraryItem.value.id === next) {
+      pendingLibraryItem.value = null;
+    }
+    selectedLibraryId.value = next;
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.audioFileName,
+  () => {
+    if (!pendingLibraryItem.value && !fileRef.value) {
+      // keep current summary derived from props
+      return;
+    }
+    if (pendingLibraryItem.value) {
+      pendingLibraryItem.value = null;
+    }
+    fileRef.value = null;
+    if (audioInput.value) audioInput.value.value = '';
+  }
+);
 </script>
 
 <style scoped>
@@ -297,6 +482,12 @@ async function deleteCustomAudio() {
 }
 .legacy-audio.force-stack .legacy-audio-grid {
   grid-template-columns: 1fr;
+}
+.library-col {
+  flex: 1 1 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .legacy-audio.force-stack .legacy-audio-right {
   display: none;
@@ -314,6 +505,32 @@ async function deleteCustomAudio() {
 }
 .vol-badge {
   display: inline-flex;
+  .file-label {
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .file-name {
+    font-weight: 500;
+  }
+  .selection-summary {
+    margin-top: 10px;
+  }
+  .library-clear-btn {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    border: none;
+    color: var(--accent, #60a5fa);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .library-clear-btn:hover {
+    text-decoration: underline;
+  }
+  .library-clear-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
   align-items: center;
   justify-content: center;
   padding: 4px 8px;
