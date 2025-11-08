@@ -198,7 +198,7 @@
   }
 
   .btn-save {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors focus:outline-none focus-visible:ring-2;
+    @apply inline-grid grid-flow-col place-items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors focus:outline-none focus-visible:ring-2;
     background: #553fee;
   }
   .btn-save:hover {
