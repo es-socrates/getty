@@ -69,8 +69,8 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2
       obs-websocket-js:
-        specifier: ^5.0.6
-        version: 5.0.6(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+        specifier: ^5.0.7
+        version: 5.0.7(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       pg:
         specifier: ^8.12.0
         version: 8.16.3
@@ -4589,8 +4589,8 @@ packages:
   obliterator@2.0.5:
     resolution: {integrity: sha512-42CPE9AhahZRsMNslczq0ctAEtqk8Eka26QofnqC346BZdHDySk3LWka23LI7ULIw11NmltpiLagIq8gBozxTw==}
 
-  obs-websocket-js@5.0.6:
-    resolution: {integrity: sha512-tHRq8py1XrdlMhSV+N/KTGHqoRIcsBBXbjcA9ex21k128iQ7YXjxzNWs3s9gidP1tEcIyVuJu8FnPgrSBWGm0Q==}
+  obs-websocket-js@5.0.7:
+    resolution: {integrity: sha512-SdSNSyrLVR6F0ogInKr7qcadV1tYaTUse/vbabxjkUL8hU3P3dyifxkZ7pEkDDrtCp3TkQ53Enx23kgZO0Cjcw==}
     engines: {node: '>16.0'}
 
   on-finished@2.3.0:
@@ -11806,7 +11806,7 @@ snapshots:
 
   obliterator@2.0.5: {}
 
-  obs-websocket-js@5.0.6(bufferutil@4.0.9)(utf-8-validate@5.0.10):
+  obs-websocket-js@5.0.7(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       '@msgpack/msgpack': 2.8.0
       crypto-js: 4.2.0

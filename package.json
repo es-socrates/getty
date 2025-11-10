@@ -60,7 +60,7 @@
     "lucide-vue-next": "^0.548.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
-    "obs-websocket-js": "^5.0.6",
+    "obs-websocket-js": "^5.0.7",
     "pg": "^8.12.0",
     "primeicons": "^7.0.0",
     "primevue": "^4.4.1",
