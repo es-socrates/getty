@@ -73,9 +73,31 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const storeInst = (req.app && typeof req.app.get === 'function') ? req.app.get('store') || store : store;
 
-      if (tenant && tenant.tenantEnabled(req)) {
+      if (tenant && typeof tenant.tenantEnabled === 'function' && tenant.tenantEnabled(req)) {
         try {
-          const loaded = await loadTenantConfig(req, storeInst, GOAL_AUDIO_CONFIG_FILE, 'goal-audio-settings.json');
+          if (typeof tenant.loadConfigWithFallback === 'function') {
+            const loaded = tenant.loadConfigWithFallback(
+              req,
+              GOAL_AUDIO_CONFIG_FILE,
+              'goal-audio-settings.json'
+            );
+            const data = loaded?.data;
+            if (data && typeof data === 'object') {
+              return normalizeGoalAudioSettings(data);
+            }
+          }
+        } catch (error) {
+          if (process.env.GETTY_TENANT_DEBUG === '1') {
+            console.warn('[tip-goal][audio][tenant_fallback_load_error]', error.message);
+          }
+        }
+        try {
+          const loaded = await loadTenantConfig(
+            req,
+            storeInst,
+            GOAL_AUDIO_CONFIG_FILE,
+            'goal-audio-settings.json'
+          );
           const data = loaded.data?.data ? loaded.data.data : loaded.data;
           if (data && typeof data === 'object') {
             return normalizeGoalAudioSettings(data);
