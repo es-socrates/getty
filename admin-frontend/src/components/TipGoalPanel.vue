@@ -453,6 +453,15 @@ async function loadAudioState() {
     audioState.storageProvider =
       typeof data.storageProvider === 'string' ? data.storageProvider : audioState.storageProvider;
     if (typeof data.audioSource === 'string') audio.audioSource = data.audioSource;
+    if (Object.prototype.hasOwnProperty.call(data, 'enabled')) {
+      audioCfg.enabled = !!data.enabled;
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'volume')) {
+      const vol = Number(data.volume);
+      if (!Number.isNaN(vol)) {
+        audioCfg.volume = Math.min(Math.max(vol, 0), 1);
+      }
+    }
     if (audioState.storageProvider) storage.registerProvider(audioState.storageProvider);
   } catch (e) {
     if (!(e?.response?.status === 404)) {
@@ -489,6 +498,8 @@ async function save() {
       title: form.title,
       audioSource: audio.audioSource,
       storageProvider: audio.audioSource === 'custom' ? providerSelection : '',
+      audioEnabled: audioCfg.enabled,
+      audioVolume: audioCfg.volume,
     };
     if (walletEditable.value) payload.walletAddress = form.walletAddress;
 

@@ -176,6 +176,20 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     const size = Number.isFinite(base.audioFileSize)
       ? base.audioFileSize
       : Number(base.audioFileSize) || 0;
+    const volumeRaw =
+      typeof base.volume === 'number' ? base.volume : parseFloat(base.volume);
+    const volume = Number.isFinite(volumeRaw)
+      ? Math.min(Math.max(volumeRaw, 0), 1)
+      : 0.8;
+    const enabled = (() => {
+      if (typeof base.enabled === 'boolean') return base.enabled;
+      if (typeof base.enabled === 'string') {
+        const lowered = base.enabled.trim().toLowerCase();
+        if (['false', '0', 'off', 'no'].includes(lowered)) return false;
+        if (['true', '1', 'on', 'yes'].includes(lowered)) return true;
+      }
+      return true;
+    })();
     return {
       audioSource: base.audioSource || 'remote',
       hasCustomAudio: !!base.hasCustomAudio,
@@ -192,6 +206,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         typeof base.audioFilePath === 'string' && base.audioFilePath ? base.audioFilePath : null,
       audioLibraryId: typeof base.audioLibraryId === 'string' ? base.audioLibraryId : '',
       storageProvider: normalizeProvider(base.storageProvider),
+      enabled,
+      volume,
     };
   }
 
@@ -278,8 +294,27 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         audioFileUrl: currentData.audioFileUrl,
         audioFilePath: currentData.audioFilePath,
         audioLibraryId: currentData.audioLibraryId,
+        enabled: typeof currentData.enabled === 'boolean' ? currentData.enabled : true,
+        volume: Number.isFinite(currentData.volume) ? currentData.volume : 0.8,
       };
       let libraryItem = null;
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
+        const rawEnabled = req.body.enabled;
+        if (typeof rawEnabled === 'boolean') {
+          settings.enabled = rawEnabled;
+        } else if (typeof rawEnabled === 'string') {
+          const lowered = rawEnabled.trim().toLowerCase();
+          if (['false', '0', 'off', 'no'].includes(lowered)) settings.enabled = false;
+          if (['true', '1', 'on', 'yes'].includes(lowered)) settings.enabled = true;
+        }
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body, 'volume')) {
+        const parsedVolume = parseFloat(req.body.volume);
+        if (Number.isFinite(parsedVolume)) {
+          settings.volume = Math.min(Math.max(parsedVolume, 0), 1);
+        }
+      }
 
       if (audioSource === 'custom' && req.file) {
         const nsSafe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
@@ -471,6 +506,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             audioFilePath: null,
             audioLibraryId: '',
             storageProvider: '',
+            enabled: true,
+            volume: 0.8,
           };
           const saveRes = await saveTenantAwareConfig(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME, () => next);
 

@@ -49,6 +49,20 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
     const size = Number.isFinite(base.audioFileSize)
       ? base.audioFileSize
       : Number(base.audioFileSize) || 0;
+    const volumeRaw =
+      typeof base.volume === 'number' ? base.volume : parseFloat(base.volume);
+    const volume = Number.isFinite(volumeRaw)
+      ? Math.min(Math.max(volumeRaw, 0), 1)
+      : 0.8;
+    const enabled = (() => {
+      if (typeof base.enabled === 'boolean') return base.enabled;
+      if (typeof base.enabled === 'string') {
+        const lowered = base.enabled.trim().toLowerCase();
+        if (['false', '0', 'off', 'no'].includes(lowered)) return false;
+        if (['true', '1', 'on', 'yes'].includes(lowered)) return true;
+      }
+      return true;
+    })();
     return {
       audioSource: base.audioSource === 'custom' ? 'custom' : 'remote',
       hasCustomAudio: !!base.hasCustomAudio,
@@ -65,6 +79,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         typeof base.audioFilePath === 'string' && base.audioFilePath ? base.audioFilePath : null,
       audioLibraryId: typeof base.audioLibraryId === 'string' ? base.audioLibraryId : '',
       storageProvider: normalizeProviderValue(base.storageProvider),
+      enabled,
+      volume,
     };
   }
 
@@ -273,7 +289,9 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         borderColor: z.string().optional(),
         progressColor: z.string().optional(),
         audioSource: z.enum(['remote', 'custom']).default('remote'),
-        title: z.string().max(120).optional()
+        title: z.string().max(120).optional(),
+        audioEnabled: z.coerce.boolean().optional(),
+        audioVolume: z.coerce.number().min(0).max(1).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
@@ -364,6 +382,24 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       let audioLibraryId = prevAudioCfg.audioLibraryId || prevCfg.audioLibraryId || '';
       let storageProvider =
         prevAudioCfg.storageProvider || normalizeProviderValue(prevCfg.storageProvider || '');
+      let audioEnabled =
+        typeof prevAudioCfg.enabled === 'boolean'
+          ? prevAudioCfg.enabled
+          : typeof prevCfg.audioEnabled === 'boolean'
+          ? prevCfg.audioEnabled
+          : true;
+      const prevVolume = Number.isFinite(prevAudioCfg.volume)
+        ? prevAudioCfg.volume
+        : parseFloat(prevCfg.audioVolume);
+      let audioVolume = Number.isFinite(prevVolume) ? prevVolume : 0.8;
+      audioVolume = Math.min(Math.max(audioVolume, 0), 1);
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'audioEnabled')) {
+        audioEnabled = !!data.audioEnabled;
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body, 'audioVolume') && typeof data.audioVolume === 'number') {
+        audioVolume = Math.min(Math.max(data.audioVolume, 0), 1);
+      }
 
       if (audioSource === 'custom' && req.file) {
         try {
@@ -443,6 +479,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         audioFilePath,
         audioLibraryId,
         storageProvider,
+  audioEnabled,
+  audioVolume,
         ...(widgetTitle ? { title: widgetTitle } : (prevCfg.title ? { title: prevCfg.title } : {})),
         ...(audioFileUrl
           ? { customAudioUrl: audioFileUrl }
@@ -565,6 +603,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           audioFilePath: audioFilePath || null,
           audioLibraryId: audioLibraryId || '',
           storageProvider: storageProvider || '',
+          enabled: audioEnabled,
+          volume: audioVolume,
           ...(audioFileUrl ? { customAudioUrl: audioFileUrl } : {})
         };
         if (tenant && tenant.tenantEnabled(req)) {
@@ -652,6 +692,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           audioFilePath,
           audioLibraryId,
           storageProvider,
+          enabled: audioEnabled,
+          volume: audioVolume,
           ...(audioFileUrl ? { customAudioUrl: audioFileUrl } : {}),
         };
 
