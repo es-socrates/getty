@@ -479,8 +479,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         audioFilePath,
         audioLibraryId,
         storageProvider,
-  audioEnabled,
-  audioVolume,
+        audioEnabled,
+        audioVolume,
         ...(widgetTitle ? { title: widgetTitle } : (prevCfg.title ? { title: prevCfg.title } : {})),
         ...(audioFileUrl
           ? { customAudioUrl: audioFileUrl }
