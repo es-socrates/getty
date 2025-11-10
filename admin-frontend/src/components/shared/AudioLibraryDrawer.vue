@@ -56,9 +56,18 @@
                 controls
                 preload="none"
                 :aria-label="t('audioLibraryPreviewLabel')"></audio>
-              <button class="btn" type="button" @click="emitSelect(item)">
-                {{ t('audioLibraryUseAudio') }}
-              </button>
+              <div class="audio-actions">
+                <button class="btn" type="button" @click="emitSelect(item)">
+                  {{ t('audioLibraryUseAudio') }}
+                </button>
+                <button
+                  v-if="canDelete(item)"
+                  class="btn-secondary btn-compact-secondary audio-delete-btn"
+                  type="button"
+                  @click="emitDelete(item)">
+                  {{ t('commonDelete') }}
+                </button>
+              </div>
             </li>
           </ul>
         </section>
@@ -89,7 +98,7 @@ defineProps({
   error: { type: String, default: '' },
 });
 
-const emit = defineEmits(['close', 'select', 'refresh']);
+const emit = defineEmits(['close', 'select', 'refresh', 'delete']);
 
 const { t } = useI18n();
 
@@ -113,6 +122,16 @@ function emitSelect(item) {
 
 function emitRefresh() {
   emit('refresh');
+}
+
+function emitDelete(item) {
+  emit('delete', item);
+}
+
+function canDelete(item) {
+  if (!item) return false;
+  const provider = (item.provider || '').toString().trim().toLowerCase();
+  return !provider || provider === 'supabase';
 }
 
 /**
@@ -336,6 +355,16 @@ function fallbackName(id) {
 
 .audio-preview {
   width: 100%;
+}
+
+.audio-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.audio-delete-btn {
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {

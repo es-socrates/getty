@@ -257,7 +257,8 @@
             @update:audio-source="(v) => (audio.audioSource = v)"
             @audio-saved="onAudioSaved"
             @audio-deleted="onAudioDeleted"
-            @update:storage-provider="(v) => storage.setSelectedProvider(v)" />
+            @update:storage-provider="(v) => storage.setSelectedProvider(v)"
+            @toast="handleAudioToast" />
           <div class="notif-actions-row mt-3">
             <button
               class="btn-save"
@@ -925,11 +926,19 @@ async function loadAudio() {
 
 function onAudioSaved() {
   loadAudio();
-  pushToast({ type: 'success', message: t('savedNotifications') });
 }
-function onAudioDeleted() {
+function onAudioDeleted(payload) {
   loadAudio();
-  pushToast({ type: 'success', message: t('deletedCustomAudio') });
+  if (payload && payload.silent) {
+    return;
+  }
+}
+
+function handleAudioToast(payload) {
+  if (!payload || !payload.messageKey) return;
+  const message = t(payload.messageKey);
+  if (!message) return;
+  pushToast({ type: payload.type || 'info', message });
 }
 
 async function persistAudioCfg(silent = false) {

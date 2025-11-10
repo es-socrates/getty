@@ -201,7 +201,8 @@
       :error="libraryError"
       @close="closeLibrary"
       @refresh="fetchLibrary(true)"
-      @select="onLibrarySelect" />
+      @select="onLibrarySelect"
+      @delete="onLibraryDelete" />
   </div>
 </template>
 
@@ -577,6 +578,48 @@ function onLibrarySelect(item) {
   if (audioInput.value) audioInput.value.value = '';
   errorMsg.value = '';
   closeLibrary();
+}
+
+async function onLibraryDelete(item) {
+  if (!item || !item.id) return;
+  const normalizedProvider = (item.provider || '').toString().trim().toLowerCase();
+  const deletable = !normalizedProvider || normalizedProvider === 'supabase';
+  if (!deletable) {
+    emit('toast', { type: 'info', messageKey: 'audioLibraryDeleteNotAllowed' });
+    return;
+  }
+
+  const confirmed = await confirmDialog({
+    title: t('audioLibraryDeleteTitle'),
+    description: t('audioLibraryDeleteDesc'),
+    confirmText: t('audioLibraryDeleteConfirm'),
+    cancelText: t('commonCancel'),
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  try {
+    await api.delete(`/api/audio-settings/library/${encodeURIComponent(item.id)}`);
+    if (pendingLibraryItem.value && pendingLibraryItem.value.id === item.id) {
+      pendingLibraryItem.value = null;
+    }
+    if (selectedLibraryId.value === item.id) {
+      selectedLibraryId.value = '';
+    }
+    await fetchLibrary(true);
+    emit('toast', { type: 'success', messageKey: 'toastAudioLibraryDeleted' });
+    if (props.audioLibraryId === item.id) {
+      emit('audio-deleted', { reason: 'library-deleted', silent: true });
+    }
+  } catch (error) {
+    const code = error?.response?.data?.error;
+    if (code === 'audio_library_delete_unsupported') {
+      emit('toast', { type: 'info', messageKey: 'audioLibraryDeleteNotAllowed' });
+    } else {
+      console.error('[audio-library] delete failed', error);
+      emit('toast', { type: 'error', messageKey: 'toastAudioLibraryDeleteFailed' });
+    }
+  }
 }
 
 watch(
