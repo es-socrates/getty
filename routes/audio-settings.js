@@ -2,7 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const WebSocket = require('ws');
-const { SupabaseStorage } = require('../lib/supabase-storage');
+const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
+
+function normalizeProvider(provider) {
+  if (!provider || typeof provider !== 'string') return '';
+  const lower = provider.trim().toLowerCase();
+  if (lower === STORAGE_PROVIDERS.TURBO || lower === 'arweave') return STORAGE_PROVIDERS.TURBO;
+  if (lower === STORAGE_PROVIDERS.SUPABASE) return STORAGE_PROVIDERS.SUPABASE;
+  return lower;
+}
 
 function ensureSettingsShape(raw = {}) {
   const src = raw.audioSource === 'custom' ? 'custom' : 'remote';
@@ -20,6 +28,7 @@ function ensureSettingsShape(raw = {}) {
     audioFilePath:
       typeof raw.audioFilePath === 'string' && raw.audioFilePath ? raw.audioFilePath : null,
     audioLibraryId: typeof raw.audioLibraryId === 'string' ? raw.audioLibraryId : '',
+    storageProvider: normalizeProvider(raw.storageProvider),
     enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
     volume,
   };
@@ -199,7 +208,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+      if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
       if (requireAdminWrites) {
@@ -213,21 +222,15 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         typeof selectedAudioIdRaw === 'string' && selectedAudioIdRaw.trim()
           ? selectedAudioIdRaw.trim()
           : '';
+      const preferredProviderRaw =
+        typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
+      const preferredProvider = normalizeProvider(preferredProviderRaw);
+
       if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
         return res.status(400).json({ error: 'Invalid audio source' });
       }
 
-      const settings = { audioSource };
       let libraryItem = null;
-
-      if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
-        settings.enabled = req.body.enabled === 'true' || req.body.enabled === true ? true : false;
-      }
-      if (Object.prototype.hasOwnProperty.call(req.body, 'volume')) {
-        const vol = parseFloat(req.body.volume);
-        if (!isNaN(vol)) settings.volume = Math.max(0, Math.min(1, vol));
-      }
-
       let currentSettings = null;
       if (ns && store) {
         try {
@@ -263,30 +266,66 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
       }
 
+      const settings = {
+        audioSource,
+        storageProvider: normalizeProvider(currentSettings?.storageProvider),
+      };
+
+      if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
+        settings.enabled = req.body.enabled === 'true' || req.body.enabled === true ? true : false;
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body, 'volume')) {
+        const vol = parseFloat(req.body.volume);
+        if (!isNaN(vol)) settings.volume = Math.max(0, Math.min(1, vol));
+      }
+
       if (audioSource === 'custom' && req.file) {
-        const ns = req?.ns?.admin || req?.ns?.pub || null;
         const fileName = `custom-notification-audio-${ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global'}-${Date.now()}.mp3`;
 
         try {
-          const supabaseStorage = new SupabaseStorage();
+          const storageInstance = getStorage(preferredProvider || undefined);
+          if (!storageInstance) {
+            throw new Error('Storage service not configured');
+          }
+
           const fileBuffer = req.file.buffer || Buffer.alloc(0);
-          const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+          const fileHash =
+            fileBuffer && fileBuffer.length
+              ? crypto.createHash('sha256').update(fileBuffer).digest('hex')
+              : '';
           const normalizedName = (req.file.originalname || fileName || '').toLowerCase();
           const fingerprint = `${normalizedName}::${req.file.size || 0}`;
-          const uploadResult = await supabaseStorage.uploadFile('tip-goal-audio', fileName, fileBuffer, {
-            contentType: 'audio/mpeg',
-          });
+          const uploadResult = await storageInstance.uploadFile(
+            'tip-goal-audio',
+            fileName,
+            fileBuffer,
+            {
+              contentType: req.file.mimetype || 'audio/mpeg',
+            }
+          );
+
+          const providerId = normalizeProvider(
+            uploadResult.provider || storageInstance.provider || preferredProvider
+          );
+          const derivedId =
+            uploadResult.fileName ||
+            uploadResult.path ||
+            uploadResult.transactionId ||
+            fingerprint ||
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
           libraryItem = {
-            id: uploadResult.fileName,
+            id: derivedId,
             url: uploadResult.publicUrl,
-            size: req.file.size || 0,
-            originalName: req.file.originalname || uploadResult.fileName,
-            path: uploadResult.path,
+            size: Number(req.file.size) || Number(uploadResult.size) || 0,
+            originalName:
+              req.file.originalname || uploadResult.originalName || uploadResult.fileName || derivedId,
+            path: uploadResult.path || uploadResult.fileName || derivedId,
             uploadedAt: new Date().toISOString(),
             mimeType: req.file.mimetype || 'audio/mpeg',
             sha256: fileHash,
             fingerprint,
+            provider: providerId,
           };
 
           settings.hasCustomAudio = true;
@@ -295,9 +334,10 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           settings.audioFileUrl = libraryItem.url;
           settings.audioFilePath = libraryItem.path;
           settings.audioLibraryId = libraryItem.id;
+          settings.storageProvider = providerId;
           await upsertLibraryEntry(ns, libraryItem);
         } catch (uploadError) {
-          console.error('Error uploading audio to Supabase:', uploadError);
+          console.error('Error uploading audio file:', uploadError);
           return res.status(500).json({ error: 'Error uploading audio file' });
         }
       } else if (audioSource === 'custom' && selectedAudioId) {
@@ -306,12 +346,14 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           if (!entry) {
             return res.status(404).json({ error: 'audio_library_item_not_found' });
           }
+          const providerId = normalizeProvider(entry.provider);
           settings.hasCustomAudio = true;
           settings.audioFileName = entry.originalName || entry.id;
           settings.audioFileSize = Number(entry.size) || 0;
           settings.audioFileUrl = entry.url || null;
           settings.audioFilePath = entry.path || entry.id || null;
           settings.audioLibraryId = entry.id;
+          settings.storageProvider = providerId;
           libraryItem = entry;
         } catch (lookupError) {
           console.error('[audio-library] lookup error', lookupError.message);
@@ -320,10 +362,15 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       } else if (audioSource === 'remote') {
         const shouldDeleteStoredFile =
           currentSettings.audioFilePath && !currentSettings.audioLibraryId;
-        if (shouldDeleteStoredFile) {
+        if (
+          shouldDeleteStoredFile &&
+          normalizeProvider(currentSettings.storageProvider) === STORAGE_PROVIDERS.SUPABASE
+        ) {
           try {
-            const supabaseStorage = new SupabaseStorage();
-            await supabaseStorage.deleteFile('tip-goal-audio', currentSettings.audioFilePath);
+            const storageInstance = getStorage(STORAGE_PROVIDERS.SUPABASE);
+            if (storageInstance && storageInstance.provider === STORAGE_PROVIDERS.SUPABASE) {
+              await storageInstance.deleteFile('tip-goal-audio', currentSettings.audioFilePath);
+            }
           } catch (deleteError) {
             console.warn('Error deleting old audio file from Supabase:', deleteError);
           }
@@ -334,6 +381,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         settings.audioFileUrl = null;
         settings.audioFilePath = null;
         settings.audioLibraryId = '';
+        settings.storageProvider = '';
       }
 
       let success = false;
@@ -365,16 +413,29 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           if (typeof wss.broadcast === 'function') {
             wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
           } else {
-            wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload }));
+              }
+            });
           }
         } else {
-          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload }));
+            }
+          });
         }
       } catch (broadcastError) {
         console.warn('Error broadcasting audio settings update:', broadcastError);
       }
 
-  res.json({ success: true, message: 'Audio configuration successfully saved', settings: payload, libraryItem });
+      res.json({
+        success: true,
+        message: 'Audio configuration successfully saved',
+        settings: payload,
+        libraryItem,
+      });
     } catch (error) {
       console.error('Error saving audio settings:', error);
       if (error.code === 'LIMIT_FILE_SIZE') {
@@ -387,12 +448,137 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
     }
   });
 
+  app.delete('/api/audio-settings/library/:id', async (req, res) => {
+    try {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+      const hosted = !!process.env.REDIS_URL;
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+        return res.status(401).json({ error: 'no_session' });
+      }
+      if (requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+      }
+
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
+      if (!entryId) {
+        return res.status(400).json({ error: 'invalid_library_id' });
+      }
+
+      const items = await loadLibrary(ns);
+      const target = items.find((item) => item && item.id === entryId) || null;
+      if (!target) {
+        return res.status(404).json({ error: 'audio_library_item_not_found' });
+      }
+
+      const providerId = normalizeProvider(target.provider);
+      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE) {
+        return res.status(400).json({ error: 'audio_library_delete_unsupported' });
+      }
+
+      if (providerId === STORAGE_PROVIDERS.SUPABASE && target.path) {
+        try {
+          const storageInstance = getStorage(STORAGE_PROVIDERS.SUPABASE);
+          if (storageInstance && storageInstance.provider === STORAGE_PROVIDERS.SUPABASE) {
+            await storageInstance.deleteFile('tip-goal-audio', target.path);
+          }
+        } catch (deleteError) {
+          console.warn('[audio-library] failed to delete Supabase file:', deleteError.message);
+        }
+      }
+
+      const updatedItems = items.filter((item) => item && item.id !== entryId);
+      await saveLibrary(ns, updatedItems);
+
+      let settingsPayload = null;
+      if (ns && store) {
+        try {
+          const currentSettings = await store.get(ns, 'audio-settings', null);
+          if (currentSettings) {
+            const normalized = ensureSettingsShape(currentSettings);
+            if (normalized.audioLibraryId === entryId) {
+              const merged = ensureSettingsShape({
+                ...normalized,
+                audioSource: 'remote',
+                hasCustomAudio: false,
+                audioFileName: null,
+                audioFileSize: 0,
+                audioFileUrl: null,
+                audioFilePath: null,
+                audioLibraryId: '',
+                storageProvider: '',
+              });
+              await store.set(ns, 'audio-settings', merged);
+              settingsPayload = merged;
+            }
+          }
+        } catch (settingsError) {
+          console.warn('[audio-library] failed to reset audio settings after deletion:', settingsError.message);
+        }
+      } else {
+        const currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
+        if (currentSettings.audioLibraryId === entryId) {
+          const merged = ensureSettingsShape({
+            ...currentSettings,
+            audioSource: 'remote',
+            hasCustomAudio: false,
+            audioFileName: null,
+            audioFileSize: 0,
+            audioFileUrl: null,
+            audioFilePath: null,
+            audioLibraryId: '',
+            storageProvider: '',
+          });
+          const saved = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
+          if (saved) {
+            settingsPayload = loadAudioSettings(AUDIO_CONFIG_FILE);
+          }
+        }
+      }
+
+      if (settingsPayload) {
+        try {
+          if (ns && store) {
+            if (typeof wss.broadcast === 'function') {
+              wss.broadcast(ns, { type: 'audioSettingsUpdate', data: settingsPayload });
+            } else {
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(
+                    JSON.stringify({ type: 'audioSettingsUpdate', data: settingsPayload })
+                  );
+                }
+              });
+            }
+          } else {
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(
+                  JSON.stringify({ type: 'audioSettingsUpdate', data: settingsPayload })
+                );
+              }
+            });
+          }
+        } catch (broadcastError) {
+          console.warn('Error broadcasting audio settings update after library delete:', broadcastError);
+        }
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('[audio-library] delete error', error);
+      return res.status(500).json({ error: 'audio_library_delete_failed' });
+    }
+  });
+
   app.delete('/api/audio-settings', async (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
       const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+      if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
       if (requireAdminWrites) {
@@ -438,10 +624,15 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       
       const shouldDeleteStoredFile =
         currentSettings.audioFilePath && !currentSettings.audioLibraryId;
-      if (shouldDeleteStoredFile) {
+      if (
+        shouldDeleteStoredFile &&
+        normalizeProvider(currentSettings.storageProvider) === STORAGE_PROVIDERS.SUPABASE
+      ) {
         try {
-          const supabaseStorage = new SupabaseStorage();
-          await supabaseStorage.deleteFile('tip-goal-audio', currentSettings.audioFilePath);
+          const storageInstance = getStorage(STORAGE_PROVIDERS.SUPABASE);
+          if (storageInstance && storageInstance.provider === STORAGE_PROVIDERS.SUPABASE) {
+            await storageInstance.deleteFile('tip-goal-audio', currentSettings.audioFilePath);
+          }
         } catch (deleteError) {
           console.warn('Error deleting audio file from Supabase:', deleteError);
         }
@@ -455,6 +646,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         audioFileUrl: null,
         audioFilePath: null,
         audioLibraryId: '',
+        storageProvider: '',
       };
 
       let success = false;

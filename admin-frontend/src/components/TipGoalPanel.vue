@@ -201,6 +201,9 @@
             :storage-provider="selectedStorageProvider"
             :storage-providers="storageOptions"
             :storage-loading="storageLoading"
+            save-endpoint="/api/goal-audio-settings"
+            delete-endpoint="/api/goal-audio-settings"
+            custom-audio-endpoint="/api/goal-custom-audio"
             @update:enabled="(val) => (audioCfg.enabled = val)"
             @update:volume="(val) => (audioCfg.volume = val)"
             @update:audio-source="(val) => (audio.audioSource = val)"
@@ -520,7 +523,7 @@ async function handleAudioSaved() {
   resolveStorageSelection();
 }
 
-async function handleAudioDeleted() {
+async function handleAudioDeleted(_payload) {
   audio.audioSource = 'remote';
   await loadAudioState();
   resolveStorageSelection();
