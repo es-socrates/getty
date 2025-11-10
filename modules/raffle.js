@@ -17,6 +17,12 @@ class RaffleModule {
             command: '!giveaway',
             prize: '',
             imageUrl: '',
+            imageLibraryId: '',
+            imageStorageProvider: '',
+            imageStoragePath: '',
+            imageSha256: '',
+            imageFingerprint: '',
+            imageOriginalName: '',
             maxWinners: 1,
             mode: 'manual',
             enabled: true,
@@ -60,6 +66,12 @@ class RaffleModule {
                 command: typeof persisted.command === 'string' ? persisted.command : this.DEFAULTS.command,
                 prize: typeof persisted.prize === 'string' ? persisted.prize : this.DEFAULTS.prize,
                 imageUrl: typeof persisted.imageUrl === 'string' ? persisted.imageUrl : this.DEFAULTS.imageUrl,
+                imageLibraryId: typeof persisted.imageLibraryId === 'string' ? persisted.imageLibraryId : this.DEFAULTS.imageLibraryId,
+                imageStorageProvider: typeof persisted.imageStorageProvider === 'string' ? persisted.imageStorageProvider : this.DEFAULTS.imageStorageProvider,
+                imageStoragePath: typeof persisted.imageStoragePath === 'string' ? persisted.imageStoragePath : this.DEFAULTS.imageStoragePath,
+                imageSha256: typeof persisted.imageSha256 === 'string' ? persisted.imageSha256 : this.DEFAULTS.imageSha256,
+                imageFingerprint: typeof persisted.imageFingerprint === 'string' ? persisted.imageFingerprint : this.DEFAULTS.imageFingerprint,
+                imageOriginalName: typeof persisted.imageOriginalName === 'string' ? persisted.imageOriginalName : this.DEFAULTS.imageOriginalName,
                 maxWinners: Number.isInteger(persisted.maxWinners) && persisted.maxWinners > 0 ? persisted.maxWinners : this.DEFAULTS.maxWinners,
                 mode: (persisted.mode === 'auto' || persisted.mode === 'manual') ? persisted.mode : this.DEFAULTS.mode,
                 enabled: typeof persisted.enabled === 'boolean' ? persisted.enabled : this.DEFAULTS.enabled,
@@ -77,6 +89,24 @@ class RaffleModule {
         s.maxWinners = typeof settings.maxWinners === 'number' && !isNaN(settings.maxWinners) ? settings.maxWinners : s.maxWinners;
         s.mode = (settings.mode === 'auto' || settings.mode === 'manual') ? settings.mode : s.mode;
         s.imageUrl = (settings.imageUrl !== undefined) ? settings.imageUrl : s.imageUrl;
+        if (Object.prototype.hasOwnProperty.call(settings, 'imageLibraryId')) {
+            s.imageLibraryId = typeof settings.imageLibraryId === 'string' ? settings.imageLibraryId : this.DEFAULTS.imageLibraryId;
+        }
+        if (Object.prototype.hasOwnProperty.call(settings, 'imageStorageProvider')) {
+            s.imageStorageProvider = typeof settings.imageStorageProvider === 'string' ? settings.imageStorageProvider : this.DEFAULTS.imageStorageProvider;
+        }
+        if (Object.prototype.hasOwnProperty.call(settings, 'imageStoragePath')) {
+            s.imageStoragePath = typeof settings.imageStoragePath === 'string' ? settings.imageStoragePath : this.DEFAULTS.imageStoragePath;
+        }
+        if (Object.prototype.hasOwnProperty.call(settings, 'imageSha256')) {
+            s.imageSha256 = typeof settings.imageSha256 === 'string' ? settings.imageSha256 : this.DEFAULTS.imageSha256;
+        }
+        if (Object.prototype.hasOwnProperty.call(settings, 'imageFingerprint')) {
+            s.imageFingerprint = typeof settings.imageFingerprint === 'string' ? settings.imageFingerprint : this.DEFAULTS.imageFingerprint;
+        }
+        if (Object.prototype.hasOwnProperty.call(settings, 'imageOriginalName')) {
+            s.imageOriginalName = typeof settings.imageOriginalName === 'string' ? settings.imageOriginalName : this.DEFAULTS.imageOriginalName;
+        }
         if (settings.enabled !== undefined) s.enabled = !!settings.enabled;
         if (settings.active !== undefined) s.active = !!settings.active;
         if (settings.paused !== undefined) s.paused = !!settings.paused;
@@ -96,6 +126,12 @@ class RaffleModule {
             command: s.command,
             prize: s.prize,
             imageUrl: s.imageUrl,
+            imageLibraryId: s.imageLibraryId,
+            imageStorageProvider: s.imageStorageProvider,
+            imageStoragePath: s.imageStoragePath,
+            imageSha256: s.imageSha256,
+            imageFingerprint: s.imageFingerprint,
+            imageOriginalName: s.imageOriginalName,
             maxWinners: s.maxWinners,
             mode: s.mode,
             enabled: s.enabled,
@@ -105,13 +141,35 @@ class RaffleModule {
         try { await saveTenantConfig({ ns: { admin: ns } }, this.store, CONFIG_FILE, 'raffle-config.json', toPersist); } catch {}
     }
 
-    async setImage(ns, imageUrl) {
+    async setImage(ns, payload) {
         const s = await this.getOrCreate(ns);
-        s.imageUrl = imageUrl;
+        if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+            s.imageUrl = typeof payload.url === 'string' ? payload.url : '';
+            s.imageLibraryId = typeof payload.libraryId === 'string' ? payload.libraryId : '';
+            s.imageStorageProvider = typeof payload.storageProvider === 'string' ? payload.storageProvider : '';
+            s.imageStoragePath = typeof payload.storagePath === 'string' ? payload.storagePath : '';
+            s.imageSha256 = typeof payload.sha256 === 'string' ? payload.sha256 : '';
+            s.imageFingerprint = typeof payload.fingerprint === 'string' ? payload.fingerprint : '';
+            s.imageOriginalName = typeof payload.originalName === 'string' ? payload.originalName : '';
+        } else {
+            s.imageUrl = typeof payload === 'string' ? payload : '';
+            s.imageLibraryId = '';
+            s.imageStorageProvider = '';
+            s.imageStoragePath = '';
+            s.imageSha256 = '';
+            s.imageFingerprint = '';
+            s.imageOriginalName = '';
+        }
         const toPersist = {
             command: s.command,
             prize: s.prize,
             imageUrl: s.imageUrl,
+            imageLibraryId: s.imageLibraryId,
+            imageStorageProvider: s.imageStorageProvider,
+            imageStoragePath: s.imageStoragePath,
+            imageSha256: s.imageSha256,
+            imageFingerprint: s.imageFingerprint,
+            imageOriginalName: s.imageOriginalName,
             maxWinners: s.maxWinners,
             mode: s.mode,
             enabled: s.enabled,
@@ -127,6 +185,12 @@ class RaffleModule {
             command: s.command,
             prize: s.prize,
             imageUrl: s.imageUrl,
+            imageLibraryId: s.imageLibraryId,
+            imageStorageProvider: s.imageStorageProvider,
+            imageStoragePath: s.imageStoragePath,
+            imageSha256: s.imageSha256,
+            imageFingerprint: s.imageFingerprint,
+            imageOriginalName: s.imageOriginalName,
             active: s.active,
             paused: s.paused,
             maxWinners: s.maxWinners,
@@ -155,6 +219,11 @@ class RaffleModule {
             command: s.command,
             prize: s.prize,
             imageUrl: s.imageUrl,
+            imageLibraryId: s.imageLibraryId,
+            imageStorageProvider: s.imageStorageProvider,
+            imageStoragePath: s.imageStoragePath,
+            imageSha256: s.imageSha256,
+            imageFingerprint: s.imageFingerprint,
             maxWinners: s.maxWinners,
             mode: s.mode,
             enabled: s.enabled,

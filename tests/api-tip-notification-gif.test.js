@@ -76,7 +76,7 @@ describe('Tip Notification GIF API', () => {
     expect(res.body.width).toBe(120);
     expect(res.body.height).toBe(100);
     expect(res.body).toHaveProperty('libraryId');
-    expect(res.body.gifPath).toMatch(/(https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/|https:\/\/mock\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/)/);
+    expect(res.body.gifPath).toMatch(/^https?:\/\/.+/);
   });
 
   test('Updates position without re-uploading file', async () => {
@@ -86,7 +86,7 @@ describe('Tip Notification GIF API', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.position).toBe('bottom');
-    expect(res.body.gifPath).toMatch(/(https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/|https:\/\/mock\.supabase\.co\/storage\/v1\/object\/public\/notification-gifs\/)/);
+    expect(res.body.gifPath).toMatch(/^https?:\/\/.+/);
     expect(res.body.width).toBeGreaterThan(0);
     expect(res.body).toHaveProperty('libraryId');
   });

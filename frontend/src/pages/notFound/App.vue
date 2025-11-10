@@ -4,7 +4,7 @@
       <div class="relative" id="lang-picker-wrapper">
         <button
           id="lang-btn"
-          class="items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors flex"
+          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm hover:bg-card transition-colors"
           aria-haspopup="true"
           aria-expanded="false"
           aria-controls="lang-menu"
@@ -73,7 +73,7 @@
       <a
         href="/"
         id="home-link"
-        class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors"
+        class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm bg-[var(--bg-card)]/60 backdrop-blur-sm hover:bg-card transition-colors"
         data-i18n="home"
         aria-label="Home">
         <svg

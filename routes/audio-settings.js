@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const WebSocket = require('ws');
 const { SupabaseStorage } = require('../lib/supabase-storage');
 
@@ -268,7 +269,11 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
 
         try {
           const supabaseStorage = new SupabaseStorage();
-          const uploadResult = await supabaseStorage.uploadFile('tip-goal-audio', fileName, req.file.buffer, {
+          const fileBuffer = req.file.buffer || Buffer.alloc(0);
+          const fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+          const normalizedName = (req.file.originalname || fileName || '').toLowerCase();
+          const fingerprint = `${normalizedName}::${req.file.size || 0}`;
+          const uploadResult = await supabaseStorage.uploadFile('tip-goal-audio', fileName, fileBuffer, {
             contentType: 'audio/mpeg',
           });
 
@@ -280,6 +285,8 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
             path: uploadResult.path,
             uploadedAt: new Date().toISOString(),
             mimeType: req.file.mimetype || 'audio/mpeg',
+            sha256: fileHash,
+            fingerprint,
           };
 
           settings.hasCustomAudio = true;

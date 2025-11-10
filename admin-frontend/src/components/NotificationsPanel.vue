@@ -43,6 +43,38 @@
             </select>
           </div>
         </div>
+        <div class="notif-setting-item">
+          <div class="notif-setting-text">
+            <div class="notif-setting-title flex items-center gap-2">
+              <span>{{ t('storageProviderLabel') }}</span>
+              <i
+                v-if="hasTurboOption"
+                class="pi pi-info-circle text-[13px] text-emerald-400 cursor-help"
+                :title="t('storageProviderArweaveTooltip')"
+                :aria-label="t('storageProviderArweaveTooltip')"
+                role="note"
+                tabindex="0"></i>
+            </div>
+            <div class="notif-setting-desc">{{ t('storageProviderDesc') }}</div>
+          </div>
+          <div class="notif-setting-control flex flex-col gap-1">
+            <select
+              class="input select"
+              v-model="selectedStorageProvider"
+              :disabled="storageLoading || !storageOptions.length">
+              <option
+                v-for="opt in storageOptions"
+                :key="opt.id"
+                :value="opt.id"
+                :disabled="!opt.available && opt.id !== selectedStorageProvider">
+                {{ opt.label }}
+              </option>
+            </select>
+            <div v-if="providerStatus && !providerStatus.available" class="small text-amber-500">
+              {{ t('storageProviderUnavailable') }}
+            </div>
+          </div>
+        </div>
         <div class="notif-setting-item is-vertical" aria-label="GIF file controls">
           <input
             ref="gifInput"
@@ -215,13 +247,17 @@
             :audio-file-size="audioState.audioFileSize"
             :audio-library-id="audioState.audioLibraryId"
             :library-enabled="true"
+            :storage-provider="selectedStorageProvider"
+            :storage-providers="storageOptions"
+            :storage-loading="storageLoading"
             force-stack
             compact
             @update:enabled="(v) => (audioCfg.enabled = v)"
             @update:volume="(v) => (audioCfg.volume = v)"
             @update:audio-source="(v) => (audio.audioSource = v)"
             @audio-saved="onAudioSaved"
-            @audio-deleted="onAudioDeleted" />
+            @audio-deleted="onAudioDeleted"
+            @update:storage-provider="(v) => storage.setSelectedProvider(v)" />
           <div class="notif-actions-row mt-3">
             <button
               class="btn-save"
@@ -365,6 +401,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../services/api';
 import { pushToast } from '../services/toast';
+import { confirmDialog } from '../services/confirm';
 import { registerDirty } from '../composables/useDirtyRegistry';
 import { MAX_GIF_SIZE } from '../utils/validation';
 import CopyField from './shared/CopyField.vue';
@@ -375,6 +412,7 @@ import HeaderIcon from './shared/HeaderIcon.vue';
 import ColorInput from './shared/ColorInput.vue';
 import TipWidgetThemePreview from './NotificationsPanel/TipWidgetThemePreview.vue';
 import TipGifLibraryDrawer from './NotificationsPanel/TipGifLibraryDrawer.vue';
+import { useStorageProviders } from '../composables/useStorageProviders';
 
 const { t } = useI18n();
 
@@ -386,6 +424,7 @@ const gif = reactive({
   file: null,
   fileName: '',
   selectedId: '',
+  storageProvider: '',
   original: '',
 });
 
@@ -393,7 +432,7 @@ const gifLibrary = reactive({
   open: false,
   loading: false,
   error: '',
-  /** @type {Array<{id: string, url: string, width?: number, height?: number, size?: number, originalName?: string, uploadedAt?: string}>} */
+  /** @type {Array<{id: string, url: string, width?: number, height?: number, size?: number, originalName?: string, uploadedAt?: string, provider?: string, path?: string, sha256?: string, fingerprint?: string}>} */
   items: [],
 });
 
@@ -451,6 +490,7 @@ const audioState = reactive({
   audioFileName: '',
   audioFileSize: 0,
   audioLibraryId: '',
+  storageProvider: '',
 });
 
 const posPulse = ref(false);
@@ -471,6 +511,27 @@ const previewColors = reactive({
   amount: '#00ff7f',
   from: '#ffffff',
 });
+
+const storage = useStorageProviders();
+const providerStatus = computed(() => {
+  const selected = storage.selectedProvider.value;
+  return storage.providerOptions.value.find((opt) => opt.id === selected) || null;
+});
+const selectedStorageProvider = computed({
+  get: () => storage.selectedProvider.value,
+  set: (val) => storage.setSelectedProvider(val),
+});
+const storageOptions = computed(() => storage.providerOptions.value);
+const hasTurboOption = computed(() => storageOptions.value.some((opt) => opt.id === 'turbo'));
+const storageLoading = computed(() => storage.loading.value);
+
+function resolveStorageSelection(preferred = '') {
+  const candidates = [];
+  if (preferred) candidates.push(preferred);
+  if (gif.storageProvider) candidates.push(gif.storageProvider);
+  if (audioState.storageProvider) candidates.push(audioState.storageProvider);
+  storage.ensureSelection(candidates);
+}
 
 function isDirty() {
   const gifState = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
@@ -512,6 +573,99 @@ async function fetchGifLibrary(force = false) {
   }
 }
 
+async function ensureGifLibraryLoadedIfNeeded() {
+  if (gifLibrary.items.length) return;
+  await fetchGifLibrary(true);
+}
+
+function buildGifFingerprint(file) {
+  const name = (file?.name || '').toLowerCase();
+  const size = Number(file?.size) || 0;
+  return `${name}::${size}`;
+}
+
+async function computeGifHash(file) {
+  try {
+    if (typeof window !== 'undefined' && window.crypto?.subtle) {
+      const buffer = await file.arrayBuffer();
+      const digest = await window.crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(digest));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (hashError) {
+    console.warn('[notif] failed to hash gif file', hashError);
+  }
+  return '';
+}
+
+function matchesGifDuplicateCandidate(item, file, hash, fallbackKey) {
+  if (!item) return false;
+  if (hash && typeof item.sha256 === 'string' && item.sha256 && item.sha256 === hash) {
+    return true;
+  }
+  if (
+    fallbackKey &&
+    typeof item.fingerprint === 'string' &&
+    item.fingerprint &&
+    item.fingerprint === fallbackKey
+  ) {
+    return true;
+  }
+  const itemSize = Number(item.size) || 0;
+  if (itemSize && file.size && itemSize !== file.size) return false;
+  const itemName = (item.originalName || item.id || '').trim().toLowerCase();
+  const fileName = (file.name || '').trim().toLowerCase();
+  if (itemName && fileName && itemName === fileName) {
+    if (!itemSize || !file.size || itemSize === file.size) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function maybeHandleGifDuplicate(file) {
+  try {
+    await ensureGifLibraryLoadedIfNeeded();
+    if (!gifLibrary.items.length) return false;
+    const fallbackKey = buildGifFingerprint(file);
+    const hash = await computeGifHash(file);
+    const duplicate = gifLibrary.items.find((item) =>
+      matchesGifDuplicateCandidate(item, file, hash, fallbackKey)
+    );
+    if (!duplicate) return false;
+
+    const displayName =
+      duplicate.originalName || duplicate.id || file.name || t('duplicateUploadFallbackName');
+    const replace = await confirmDialog({
+      title: t('duplicateUploadTitle'),
+      description: t('duplicateUploadBody', { fileName: displayName }),
+      confirmText: t('duplicateUploadReplace'),
+      cancelText: t('duplicateUploadUseExisting'),
+      danger: true,
+    });
+
+    if (!replace) {
+      gif.file = null;
+      gif.fileName = duplicate.originalName || t('gifLibraryUnknown');
+      gif.selectedId = duplicate.id;
+      gif.gifPath = duplicate.url || gif.gifPath;
+      if (typeof duplicate.provider === 'string' && duplicate.provider) {
+        gif.storageProvider = duplicate.provider;
+        storage.registerProvider(duplicate.provider);
+        resolveStorageSelection(duplicate.provider);
+      }
+      if (gifInput.value) {
+        gifInput.value.value = '';
+      }
+      pushToast({ type: 'info', message: t('toastDuplicateUploadUsingExisting') });
+      return true;
+    }
+  } catch (error) {
+    console.warn('[notif] duplicate detection failed', error);
+  }
+  return false;
+}
+
 /**
  * @param {{ id: string, url: string, originalName?: string }} item
  */
@@ -521,17 +675,32 @@ function onLibrarySelect(item) {
   gif.file = null;
   gif.fileName = item.originalName || t('gifLibraryUnknown');
   gif.selectedId = item.id || '';
+  if (typeof item.provider === 'string' && item.provider) {
+    gif.storageProvider = item.provider;
+    storage.registerProvider(item.provider);
+    resolveStorageSelection(item.provider);
+  }
   gifLibrary.open = false;
 }
 
-function onGifChange(e) {
+async function onGifChange(e) {
   const f = e.target.files[0];
   if (!f) return;
   if (f.size > MAX_GIF_SIZE) {
     errors.gif = t('valMax1MB');
+    if (gifInput.value) {
+      gifInput.value.value = '';
+    }
     return;
   }
   errors.gif = '';
+  gif.file = null;
+  gif.fileName = '';
+  gif.selectedId = '';
+  const usedExisting = await maybeHandleGifDuplicate(f);
+  if (usedExisting) {
+    return;
+  }
   gif.file = f;
   gif.fileName = f.name;
   gif.selectedId = '';
@@ -543,10 +712,15 @@ async function loadGif() {
     gif.position = data.position || 'right';
     gif.gifPath = data.gifPath || '';
     gif.selectedId = data.libraryId || '';
+    gif.storageProvider = typeof data.storageProvider === 'string' ? data.storageProvider : '';
     gif.original = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
     if (gif.selectedId && !gifLibrary.items.length) {
       fetchGifLibrary();
     }
+    if (gif.storageProvider) {
+      storage.registerProvider(gif.storageProvider);
+    }
+    resolveStorageSelection();
   } catch {}
 }
 
@@ -637,6 +811,9 @@ async function saveGif() {
     }
     const fd = new FormData();
     fd.append('position', gif.position);
+    if (storage.selectedProvider.value) {
+      fd.append('storageProvider', storage.selectedProvider.value);
+    }
     if (gif.file) fd.append('gifFile', gif.file);
     if (gif.selectedId && !gif.file) {
       fd.append('selectedGifId', gif.selectedId);
@@ -648,6 +825,8 @@ async function saveGif() {
     gif.gifPath = data.gifPath || '';
     gif.file = null;
     gif.selectedId = data.libraryId || '';
+    gif.storageProvider =
+      typeof data.storageProvider === 'string' ? data.storageProvider : gif.storageProvider;
     gif.fileName = libraryItem?.originalName || (gif.selectedId ? gif.fileName : '');
     if (!gif.selectedId) {
       gif.fileName = '';
@@ -660,6 +839,9 @@ async function saveGif() {
       gifLibrary.items.unshift(libraryItem);
     }
     gif.original = JSON.stringify({ p: gif.position, path: gif.gifPath, sid: gif.selectedId });
+    if (gif.storageProvider) {
+      storage.registerProvider(gif.storageProvider);
+    }
     pushToast({ type: 'success', message: t('savedNotifications') });
   } catch {
     pushToast({ type: 'error', message: t('saveFailedNotifications') });
@@ -725,6 +907,8 @@ async function loadAudio() {
     audioState.audioFileName = data.audioFileName || '';
     audioState.audioFileSize = data.audioFileSize || 0;
     audioState.audioLibraryId = data.audioLibraryId || '';
+    audioState.storageProvider =
+      typeof data.storageProvider === 'string' ? data.storageProvider : '';
     if (typeof data.enabled === 'boolean') audioCfg.enabled = data.enabled;
     if (typeof data.volume === 'number') audioCfg.volume = Math.max(0, Math.min(1, data.volume));
     lastSavedAudio = {
@@ -732,6 +916,10 @@ async function loadAudio() {
       volume: audioCfg.volume,
       audioSource: audio.audioSource,
     };
+    if (audioState.storageProvider) {
+      storage.registerProvider(audioState.storageProvider);
+    }
+    resolveStorageSelection();
   } catch {}
 }
 
@@ -755,6 +943,9 @@ async function persistAudioCfg(silent = false) {
     fd.append('audioSource', audio.audioSource);
     fd.append('enabled', String(audioCfg.enabled));
     fd.append('volume', String(audioCfg.volume));
+    if (storage.selectedProvider.value) {
+      fd.append('storageProvider', storage.selectedProvider.value);
+    }
     await api.post('/api/audio-settings', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -794,12 +985,15 @@ onMounted(async () => {
     await refresh();
   } catch {}
 
+  await storage.fetchProviders();
+
   hostedSupported.value = true;
   sessionActive.value = true;
   loadGif();
   loadTts();
   loadAudio();
   loadColors();
+  resolveStorageSelection();
 });
 
 watch(
@@ -821,6 +1015,10 @@ watch(
     previewColors.from = colors.from;
   }
 );
+
+watch(storageOptions, () => {
+  resolveStorageSelection();
+});
 </script>
 
 <style scoped src="./NotificationsPanel/NotificationsPanel.css"></style>

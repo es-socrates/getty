@@ -176,10 +176,7 @@ function buildLayout() {
         <span class="status-dot disconnected"></span>
       </div>
       <button id="public-wallet-login" class="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm hover:bg-card transition-colors" data-state="logged-out">
-        <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-          <path d="M16 12h.01"></path>
-        </svg>
+        <i class="pi pi-wallet text-[16px] leading-none" aria-hidden="true"></i>
         <span class="btn-label" data-i18n="walletLogin" data-default-label="Login"></span>
         <span class="balance-label hidden text-xs font-mono" id="login-balance"></span>
       </button>

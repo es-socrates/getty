@@ -9,12 +9,58 @@ const CONFIG_FILE = (process.env.NODE_ENV === 'test')
 const { saveTenantConfig, loadTenantConfig } = require('../lib/tenant-config');
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'announcement');
 
+function normalizeMessageEntry(raw = {}) {
+  return {
+    id: raw.id,
+    text: typeof raw.text === 'string' ? raw.text : '',
+    imageUrl: typeof raw.imageUrl === 'string' && raw.imageUrl ? raw.imageUrl : null,
+    linkUrl: typeof raw.linkUrl === 'string' && raw.linkUrl ? raw.linkUrl : null,
+    createdAt: raw.createdAt || new Date().toISOString(),
+    enabled: raw.enabled !== false,
+    durationSeconds: Number.isFinite(raw.durationSeconds) ? raw.durationSeconds : raw.durationSeconds,
+    title: typeof raw.title === 'string' ? raw.title : null,
+    subtitle1: typeof raw.subtitle1 === 'string' ? raw.subtitle1 : null,
+    subtitle2: typeof raw.subtitle2 === 'string' ? raw.subtitle2 : null,
+    subtitle3: typeof raw.subtitle3 === 'string' ? raw.subtitle3 : null,
+    titleColor: typeof raw.titleColor === 'string' ? raw.titleColor : null,
+    subtitle1Color: typeof raw.subtitle1Color === 'string' ? raw.subtitle1Color : null,
+    subtitle2Color: typeof raw.subtitle2Color === 'string' ? raw.subtitle2Color : null,
+    subtitle3Color: typeof raw.subtitle3Color === 'string' ? raw.subtitle3Color : null,
+    titleSize: raw.titleSize,
+    subtitle1Size: raw.subtitle1Size,
+    subtitle2Size: raw.subtitle2Size,
+    subtitle3Size: raw.subtitle3Size,
+    ctaText: typeof raw.ctaText === 'string' ? raw.ctaText : null,
+    ctaIcon: typeof raw.ctaIcon === 'string' ? raw.ctaIcon : null,
+    ctaBgColor: typeof raw.ctaBgColor === 'string' ? raw.ctaBgColor : null,
+    ctaTextSize: raw.ctaTextSize,
+    textColorOverride: typeof raw.textColorOverride === 'string' ? raw.textColorOverride : null,
+    textSize: raw.textSize,
+    imageLibraryId: typeof raw.imageLibraryId === 'string' ? raw.imageLibraryId : '',
+    imageStorageProvider: typeof raw.imageStorageProvider === 'string' ? raw.imageStorageProvider : '',
+    imageStoragePath: typeof raw.imageStoragePath === 'string' ? raw.imageStoragePath : '',
+    imageSha256: typeof raw.imageSha256 === 'string' ? raw.imageSha256 : '',
+    imageFingerprint: typeof raw.imageFingerprint === 'string' ? raw.imageFingerprint : '',
+    imageOriginalName: typeof raw.imageOriginalName === 'string' ? raw.imageOriginalName : '',
+  };
+}
+
 function loadConfig() {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const raw = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
       return {
-        messages: Array.isArray(raw.messages) ? raw.messages : [],
+        messages: Array.isArray(raw.messages)
+          ? raw.messages.map((msg) => ({
+              ...msg,
+              imageLibraryId: typeof msg?.imageLibraryId === 'string' ? msg.imageLibraryId : '',
+              imageStorageProvider: typeof msg?.imageStorageProvider === 'string' ? msg.imageStorageProvider : '',
+              imageStoragePath: typeof msg?.imageStoragePath === 'string' ? msg.imageStoragePath : '',
+              imageSha256: typeof msg?.imageSha256 === 'string' ? msg.imageSha256 : '',
+              imageFingerprint: typeof msg?.imageFingerprint === 'string' ? msg.imageFingerprint : '',
+              imageOriginalName: typeof msg?.imageOriginalName === 'string' ? msg.imageOriginalName : '',
+            }))
+          : [],
         cooldownSeconds: Number(raw.cooldownSeconds) > 0 ? Number(raw.cooldownSeconds) : 300,
         theme: 'horizontal',
         bgColor: typeof raw.bgColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw.bgColor) ? raw.bgColor : '#0e1014',
@@ -87,7 +133,7 @@ class AnnouncementModule {
   _normalizeState(raw) {
     try {
       return {
-        messages: Array.isArray(raw.messages) ? raw.messages : [],
+        messages: Array.isArray(raw.messages) ? raw.messages.map(normalizeMessageEntry) : [],
         cooldownSeconds: Number(raw.cooldownSeconds) > 0 ? Number(raw.cooldownSeconds) : 300,
         theme: 'horizontal',
         bgColor: typeof raw.bgColor === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(raw.bgColor) ? raw.bgColor : '#0e1014',
@@ -141,7 +187,6 @@ class AnnouncementModule {
   dispose() {
     this.stop();
   }
-
   async scheduleNext(ns = null) {
     const st = await this._getState(ns);
     if (!st.messages.length) return;
@@ -234,6 +279,12 @@ class AnnouncementModule {
         id: m.id,
         text: m.text,
         imageUrl: m.imageUrl || null,
+        imageLibraryId: typeof m.imageLibraryId === 'string' ? m.imageLibraryId : '',
+        imageStorageProvider: typeof m.imageStorageProvider === 'string' ? m.imageStorageProvider : '',
+        imageStoragePath: typeof m.imageStoragePath === 'string' ? m.imageStoragePath : '',
+        imageSha256: typeof m.imageSha256 === 'string' ? m.imageSha256 : '',
+        imageFingerprint: typeof m.imageFingerprint === 'string' ? m.imageFingerprint : '',
+        imageOriginalName: typeof m.imageOriginalName === 'string' ? m.imageOriginalName : '',
         linkUrl: m.linkUrl || null,
         enabled: m.enabled !== false,
         durationSeconds: Number(m.durationSeconds) > 0 ? Number(m.durationSeconds) : st.defaultDurationSeconds || 10,
@@ -323,7 +374,36 @@ class AnnouncementModule {
     return this.getPublicConfig(ns);
   }
 
-  async addMessage({ text, imageUrl, linkUrl, durationSeconds, title, subtitle1, subtitle2, subtitle3, titleColor, subtitle1Color, subtitle2Color, subtitle3Color, titleSize, subtitle1Size, subtitle2Size, subtitle3Size, ctaText, ctaTextSize, ctaIcon, ctaBgColor, textColorOverride, textSize }, ns = null) {
+  async addMessage({
+    text,
+    imageUrl,
+    linkUrl,
+    durationSeconds,
+    title,
+    subtitle1,
+    subtitle2,
+    subtitle3,
+    titleColor,
+    subtitle1Color,
+    subtitle2Color,
+    subtitle3Color,
+    titleSize,
+    subtitle1Size,
+    subtitle2Size,
+    subtitle3Size,
+    ctaText,
+    ctaTextSize,
+    ctaIcon,
+    ctaBgColor,
+    textColorOverride,
+    textSize,
+    imageLibraryId,
+    imageStorageProvider,
+    imageStoragePath,
+    imageSha256,
+    imageFingerprint,
+    imageOriginalName,
+  }, ns = null) {
     const st = await this._getState(ns);
     const dur = Number(durationSeconds);
     const fallback = st.defaultDurationSeconds || 10;
@@ -333,14 +413,14 @@ class AnnouncementModule {
       if (!Number.isFinite(x)) return undefined;
       return Math.min(Math.max(x, lo), hi);
     };
-    const message = {
+    const message = normalizeMessageEntry({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       text: typeof text === 'string' ? text : '',
       imageUrl: imageUrl || null,
       linkUrl: linkUrl || null,
       createdAt: new Date().toISOString(),
       enabled: true,
-      durationSeconds: (dur >=1 && dur <= 60) ? dur : fallback,
+      durationSeconds: (dur >= 1 && dur <= 60) ? dur : fallback,
       title: title || null,
       subtitle1: subtitle1 || null,
       subtitle2: subtitle2 || null,
@@ -358,8 +438,14 @@ class AnnouncementModule {
       ctaIcon: ctaIcon || null,
       ctaBgColor: ctaBgColor || null,
       textColorOverride: textColorOverride || null,
-      textSize: clamp(textSize, 8, 64)
-    };
+      textSize: clamp(textSize, 8, 64),
+      imageLibraryId: typeof imageLibraryId === 'string' ? imageLibraryId : '',
+      imageStorageProvider: typeof imageStorageProvider === 'string' ? imageStorageProvider : '',
+      imageStoragePath: typeof imageStoragePath === 'string' ? imageStoragePath : '',
+      imageSha256: typeof imageSha256 === 'string' ? imageSha256 : '',
+      imageFingerprint: typeof imageFingerprint === 'string' ? imageFingerprint : '',
+      imageOriginalName: typeof imageOriginalName === 'string' ? imageOriginalName : '',
+    });
     st.messages.push(message);
     await this._saveState(ns, st);
     await this.broadcastConfig(ns);
@@ -394,6 +480,20 @@ class AnnouncementModule {
     if (Object.prototype.hasOwnProperty.call(patch, 'subtitle3Size')) next.subtitle3Size = clamp(patch.subtitle3Size, 8, 64);
     if (Object.prototype.hasOwnProperty.call(patch, 'textSize')) next.textSize = clamp(patch.textSize, 8, 64);
     if (Object.prototype.hasOwnProperty.call(patch, 'ctaTextSize')) next.ctaTextSize = clamp(patch.ctaTextSize, 8, 64);
+    if (Object.prototype.hasOwnProperty.call(patch, 'imageLibraryId')) next.imageLibraryId = typeof patch.imageLibraryId === 'string' ? patch.imageLibraryId : '';
+    if (Object.prototype.hasOwnProperty.call(patch, 'imageStorageProvider')) next.imageStorageProvider = typeof patch.imageStorageProvider === 'string' ? patch.imageStorageProvider : '';
+    if (Object.prototype.hasOwnProperty.call(patch, 'imageStoragePath')) next.imageStoragePath = typeof patch.imageStoragePath === 'string' ? patch.imageStoragePath : '';
+    if (Object.prototype.hasOwnProperty.call(patch, 'imageSha256')) next.imageSha256 = typeof patch.imageSha256 === 'string' ? patch.imageSha256 : '';
+    if (Object.prototype.hasOwnProperty.call(patch, 'imageFingerprint')) next.imageFingerprint = typeof patch.imageFingerprint === 'string' ? patch.imageFingerprint : '';
+    if (Object.prototype.hasOwnProperty.call(patch, 'imageOriginalName')) next.imageOriginalName = typeof patch.imageOriginalName === 'string' ? patch.imageOriginalName : '';
+    if (!next.imageUrl) {
+      next.imageLibraryId = '';
+      next.imageStorageProvider = '';
+      next.imageStoragePath = '';
+      next.imageSha256 = '';
+      next.imageFingerprint = '';
+      next.imageOriginalName = '';
+    }
     st.messages[idx] = next;
     await this._saveState(ns, st);
     await this.broadcastConfig(ns);

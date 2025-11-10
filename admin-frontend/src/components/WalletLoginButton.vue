@@ -20,7 +20,7 @@
         :connected="walletConnected"
         size="sm"
         sr-label="Estado de la sesión de wallet" />
-      <WalletIcon class="w-4 h-4 opacity-80" />
+      <i class="pi pi-wallet text-[16px] leading-none opacity-80" aria-hidden="true"></i>
       <span class="font-mono truncate max-w-[110px]" aria-label="Dirección wallet">{{
         shortAddr
       }}</span>

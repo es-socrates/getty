@@ -77,6 +77,36 @@
 
         <div v-if="audioSource === 'custom' && forceStack" class="custom-stack-wrapper">
           <div class="custom-audio-box">
+            <div v-if="storageProviderOptions.length" class="storage-provider-field mb-3">
+              <label class="label mb-1 flex items-center gap-2" for="legacy-audio-storage-provider">
+                <span>{{ t('storageProviderLabel') }}</span>
+                <i
+                  v-if="hasTurboOption"
+                  class="pi pi-info-circle text-[13px] text-emerald-400 cursor-help"
+                  :title="t('storageProviderArweaveTooltip')"
+                  :aria-label="t('storageProviderArweaveTooltip')"
+                  role="note"
+                  tabindex="0"></i>
+              </label>
+              <select
+                id="legacy-audio-storage-provider"
+                class="input select w-full"
+                v-model="providerSelection"
+                :disabled="storageLoading">
+                <option
+                  v-for="opt in storageProviderOptions"
+                  :key="opt.id"
+                  :value="opt.id"
+                  :disabled="!opt.available && opt.id !== providerSelection">
+                  {{ opt.label }}
+                </option>
+              </select>
+              <div
+                v-if="providerStatus && !providerStatus.available"
+                class="small text-amber-500 mt-1">
+                {{ t('storageProviderUnavailable') }}
+              </div>
+            </div>
             <input
               ref="audioInput"
               type="file"
@@ -179,6 +209,7 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';
+import { confirmDialog } from '../../services/confirm';
 import AudioLibraryDrawer from './AudioLibraryDrawer.vue';
 
 const props = defineProps({
@@ -197,6 +228,9 @@ const props = defineProps({
   customAudioEndpoint: { type: String, default: '/api/custom-audio' },
   audioLibraryId: { type: String, default: '' },
   libraryEnabled: { type: Boolean, default: false },
+  storageProvider: { type: String, default: '' },
+  storageProviders: { type: Array, default: () => [] },
+  storageLoading: { type: Boolean, default: false },
 });
 const emit = defineEmits([
   'update:enabled',
@@ -205,6 +239,7 @@ const emit = defineEmits([
   'audio-saved',
   'audio-deleted',
   'toast',
+  'update:storageProvider',
 ]);
 
 const { t } = useI18n();
@@ -223,6 +258,20 @@ let deleteTimer = null;
 
 const volPercent = computed(() =>
   Math.round(Math.max(0, Math.min(1, Number(props.volume) || 0)) * 100)
+);
+
+const storageProviderOptions = computed(() =>
+  Array.isArray(props.storageProviders) ? props.storageProviders : []
+);
+const providerSelection = computed({
+  get: () => props.storageProvider || '',
+  set: (val) => emit('update:storageProvider', val),
+});
+const providerStatus = computed(
+  () => storageProviderOptions.value.find((entry) => entry.id === providerSelection.value) || null
+);
+const hasTurboOption = computed(() =>
+  storageProviderOptions.value.some((opt) => opt.id === 'turbo')
 );
 
 function perceptual(vol) {
@@ -270,7 +319,7 @@ function onChangeSource(val) {
 function triggerAudio() {
   audioInput.value?.click();
 }
-function onAudioChange(e) {
+async function onAudioChange(e) {
   const f = e.target.files?.[0];
   if (!f) return;
   if (f.size > 1024 * 1024) {
@@ -281,6 +330,9 @@ function onAudioChange(e) {
   fileRef.value = f;
   pendingLibraryItem.value = null;
   selectedLibraryId.value = '';
+  if (props.libraryEnabled) {
+    await maybeHandleDuplicate(f);
+  }
 }
 function formatSize(bytes) {
   if (!bytes) return '0 B';
@@ -295,6 +347,10 @@ async function saveAudio() {
     fd.append('audioSource', props.audioSource);
     fd.append('enabled', String(props.enabled));
     fd.append('volume', String(props.volume));
+    const selectedProvider = providerSelection.value;
+    if (selectedProvider) {
+      fd.append('storageProvider', selectedProvider);
+    }
     if (props.audioSource === 'custom' && fileRef.value) {
       fd.append('audioFile', fileRef.value);
     } else if (
@@ -326,6 +382,92 @@ async function saveAudio() {
   } catch {
   } finally {
     savingAudio.value = false;
+  }
+}
+
+async function ensureLibraryLoadedIfNeeded() {
+  if (!props.libraryEnabled) return;
+  if (libraryItems.value.length) return;
+  await fetchLibrary(true);
+}
+
+function buildFingerprintForFile(file) {
+  const name = (file?.name || '').toLowerCase();
+  const size = Number(file?.size) || 0;
+  return `${name}::${size}`;
+}
+
+async function computeFileHash(file) {
+  try {
+    if (typeof window !== 'undefined' && window.crypto?.subtle) {
+      const buffer = await file.arrayBuffer();
+      const digest = await window.crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(digest));
+      return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (error) {
+    console.warn('[audio] failed to hash file', error);
+  }
+  return '';
+}
+
+function matchesDuplicateCandidate(item, file, hash, fallbackKey) {
+  if (!item) return false;
+  if (hash && typeof item.sha256 === 'string' && item.sha256 === hash) {
+    return true;
+  }
+  if (
+    fallbackKey &&
+    typeof item.fingerprint === 'string' &&
+    item.fingerprint &&
+    item.fingerprint === fallbackKey
+  ) {
+    return true;
+  }
+  const itemSize = Number(item.size) || 0;
+  if (itemSize && file.size && itemSize !== file.size) return false;
+  const itemName = (item.originalName || item.id || '').trim().toLowerCase();
+  const fileName = (file.name || '').trim().toLowerCase();
+  if (itemName && fileName && itemName === fileName) {
+    if (!itemSize || !file.size || itemSize === file.size) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function maybeHandleDuplicate(file) {
+  try {
+    await ensureLibraryLoadedIfNeeded();
+    if (!libraryItems.value.length) return;
+    const fallbackKey = buildFingerprintForFile(file);
+    const hash = await computeFileHash(file);
+    const duplicate = libraryItems.value.find((item) =>
+      matchesDuplicateCandidate(item, file, hash, fallbackKey)
+    );
+    if (!duplicate) return;
+
+    const displayName =
+      duplicate.originalName || duplicate.id || file.name || t('duplicateUploadFallbackName');
+    const proceed = await confirmDialog({
+      title: t('duplicateUploadTitle'),
+      description: t('duplicateUploadBody', { fileName: displayName }),
+      confirmText: t('duplicateUploadReplace'),
+      cancelText: t('duplicateUploadUseExisting'),
+      danger: true,
+    });
+
+    if (!proceed) {
+      pendingLibraryItem.value = duplicate;
+      selectedLibraryId.value = duplicate.id;
+      fileRef.value = null;
+      if (audioInput.value) {
+        audioInput.value.value = '';
+      }
+      emit('toast', { type: 'info', messageKey: 'toastDuplicateUploadUsingExisting' });
+    }
+  } catch (error) {
+    console.warn('[audio] duplicate detection failed', error);
   }
 }
 async function deleteCustomAudio() {

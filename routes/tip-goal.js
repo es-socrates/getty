@@ -5,7 +5,7 @@ const { z } = require('zod');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 const { isOpenTestMode } = require('../lib/test-open-mode');
-const { getStorage } = require('../lib/supabase-storage');
+const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
 const ARWEAVE_RX = /^[A-Za-z0-9_-]{43}$/;
 function isValidArweaveAddress(addr) {
@@ -169,6 +169,8 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
       const data = parsed.data;
+      const requestedStorageProvider =
+        typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
       const ns = req?.ns?.admin || req?.ns?.pub || null;
 
       let prevCfg = null;
@@ -245,16 +247,21 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       let hasCustomAudio = prevCfg.hasCustomAudio || false;
       let audioFileName = prevCfg.audioFileName || null;
       let audioFileSize = prevCfg.audioFileSize || 0;
+      let storageProvider = typeof prevCfg.storageProvider === 'string' ? prevCfg.storageProvider : '';
 
       if (audioSource === 'custom' && req.file) {
         try {
-          if (prevCfg.customAudioUrl && typeof prevCfg.customAudioUrl === 'string' && prevCfg.customAudioUrl.includes('supabase')) {
+          if (
+            prevCfg.customAudioUrl &&
+            typeof prevCfg.customAudioUrl === 'string' &&
+            storageProvider === STORAGE_PROVIDERS.SUPABASE
+          ) {
             try {
               const urlParts = prevCfg.customAudioUrl.split('/');
               const fileName = urlParts[urlParts.length - 1];
               if (fileName) {
-                const storage = getStorage();
-                if (storage) {
+                const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+                if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
                   await storage.deleteFile('tip-goal-audio', fileName);
                 }
               }
@@ -263,23 +270,25 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
             }
           }
 
-          const storage = getStorage();
+          const storage = getStorage(requestedStorageProvider || undefined);
           if (!storage) {
-            throw new Error('Supabase storage not configured');
+            throw new Error('Storage service not configured');
           }
           const uploadResult = await storage.uploadFile('tip-goal-audio', req.file.originalname, req.file.buffer, { contentType: req.file.mimetype });
           audioFile = uploadResult.publicUrl;
           hasCustomAudio = true;
           audioFileName = req.file.originalname;
           audioFileSize = req.file.size;
+          storageProvider = uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE;
         } catch (uploadError) {
-          console.error('Failed to upload tip goal audio to Supabase:', uploadError.message);
+          console.error('Failed to upload tip goal audio to storage:', uploadError.message);
           return res.status(500).json({ error: 'Failed to upload audio file' });
         }
       } else if (audioSource === 'remote') {
         hasCustomAudio = false;
         audioFileName = null;
         audioFileSize = 0;
+        storageProvider = '';
       }
 
       const config = {
@@ -295,6 +304,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         hasCustomAudio,
         audioFileName,
         audioFileSize,
+        storageProvider,
         ...(widgetTitle ? { title: widgetTitle } : (prevCfg.title ? { title: prevCfg.title } : {})),
         ...(audioFile ? { customAudioUrl: audioFile } : (prevCfg.customAudioUrl ? { customAudioUrl: prevCfg.customAudioUrl } : {}))
       };
@@ -409,6 +419,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           hasCustomAudio,
           audioFileName,
           audioFileSize,
+          storageProvider,
           ...(audioFile ? { customAudioUrl: audioFile } : {})
         };
         if (tenant && tenant.tenantEnabled(req)) {

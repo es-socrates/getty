@@ -1,5 +1,5 @@
 const path = require('path');
-const { SupabaseStorage } = require('../lib/supabase-storage');
+const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
 function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DIR) {
   const multer = require('multer');
@@ -46,6 +46,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       const SETTINGS_FILENAME = 'goal-audio-settings.json';
       const GLOBAL_SETTINGS_PATH = path.join(process.cwd(), 'config', SETTINGS_FILENAME);
       let customAudioUrl = null;
+      let storageProvider = '';
 
       try {
         const loaded = loadConfigWithFallback(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
@@ -53,12 +54,15 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         if (settings && settings.audioFileUrl) {
           customAudioUrl = settings.audioFileUrl;
         }
+        if (settings && typeof settings.storageProvider === 'string') {
+          storageProvider = settings.storageProvider;
+        }
       } catch (e) {
         console.warn('Error loading goal audio settings for URL:', e.message);
       }
 
       if (customAudioUrl && typeof customAudioUrl === 'string') {
-        return res.json({ url: customAudioUrl });
+        return res.json({ url: customAudioUrl, storageProvider });
       } else {
         return res.json({ url: 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60' });
       }
@@ -80,6 +84,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       audioFileSize: base.audioFileSize || 0,
       audioFileUrl: base.audioFileUrl || null,
       audioFilePath: base.audioFilePath || null,
+      storageProvider: typeof base.storageProvider === 'string' ? base.storageProvider : '',
     };
   }
 
@@ -139,6 +144,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       }
 
       const { audioSource } = req.body;
+      const requestedStorageProvider =
+        typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
       if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
         return res.status(400).json({ error: 'Invalid audio source' });
       }
@@ -148,30 +155,39 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           const current = loadConfigWithFallback(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
           const currentData = normalizeSettings(current.data || {});
 
-          const settings = { audioSource };
+          const settings = { audioSource, storageProvider: currentData.storageProvider || '' };
 
           if (audioSource === 'custom' && req.file) {
             const ns = req?.ns?.admin || req?.ns?.pub || null;
             const fileName = `goal-audio-${ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global'}-${Date.now()}.mp3`;
 
             try {
-              const supabaseStorage = new SupabaseStorage();
-              const uploadResult = await supabaseStorage.uploadFile('tip-goal-audio', fileName, req.file.buffer, { contentType: 'audio/mpeg' });
+              const storage = getStorage(requestedStorageProvider || undefined);
+              if (!storage) {
+                throw new Error('Storage service not configured');
+              }
+              const uploadResult = await storage.uploadFile('tip-goal-audio', fileName, req.file.buffer, { contentType: req.file.mimetype || 'audio/mpeg' });
 
               settings.hasCustomAudio = true;
               settings.audioFileName = req.file.originalname;
               settings.audioFileSize = req.file.size;
               settings.audioFileUrl = uploadResult.publicUrl;
-              settings.audioFilePath = uploadResult.path;
+              settings.audioFilePath = uploadResult.path || null;
+              settings.storageProvider = uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE;
             } catch (uploadError) {
-              console.error('Error uploading goal audio to Supabase:', uploadError);
+              console.error('Error uploading goal audio to storage:', uploadError);
               return res.status(500).json({ error: 'Error uploading audio file' });
             }
           } else if (audioSource === 'remote') {
-            if (currentData.audioFilePath) {
+            if (
+              currentData.audioFilePath &&
+              currentData.storageProvider === STORAGE_PROVIDERS.SUPABASE
+            ) {
               try {
-                const supabaseStorage = new SupabaseStorage();
-                await supabaseStorage.deleteFile('tip-goal-audio', currentData.audioFilePath);
+                const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+                if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+                  await storage.deleteFile('tip-goal-audio', currentData.audioFilePath);
+                }
               } catch (deleteError) {
                 console.warn('Error deleting old goal audio file from Supabase:', deleteError);
               }
@@ -181,6 +197,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             settings.audioFileSize = 0;
             settings.audioFileUrl = null;
             settings.audioFilePath = null;
+            settings.storageProvider = '';
           }
 
           const next = { ...currentData, ...settings };
@@ -232,11 +249,18 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       try {
         const loaded = loadConfigWithFallback(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
         const data = loaded.data;
-        if (data && data.audioFilePath && typeof data.audioFilePath === 'string') {
-          const supabaseStorage = new SupabaseStorage();
-          supabaseStorage.deleteFile('tip-goal-audio', data.audioFilePath).catch(deleteError => {
-            console.warn('Failed to delete goal audio from Supabase:', deleteError.message);
-          });
+        if (
+          data &&
+          data.audioFilePath &&
+          typeof data.audioFilePath === 'string' &&
+          data.storageProvider === STORAGE_PROVIDERS.SUPABASE
+        ) {
+          const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+          if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+            storage.deleteFile('tip-goal-audio', data.audioFilePath).catch(deleteError => {
+              console.warn('Failed to delete goal audio from Supabase:', deleteError.message);
+            });
+          }
         }
       } catch (configError) {
         console.warn('Error loading config for audio deletion:', configError.message);
@@ -248,7 +272,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             audioSource: 'remote',
             hasCustomAudio: false,
             audioFileName: null,
-            audioFileSize: 0
+            audioFileSize: 0,
+            storageProvider: '',
           };
           const saveRes = await saveTenantAwareConfig(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME, () => next);
 
@@ -288,14 +313,18 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       }
 
       let customAudioUrl = null;
+      let storageProvider = '';
       const loaded = loadConfigWithFallback(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
       const data = loaded.data;
       if (data && data.audioFileUrl) {
         customAudioUrl = data.audioFileUrl;
       }
+      if (data && typeof data.storageProvider === 'string') {
+        storageProvider = data.storageProvider;
+      }
 
-      if (customAudioUrl && typeof customAudioUrl === 'string' && customAudioUrl.includes('supabase')) {
-        return res.json({ url: customAudioUrl });
+      if (customAudioUrl && typeof customAudioUrl === 'string') {
+        return res.json({ url: customAudioUrl, storageProvider });
       } else {
         return res.status(404).json({ error: 'Custom goal audio not found' });
       }
