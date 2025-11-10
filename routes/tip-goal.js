@@ -36,6 +36,93 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
   function __shouldRequireAdminWrites() { return (__requireAdminWriteFlag() || __hasRedisUrl()) && !isOpenTestMode(); }
   function __shouldEnforceTrustedWrite() { return __hosted() && !isOpenTestMode(); }
 
+  function normalizeProviderValue(provider) {
+    if (!provider || typeof provider !== 'string') return '';
+    const lower = provider.trim().toLowerCase();
+    if (lower === STORAGE_PROVIDERS.TURBO || lower === 'arweave') return STORAGE_PROVIDERS.TURBO;
+    if (lower === STORAGE_PROVIDERS.SUPABASE) return STORAGE_PROVIDERS.SUPABASE;
+    return lower;
+  }
+
+  function normalizeGoalAudioSettings(raw) {
+    const base = raw && typeof raw === 'object' ? raw : {};
+    const size = Number.isFinite(base.audioFileSize)
+      ? base.audioFileSize
+      : Number(base.audioFileSize) || 0;
+    return {
+      audioSource: base.audioSource === 'custom' ? 'custom' : 'remote',
+      hasCustomAudio: !!base.hasCustomAudio,
+      audioFileName:
+        typeof base.audioFileName === 'string' && base.audioFileName ? base.audioFileName : null,
+      audioFileSize: size >= 0 ? size : 0,
+      audioFileUrl:
+        typeof base.audioFileUrl === 'string' && base.audioFileUrl
+          ? base.audioFileUrl
+          : typeof base.customAudioUrl === 'string'
+          ? base.customAudioUrl
+          : null,
+      audioFilePath:
+        typeof base.audioFilePath === 'string' && base.audioFilePath ? base.audioFilePath : null,
+      audioLibraryId: typeof base.audioLibraryId === 'string' ? base.audioLibraryId : '',
+      storageProvider: normalizeProviderValue(base.storageProvider),
+    };
+  }
+
+  async function loadGoalAudioSnapshot(req) {
+    try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const storeInst = (req.app && typeof req.app.get === 'function') ? req.app.get('store') || store : store;
+
+      if (tenant && tenant.tenantEnabled(req)) {
+        try {
+          const loaded = await loadTenantConfig(req, storeInst, GOAL_AUDIO_CONFIG_FILE, 'goal-audio-settings.json');
+          const data = loaded.data?.data ? loaded.data.data : loaded.data;
+          if (data && typeof data === 'object') {
+            return normalizeGoalAudioSettings(data);
+          }
+        } catch (error) {
+          if (process.env.GETTY_TENANT_DEBUG === '1') {
+            console.warn('[tip-goal][audio][tenant_load_error]', error.message);
+          }
+        }
+      } else if (store && ns) {
+        try {
+          let wrapped = null;
+          if (typeof store.getConfig === 'function') {
+            try { wrapped = await store.getConfig(ns, 'goal-audio-settings.json', null); } catch {}
+          }
+          if (!wrapped) {
+            try { wrapped = await store.get(ns, 'goal-audio-settings', null); } catch {}
+          }
+          const data = wrapped?.data ? wrapped.data : wrapped;
+          if (data && typeof data === 'object') {
+            return normalizeGoalAudioSettings(data);
+          }
+        } catch (error) {
+          console.warn('[tip-goal][audio][store_load_error]', error.message);
+        }
+      } else {
+        try {
+          const hybrid = readHybridConfig(GOAL_AUDIO_CONFIG_FILE);
+          if (hybrid && hybrid.data) {
+            return normalizeGoalAudioSettings(hybrid.data);
+          }
+        } catch {}
+        try {
+          if (fs.existsSync(GOAL_AUDIO_CONFIG_FILE)) {
+            const raw = JSON.parse(fs.readFileSync(GOAL_AUDIO_CONFIG_FILE, 'utf8'));
+            return normalizeGoalAudioSettings(raw);
+          }
+        } catch (error) {
+          console.warn('[tip-goal][audio][fs_load_error]', error.message);
+        }
+      }
+    } catch (error) {
+      console.warn('[tip-goal][audio][load_fallback_error]', error.message);
+    }
+    return normalizeGoalAudioSettings(null);
+  }
+
   function readConfigRaw() {
     try {
       if (fs.existsSync(TIP_GOAL_CONFIG_FILE)) {
@@ -169,8 +256,9 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
       const data = parsed.data;
-      const requestedStorageProvider =
+      const requestedStorageProviderRaw =
         typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
+      const requestedStorageProvider = normalizeProviderValue(requestedStorageProviderRaw);
       const ns = req?.ns?.admin || req?.ns?.pub || null;
 
       let prevCfg = null;
@@ -197,12 +285,14 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       }
       prevCfg = (prevCfg && typeof prevCfg === 'object') ? prevCfg : {};
 
+      const prevAudioCfg = await loadGoalAudioSnapshot(req);
+
       const walletProvided = Object.prototype.hasOwnProperty.call(req.body, 'walletAddress') && typeof data.walletAddress === 'string';
       let walletAddress = (prevCfg && typeof prevCfg.walletAddress === 'string') ? prevCfg.walletAddress : '';
       if (walletProvided) {
         walletAddress = (data.walletAddress || '').trim();
 
-      if (walletAddress && !isValidArweaveAddress(walletAddress)) {
+        if (walletAddress && !isValidArweaveAddress(walletAddress)) {
           return res.status(400).json({ error: 'invalid_wallet_address' });
         }
       }
@@ -243,51 +333,74 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         try { if (tipGoal) tipGoal.theme = theme; } catch {}
       }
 
-      let audioFile = null;
-      let hasCustomAudio = prevCfg.hasCustomAudio || false;
-      let audioFileName = prevCfg.audioFileName || null;
-      let audioFileSize = prevCfg.audioFileSize || 0;
-      let storageProvider = typeof prevCfg.storageProvider === 'string' ? prevCfg.storageProvider : '';
+      let hasCustomAudio = prevAudioCfg.hasCustomAudio ?? prevCfg.hasCustomAudio ?? false;
+      let audioFileName = prevAudioCfg.audioFileName ?? prevCfg.audioFileName ?? null;
+      let audioFileSize = prevAudioCfg.audioFileSize ?? prevCfg.audioFileSize ?? 0;
+      let audioFileUrl =
+        prevAudioCfg.audioFileUrl ?? prevCfg.customAudioUrl ?? prevCfg.audioFileUrl ?? null;
+      let audioFilePath = prevAudioCfg.audioFilePath ?? prevCfg.audioFilePath ?? null;
+      let audioLibraryId = prevAudioCfg.audioLibraryId || prevCfg.audioLibraryId || '';
+      let storageProvider =
+        prevAudioCfg.storageProvider || normalizeProviderValue(prevCfg.storageProvider || '');
 
       if (audioSource === 'custom' && req.file) {
         try {
-          if (
-            prevCfg.customAudioUrl &&
-            typeof prevCfg.customAudioUrl === 'string' &&
-            storageProvider === STORAGE_PROVIDERS.SUPABASE
-          ) {
+          const shouldDeleteStoredFile =
+            audioFilePath && (!audioLibraryId || !audioLibraryId.length) &&
+            storageProvider === STORAGE_PROVIDERS.SUPABASE;
+          if (shouldDeleteStoredFile) {
             try {
-              const urlParts = prevCfg.customAudioUrl.split('/');
-              const fileName = urlParts[urlParts.length - 1];
-              if (fileName) {
-                const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
-                if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
-                  await storage.deleteFile('tip-goal-audio', fileName);
-                }
+              const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+              if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+                await storage.deleteFile('tip-goal-audio', audioFilePath);
               }
             } catch (deleteError) {
               console.warn('Failed to delete previous tip goal audio from Supabase:', deleteError.message);
             }
           }
 
+          const nsIdentifier = req?.ns?.admin || req?.ns?.pub || null;
+          const fileName = `goal-audio-${nsIdentifier ? nsIdentifier.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global'}-${Date.now()}.mp3`;
           const storage = getStorage(requestedStorageProvider || undefined);
           if (!storage) {
             throw new Error('Storage service not configured');
           }
-          const uploadResult = await storage.uploadFile('tip-goal-audio', req.file.originalname, req.file.buffer, { contentType: req.file.mimetype });
-          audioFile = uploadResult.publicUrl;
+          const uploadResult = await storage.uploadFile('tip-goal-audio', fileName, req.file.buffer, {
+            contentType: req.file.mimetype || 'audio/mpeg',
+          });
+          audioFileUrl = uploadResult.publicUrl;
+          audioFilePath = uploadResult.path || null;
+          audioLibraryId = '';
           hasCustomAudio = true;
           audioFileName = req.file.originalname;
           audioFileSize = req.file.size;
-          storageProvider = uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE;
+          storageProvider = normalizeProviderValue(
+            uploadResult.provider || storage.provider || requestedStorageProvider || STORAGE_PROVIDERS.SUPABASE
+          );
         } catch (uploadError) {
           console.error('Failed to upload tip goal audio to storage:', uploadError.message);
           return res.status(500).json({ error: 'Failed to upload audio file' });
         }
       } else if (audioSource === 'remote') {
+        const shouldDeleteStoredFile =
+          audioFilePath && (!audioLibraryId || !audioLibraryId.length) &&
+          storageProvider === STORAGE_PROVIDERS.SUPABASE;
+        if (shouldDeleteStoredFile) {
+          try {
+            const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+            if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+              await storage.deleteFile('tip-goal-audio', audioFilePath);
+            }
+          } catch (deleteError) {
+            console.warn('Failed to delete tip goal audio from Supabase:', deleteError.message);
+          }
+        }
         hasCustomAudio = false;
         audioFileName = null;
         audioFileSize = 0;
+        audioFileUrl = null;
+        audioFilePath = null;
+        audioLibraryId = '';
         storageProvider = '';
       }
 
@@ -301,12 +414,19 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
         borderColor: borderColor || prevCfg.borderColor || '#00ff7f',
         progressColor: progressColor || prevCfg.progressColor || '#00ff7f',
         audioSource,
-        hasCustomAudio,
+        hasCustomAudio: !!hasCustomAudio,
         audioFileName,
         audioFileSize,
+        audioFileUrl,
+        audioFilePath,
+        audioLibraryId,
         storageProvider,
         ...(widgetTitle ? { title: widgetTitle } : (prevCfg.title ? { title: prevCfg.title } : {})),
-        ...(audioFile ? { customAudioUrl: audioFile } : (prevCfg.customAudioUrl ? { customAudioUrl: prevCfg.customAudioUrl } : {}))
+        ...(audioFileUrl
+          ? { customAudioUrl: audioFileUrl }
+          : prevCfg.customAudioUrl
+          ? { customAudioUrl: prevCfg.customAudioUrl }
+          : {})
       };
       let meta = null;
       if (tenant && tenant.tenantEnabled(req)) {
@@ -416,11 +536,14 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
       try {
         const audioCfg = {
           audioSource,
-          hasCustomAudio,
-          audioFileName,
-          audioFileSize,
-          storageProvider,
-          ...(audioFile ? { customAudioUrl: audioFile } : {})
+          hasCustomAudio: !!hasCustomAudio,
+          audioFileName: audioFileName || null,
+          audioFileSize: Number(audioFileSize) || 0,
+          audioFileUrl: audioFileUrl || null,
+          audioFilePath: audioFilePath || null,
+          audioLibraryId: audioLibraryId || '',
+          storageProvider: storageProvider || '',
+          ...(audioFileUrl ? { customAudioUrl: audioFileUrl } : {})
         };
         if (tenant && tenant.tenantEnabled(req)) {
           tenant.saveTenantAwareConfig(req, GOAL_AUDIO_CONFIG_FILE, 'goal-audio-settings.json', () => audioCfg);
@@ -498,20 +621,32 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
             goalUsd: (monthlyGoal * rateCandidate).toFixed(2)
           } : {})
         };
+        const audioBroadcast = {
+          audioSource,
+          hasCustomAudio: !!hasCustomAudio,
+          audioFileName,
+          audioFileSize,
+          audioFileUrl,
+          audioFilePath,
+          audioLibraryId,
+          storageProvider,
+          ...(audioFileUrl ? { customAudioUrl: audioFileUrl } : {}),
+        };
+
         if (tenant && tenant.tenantEnabled(req)) {
           if (req.walletSession && req.walletSession.walletHash && typeof wss?.broadcast === 'function') {
             try {
               wss.broadcast(req.walletSession.walletHash, { type: 'tipGoalUpdate', data: broadcastPayload });
             } catch {}
-            wss.broadcast(req.walletSession.walletHash, { type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } });
+            wss.broadcast(req.walletSession.walletHash, { type: 'goalAudioSettingsUpdate', data: audioBroadcast });
           }
         } else if (store && ns && typeof wss?.broadcast === 'function') {
           try { wss.broadcast(ns, { type: 'tipGoalUpdate', data: broadcastPayload }); } catch {}
-          wss.broadcast(ns, { type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } });
+          wss.broadcast(ns, { type: 'goalAudioSettingsUpdate', data: audioBroadcast });
         } else if (req.walletSession && req.walletSession.walletHash && process.env.GETTY_MULTI_TENANT_WALLET === '1') {
           if (typeof wss?.broadcast === 'function') {
             try { wss.broadcast(req.walletSession.walletHash, { type: 'tipGoalUpdate', data: broadcastPayload }); } catch {}
-            wss.broadcast(req.walletSession.walletHash, { type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } });
+            wss.broadcast(req.walletSession.walletHash, { type: 'goalAudioSettingsUpdate', data: audioBroadcast });
           }
         } else if (wss && wss.clients) {
 
@@ -524,7 +659,7 @@ function registerTipGoalRoutes(app, strictLimiter, goalAudioUpload, tipGoal, wss
           } catch {}
           wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: { audioSource, hasCustomAudio, audioFileName, audioFileSize, ...(audioFile ? { customAudioUrl: audioFile } : {}) } }));
+              client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: audioBroadcast }));
             }
           });
         }
