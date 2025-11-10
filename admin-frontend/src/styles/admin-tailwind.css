@@ -209,10 +209,10 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--bg-chat)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--card-bg)] transition-colors;
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--bg-chat)] transition-colors;
   }
   .btn-compact-secondary {
-    @apply inline-flex items-center gap-2 rounded-lg text-sm font-medium bg-[var(--bg-chat)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--card-bg)] transition-colors;
+    @apply inline-flex items-center gap-2 rounded-lg text-sm font-medium bg-[var(--bg-card)] text-[var(--text-primary)] border border-[var(--card-border)] hover:bg-[var(--bg-chat)] transition-colors;
     padding: 6px 12px;
   }
   .btn-ghost {

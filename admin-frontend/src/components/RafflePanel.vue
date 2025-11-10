@@ -818,21 +818,13 @@ onMounted(async () => {
 .upload-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 0.6rem;
-  border: 2px solid var(--accent);
-  color: var(--accent);
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--card-border);
   background: transparent;
-  border-radius: 4px;
+  border-radius: 0.5rem;
   line-height: 1;
   box-shadow: none;
   cursor: pointer;
-}
-.upload-btn:hover {
-  background: rgba(79, 54, 255, 0.08);
-}
-.upload-btn:focus-visible {
-  outline: 2px solid rgba(79, 54, 255, 0.35);
-  outline-offset: 1px;
 }
 .icon-btn {
   display: inline-flex;

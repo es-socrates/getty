@@ -823,10 +823,8 @@
             <button
               type="button"
               class="btn-secondary btn-compact-secondary"
-              :disabled="!editForm.value?.id"
-              @click="
-                openImageLibraryDrawer({ type: 'edit', messageId: editForm.value?.id || null })
-              "
+              :disabled="!editForm?.id"
+              @click="openImageLibraryDrawer({ type: 'edit', messageId: editForm?.id || null })"
               :aria-label="t('imageLibraryOpenBtn')">
               <i class="pi pi-images mr-2" aria-hidden="true"></i>
               {{ t('imageLibraryOpenBtn') }}
@@ -838,15 +836,13 @@
               >{{ editSelectedFileName }}</span
             >
             <span
-              v-else-if="editForm.value?.imageOriginalName"
+              v-else-if="editForm?.imageOriginalName"
               class="file-name-label"
-              :title="editForm.value.imageOriginalName"
-              >{{ editForm.value.imageOriginalName }}</span
+              :title="editForm?.imageOriginalName"
+              >{{ editForm?.imageOriginalName }}</span
             >
             <button
-              v-if="
-                (editForm.value?.imageUrl && !editForm.value?.removeImage) || editSelectedFileName
-              "
+              v-if="(editForm?.imageUrl && !editForm?.removeImage) || editSelectedFileName"
               type="button"
               class="ann-icon-btn"
               :aria-label="t('remove')"
@@ -855,9 +851,9 @@
               <i class="pi pi-trash"></i>
             </button>
           </div>
-          <div v-if="editForm.value?.imageUrl && !editForm.value?.removeImage" class="mt-2">
+          <div v-if="editForm?.imageUrl && !editForm?.removeImage" class="mt-2">
             <img
-              :src="editForm.value.imageUrl"
+              :src="editForm?.imageUrl"
               alt="announcement"
               class="max-h-24 object-contain rounded" />
           </div>
@@ -1347,23 +1343,14 @@ onMounted(async () => {
 .upload-btn {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 0.6rem;
-  border: 2px solid var(--accent);
-  color: var(--accent);
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--card-border);
   background: transparent;
-  border-radius: 2px;
+  border-radius: 0.5rem;
   line-height: 1;
   box-shadow: none;
   cursor: pointer;
 }
-.upload-btn:hover {
-  background: rgba(79, 54, 255, 0.08);
-}
-.upload-btn:focus-visible {
-  outline: 2px solid rgba(79, 54, 255, 0.35);
-  outline-offset: 1px;
-}
-
 .ann-icon-btn {
   display: inline-flex;
   align-items: center;
