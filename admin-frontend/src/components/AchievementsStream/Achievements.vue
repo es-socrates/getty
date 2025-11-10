@@ -131,9 +131,13 @@
                     :save-endpoint="'/api/goal-audio-settings'"
                     :delete-endpoint="'/api/goal-audio-settings'"
                     :custom-audio-endpoint="'/api/goal-custom-audio'"
+                    :storage-provider="selectedStorageProvider"
+                    :storage-providers="storageOptions"
+                    :storage-loading="storageLoading"
                     @update:enabled="(v) => (cfg.sound.enabled = v)"
                     @update:volume="(v) => (cfg.sound.volume = v)"
                     @update:audio-source="(v) => (audio.audioSource = v)"
+                    @update:storage-provider="(val) => storage.setSelectedProvider(val)"
                     @audio-saved="loadAll"
                     @audio-deleted="
                       () => {
@@ -539,6 +543,7 @@ import {
   testAchievementsNotification,
 } from './Achievements.js';
 import { usePublicToken } from '../../composables/usePublicToken';
+import { useStorageProviders } from '../../composables/useStorageProviders';
 
 const cfg = reactive({
   enabled: true,
@@ -547,7 +552,7 @@ const cfg = reactive({
   position: 'top-right',
   dnd: false,
   historySize: 10,
-  sound: { enabled: false, url: '', volume: 0.5 },
+  sound: { enabled: false, url: '', volume: 0.5, storageProvider: '' },
 });
 const status = reactive({ items: [] });
 const achMeta = ref(null);
@@ -589,7 +594,28 @@ function toggleSettings() {
 }
 
 const audio = reactive({ audioSource: 'remote' });
-const audioState = reactive({ hasCustomAudio: false, audioFileName: '', audioFileSize: 0 });
+const audioState = reactive({
+  hasCustomAudio: false,
+  audioFileName: '',
+  audioFileSize: 0,
+  storageProvider: '',
+});
+
+const storage = useStorageProviders();
+const storageOptions = computed(() => storage.providerOptions.value);
+const selectedStorageProvider = computed({
+  get: () => storage.selectedProvider.value,
+  set: (val) => storage.setSelectedProvider(val),
+});
+const storageLoading = computed(() => storage.loading.value);
+
+function resolveStorageSelection(preferred = '') {
+  const candidates = [];
+  if (preferred) candidates.push(preferred);
+  if (cfg.sound.storageProvider) candidates.push(cfg.sound.storageProvider);
+  if (audioState.storageProvider) candidates.push(audioState.storageProvider);
+  storage.ensureSelection(candidates);
+}
 
 const REMOTE_ACH_SOUND_URL =
   'https://itkxmyqv2a2vccunpsndolfhjejajugsztsg3wewgh6lrpvhundq.ardrive.net/RNV2YhXQNVEKjXyaNyynSRIE0NLM5G3YljH8uL6no0c';
@@ -634,6 +660,9 @@ async function loadAll() {
       for (const k of Object.keys(config)) {
         if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
           cfg.sound = { ...cfg.sound, ...config.sound };
+          if (typeof cfg.sound.storageProvider === 'string' && cfg.sound.storageProvider) {
+            storage.registerProvider(cfg.sound.storageProvider);
+          }
         } else if (k in cfg) {
           cfg[k] = config[k];
         } else {
@@ -653,6 +682,12 @@ async function loadAll() {
     audioState.hasCustomAudio = !!data.hasCustomAudio;
     audioState.audioFileName = data.audioFileName || '';
     audioState.audioFileSize = data.audioFileSize || 0;
+    audioState.storageProvider =
+      typeof data.storageProvider === 'string' ? data.storageProvider : audioState.storageProvider;
+    if (audioState.storageProvider) {
+      storage.registerProvider(audioState.storageProvider);
+      cfg.sound.storageProvider = audioState.storageProvider;
+    }
 
     if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
       try {
@@ -665,6 +700,7 @@ async function loadAll() {
     } else {
       cfg.sound.url = REMOTE_ACH_SOUND_URL;
     }
+    resolveStorageSelection();
   } catch {}
   try {
     await refreshChannelAvatar();
@@ -710,6 +746,7 @@ async function testNotif() {
 
 onMounted(async () => {
   await refresh();
+  await storage.fetchProviders();
   await loadAll();
 });
 onMounted(() => {
@@ -732,6 +769,14 @@ watch(
     }
   }
 );
+
+watch(storageOptions, () => {
+  resolveStorageSelection();
+});
+
+watch(selectedStorageProvider, (next) => {
+  cfg.sound.storageProvider = next || '';
+});
 
 watch(
   () => cfg.claimid,

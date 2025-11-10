@@ -1,10 +1,11 @@
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const WebSocket = require('ws');
 const { z } = require('zod');
 const { resolveAdminNamespace } = require('../lib/namespace');
-const { getStorage } = require('../lib/supabase-storage');
+const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
 function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const store = opts.store || null;
@@ -13,7 +14,112 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
   const { isOpenTestMode } = require('../lib/test-open-mode');
   const BUCKET_NAME = 'raffle-images';
-  const storage = getStorage();
+  const LIBRARY_FILE = path.join(process.cwd(), 'config', 'raffle-image-library.json');
+  const HOSTED_ENV = hostedWithRedis;
+  const isTestEnv = process.env.NODE_ENV === 'test';
+  const allowRealSupabaseInTests = process.env.SUPABASE_TEST_USE_REAL === '1';
+  const shouldMockStorage = isTestEnv && !allowRealSupabaseInTests;
+
+  function normalizeLibraryEntry(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = typeof raw.id === 'string' ? raw.id : '';
+    if (!id) return null;
+    const sizeNum = Number(raw.size);
+    return {
+      id,
+      url: typeof raw.url === 'string' ? raw.url : '',
+      size: Number.isFinite(sizeNum) && sizeNum >= 0 ? sizeNum : 0,
+      originalName: typeof raw.originalName === 'string' ? raw.originalName : '',
+      uploadedAt: typeof raw.uploadedAt === 'string' ? raw.uploadedAt : new Date(0).toISOString(),
+      provider: typeof raw.provider === 'string' ? raw.provider : STORAGE_PROVIDERS.SUPABASE,
+      path: typeof raw.path === 'string' ? raw.path : '',
+      sha256: typeof raw.sha256 === 'string' ? raw.sha256 : '',
+      fingerprint: typeof raw.fingerprint === 'string' ? raw.fingerprint : '',
+      mimeType: typeof raw.mimeType === 'string' ? raw.mimeType : '',
+    };
+  }
+
+  function loadLibraryFromFile() {
+    try {
+      if (fs.existsSync(LIBRARY_FILE)) {
+        const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
+        const list = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.items) ? parsed.items : []);
+        return list.map(normalizeLibraryEntry).filter(Boolean);
+      }
+    } catch (error) {
+      console.error('[raffle-library] load error', error.message);
+    }
+    return [];
+  }
+
+  function saveLibraryToFile(items) {
+    try {
+      fs.writeFileSync(LIBRARY_FILE, JSON.stringify(items, null, 2));
+    } catch (error) {
+      console.error('[raffle-library] save error', error.message);
+    }
+  }
+
+  async function loadLibrary(ns) {
+    if (store && ns) {
+      try {
+        const stored = await store.get(ns, 'raffle-image-library', null);
+        const list = Array.isArray(stored) ? stored : (stored && Array.isArray(stored.items) ? stored.items : []);
+        return list.map(normalizeLibraryEntry).filter(Boolean);
+      } catch (error) {
+        console.warn('[raffle-library] store load error', error.message);
+      }
+      return [];
+    }
+    return loadLibraryFromFile();
+  }
+
+  async function saveLibrary(ns, items) {
+    if (store && ns) {
+      try {
+        await store.set(ns, 'raffle-image-library', items);
+      } catch (error) {
+        console.warn('[raffle-library] store save error', error.message);
+      }
+      if (!HOSTED_ENV) {
+        saveLibraryToFile(items);
+      }
+      return;
+    }
+    saveLibraryToFile(items);
+  }
+
+  async function upsertLibraryEntry(ns, entry) {
+    if (!entry || !entry.id) return [];
+    const normalized = normalizeLibraryEntry(entry);
+    if (!normalized) return [];
+    const current = await loadLibrary(ns);
+    const filtered = current.filter((item) => item && item.id !== normalized.id);
+    const updated = [normalized, ...filtered];
+    const maxItems = 50;
+    const trimmed = updated.slice(0, maxItems);
+    await saveLibrary(ns, trimmed);
+    return trimmed;
+  }
+
+  async function findLibraryEntry(ns, entryId) {
+    if (!entryId) return null;
+    const items = await loadLibrary(ns);
+    return items.find((item) => item && item.id === entryId) || null;
+  }
+
+  function mapEntryToImagePayload(entry) {
+    if (!entry) return null;
+    return {
+      url: entry.url || '',
+      libraryId: entry.id || '',
+      storageProvider: entry.provider || '',
+      storagePath: entry.path || '',
+      sha256: entry.sha256 || '',
+      fingerprint: entry.fingerprint || '',
+      originalName: entry.originalName || '',
+    };
+  }
 
   const raffleImageUpload = multer({
     storage: multer.memoryStorage(),
@@ -82,10 +188,25 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     }
   });
 
+  app.get('/api/raffle/image-library', async (req, res) => {
+    try {
+      const requireSession = shouldRequireSession;
+      const adminNs = resolveAdminNamespace(req);
+      if (!isOpenTestMode() && requireSession && !adminNs) {
+        return res.status(401).json({ error: 'session_required' });
+      }
+      const items = await loadLibrary(adminNs);
+      res.json({ items });
+    } catch (error) {
+      console.error('[raffle-library] list error', error.message);
+      res.status(500).json({ error: 'library_list_failed' });
+    }
+  });
+
   app.post('/api/raffle/settings', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+    if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
   if (!isOpenTestMode() && shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
@@ -110,7 +231,13 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
           if (/^https?:\/\/.+/i.test(v)) return true;
           if (v.startsWith('/uploads/raffle/')) return true;
           return false;
-        }, { message: 'Invalid URL' })
+        }, { message: 'Invalid URL' }),
+        imageLibraryId: z.string().max(200).optional(),
+        imageStorageProvider: z.string().max(50).optional(),
+        imageStoragePath: z.string().max(400).optional(),
+        imageSha256: z.string().max(128).optional(),
+        imageFingerprint: z.string().max(256).optional(),
+        imageOriginalName: z.string().max(260).optional()
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
@@ -250,25 +377,198 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   });
 
   app.post('/api/raffle/upload-image', raffleImageUpload.single('image'), async (req, res) => {
-    let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ error: 'session_required' });
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    
+    const adminNs = resolveAdminNamespace(req);
+    if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
+      return res.status(401).json({ error: 'session_required' });
+    }
+
+    const { canWriteConfig } = require('../lib/authz');
+    if (!isOpenTestMode() && shouldRequireSession) {
+      const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+      if (!allowRemoteWrites && !canWriteConfig(req)) {
+        return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+      }
+    }
+
+    const preferredProvider = typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
+    const requestedLibraryId = typeof req.body?.libraryId === 'string' ? req.body.libraryId.trim() : '';
+
+    if (!req.file && !requestedLibraryId) {
+      return res.status(400).json({ error: 'no_image_supplied' });
+    }
+
     try {
-      const { canWriteConfig } = require('../lib/authz');
-  if (!isOpenTestMode() && shouldRequireSession) {
-        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
-        if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+      const prevState = await (async () => {
+        try { return await raffle.getPublicState(adminNs); } catch { return null; }
+      })();
+
+      if (requestedLibraryId && !req.file) {
+        const entry = await findLibraryEntry(adminNs, requestedLibraryId);
+        if (!entry) {
+          return res.status(404).json({ error: 'library_item_not_found' });
+        }
+        const payload = mapEntryToImagePayload(entry);
+        await raffle.setImage(adminNs, payload);
+
+        if (prevState && prevState.imageStorageProvider === STORAGE_PROVIDERS.SUPABASE) {
+          const prevPath = prevState.imageStoragePath || '';
+          const prevLib = prevState.imageLibraryId || '';
+          const shouldDeletePrev = prevPath && prevLib && prevLib !== entry.id;
+          if (shouldDeletePrev) {
+            try {
+              const prevStorage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+              await prevStorage?.deleteFile(BUCKET_NAME, prevPath);
+            } catch (deleteError) {
+              console.warn('[raffle] failed to delete previous image:', deleteError.message);
+            }
+          }
+        }
+
+        broadcastRaffleState(wss, raffle, adminNs);
+        return res.json({
+          success: true,
+          imageUrl: entry.url,
+          imageLibraryId: entry.id,
+          imageStorageProvider: entry.provider,
+          imageStoragePath: entry.path,
+          imageSha256: entry.sha256,
+          imageFingerprint: entry.fingerprint,
+          imageOriginalName: entry.originalName,
+          duplicate: true,
+          libraryItem: entry,
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'no_file' });
+      }
+
+      const fileBuffer = req.file.buffer || Buffer.alloc(0);
+      const sizeFromRequest = Number(req.file.size);
+      const fileSize = Number.isFinite(sizeFromRequest) ? sizeFromRequest : fileBuffer.length;
+      let fileHash = '';
+      try {
+        fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      } catch (hashError) {
+        console.warn('[raffle] failed to compute image hash:', hashError.message);
+      }
+      const normalizedName = (req.file.originalname || '').trim().toLowerCase();
+      const fingerprint = `${normalizedName || 'raffle-image'}::${fileSize || 0}`;
+
+      const existingItems = await loadLibrary(adminNs);
+      const duplicate = existingItems.find((item) => {
+        if (fileHash && item.sha256 && item.sha256 === fileHash) return true;
+        if (fingerprint && item.fingerprint && item.fingerprint === fingerprint) return true;
+        const itemSize = Number(item.size) || 0;
+        if (itemSize && fileSize && itemSize !== fileSize) return false;
+        const entryName = (item.originalName || '').trim().toLowerCase();
+        return entryName && entryName === normalizedName;
+      });
+
+      if (duplicate) {
+        const payload = mapEntryToImagePayload(duplicate);
+        await raffle.setImage(adminNs, payload);
+
+        if (prevState && prevState.imageStorageProvider === STORAGE_PROVIDERS.SUPABASE) {
+          const prevPath = prevState.imageStoragePath || '';
+          const prevLib = prevState.imageLibraryId || '';
+          const shouldDeletePrev = prevPath && prevLib && prevLib !== duplicate.id;
+          if (shouldDeletePrev) {
+            try {
+              const prevStorage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+              await prevStorage?.deleteFile(BUCKET_NAME, prevPath);
+            } catch (deleteError) {
+              console.warn('[raffle] failed to delete previous image:', deleteError.message);
+            }
+          }
+        }
+
+        broadcastRaffleState(wss, raffle, adminNs);
+        return res.json({
+          success: true,
+          imageUrl: duplicate.url,
+          imageLibraryId: duplicate.id,
+          imageStorageProvider: duplicate.provider,
+          imageStoragePath: duplicate.path,
+          imageSha256: duplicate.sha256,
+          imageFingerprint: duplicate.fingerprint,
+          imageOriginalName: duplicate.originalName,
+          duplicate: true,
+          libraryItem: duplicate,
+        });
+      }
+
+      let uploadResult = null;
+      if (shouldMockStorage) {
+        const safeNs = (adminNs ? String(adminNs) : 'global').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const stamp = Date.now();
+        const baseName = `raffle-${stamp}.png`;
+        uploadResult = {
+          publicUrl: `https://mock.supabase.co/storage/v1/object/public/${BUCKET_NAME}/${safeNs}/${baseName}`,
+          provider: STORAGE_PROVIDERS.SUPABASE,
+          path: `${safeNs}/${baseName}`,
+          fileName: baseName,
+        };
+      } else {
+        const storage = getStorage(preferredProvider);
+        if (!storage) {
+          return res.status(500).json({ error: 'storage_not_configured' });
+        }
+
+        const extFromName = path.extname(req.file.originalname || '').toLowerCase();
+        const inferredExt = extFromName || `.${req.file.mimetype.split('/')[1] || 'png'}`;
+        const safeBase = (adminNs ? adminNs : 'global').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const fileName = `${safeBase}-raffle-${Date.now()}-${Math.random().toString(36).slice(2)}${inferredExt}`;
+
+        uploadResult = await storage.uploadFile(BUCKET_NAME, fileName, fileBuffer, {
+          contentType: req.file.mimetype,
+        });
+      }
+
+      const entry = normalizeLibraryEntry({
+        id: uploadResult.fileName,
+        url: uploadResult.publicUrl,
+        provider: uploadResult.provider || preferredProvider || STORAGE_PROVIDERS.SUPABASE,
+        path: uploadResult.path || uploadResult.fileName,
+        size: fileSize,
+        originalName: req.file.originalname || '',
+        uploadedAt: new Date().toISOString(),
+        sha256: fileHash,
+        fingerprint,
+        mimeType: req.file.mimetype || '',
+      });
+
+      await upsertLibraryEntry(adminNs, entry);
+      await raffle.setImage(adminNs, mapEntryToImagePayload(entry));
+
+      if (prevState && prevState.imageStorageProvider === STORAGE_PROVIDERS.SUPABASE) {
+        const prevPath = prevState.imageStoragePath || '';
+        const prevLib = prevState.imageLibraryId || '';
+        const nextLib = entry.id || '';
+        const shouldDeletePrev = prevPath && prevLib && prevLib !== nextLib;
+        if (shouldDeletePrev) {
+          try {
+            const prevStorage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+            await prevStorage?.deleteFile(BUCKET_NAME, prevPath);
+          } catch (deleteError) {
+            console.warn('[raffle] failed to delete previous image:', deleteError.message);
+          }
         }
       }
 
-      const fileName = `${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await storage.uploadFile(BUCKET_NAME, fileName, req.file.buffer, req.file.mimetype);
-      const publicUrl = uploadResult.publicUrl;
-      
-      await raffle.setImage(adminNs, publicUrl);
-      res.json({ imageUrl: publicUrl });
+      broadcastRaffleState(wss, raffle, adminNs);
+      res.json({
+        success: true,
+        imageUrl: entry.url,
+        imageLibraryId: entry.id,
+        imageStorageProvider: entry.provider,
+        imageStoragePath: entry.path,
+        imageSha256: entry.sha256,
+        imageFingerprint: entry.fingerprint,
+        imageOriginalName: entry.originalName,
+        duplicate: false,
+        libraryItem: entry,
+      });
     } catch (error) {
       console.error('Error uploading raffle image:', error);
       res.status(500).json({ error: 'Failed to upload image', details: error.message });
@@ -284,8 +584,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       }
   if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
 
-      let currentUrl = '';
-      try { currentUrl = (await raffle.getPublicState(adminNs))?.imageUrl || ''; } catch {}
+      let currentState = null;
+      try { currentState = await raffle.getPublicState(adminNs); } catch {}
+      const currentUrl = currentState?.imageUrl || '';
+      const currentProvider = currentState?.imageStorageProvider || '';
+      const currentPath = currentState?.imageStoragePath || '';
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
@@ -295,16 +598,10 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       }
       await raffle.setImage(adminNs, '');
 
-      if (typeof currentUrl === 'string' && currentUrl.includes('supabase') && currentUrl.includes('/storage/v1/object/public/')) {
+      if (currentProvider === STORAGE_PROVIDERS.SUPABASE && currentPath) {
         try {
-          const urlParts = currentUrl.split('/storage/v1/object/public/');
-          if (urlParts.length === 2) {
-            const pathParts = urlParts[1].split('/');
-            if (pathParts.length >= 2) {
-              const fileName = pathParts.slice(1).join('/');
-              await storage.deleteFile(BUCKET_NAME, fileName);
-            }
-          }
+          const removalStorage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+          await removalStorage?.deleteFile(BUCKET_NAME, currentPath);
         } catch (deleteError) {
           console.error('Error deleting raffle image from Supabase:', deleteError);
         }

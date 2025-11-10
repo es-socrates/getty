@@ -46,7 +46,14 @@ export function useAnnouncementPanel(t) {
     ctaBgColor: '#000000',
     ctaTextSize: 16,
     textColorOverride: '#ffffff',
-    textSize: 16
+    textSize: 16,
+    imageUrl: '',
+    imageLibraryId: '',
+    imageStorageProvider: '',
+    imageStoragePath: '',
+    imageSha256: '',
+    imageFingerprint: '',
+    imageOriginalName: '',
   });
   const errors = ref({ text: '', durationSeconds: '' });
   const editing = ref(false);
@@ -73,7 +80,14 @@ export function useAnnouncementPanel(t) {
     ctaBgColor: '#000000',
     ctaTextSize: 16,
     textColorOverride: '#ffffff',
-    textSize: 16
+    textSize: 16,
+    imageUrl: '',
+    imageLibraryId: '',
+    imageStorageProvider: '',
+    imageStoragePath: '',
+    imageSha256: '',
+    imageFingerprint: '',
+    imageOriginalName: '',
   });
   const savingSettings = ref(false);
   const adding = ref(false);
@@ -120,6 +134,13 @@ export function useAnnouncementPanel(t) {
       return;
     }
     newMsg.value.imageFile = f;
+    newMsg.value.imageLibraryId = '';
+    newMsg.value.imageUrl = '';
+    newMsg.value.imageStorageProvider = '';
+    newMsg.value.imageStoragePath = '';
+    newMsg.value.imageSha256 = '';
+    newMsg.value.imageFingerprint = '';
+    newMsg.value.imageOriginalName = f.name || '';
   }
 
   function validateNew() {
@@ -135,7 +156,8 @@ export function useAnnouncementPanel(t) {
       (newMsg.value.subtitle2 && newMsg.value.subtitle2.trim().length) ||
       (newMsg.value.subtitle3 && newMsg.value.subtitle3.trim().length) ||
       (newMsg.value.ctaText && newMsg.value.ctaText.trim().length) ||
-      newMsg.value.imageFile
+      newMsg.value.imageFile ||
+      (newMsg.value.imageUrl && newMsg.value.imageUrl.trim().length)
     );
     if (!hasContent) {
       pushToast({ type: 'error', message: t('announcementValidationNoContent') || 'The banner cannot be empty.' });
@@ -144,14 +166,29 @@ export function useAnnouncementPanel(t) {
     return !errors.value.text && !errors.value.durationSeconds;
   }
 
-  async function addMessage() {
-    if (!validateNew()) return;
+  async function addMessage(opts = {}) {
+    if (!validateNew()) return null;
+    let responseData = null;
     try {
       adding.value = true;
       const fd = new FormData();
-  fd.append('text', newMsg.value.text);
+      fd.append('text', newMsg.value.text);
       if (newMsg.value.durationSeconds) fd.append('durationSeconds', newMsg.value.durationSeconds);
-      if (newMsg.value.imageFile) fd.append('image', newMsg.value.imageFile);
+      const preferredProvider = typeof opts.storageProvider === 'string' ? opts.storageProvider : '';
+      if (preferredProvider) fd.append('storageProvider', preferredProvider);
+      if (newMsg.value.imageFile) {
+        fd.append('image', newMsg.value.imageFile);
+      } else if (newMsg.value.imageLibraryId) {
+        fd.append('imageLibraryId', newMsg.value.imageLibraryId);
+        if (newMsg.value.imageUrl) fd.append('imageUrl', newMsg.value.imageUrl);
+        if (newMsg.value.imageStorageProvider) fd.append('imageStorageProvider', newMsg.value.imageStorageProvider);
+        if (newMsg.value.imageStoragePath) fd.append('imageStoragePath', newMsg.value.imageStoragePath);
+        if (newMsg.value.imageSha256) fd.append('imageSha256', newMsg.value.imageSha256);
+        if (newMsg.value.imageFingerprint) fd.append('imageFingerprint', newMsg.value.imageFingerprint);
+        if (newMsg.value.imageOriginalName) fd.append('imageOriginalName', newMsg.value.imageOriginalName);
+      } else if (newMsg.value.imageUrl) {
+        fd.append('imageUrl', newMsg.value.imageUrl);
+      }
       if (newMsg.value.title) fd.append('title', newMsg.value.title);
       if (newMsg.value.subtitle1) fd.append('subtitle1', newMsg.value.subtitle1);
       if (newMsg.value.subtitle2) fd.append('subtitle2', newMsg.value.subtitle2);
@@ -170,24 +207,53 @@ export function useAnnouncementPanel(t) {
       if (newMsg.value.ctaTextSize) fd.append('ctaTextSize', String(newMsg.value.ctaTextSize));
       if (newMsg.value.textColorOverride) fd.append('textColorOverride', newMsg.value.textColorOverride);
       if (newMsg.value.textSize) fd.append('textSize', String(newMsg.value.textSize));
-      const r = await api.post('/api/announcement/message', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const r = await api.post('/api/announcement/message', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       const data = r.data;
       if (data && data.success) {
+        responseData = data;
         pushToast({ type: 'success', message: t('announcementMsgAdded') });
         newMsg.value = {
-          text: '', durationSeconds: 10, imageFile: null,
-          title: '', subtitle1: '', subtitle2: '', subtitle3: '',
-          titleColor: '#ffffff', subtitle1Color: '#e8eef2', subtitle2Color: '#cdd6df', subtitle3Color: '#cdd6df',
-          titleSize: 28, subtitle1Size: 18, subtitle2Size: 14, subtitle3Size: 12,
-          ctaText: '', ctaIcon: '', ctaBgColor: '#000000', ctaTextSize: 16,
-          textColorOverride: '#ffffff', textSize: 16
+          text: '',
+          durationSeconds: 10,
+          imageFile: null,
+          title: '',
+          subtitle1: '',
+          subtitle2: '',
+          subtitle3: '',
+          titleColor: '#ffffff',
+          subtitle1Color: '#e8eef2',
+          subtitle2Color: '#cdd6df',
+          subtitle3Color: '#cdd6df',
+          titleSize: 28,
+          subtitle1Size: 18,
+          subtitle2Size: 14,
+          subtitle3Size: 12,
+          ctaText: '',
+          ctaIcon: '',
+          ctaBgColor: '#000000',
+          ctaTextSize: 16,
+          textColorOverride: '#ffffff',
+          textSize: 16,
+          imageUrl: '',
+          imageLibraryId: '',
+          imageStorageProvider: '',
+          imageStoragePath: '',
+          imageSha256: '',
+          imageFingerprint: '',
+          imageOriginalName: '',
         };
         load();
       } else {
-        pushToast({ type: 'error', message: data.error || t('announcementSaveSettingsFailed') });
+        pushToast({ type: 'error', message: data?.error || t('announcementSaveSettingsFailed') });
       }
-    } catch { pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') }); }
-    finally { adding.value = false; }
+    } catch {
+      pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+    } finally {
+      adding.value = false;
+    }
+    return responseData;
   }
 
   async function toggleMessageEnabled(m) {
@@ -279,7 +345,14 @@ export function useAnnouncementPanel(t) {
       ctaBgColor: m.ctaBgColor || '#000000',
       ctaTextSize: m.ctaTextSize ?? 16,
       textColorOverride: m.textColorOverride || settings.value.textColor || '#ffffff',
-      textSize: m.textSize ?? 16
+      textSize: m.textSize ?? 16,
+      imageUrl: m.imageUrl || '',
+      imageLibraryId: typeof m.imageLibraryId === 'string' ? m.imageLibraryId : '',
+      imageStorageProvider: typeof m.imageStorageProvider === 'string' ? m.imageStorageProvider : '',
+      imageStoragePath: typeof m.imageStoragePath === 'string' ? m.imageStoragePath : '',
+      imageSha256: typeof m.imageSha256 === 'string' ? m.imageSha256 : '',
+      imageFingerprint: typeof m.imageFingerprint === 'string' ? m.imageFingerprint : '',
+      imageOriginalName: typeof m.imageOriginalName === 'string' ? m.imageOriginalName : '',
     };
     nextTick(() => { const first = modalRef.value?.querySelector('input,button,select,textarea'); first && first.focus(); });
   }
@@ -312,7 +385,7 @@ export function useAnnouncementPanel(t) {
         ctaBgColor: editForm.value.ctaBgColor,
         ctaTextSize: editForm.value.ctaTextSize,
         textColorOverride: editForm.value.textColorOverride,
-        textSize: editForm.value.textSize
+        textSize: editForm.value.textSize,
       };
 
       if (typeof editForm.value.text === 'string') {
@@ -324,6 +397,15 @@ export function useAnnouncementPanel(t) {
           pushToast({ type: 'warning', message: t('announcementValidationTooLong') + ' — text not updated' });
         }
       }
+      if (!editForm.value.removeImage) {
+        if (editForm.value.imageUrl) payload.imageUrl = editForm.value.imageUrl;
+        if (editForm.value.imageLibraryId) payload.imageLibraryId = editForm.value.imageLibraryId;
+        if (editForm.value.imageStorageProvider) payload.imageStorageProvider = editForm.value.imageStorageProvider;
+        if (editForm.value.imageStoragePath) payload.imageStoragePath = editForm.value.imageStoragePath;
+        if (editForm.value.imageSha256) payload.imageSha256 = editForm.value.imageSha256;
+        if (editForm.value.imageFingerprint) payload.imageFingerprint = editForm.value.imageFingerprint;
+        if (editForm.value.imageOriginalName) payload.imageOriginalName = editForm.value.imageOriginalName;
+      }
   const r = await api.put(`/api/announcement/message/${editForm.value.id}`, payload);
       if (r.data.success) { pushToast({ type: 'success', message: t('announcementMsgUpdated') }); editing.value = false; load(); }
       else { pushToast({ type: 'error', message: r.data.error }); }
@@ -331,28 +413,44 @@ export function useAnnouncementPanel(t) {
     finally { updating.value = false; }
   }
 
-  async function onEditImage(e) {
+  async function onEditImage(e, opts = {}) {
     try {
       const f = e.target.files?.[0];
-      if (!f) return;
+      if (!f) return null;
       if (f.size > MAX_ANNOUNCEMENT_IMAGE) {
         pushToast({ type: 'error', message: t('announcementImageTooLarge') });
-        return;
+        return null;
       }
-      if (!editForm.value?.id) return;
+      if (!editForm.value?.id) return null;
 
       const fd = new FormData();
       fd.append('image', f);
-      const r = await api.put(`/api/announcement/message/${editForm.value.id}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const preferredProvider = typeof opts.storageProvider === 'string' ? opts.storageProvider : '';
+      if (preferredProvider) fd.append('storageProvider', preferredProvider);
+      const r = await api.put(`/api/announcement/message/${editForm.value.id}/image`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       const data = r.data;
       if (data && data.success) {
         pushToast({ type: 'success', message: t('announcementMsgUpdated') });
+        editForm.value.removeImage = false;
+        if (data.message) {
+          editForm.value.imageUrl = data.message.imageUrl || '';
+          editForm.value.imageLibraryId = data.message.imageLibraryId || '';
+          editForm.value.imageStorageProvider = data.message.imageStorageProvider || '';
+          editForm.value.imageStoragePath = data.message.imageStoragePath || '';
+          editForm.value.imageSha256 = data.message.imageSha256 || '';
+          editForm.value.imageFingerprint = data.message.imageFingerprint || '';
+          editForm.value.imageOriginalName = data.message.imageOriginalName || f.name || '';
+        }
         await load();
       } else {
-        pushToast({ type: 'error', message: data.error || t('announcementSaveSettingsFailed') });
+        pushToast({ type: 'error', message: data?.error || t('announcementSaveSettingsFailed') });
       }
+      return data || null;
     } catch {
       pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+      return null;
     }
   }
 

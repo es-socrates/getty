@@ -1,10 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const multer = require('multer');
 const { z } = require('zod');
 const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 const { isOpenTestMode } = require('../lib/test-open-mode');
-const { getStorage } = require('../lib/supabase-storage');
+const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
 
 function readGifDimensionsFromBuffer(buffer) {
@@ -49,7 +50,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       position: pos,
       width: Number.isFinite(raw.width) ? raw.width : Number(raw.width) || 0,
       height: Number.isFinite(raw.height) ? raw.height : Number(raw.height) || 0,
-      libraryId: typeof raw.libraryId === 'string' ? raw.libraryId : ''
+      libraryId: typeof raw.libraryId === 'string' ? raw.libraryId : '',
+      storageProvider: typeof raw.storageProvider === 'string' ? raw.storageProvider : ''
     };
   }
 
@@ -69,12 +71,41 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(ensureConfigShape(cfg), null, 2));
   }
 
+  function normalizeLibraryEntry(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+      id: typeof raw.id === 'string' ? raw.id : '',
+      url: typeof raw.url === 'string' ? raw.url : '',
+      width: Number.isFinite(raw.width) ? raw.width : Number(raw.width) || 0,
+      height: Number.isFinite(raw.height) ? raw.height : Number(raw.height) || 0,
+      size: Number.isFinite(raw.size) ? raw.size : Number(raw.size) || 0,
+      originalName: typeof raw.originalName === 'string' ? raw.originalName : '',
+      uploadedAt: typeof raw.uploadedAt === 'string' ? raw.uploadedAt : new Date(0).toISOString(),
+      provider: typeof raw.provider === 'string' ? raw.provider : STORAGE_PROVIDERS.SUPABASE,
+      path: typeof raw.path === 'string' ? raw.path : '',
+      sha256: typeof raw.sha256 === 'string' ? raw.sha256 : '',
+      fingerprint: (() => {
+        if (typeof raw.fingerprint === 'string' && raw.fingerprint) {
+          return raw.fingerprint;
+        }
+        const baseName = (typeof raw.originalName === 'string' && raw.originalName
+          ? raw.originalName
+          : typeof raw.id === 'string'
+          ? raw.id
+          :
+            '').trim().toLowerCase();
+        if (!baseName || !raw.size) return '';
+        return `${baseName}::${Number(raw.size) || 0}`;
+      })(),
+    };
+  }
+
   function loadLibraryFromFile() {
     try {
       if (fs.existsSync(LIBRARY_FILE)) {
         const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
-        if (Array.isArray(parsed)) return parsed;
-        if (parsed && Array.isArray(parsed.items)) return parsed.items;
+        const list = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.items) ? parsed.items : []);
+        return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
       }
     } catch (error) {
       console.error('[gif-library] load error', error.message);
@@ -94,8 +125,8 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     if (store && ns) {
       try {
         const stored = await store.get(ns, 'tip-notification-gif-library', null);
-        if (Array.isArray(stored)) return stored;
-        if (stored && Array.isArray(stored.items)) return stored.items;
+        const list = Array.isArray(stored) ? stored : (stored && Array.isArray(stored.items) ? stored.items : []);
+        return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
       } catch (error) {
         console.warn('[gif-library] store load error', error.message);
       }
@@ -121,9 +152,11 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
 
   async function upsertLibraryEntry(ns, entry) {
     if (!entry || !entry.id) return;
+    const normalized = normalizeLibraryEntry(entry);
+    if (!normalized) return;
     const current = await loadLibrary(ns);
-    const filtered = current.filter((item) => item && item.id !== entry.id);
-    const updated = [entry, ...filtered];
+    const filtered = current.filter((item) => item && item.id !== normalized.id);
+    const updated = [normalized, ...filtered];
     const maxItems = 50;
     const trimmed = updated.slice(0, maxItems);
     await saveLibrary(ns, trimmed);
@@ -234,7 +267,10 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           return res.status(400).json({ error: 'Invalid GIF file' });
         }
 
-        const storage = getStorage();
+        const preferredProvider = typeof req.body?.storageProvider === 'string'
+          ? req.body.storageProvider
+          : '';
+        const storage = getStorage(preferredProvider);
         if (!storage) {
           if (process.env.NODE_ENV === 'test') {
             const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
@@ -243,6 +279,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
             config.width = dims.width;
             config.height = dims.height;
             config.libraryId = '';
+            config.storageProvider = STORAGE_PROVIDERS.SUPABASE;
           } else {
             return res.status(500).json({ error: 'Storage service not configured' });
           }
@@ -250,22 +287,43 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
           const filePath = `${safeNs}/tip-notification.gif`;
 
+          const fileBuffer = req.file.buffer || Buffer.alloc(0);
+          const sizeFromRequest = Number(req.file.size);
+          const fileSize = Number.isFinite(sizeFromRequest) && sizeFromRequest >= 0
+            ? sizeFromRequest
+            : fileBuffer.length;
+          let fileHash = '';
           try {
-            const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, req.file.buffer, {
+            fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+          } catch (hashError) {
+            console.warn('[gif-library] failed to hash upload', hashError.message);
+          }
+          const normalizedName = (req.file.originalname || '').toLowerCase();
+          const fingerprint = normalizedName
+            ? `${normalizedName}::${fileSize || 0}`
+            : `${filePath.toLowerCase()}::${fileSize || 0}`;
+
+          try {
+            const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, fileBuffer, {
               contentType: 'image/gif'
             });
 
             config.gifPath = uploadResult.publicUrl;
             config.width = dims.width;
             config.height = dims.height;
+            config.storageProvider = uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE;
             libraryEntry = {
               id: uploadResult.fileName,
               url: uploadResult.publicUrl,
               width: dims.width,
               height: dims.height,
-              size: req.file.size || 0,
+              size: fileSize || 0,
               originalName: req.file.originalname || '',
-              uploadedAt: new Date().toISOString()
+              uploadedAt: new Date().toISOString(),
+              provider: uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE,
+              path: uploadResult.path || '',
+              sha256: fileHash,
+              fingerprint,
             };
             config.libraryId = libraryEntry.id;
             await upsertLibraryEntry(ns, libraryEntry);
@@ -284,6 +342,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           config.width = Number.isFinite(entry.width) ? entry.width : Number(entry.width) || 0;
           config.height = Number.isFinite(entry.height) ? entry.height : Number(entry.height) || 0;
           config.libraryId = entry.id;
+          config.storageProvider = entry.provider || STORAGE_PROVIDERS.SUPABASE;
           libraryEntry = entry;
         } catch (error) {
           console.error('[gif-library] lookup error', error.message);
@@ -338,7 +397,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
 
       const shouldDeleteStoredFile =
-        cfgToUse.gifPath && !cfgToUse.libraryId && cfgToUse.gifPath.includes('supabase');
+        cfgToUse.gifPath && !cfgToUse.libraryId && cfgToUse.storageProvider === STORAGE_PROVIDERS.SUPABASE;
       if (shouldDeleteStoredFile) {
         const storage = getStorage();
         if (storage) {
@@ -354,7 +413,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         }
       }
 
-      const cleared = { gifPath: '', position: 'right', width: 0, height: 0, libraryId: '' };
+  const cleared = { gifPath: '', position: 'right', width: 0, height: 0, libraryId: '', storageProvider: '' };
       const hosted = !!process.env.REDIS_URL;
       if (store && ns) {
         try { await store.set(ns, 'tip-notification-gif', cleared); } catch {}

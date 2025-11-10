@@ -105,7 +105,7 @@
         <div class="ann-card-header">
           <h3 class="ann-card-title">{{ t('announcementAddMessage') }}</h3>
         </div>
-        <form @submit.prevent="addMessage">
+        <form @submit.prevent="handleAddMessage">
           <div class="ann-section">
             <button
               class="ann-collapse"
@@ -331,7 +331,35 @@
                 </div>
                 <div class="ann-form-group ann-grid-full">
                   <label class="ann-form-label sr-only">{{ t('announcementImage') }}</label>
-                  <div class="flex items-center gap-2">
+                  <div
+                    v-if="storageOptions.length"
+                    class="flex items-center gap-2 flex-wrap mb-2"
+                    role="group"
+                    aria-label="Storage provider selection">
+                    <label class="ann-form-label mb-0" for="announcement-storage-provider">
+                      {{ t('storageProviderLabel') }}
+                    </label>
+                    <select
+                      id="announcement-storage-provider"
+                      class="ann-select w-auto"
+                      v-model="selectedStorageProvider"
+                      :disabled="storageLoading || !storageOptions.length">
+                      <option
+                        v-for="opt in storageOptions"
+                        :key="opt.id"
+                        :value="opt.id"
+                        :disabled="!opt.available && opt.id !== selectedStorageProvider">
+                        {{ opt.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <p
+                    v-if="providerStatus && !providerStatus.available"
+                    class="small text-amber-500 mb-2"
+                    role="status">
+                    {{ providerStatus.label }} {{ t('storageProviderUnavailable') }}
+                  </p>
+                  <div class="flex items-center gap-2 flex-wrap">
                     <input
                       ref="annNewImageInput"
                       type="file"
@@ -342,14 +370,28 @@
                       <i class="pi pi-upload mr-2" aria-hidden="true"></i>
                       {{ t('imageChoose') || t('announcementImage') }}
                     </button>
+                    <button
+                      type="button"
+                      class="btn-secondary btn-compact-secondary"
+                      @click="openImageLibraryDrawer({ type: 'new' })"
+                      :aria-label="t('imageLibraryOpenBtn')">
+                      <i class="pi pi-images mr-2" aria-hidden="true"></i>
+                      {{ t('imageLibraryOpenBtn') }}
+                    </button>
                     <span
                       v-if="newSelectedFileName"
                       class="file-name-label"
                       :title="newSelectedFileName"
                       >{{ newSelectedFileName }}</span
                     >
+                    <span
+                      v-else-if="newMsg?.imageOriginalName"
+                      class="file-name-label"
+                      :title="newMsg.imageOriginalName"
+                      >{{ newMsg.imageOriginalName }}</span
+                    >
                     <button
-                      v-if="newMsg.imageFile"
+                      v-if="newMsg.imageFile || newMsg.imageUrl"
                       type="button"
                       class="ann-icon-btn"
                       :aria-label="t('remove')"
@@ -357,6 +399,15 @@
                       @click="clearNewImage">
                       <i class="pi pi-trash"></i>
                     </button>
+                  </div>
+                  <div v-if="imageLibrary.error" class="small mt-1 text-red-500">
+                    {{ imageLibrary.error }}
+                  </div>
+                  <div v-if="newMsg.imageUrl" class="mt-2">
+                    <img
+                      :src="newMsg.imageUrl"
+                      alt="announcement"
+                      class="max-h-24 object-contain rounded" />
                   </div>
                 </div>
               </div>
@@ -730,7 +781,35 @@
 
         <div class="ann-form-group">
           <label class="ann-form-label">{{ t('announcementImage') }}</label>
-          <div class="flex items-center gap-2">
+          <div
+            v-if="storageOptions.length"
+            class="flex items-center gap-2 flex-wrap mb-2"
+            role="group"
+            aria-label="Storage provider selection">
+            <label class="ann-form-label mb-0" for="announcement-storage-provider-edit">
+              {{ t('storageProviderLabel') }}
+            </label>
+            <select
+              id="announcement-storage-provider-edit"
+              class="ann-select w-auto"
+              v-model="selectedStorageProvider"
+              :disabled="storageLoading || !storageOptions.length">
+              <option
+                v-for="opt in storageOptions"
+                :key="opt.id"
+                :value="opt.id"
+                :disabled="!opt.available && opt.id !== selectedStorageProvider">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          <p
+            v-if="providerStatus && !providerStatus.available"
+            class="small text-amber-500 mb-2"
+            role="status">
+            {{ providerStatus.label }} {{ t('storageProviderUnavailable') }}
+          </p>
+          <div class="flex items-center gap-2 flex-wrap">
             <input
               ref="annEditImageInput"
               type="file"
@@ -741,15 +820,32 @@
               <i class="pi pi-upload mr-2" aria-hidden="true"></i>
               {{ t('imageChoose') || t('announcementImage') }}
             </button>
+            <button
+              type="button"
+              class="btn-secondary btn-compact-secondary"
+              :disabled="!editForm.value?.id"
+              @click="
+                openImageLibraryDrawer({ type: 'edit', messageId: editForm.value?.id || null })
+              "
+              :aria-label="t('imageLibraryOpenBtn')">
+              <i class="pi pi-images mr-2" aria-hidden="true"></i>
+              {{ t('imageLibraryOpenBtn') }}
+            </button>
             <span
               v-if="editSelectedFileName"
               class="file-name-label"
               :title="editSelectedFileName"
               >{{ editSelectedFileName }}</span
             >
+            <span
+              v-else-if="editForm.value?.imageOriginalName"
+              class="file-name-label"
+              :title="editForm.value.imageOriginalName"
+              >{{ editForm.value.imageOriginalName }}</span
+            >
             <button
               v-if="
-                (editForm && editForm.imageUrl && !editForm.removeImage) || editSelectedFileName
+                (editForm.value?.imageUrl && !editForm.value?.removeImage) || editSelectedFileName
               "
               type="button"
               class="ann-icon-btn"
@@ -758,6 +854,12 @@
               @click="clearEditImage">
               <i class="pi pi-trash"></i>
             </button>
+          </div>
+          <div v-if="editForm.value?.imageUrl && !editForm.value?.removeImage" class="mt-2">
+            <img
+              :src="editForm.value.imageUrl"
+              alt="announcement"
+              class="max-h-24 object-contain rounded" />
           </div>
         </div>
         <div class="flex gap-2 mt-4">
@@ -768,14 +870,26 @@
         </div>
       </div>
     </div>
+    <ImageLibraryDrawer
+      :open="imageLibrary.open"
+      :items="imageLibrary.items"
+      :loading="imageLibrary.loading"
+      :error="imageLibrary.error"
+      @close="closeImageLibraryDrawer"
+      @refresh="fetchImageLibrary(true)"
+      @select="onLibraryImageSelect" />
   </section>
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue';
+import { reactive, ref, watch, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CopyField from '../shared/CopyField.vue';
+import ImageLibraryDrawer from '../shared/ImageLibraryDrawer.vue';
 import { useAnnouncementPanel } from './AnnouncementPanel.js';
+import { useStorageProviders } from '../../composables/useStorageProviders.js';
+import api from '../../services/api.js';
+import { pushToast } from '../../services/toast';
 import './AnnouncementPanel.css';
 
 const { t } = useI18n();
@@ -794,6 +908,7 @@ const {
   modalRef,
   widgetUrl,
   activeTab,
+  load,
   saveSettings,
   addMessage,
   toggleMessageEnabled,
@@ -802,6 +917,53 @@ const {
   submitEdit,
   closeEdit,
 } = state;
+const storage = useStorageProviders();
+const providerStatus = computed(() => {
+  const selected = storage.selectedProvider.value;
+  return storage.providerOptions.value.find((opt) => opt.id === selected) || null;
+});
+const storageOptions = computed(() => storage.providerOptions.value);
+const storageLoading = computed(() => storage.loading.value);
+const selectedStorageProvider = computed({
+  get: () => storage.selectedProvider.value,
+  set: (val) => storage.setSelectedProvider(val),
+});
+
+function resolveStorageSelection(preferred = '') {
+  const candidates = [];
+  if (preferred) candidates.push(preferred);
+  storage.ensureSelection(candidates);
+}
+
+resolveStorageSelection();
+
+watch(storageOptions, () => {
+  resolveStorageSelection(selectedStorageProvider.value);
+});
+
+watch(messages, (list) => {
+  if (!Array.isArray(list)) return;
+  list.forEach((m) => {
+    if (m?.imageStorageProvider) storage.registerProvider(m.imageStorageProvider);
+  });
+  storage.ensureSelection([]);
+});
+
+watch(editing, (val) => {
+  if (val && editForm.value?.imageStorageProvider) {
+    storage.registerProvider(editForm.value.imageStorageProvider);
+    storage.ensureSelection([editForm.value.imageStorageProvider]);
+  }
+});
+
+const imageLibrary = reactive({
+  items: [],
+  loading: false,
+  error: '',
+  loaded: false,
+  open: false,
+  target: null,
+});
 
 const tabs = [
   { id: 'settings', label: t('settings') || t('announcementSettings') },
@@ -812,6 +974,185 @@ const sectionOpen = reactive({ content: true, style: false, cta: false, media: f
 const annNewImageInput = ref(null);
 const annEditImageInput = ref(null);
 const newSelectedFileName = ref('');
+
+function upsertLibraryItem(entry) {
+  if (!entry || !entry.id) return;
+  const normalized = {
+    id: entry.id,
+    url: entry.url || '',
+    provider: entry.provider || '',
+    path: entry.path || '',
+    size: Number(entry.size) || 0,
+    originalName: entry.originalName || '',
+    uploadedAt: entry.uploadedAt || new Date().toISOString(),
+    sha256: entry.sha256 || '',
+    fingerprint: entry.fingerprint || '',
+    width: Number(entry.width) || undefined,
+    height: Number(entry.height) || undefined,
+  };
+  const existingIndex = imageLibrary.items.findIndex((item) => item && item.id === normalized.id);
+  if (existingIndex !== -1) {
+    imageLibrary.items.splice(existingIndex, 1);
+  }
+  imageLibrary.items.unshift(normalized);
+  if (imageLibrary.items.length > 100) {
+    imageLibrary.items.splice(100);
+  }
+  imageLibrary.loaded = true;
+}
+
+async function fetchImageLibrary(force = false) {
+  if (imageLibrary.loading) return;
+  if (!force && imageLibrary.loaded) return;
+  try {
+    imageLibrary.loading = true;
+    imageLibrary.error = '';
+    const { data } = await api.get(
+      '/api/announcement/image-library',
+      force ? { params: { ts: Date.now() } } : undefined
+    );
+    const items = Array.isArray(data?.items) ? data.items : [];
+    imageLibrary.items = items
+      .map((item) => ({
+        id: item?.id || '',
+        url: item?.url || '',
+        provider: item?.provider || '',
+        path: item?.path || '',
+        size: Number(item?.size) || 0,
+        originalName: item?.originalName || '',
+        uploadedAt: item?.uploadedAt || new Date(0).toISOString(),
+        sha256: item?.sha256 || '',
+        fingerprint: item?.fingerprint || '',
+        width: Number(item?.width) || undefined,
+        height: Number(item?.height) || undefined,
+      }))
+      .filter((entry) => entry.id);
+    imageLibrary.loaded = true;
+  } catch (error) {
+    imageLibrary.error = t('imageLibraryLoadFailed');
+    console.error('[announcement] image library load failed', error);
+  } finally {
+    imageLibrary.loading = false;
+  }
+}
+
+async function ensureImageLibraryLoaded(force = false) {
+  if (force) {
+    await fetchImageLibrary(true);
+    return;
+  }
+  if (!imageLibrary.loaded) {
+    await fetchImageLibrary(false);
+  }
+}
+
+async function openImageLibraryDrawer(target) {
+  await ensureImageLibraryLoaded(false);
+  imageLibrary.target = target || null;
+  imageLibrary.error = '';
+  imageLibrary.open = true;
+}
+
+function closeImageLibraryDrawer() {
+  imageLibrary.open = false;
+  imageLibrary.target = null;
+}
+
+function applyLibraryToNew(entry) {
+  if (!entry || !entry.id) return;
+  if (newMsg && 'value' in newMsg && newMsg.value) {
+    newMsg.value.imageFile = null;
+    newMsg.value.imageLibraryId = entry.id;
+    newMsg.value.imageUrl = entry.url || '';
+    newMsg.value.imageStorageProvider = entry.provider || '';
+    newMsg.value.imageStoragePath = entry.path || '';
+    newMsg.value.imageSha256 = entry.sha256 || '';
+    newMsg.value.imageFingerprint = entry.fingerprint || '';
+    newMsg.value.imageOriginalName = entry.originalName || '';
+  }
+  newSelectedFileName.value = '';
+  upsertLibraryItem(entry);
+  if (entry.provider) {
+    storage.registerProvider(entry.provider);
+    storage.ensureSelection([entry.provider]);
+  }
+}
+
+async function applyLibraryToEdit(entry) {
+  if (!entry || !entry.id) {
+    closeImageLibraryDrawer();
+    return;
+  }
+  const target = imageLibrary.target;
+  const messageId = target?.messageId || editForm.value?.id;
+  if (!messageId) {
+    closeImageLibraryDrawer();
+    return;
+  }
+  try {
+    const fd = new FormData();
+    fd.append('libraryId', entry.id);
+    fd.append('imageLibraryId', entry.id);
+    if (entry.url) fd.append('imageUrl', entry.url);
+    if (entry.provider) fd.append('imageStorageProvider', entry.provider);
+    if (entry.path) fd.append('imageStoragePath', entry.path);
+    if (entry.sha256) fd.append('imageSha256', entry.sha256);
+    if (entry.fingerprint) fd.append('imageFingerprint', entry.fingerprint);
+    if (entry.originalName) fd.append('imageOriginalName', entry.originalName);
+    const { data } = await api.put(`/api/announcement/message/${messageId}/image`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (data?.success) {
+      const libraryEntry = data.libraryItem || entry;
+      pushToast({ type: 'success', message: t('announcementMsgUpdated') });
+      editForm.value.removeImage = false;
+      editForm.value.imageUrl = data.message?.imageUrl || libraryEntry.url || '';
+      editForm.value.imageLibraryId = data.message?.imageLibraryId || libraryEntry.id || '';
+      editForm.value.imageStorageProvider =
+        data.message?.imageStorageProvider || libraryEntry.provider || '';
+      editForm.value.imageStoragePath = data.message?.imageStoragePath || libraryEntry.path || '';
+      editForm.value.imageSha256 = data.message?.imageSha256 || libraryEntry.sha256 || '';
+      editForm.value.imageFingerprint =
+        data.message?.imageFingerprint || libraryEntry.fingerprint || '';
+      editForm.value.imageOriginalName =
+        data.message?.imageOriginalName || libraryEntry.originalName || '';
+      editSelectedFileName.value = libraryEntry.originalName || '';
+      upsertLibraryItem(libraryEntry);
+      if (libraryEntry.provider) {
+        storage.registerProvider(libraryEntry.provider);
+        storage.ensureSelection([libraryEntry.provider]);
+      }
+      await load();
+    } else {
+      pushToast({ type: 'error', message: data?.error || t('announcementSaveSettingsFailed') });
+    }
+  } catch (error) {
+    pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+    console.error('[announcement] apply library image failed', error);
+  } finally {
+    closeImageLibraryDrawer();
+  }
+}
+
+async function onLibraryImageSelect(entry) {
+  if (!entry || !entry.id) {
+    closeImageLibraryDrawer();
+    return;
+  }
+  const target = imageLibrary.target;
+  if (!target) {
+    closeImageLibraryDrawer();
+    return;
+  }
+  if (target.type === 'new') {
+    applyLibraryToNew(entry);
+    closeImageLibraryDrawer();
+  } else if (target.type === 'edit') {
+    await applyLibraryToEdit(entry);
+  } else {
+    closeImageLibraryDrawer();
+  }
+}
 
 const previewScale = 0.65;
 
@@ -837,8 +1178,22 @@ function clearEditImage() {
 
   if (editForm && 'value' in editForm && editForm.value) {
     editForm.value.removeImage = true;
+    editForm.value.imageUrl = '';
+    editForm.value.imageLibraryId = '';
+    editForm.value.imageStorageProvider = '';
+    editForm.value.imageStoragePath = '';
+    editForm.value.imageSha256 = '';
+    editForm.value.imageFingerprint = '';
+    editForm.value.imageOriginalName = '';
   } else if (state?.editForm && 'value' in state.editForm) {
     state.editForm.value.removeImage = true;
+    state.editForm.value.imageUrl = '';
+    state.editForm.value.imageLibraryId = '';
+    state.editForm.value.imageStorageProvider = '';
+    state.editForm.value.imageStoragePath = '';
+    state.editForm.value.imageSha256 = '';
+    state.editForm.value.imageFingerprint = '';
+    state.editForm.value.imageOriginalName = '';
   }
 }
 watch(editing, (val) => {
@@ -909,7 +1264,25 @@ function onEditImageChange(e) {
     const file = e?.target?.files?.[0];
     editSelectedFileName.value = file ? file.name : '';
     if (!file) return;
-    state.onEditImage({ target: { files: [file] } });
+    state
+      .onEditImage(
+        { target: { files: [file] } },
+        { storageProvider: selectedStorageProvider.value }
+      )
+      .then((data) => {
+        if (data?.message?.imageOriginalName) {
+          editSelectedFileName.value = data.message.imageOriginalName;
+        } else if (data?.libraryItem?.originalName) {
+          editSelectedFileName.value = data.libraryItem.originalName;
+        }
+        if (data?.libraryItem) {
+          upsertLibraryItem(data.libraryItem);
+          if (data.libraryItem.provider) {
+            storage.registerProvider(data.libraryItem.provider);
+            storage.ensureSelection([data.libraryItem.provider]);
+          }
+        }
+      });
   } catch {}
 }
 
@@ -917,12 +1290,37 @@ function clearNewImage() {
   try {
     if (newMsg && 'value' in newMsg && newMsg.value) {
       newMsg.value.imageFile = null;
+      newMsg.value.imageUrl = '';
+      newMsg.value.imageLibraryId = '';
+      newMsg.value.imageStorageProvider = '';
+      newMsg.value.imageStoragePath = '';
+      newMsg.value.imageSha256 = '';
+      newMsg.value.imageFingerprint = '';
+      newMsg.value.imageOriginalName = '';
     } else if (state?.newMsg && 'value' in state.newMsg) {
       state.newMsg.value.imageFile = null;
+      state.newMsg.value.imageUrl = '';
+      state.newMsg.value.imageLibraryId = '';
+      state.newMsg.value.imageStorageProvider = '';
+      state.newMsg.value.imageStoragePath = '';
+      state.newMsg.value.imageSha256 = '';
+      state.newMsg.value.imageFingerprint = '';
+      state.newMsg.value.imageOriginalName = '';
     }
     if (annNewImageInput.value) annNewImageInput.value.value = '';
     newSelectedFileName.value = '';
   } catch {}
+}
+
+async function handleAddMessage() {
+  const data = await addMessage({ storageProvider: selectedStorageProvider.value });
+  if (data?.libraryItem) {
+    upsertLibraryItem(data.libraryItem);
+    if (data.libraryItem.provider) {
+      storage.registerProvider(data.libraryItem.provider);
+      storage.ensureSelection([data.libraryItem.provider]);
+    }
+  }
 }
 
 function shouldShowImage(m) {
@@ -935,6 +1333,11 @@ function shouldShowImage(m) {
     return !!(m && m.imageUrl);
   }
 }
+
+onMounted(async () => {
+  await storage.fetchProviders();
+  resolveStorageSelection(selectedStorageProvider.value);
+});
 </script>
 
 <style scoped>

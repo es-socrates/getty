@@ -1,24 +1,22 @@
 <template>
-  <transition name="audio-library-fade">
+  <transition name="img-library-fade">
     <div
       v-if="open"
-      class="audio-library-overlay"
+      class="img-library-overlay"
       role="dialog"
       aria-modal="true"
-      :aria-label="t('audioLibraryTitle')"
+      :aria-label="title || t('imageLibraryTitle')"
       @click.self="emitClose">
-      <div class="audio-library-panel">
-        <header class="audio-library-header">
-          <div class="audio-library-header-text">
-            <h2 class="audio-library-title">{{ t('audioLibraryTitle') }}</h2>
-            <p class="audio-library-subtitle">{{ t('audioLibrarySubtitle') }}</p>
+      <div class="img-library-panel">
+        <header class="img-library-header">
+          <div class="img-library-header-text">
+            <h2 class="img-library-title">{{ title || t('imageLibraryTitle') }}</h2>
+            <p class="img-library-subtitle">
+              {{ subtitle || t('imageLibrarySubtitle') }}
+            </p>
           </div>
-          <div class="audio-library-header-actions">
-            <button
-              class="btn-secondary btn-compact-secondary"
-              type="button"
-              :disabled="loading"
-              @click="emitRefresh">
+          <div class="img-library-header-actions">
+            <button class="btn-secondary btn-compact-secondary" type="button" @click="emitRefresh">
               {{ t('commonRefresh') }}
             </button>
             <button class="btn-secondary btn-compact-secondary" type="button" @click="emitClose">
@@ -26,38 +24,41 @@
             </button>
           </div>
         </header>
-        <section class="audio-library-body" aria-live="polite">
-          <div v-if="loading" class="audio-library-status">{{ t('commonLoading') }}</div>
-          <div v-else-if="error" class="audio-library-status is-error">
-            <span>{{ error }}</span>
+        <section class="img-library-body" aria-live="polite">
+          <div v-if="loading" class="img-library-status">{{ t('commonLoading') }}</div>
+          <div v-else-if="error" class="img-library-status is-error">
+            <span>{{ error || t('imageLibraryLoadFailed') }}</span>
             <button class="btn-secondary btn-compact-secondary" type="button" @click="emitRefresh">
               {{ t('commonRefresh') }}
             </button>
           </div>
-          <div v-else-if="!items.length" class="audio-library-empty">
-            <p>{{ t('audioLibraryEmpty') }}</p>
-            <p class="audio-library-empty-hint">{{ t('audioLibraryEmptyHint') }}</p>
+          <div v-else-if="!items.length" class="img-library-empty">
+            <p>{{ t('imageLibraryEmpty') }}</p>
+            <p class="img-library-empty-hint">{{ t('imageLibraryEmptyHint') }}</p>
           </div>
-          <ul v-else class="audio-library-grid">
-            <li v-for="item in items" :key="item.id" class="audio-library-item">
-              <div class="audio-meta">
-                <div class="audio-meta-primary">
-                  <span class="audio-name">{{ item.originalName || fallbackName(item.id) }}</span>
-                  <span v-if="itemSize(item)" class="audio-size">{{ itemSize(item) }}</span>
+          <ul v-else class="img-library-grid">
+            <li v-for="item in items" :key="item.id" class="img-library-item">
+              <div class="img-thumb" aria-hidden="true">
+                <img
+                  :src="item.url"
+                  :alt="item.originalName || fallbackName(item.id)"
+                  loading="lazy"
+                  decoding="async" />
+              </div>
+              <div class="img-meta">
+                <div class="img-meta-primary">
+                  <span class="img-file-name">{{
+                    item.originalName || fallbackName(item.id)
+                  }}</span>
+                  <span v-if="itemSize(item)" class="img-file-size">{{ itemSize(item) }}</span>
                 </div>
-                <div class="audio-meta-secondary">
+                <div class="img-meta-secondary">
+                  <span v-if="itemDimensions(item)">{{ itemDimensions(item) }}</span>
                   <span v-if="itemUploaded(item)">{{ itemUploaded(item) }}</span>
                 </div>
               </div>
-              <audio
-                v-if="item.url"
-                class="audio-preview"
-                :src="item.url"
-                controls
-                preload="none"
-                :aria-label="t('audioLibraryPreviewLabel')"></audio>
               <button class="btn" type="button" @click="emitSelect(item)">
-                {{ t('audioLibraryUseAudio') }}
+                {{ t('imageLibraryUseImage') }}
               </button>
             </li>
           </ul>
@@ -78,8 +79,8 @@ import { useI18n } from 'vue-i18n';
  * @property {number} [size]
  * @property {string} [originalName]
  * @property {string} [uploadedAt]
- * @property {string} [sha256]
- * @property {string} [fingerprint]
+ * @property {number} [width]
+ * @property {number} [height]
  */
 
 defineProps({
@@ -87,18 +88,16 @@ defineProps({
   items: { type: Array, required: true },
   loading: { type: Boolean, required: true },
   error: { type: String, default: '' },
+  title: { type: String, default: '' },
+  subtitle: { type: String, default: '' },
 });
 
 const emit = defineEmits(['close', 'select', 'refresh']);
-
 const { t } = useI18n();
 
-const dateFormatter = computed(() => {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-});
+const dateFormatter = computed(
+  () => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+);
 
 function emitClose() {
   emit('close');
@@ -119,48 +118,52 @@ function emitRefresh() {
  * @param {LibraryItem} item
  */
 function itemSize(item) {
-  if (!item.size || item.size <= 0) return '';
-  const kiloBytes = item.size / 1024;
-  if (!Number.isFinite(kiloBytes)) return '';
-  if (kiloBytes >= 1024) {
-    const megaBytes = kiloBytes / 1024;
-    const precision = megaBytes >= 10 ? 0 : 1;
-    return `${megaBytes.toFixed(precision)} MB`;
+  const size = Number(item?.size);
+  if (!Number.isFinite(size) || size <= 0) return '';
+  const kb = size / 1024;
+  if (kb >= 1024) {
+    const mb = kb / 1024;
+    return `${mb >= 10 ? Math.round(mb) : mb.toFixed(1)} MB`;
   }
-  const precision = kiloBytes >= 10 ? 0 : 1;
-  return `${kiloBytes.toFixed(precision)} KB`;
+  return `${kb >= 10 ? Math.round(kb) : kb.toFixed(1)} KB`;
+}
+
+/**
+ * @param {LibraryItem} item
+ */
+function itemDimensions(item) {
+  if (!item?.width || !item?.height) return '';
+  return `${item.width}×${item.height}`;
 }
 
 /**
  * @param {LibraryItem} item
  */
 function itemUploaded(item) {
-  if (!item.uploadedAt) return '';
-  const parsed = new Date(item.uploadedAt);
+  const ts = item?.uploadedAt;
+  if (!ts) return '';
+  const parsed = new Date(ts);
   if (Number.isNaN(parsed.getTime())) return '';
   return dateFormatter.value.format(parsed);
 }
 
-/**
- * @param {string | undefined} id
- */
 function fallbackName(id) {
-  if (!id) return t('audioLibraryUnknown');
-  return id.length > 32 ? `${id.slice(0, 32)}…` : id;
+  if (!id) return t('imageLibraryUnknown');
+  return id.length > 24 ? `${id.slice(0, 24)}…` : id;
 }
 </script>
 
 <style scoped>
-.audio-library-fade-enter-active,
-.audio-library-fade-leave-active {
+.img-library-fade-enter-active,
+.img-library-fade-leave-active {
   transition: opacity 0.2s ease;
 }
-.audio-library-fade-enter-from,
-.audio-library-fade-leave-to {
+.img-library-fade-enter-from,
+.img-library-fade-leave-to {
   opacity: 0;
 }
 
-.audio-library-overlay {
+.img-library-overlay {
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--bg-overlay, rgba(7, 11, 18, 0.92)) 78%, transparent);
@@ -172,13 +175,13 @@ function fallbackName(id) {
   padding: 30px;
 }
 
-:global([data-theme='light']) .audio-library-overlay {
+:global([data-theme='light']) .img-library-overlay {
   background: color-mix(in srgb, rgba(244, 247, 255, 0.84) 86%, transparent);
 }
 
-.audio-library-panel {
-  width: min(720px, 92vw);
-  max-height: min(600px, 90vh);
+.img-library-panel {
+  width: min(820px, 92vw);
+  max-height: min(640px, 90vh);
   background: var(--card, #0f1214);
   color: var(--text-strong, #f4f7ff);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
@@ -188,14 +191,14 @@ function fallbackName(id) {
   backdrop-filter: blur(16px);
 }
 
-:global([data-theme='light']) .audio-library-panel {
+:global([data-theme='light']) .img-library-panel {
   background: var(--card, #ffffff);
   color: var(--text-strong, #0f172a);
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: 0 24px 55px rgba(15, 23, 42, 0.12);
 }
 
-.audio-library-header {
+.img-library-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -204,34 +207,33 @@ function fallbackName(id) {
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.14));
 }
 
-:global([data-theme='light']) .audio-library-header {
+:global([data-theme='light']) .img-library-header {
   border-bottom-color: rgba(15, 23, 42, 0.08);
 }
 
-.audio-library-header-text {
+.img-library-header-text {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.audio-library-title {
+.img-library-title {
   font-size: 20px;
   font-weight: 600;
-  color: inherit;
 }
 
-.audio-library-subtitle {
+.img-library-subtitle {
   font-size: 13px;
   opacity: 0.78;
   max-width: 500px;
 }
 
-.audio-library-header-actions {
+.img-library-header-actions {
   display: flex;
   gap: 8px;
 }
 
-.audio-library-body {
+.img-library-body {
   padding: 18px 26px 26px;
   overflow-y: auto;
   display: flex;
@@ -239,34 +241,32 @@ function fallbackName(id) {
   gap: 20px;
 }
 
-.audio-library-status {
+.img-library-status {
   display: inline-flex;
   gap: 10px;
   align-items: center;
   font-size: 13px;
   opacity: 0.9;
-  color: inherit;
 }
 
-.audio-library-status.is-error {
+.img-library-status.is-error {
   color: #f88;
 }
 
-.audio-library-empty {
+.img-library-empty {
   text-align: center;
   font-size: 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   opacity: 0.82;
-  color: inherit;
 }
 
-.audio-library-empty-hint {
+.img-library-empty-hint {
   font-size: 12px;
 }
 
-.audio-library-grid {
+.img-library-grid {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -275,7 +275,7 @@ function fallbackName(id) {
   gap: 18px;
 }
 
-.audio-library-item {
+.img-library-item {
   background: color-mix(in srgb, var(--card, rgba(23, 28, 40, 0.94)) 86%, transparent);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   border-radius: 14px;
@@ -287,28 +287,52 @@ function fallbackName(id) {
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.audio-library-item:hover {
+.img-library-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 18px 36px rgba(2, 6, 14, 0.38);
 }
 
-:global([data-theme='light']) .audio-library-item {
+:global([data-theme='light']) .img-library-item {
   background: color-mix(in srgb, var(--card, #ffffff) 96%, transparent);
   border-color: rgba(15, 23, 42, 0.08);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
 }
 
-:global([data-theme='light']) .audio-library-item:hover {
+:global([data-theme='light']) .img-library-item:hover {
   box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
 }
 
-.audio-meta {
+.img-thumb {
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  backdrop-filter: blur(4px);
+}
+
+:global([data-theme='light']) .img-thumb {
+  background: rgba(248, 250, 255, 0.92);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.img-thumb img {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  display: block;
+}
+
+.img-meta {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.audio-meta-primary {
+.img-meta-primary {
   display: flex;
   justify-content: space-between;
   gap: 6px;
@@ -316,7 +340,7 @@ function fallbackName(id) {
   font-size: 13px;
 }
 
-.audio-meta-secondary {
+.img-meta-secondary {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -324,33 +348,29 @@ function fallbackName(id) {
   opacity: 0.78;
 }
 
-.audio-name {
+.img-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.audio-size {
+.img-file-size {
   opacity: 0.78;
 }
 
-.audio-preview {
-  width: 100%;
-}
-
 @media (max-width: 720px) {
-  .audio-library-overlay {
+  .img-library-overlay {
     padding: 16px;
   }
-  .audio-library-panel {
+  .img-library-panel {
     width: 100%;
     max-height: 92vh;
   }
-  .audio-library-header {
+  .img-library-header {
     flex-direction: column;
     align-items: flex-start;
   }
-  .audio-library-header-actions {
+  .img-library-header-actions {
     width: 100%;
     justify-content: flex-end;
   }

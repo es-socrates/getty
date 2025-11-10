@@ -362,6 +362,7 @@ const registerChatRoutes = require('./routes/chat');
 const registerExternalNotificationsRoutes = require('./routes/external-notifications');
 const registerGoalAudioRoutes = require('./routes/goal-audio');
 const registerTipGoalRoutes = require('./routes/tip-goal');
+const registerStorageRoutes = require('./routes/storage');
 const registerRaffleRoutes = require('./routes/raffle');
 const registerSocialMediaRoutes = require('./routes/socialmedia');
 const registerLastTipRoutes = require('./routes/last-tip');
@@ -1991,6 +1992,7 @@ registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 registerAchievementsRoutes(app, achievements, strictLimiter, { store });
 registerEventsSettingsRoutes(app, strictLimiter, { store });
 registerUserRoutes(app, { store });
+registerStorageRoutes(app);
 
 app.post('/api/chat/test-message', limiter, async (req, res) => {
   try {
