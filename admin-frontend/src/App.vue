@@ -431,7 +431,9 @@
 
       <div class="admin-overlay md:hidden" @click="setMobileSidebar(false)"></div>
       <main class="admin-main flex-1 min-w-0" id="main" tabindex="-1" role="main">
-        <RouterView />
+        <div class="admin-main-content flex-1">
+          <RouterView />
+        </div>
 
         <footer
           class="mt-10 pt-6 border-t border-border text-xs text-[var(--text-secondary)]"
