@@ -1,49 +1,59 @@
 <template>
   <div class="wander-auth-card">
-    <h2>Wander Wallet Login</h2>
+    <h2>{{ t('wanderAuth.title') }}</h2>
     <p class="text-sm mb-3">
-      Connect your Arweave wallet via Wander to activate an isolated configuration space.
+      {{ t('wanderAuth.description') }}
     </p>
 
     <div v-if="session.state.address" class="space-y-2">
       <div class="text-sm">
-        Address: <span class="font-mono break-all">{{ session.state.address }}</span>
+        {{ t('wanderAuth.addressLabel') }}
+        <span class="font-mono break-all">{{ session.state.address }}</span>
       </div>
       <div class="text-xs text-neutral-600 dark:text-neutral-400">
-        Hash: <span class="wander-wallet-hash">{{ session.state.walletHash }}</span>
+        {{ t('wanderAuth.hashLabel') }}
+        <span class="wander-wallet-hash">{{ session.state.walletHash }}</span>
       </div>
       <div class="wander-auth-status flex items-center gap-2">
-        <WsStatusDot :connected="session.state.wsConnected" size="md" sr-label="Estado WebSocket" />
+        <WsStatusDot
+          :connected="session.state.wsConnected"
+          size="md"
+          :sr-label="t('wanderAuth.wsStatusSr')" />
         <span
           class="text-xs"
           :class="session.state.wsConnected ? 'text-green-600' : 'text-red-600'">
-          WS: {{ session.state.wsConnected ? 'conectado' : 'desconectado' }}
+          {{
+            t('wanderAuth.wsStatus', {
+              status: t(session.state.wsConnected ? 'connected' : 'disconnected'),
+            })
+          }}
         </span>
-        <span v-if="session.state.expiresAt"
-          >exp: {{ new Date(session.state.expiresAt).toLocaleTimeString() }}</span
-        >
+        <span v-if="session.state.expiresAt">
+          {{ t('wanderAuth.expiresLabel') }}
+          {{ new Date(session.state.expiresAt).toLocaleTimeString() }}
+        </span>
       </div>
       <div
         v-if="session.state.sessionStale"
         class="p-2 rounded bg-orange-100 dark:bg-orange-900/40 text-xs text-orange-800 dark:text-orange-300">
-        La sesión del servidor expiró o se reinició. Reautentica para continuar.
+        {{ t('wanderAuth.sessionStale') }}
       </div>
       <div class="flex flex-wrap gap-2 pt-2 items-center">
         <button @click="openWs" :disabled="session.state.wsConnected || session.state.sessionStale">
-          Abrir WS
+          {{ t('wanderAuth.openWs') }}
         </button>
         <button
           v-if="!session.state.sessionStale"
           class="bg-neutral-500 hover:bg-neutral-600"
           @click="logout">
-          Salir
+          {{ t('wanderAuth.logout') }}
         </button>
         <button
           v-else
           class="bg-blue-600 hover:bg-blue-700"
           @click="reconnect"
           :disabled="busyReconnect">
-          {{ busyReconnect ? '...' : 'Reconnect' }}
+          {{ busyReconnect ? '...' : t('wanderAuth.reconnect') }}
         </button>
       </div>
     </div>
@@ -52,24 +62,24 @@
       <div class="flex flex-col gap-2">
         <input
           v-model="form.address"
-          placeholder="Dirección (Arweave)"
+          :placeholder="t('wanderAuth.addressPlaceholder')"
           class="w-full border rounded p-2 text-sm" />
         <select v-model="form.mode" class="w-full border rounded p-2 text-sm">
-          <option v-if="allowDummy" value="dummy">Firma Dummy (TEST)</option>
-          <option value="arconnect">ArConnect / Wander</option>
+          <option v-if="allowDummy" value="dummy">{{ t('wanderAuth.modeDummy') }}</option>
+          <option value="arconnect">{{ t('wanderAuth.modeArconnect') }}</option>
         </select>
         <div
           v-if="extState.detected"
           class="text-xs text-green-700 dark:text-green-400 flex items-center gap-1">
-          <span>Extension detected</span>
+          <span>{{ t('wanderAuth.extensionDetected') }}</span>
           <span v-if="extState.activeAddress" class="font-mono truncate max-w-[160px]">{{
             extState.activeAddress
           }}</span>
         </div>
-        <div v-else class="text-xs text-red-600">No Wander/ArConnect extension detected</div>
+        <div v-else class="text-xs text-red-600">{{ t('wanderAuth.extensionMissing') }}</div>
       </div>
       <div v-if="step === 1" class="text-xs text-neutral-600 dark:text-neutral-400">
-        1. Request nonce and sign the message.
+        {{ t('wanderAuth.stepOneHint') }}
       </div>
       <div
         v-if="step === 2"
@@ -81,37 +91,37 @@
           v-if="!extState.permissions.address"
           @click="connectAddress"
           :disabled="busy || !extState.detected">
-          {{ busy ? '...' : 'Conectar dirección' }}
+          {{ busy ? '...' : t('wanderAuth.connectAddress') }}
         </button>
         <button
           v-if="extState.permissions.address && step === 1"
           @click="requestNonce"
           :disabled="busy || !form.address.trim()">
-          {{ busy ? '...' : 'Solicitar nonce' }}
+          {{ busy ? '...' : t('wanderAuth.requestNonce') }}
         </button>
         <button v-if="step === 2" @click="verifySignature" :disabled="busy">
-          {{ busy ? 'Verificando...' : 'Verificar' }}
+          {{ busy ? t('wanderAuth.verifying') : t('wanderAuth.verify') }}
         </button>
         <button
           v-if="step === 2"
           class="bg-neutral-500 hover:bg-neutral-600"
           @click="resetFlow"
           :disabled="busy">
-          Reiniciar
+          {{ t('wanderAuth.reset') }}
         </button>
         <button
           v-if="extState.permissions.address"
           class="bg-neutral-500 hover:bg-neutral-600"
           @click="refreshAccount"
           :disabled="busy">
-          Refrescar cuenta
+          {{ t('wanderAuth.refreshAccount') }}
         </button>
         <button
           v-if="extState.permissions.address"
           class="bg-orange-600 hover:bg-orange-700"
           @click="disconnectExt"
           :disabled="busy">
-          Desconectar ext
+          {{ t('wanderAuth.disconnectExtension') }}
         </button>
       </div>
       <p v-if="error" class="text-red-600 text-sm">{{ error }}</p>
@@ -122,130 +132,194 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { fetchJson } from '../../services/api';
 import { useWanderSession } from '../store/wanderSession';
 import { getWalletProvider, isDummyAllowed } from '../provider/walletProvider';
+import { MINIMUM_WALLET_PERMISSIONS } from '../provider/walletTypes';
 import WsStatusDot from '../../components/WsStatusDot.vue';
 
+/**
+ * @typedef {import('../provider/walletTypes').WalletAdapter} WalletAdapter
+ * @typedef {'dummy' | 'arconnect'} AuthMode
+ * @typedef {{ message: string; address: string; error?: string; [key: string]: unknown }} WanderNonceResponse
+ * @typedef {{ success?: boolean; error?: string }} WanderVerifyResponse
+ * @typedef {{ detected: boolean; activeAddress: string; permissions: { address: boolean } }} ExtensionState
+ * @typedef {{ address: string; publicKey: string; signature: string }} VerifyBody
+ * @typedef {{ address: string; mode: AuthMode }} FormState
+ */
+
 const session = useWanderSession();
+const { t } = useI18n();
 const busy = ref(false);
 const busyReconnect = ref(false);
-const error = ref(null);
+const error = ref(/** @type {string | null} */ (null));
 const allowDummy = isDummyAllowed();
-const form = ref({ address: '', mode: allowDummy ? 'dummy' : 'arconnect' });
+const form = ref(
+  /** @type {FormState} */ ({ address: '', mode: allowDummy ? 'dummy' : 'arconnect' })
+);
+/** @type {Promise<WalletAdapter> | null} */
 let providerPromise = null;
 const step = ref(1);
 const challengeMessage = ref('');
-const nonceMeta = ref(null);
+const nonceMeta = ref(/** @type {WanderNonceResponse | null} */ (null));
 const info = ref('');
+/** @type {WebSocket | null} */
 let wsClient = null;
-const extState = ref({ detected: false, activeAddress: '', permissions: { address: false } });
+const extState = ref(
+  /** @type {ExtensionState} */ ({
+    detected: false,
+    activeAddress: '',
+    permissions: { address: false },
+  })
+);
 
-async function initProvider() {
+/**
+ * @param {string} message
+ * @returns {string}
+ */
+function mapErrorMessage(message) {
+  if (message === 'verify_failed') return t('wanderAuth.errorVerifyFailed');
+  if (/bad_signature/.test(message)) return t('wanderAuth.errorBadSignature');
+  return message;
+}
+
+/**
+ * @returns {Promise<WalletAdapter>}
+ */
+async function resolveProvider() {
   if (!providerPromise) providerPromise = getWalletProvider();
-  const provider = await providerPromise;
-  extState.value.detected = !!provider?.hasProvider;
-  if (provider?.hasProvider) {
-    try {
-      const addr = await provider.getActiveAddress();
+  return providerPromise;
+}
+
+/**
+ * @returns {Promise<void>}
+ */
+async function initProvider() {
+  try {
+    const provider = await resolveProvider();
+    extState.value.detected = provider.hasProvider;
+    if (provider.hasProvider) {
+      const addr = await provider.getActiveAddress().catch(() => '');
       if (addr) {
         extState.value.activeAddress = addr;
+        extState.value.permissions.address = true;
       }
-    } catch {}
+    }
+  } catch {
+    extState.value.detected = false;
   }
 }
-initProvider();
+void initProvider();
 
+/**
+ * @returns {Promise<void>}
+ */
 async function connectAddress() {
-  error.value = '';
+  error.value = null;
   info.value = '';
   busy.value = true;
   try {
-    if (!providerPromise) providerPromise = getWalletProvider();
-    const provider = await providerPromise;
-    if (!provider.hasProvider) throw new Error('No wallet extension detected');
+    const provider = await resolveProvider();
+    if (!provider.hasProvider) throw new Error(t('wanderAuth.errorNoWallet'));
     await provider.ensurePermissions(['ACCESS_ADDRESS']);
     const addr = await provider.getActiveAddress();
-    if (!addr) throw new Error('Extension did not return address');
+    if (!addr) throw new Error(t('wanderAuth.errorNoAddressFromExtension'));
     extState.value.activeAddress = addr;
     extState.value.permissions.address = true;
     if (!form.value.address) form.value.address = addr;
-    info.value = 'Address connected';
-  } catch (e) {
-    error.value = e.message || String(e);
+    info.value = t('wanderAuth.infoAddressConnected');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err ?? '');
+    error.value = mapErrorMessage(message);
   } finally {
     busy.value = false;
   }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function refreshAccount() {
   try {
-    if (!providerPromise) return;
-    const provider = await providerPromise;
+    const provider = await resolveProvider();
     const addr = await provider.getActiveAddress();
     if (addr) {
       extState.value.activeAddress = addr;
       if (!form.value.address) form.value.address = addr;
     }
-  } catch {}
+  } catch {
+    /* noop */
+  }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function disconnectExt() {
   busy.value = true;
-  error.value = '';
+  error.value = null;
   info.value = '';
   try {
-    if (!providerPromise) return;
-    const provider = await providerPromise;
-    if (provider.disconnect) await provider.disconnect();
+    const provider = await resolveProvider();
+    await provider.disconnect();
     extState.value.permissions.address = false;
     extState.value.activeAddress = '';
-    info.value = 'Extension disconnected';
-  } catch (e) {
-    error.value = e.message || String(e);
+    info.value = t('wanderAuth.infoExtensionDisconnected');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err ?? '');
+    error.value = mapErrorMessage(message);
   } finally {
     busy.value = false;
   }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function requestNonce() {
-  error.value = '';
+  error.value = null;
   info.value = '';
-  if (!form.value.address.trim()) {
-    error.value = 'Address required';
+  const trimmed = form.value.address.trim();
+  if (!trimmed) {
+    error.value = t('wanderAuth.errorAddressRequired');
     return;
   }
   busy.value = true;
   try {
-    const r = await fetchJson('/api/auth/wander/nonce', {
-      method: 'POST',
-      body: { address: form.value.address.trim() },
-    });
-    if (r.error) throw new Error(r.error);
-    challengeMessage.value = r.message;
-    nonceMeta.value = r;
+    const response = /** @type {WanderNonceResponse} */ (
+      await fetchJson('/api/auth/wander/nonce', {
+        method: 'POST',
+        body: { address: trimmed },
+      })
+    );
+    if (response.error) throw new Error(String(response.error));
+    challengeMessage.value = String(response.message ?? '');
+    nonceMeta.value = response;
     step.value = 2;
-    if (form.value.mode === 'dummy') {
-      info.value = 'Nonce received. In dummy mode we will automatically sign with TEST';
-    } else {
-      info.value = 'Nonce received. Proceed to sign with your wallet (ArConnect/Wander).';
-    }
-  } catch (e) {
-    error.value = e.message || String(e);
+    info.value =
+      form.value.mode === 'dummy' ? t('wanderAuth.infoNonceDummy') : t('wanderAuth.infoNonce');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err ?? '');
+    error.value = mapErrorMessage(message);
   } finally {
     busy.value = false;
   }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function verifySignature() {
-  error.value = '';
+  error.value = null;
   info.value = '';
   if (!nonceMeta.value) {
-    error.value = 'No nonce available';
+    error.value = t('wanderAuth.errorNoNonce');
     return;
   }
   busy.value = true;
   try {
+    /** @type {VerifyBody} */
     let body;
     if (form.value.mode === 'dummy') {
       body = {
@@ -254,36 +328,42 @@ async function verifySignature() {
         signature: 'TEST',
       };
     } else {
-      if (!providerPromise) providerPromise = getWalletProvider();
-      const provider = await providerPromise;
-      if (!provider) throw new Error('No wallet provider (ArConnect/Wander) detected');
-      await provider.ensurePermissions(['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY']);
+      const provider = await resolveProvider();
+      if (!provider.hasProvider) throw new Error(t('wanderAuth.errorNoWalletProvider'));
+      await provider.ensurePermissions([...MINIMUM_WALLET_PERMISSIONS]);
       let address = form.value.address.trim();
       if (!address) address = await provider.getActiveAddress();
-      if (!address) throw new Error('No active address found');
+      if (!address) throw new Error(t('wanderAuth.errorNoActiveAddress'));
       if (address !== nonceMeta.value.address)
-        throw new Error('Signing address differs from requested');
+        throw new Error(t('wanderAuth.errorAddressMismatch'));
       const msg = challengeMessage.value;
-      if (!msg) throw new Error('Challenge message not available');
+      if (!msg) throw new Error(t('wanderAuth.errorNoChallenge'));
       const { signature, publicKey } = await provider.signMessage(msg);
       body = { address, publicKey, signature };
     }
-    const r = await fetchJson('/api/auth/wander/verify', { method: 'POST', body });
-    if (!r.success) throw new Error(r.error || 'verify_failed');
+    const verifyResponse = /** @type {WanderVerifyResponse} */ (
+      await fetchJson('/api/auth/wander/verify', {
+        method: 'POST',
+        body,
+      })
+    );
+    if (!verifyResponse.success) throw new Error(verifyResponse.error || 'verify_failed');
     await session.refreshSession();
-    info.value = 'Session created';
+    info.value = t('wanderAuth.infoSessionCreated');
     step.value = 1;
     challengeMessage.value = '';
     nonceMeta.value = null;
-  } catch (e) {
-    const msg = e.message || String(e);
-    error.value = msg;
-    if (/bad_signature/.test(msg)) {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err ?? '');
+    error.value = mapErrorMessage(message);
+    if (/bad_signature/.test(message)) {
       try {
         window.dispatchEvent(
           new CustomEvent('getty:wallet-bad-signature', { detail: { source: 'verifySignature' } })
         );
-      } catch {}
+      } catch {
+        /* noop */
+      }
     }
   } finally {
     busy.value = false;
@@ -294,10 +374,13 @@ function resetFlow() {
   step.value = 1;
   challengeMessage.value = '';
   nonceMeta.value = null;
-  error.value = '';
+  error.value = null;
   info.value = '';
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function logout() {
   await session.logout();
   closeWs();
@@ -305,7 +388,6 @@ async function logout() {
 
 function openWs() {
   if (wsClient || !session.state.walletHash) return;
-
   const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
   wsClient = new WebSocket(wsUrl);
   wsClient.onopen = () => {
@@ -315,29 +397,41 @@ function openWs() {
     session.markWsConnected(false);
     wsClient = null;
   };
+  /**
+   * @param {MessageEvent<string>} ev
+   */
   wsClient.onmessage = (ev) => {
     try {
-      const msg = JSON.parse(ev.data);
+      const msg = /** @type {{ type?: string }} */ (JSON.parse(ev.data ?? '{}'));
       if (msg.type === 'initTenant' && !session.state.walletHash) {
-        session.refreshSession();
+        void session.refreshSession();
       }
-    } catch {}
+    } catch {
+      /* noop */
+    }
   };
 }
+
 function closeWs() {
   if (wsClient) {
     try {
       wsClient.close();
-    } catch {}
+    } catch {
+      /* noop */
+    }
     wsClient = null;
   }
 }
 
+/**
+ * @returns {Promise<void>}
+ */
 async function reconnect() {
   busyReconnect.value = true;
   try {
     await session.attemptReconnect();
   } catch {
+    /* noop */
   } finally {
     busyReconnect.value = false;
   }

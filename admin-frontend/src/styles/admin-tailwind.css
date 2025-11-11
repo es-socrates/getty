@@ -339,6 +339,7 @@
 
   .admin-layout {
     --sidebar-w: 14rem;
+    min-height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)) - 2.5rem);
   }
   .sidebar-collapsed {
     --sidebar-w: 4rem;
@@ -394,6 +395,18 @@
       overflow-x: visible;
       z-index: 40; /* under header controls but above content */
     }
+  }
+  .admin-main {
+    min-height: calc(100vh - var(--admin-top, var(--admin-header-h, 64px)) - 2.5rem);
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-main-content {
+    flex: 1 0 auto;
+    padding-bottom: 2.5rem;
+  }
+  .admin-main > footer {
+    margin-top: auto;
   }
   .sidebar-collapsed .admin-sidebar {
     @apply w-16 pr-0;
