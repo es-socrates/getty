@@ -1,6 +1,6 @@
 # getty (λ)
 
-Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee. Now integrated with **Wander Wallet** for login and encrypted data isolation with security tokens for your widgets and overlays.
+The platform tools for live streaming on Odysee. This includes overlays, tip alerts, chat, giveaway system, creator analytics and much more. Now integrated with **Wander Wallet** for login and encrypted data isolation with security tokens for your widgets and overlays.
 
 🔥 Online version from [app.getty.sh](https://app.getty.sh/). This is an optional online version if you don't want to use the localhost version. **You only need to configure once and save the changes. Then, open OBS and integrate the widgets.**
 

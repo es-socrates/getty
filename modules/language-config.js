@@ -4,7 +4,7 @@ const path = require('path');
 const serverLanguages = {
     en: {
         title: "getty",
-        description: "Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.",
+        description: "The platform tools for live streaming on Odysee. This includes overlays, tip alerts, chat, giveaway system, creator analytics and much more.",
         chatClaimId: 'Chat Claim ID',
         invalidClaimId: 'Invalid Claim ID',
         announcementAnimationFade: 'Fade',
@@ -15,7 +15,7 @@ const serverLanguages = {
     },
     es: {
         title: "getty",
-        description: "Aplicación completa y personalizable con herramientas para la transmisión en vivo. Notificaciones de propinas, objetivos de propinas, widget de chat y alertas en tiempo real para tus transmisiones en vivo en Odysee.",
+        description: "La plataforma de herramientas para la transmisión en vivo en Odysee. Esto incluye overlays, alertas de propinas, chat, sistema de sorteos, analíticas de creador y mucho más.",
         chatClaimId: 'Claim ID del Chat',
         invalidClaimId: 'Claim ID inválido',
         announcementAnimationFade: 'Desvanecer',
