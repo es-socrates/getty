@@ -243,6 +243,7 @@ function buildProfileSeoMeta(req, context) {
     twitterCard,
     twitterCreator: handle,
     twitterDomain,
+    twitterSite: '@getty_sh',
   };
 }
 
@@ -279,7 +280,7 @@ function injectProfileSeoMeta(html, meta) {
   if (meta.title) lines.push(`<meta property="og:title" content="${escapeHtml(meta.title)}" />`);
   if (meta.description) lines.push(`<meta property="og:description" content="${escapeHtml(meta.description)}" />`);
   if (meta.canonical) lines.push(`<meta property="og:url" content="${escapeHtml(meta.canonical)}" />`);
-  lines.push(`<meta property="og:type" content="website" />`);
+  lines.push(`<meta property="og:type" content="profile" />`);
   lines.push(`<meta property="og:site_name" content="${escapeHtml(meta.siteName || 'getty')}" />`);
   if (meta.ogLocale) lines.push(`<meta property="og:locale" content="${escapeHtml(meta.ogLocale)}" />`);
   if (meta.image) {
@@ -295,6 +296,7 @@ function injectProfileSeoMeta(html, meta) {
   if (meta.image) lines.push(`<meta name="twitter:image" content="${escapeHtml(meta.image)}" />`);
   if (meta.imageAlt) lines.push(`<meta name="twitter:image:alt" content="${escapeHtml(meta.imageAlt)}" />`);
   if (meta.twitterCreator) lines.push(`<meta name="twitter:creator" content="${escapeHtml(meta.twitterCreator)}" />`);
+  if (meta.twitterSite) lines.push(`<meta name="twitter:site" content="${escapeHtml(meta.twitterSite)}" />`);
   if (meta.twitterDomain) lines.push(`<meta name="twitter:domain" content="${escapeHtml(meta.twitterDomain)}" />`);
 
   if (lines.length) {

@@ -524,6 +524,7 @@ const SEO_META_TARGETS = [
   { attr: 'name', value: 'twitter:description' },
   { attr: 'name', value: 'twitter:image' },
   { attr: 'name', value: 'twitter:image:alt' },
+  { attr: 'name', value: 'twitter:site' },
   { attr: 'name', value: 'twitter:url' },
   { attr: 'name', value: 'twitter:creator' },
   { attr: 'name', value: 'twitter:domain' },
@@ -632,6 +633,7 @@ function applySeoMeta(meta) {
   setMetaTag('name', 'twitter:description', meta.description || null);
   setMetaTag('name', 'twitter:image', meta.image || null);
   setMetaTag('name', 'twitter:image:alt', meta.imageAlt || null);
+  setMetaTag('name', 'twitter:site', meta.twitterSite || null);
   setMetaTag('name', 'twitter:url', meta.canonical || null);
   setMetaTag('name', 'twitter:creator', meta.twitterCreator || null);
   setMetaTag('name', 'twitter:domain', meta.twitterDomain || null);

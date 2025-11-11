@@ -682,6 +682,7 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted } from 'vue';
+import { applyBaseSeo } from '../../head/baseSeo.js';
 import odyseeLogoUrl from '../../assets/odysee.svg?url';
 
 const assetPaths = {
@@ -690,6 +691,7 @@ const assetPaths = {
 };
 
 const bodyClasses = ['landing', 'bg-background', 'text-gray-100', 'font-sans'];
+let restoreSeo = null;
 
 function notifyLegacyBridge() {
   const root = document.getElementById('app');
@@ -707,8 +709,8 @@ function notifyLegacyBridge() {
   }
 }
 
-// Ensure the legacy CSS selectors targeting body continue to work once the Vue view mounts.
 onMounted(() => {
+  restoreSeo = applyBaseSeo();
   bodyClasses.forEach((className) => {
     if (!document.body.classList.contains(className)) {
       document.body.classList.add(className);
@@ -723,6 +725,10 @@ onBeforeUnmount(() => {
   bodyClasses.forEach((className) => {
     document.body.classList.remove(className);
   });
+  if (typeof restoreSeo === 'function') {
+    restoreSeo();
+    restoreSeo = null;
+  }
 });
 </script>
 
