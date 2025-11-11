@@ -27,18 +27,16 @@ const META_TARGETS = [
 const LINK_TARGETS = [{ rel: 'canonical' }];
 
 const DEFAULT_META = {
-  title: 'getty · Live streaming toolkit for Odysee creators',
-  description:
-    'Complete and customizable app with tools for live streaming. Tip notifications, tip goals, chat widget, and real-time alerts for your live streams on Odysee.',
-  keywords:
-    'getty, Odysee, livestreaming, tip notifications, tip goals, chat widget, streaming dashboard, creator tools',
+  title: 'getty',
+  description: 'The platform tools for live streaming on Odysee. This includes overlays, tip alerts, chat, sweepstakes system, creator analytics and much more.',
+  keywords: 'getty, Odysee, arweave, livestreaming, streamers, tip notifications, tip goals, chat widget, streaming, creator tools',
   canonical: 'https://app.getty.sh/',
   siteName: 'getty',
   ogType: 'website',
   locale: 'en_US',
   image:
     'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ',
-  imageAlt: 'getty wordmark',
+  imageAlt: 'getty',
   imageType: 'image/png',
   imageWidth: '512',
   imageHeight: '512',

@@ -122,7 +122,7 @@
   "checkStatuses": "Comprobar estados",
   "title": "getty",
   "adminTitle": "getty ajustes",
-  "description": "Aplicación completa y personalizable con herramientas para la transmisión en vivo. Notificaciones de propinas, objetivos de propinas, widget de chat y alertas en tiempo real para tus transmisiones en vivo en Odysee.",
+  "description": "La plataforma de herramientas para la transmisión en vivo en Odysee. Esto incluye overlays, alertas de propinas, chat, sistema de sorteos, analíticas de creador y mucho más.",
   "goToHome": "Ir al inicio",
   "goToAdmin": "Ir al admin",
   "home": "Inicio",
