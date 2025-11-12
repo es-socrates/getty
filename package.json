@@ -43,7 +43,7 @@
   "dependencies": {
     "@ardrive/turbo-sdk": "^1.36.0",
     "@primevue/themes": "^4.4.1",
-    "@supabase/supabase-js": "^2.76.1",
+    "@supabase/supabase-js": "^2.81.1",
     "@untitledui/icons": "^0.0.19",
     "@wanderapp/connect": "^0.1.12",
     "arweave": "^1.15.7",
