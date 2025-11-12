@@ -87,7 +87,7 @@
             </svg>
           </a>
           <a
-            href="https://github.com/es-socrates/getty"
+            href="https://github.com/gettyteam/getty"
             target="_blank"
             aria-label="GitHub"
             class="hover:text-primary-200 transition-colors">
