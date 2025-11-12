@@ -631,7 +631,7 @@
             </svg>
           </a>
           <a
-            href="https://github.com/es-socrates/getty"
+            href="https://github.com/gettyteam/getty"
             aria-label="GitHub"
             target="_blank"
             rel="noopener"

@@ -588,7 +588,7 @@ const privacyUrl = import.meta.env.VITE_PRIVACY_URL || 'https://getty.sh/en/guid
 const termsUrl = import.meta.env.VITE_TERMS_URL || 'https://getty.sh/en/guide/terms/';
 const siteUrl = import.meta.env.VITE_SITE_URL || 'https://getty.sh/';
 const siteFavicon = '/favicon.ico';
-const githubUrl = import.meta.env.VITE_GITHUB_URL || 'https://github.com/es-socrates/getty';
+const githubUrl = import.meta.env.VITE_GITHUB_URL || 'https://github.com/gettyteam/getty';
 const xUrl = import.meta.env.VITE_X_URL || 'https://x.com/getty_sh';
 const odyseeUrl = import.meta.env.VITE_ODYSEE_URL || 'https://odysee.com';
 
