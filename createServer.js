@@ -692,6 +692,24 @@ app.use(async (req, res, next) => {
               res.cookie(ADMIN_COOKIE, req.ns.admin, cookieOpts);
             }
           } catch {}
+
+            try {
+              if (
+                walletAuth &&
+                typeof walletAuth.setSessionCookie === 'function' &&
+                typeof walletAuth.getSessionTtlMs === 'function'
+              ) {
+                const rawSess = req.cookies?.getty_wallet_session;
+                if (rawSess) {
+                  const ttlMs = walletAuth.getSessionTtlMs();
+                  const remainingRaw = Number(req.walletSession.exp || 0) - Date.now();
+                  const remaining = Number.isFinite(remainingRaw)
+                    ? Math.max(60_000, Math.min(ttlMs, remainingRaw))
+                    : ttlMs;
+                  walletAuth.setSessionCookie(res, req, rawSess, { maxAge: remaining });
+                }
+              }
+            } catch {}
         }
       }
     } catch {}
