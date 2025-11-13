@@ -253,14 +253,22 @@ async function refreshSession(): Promise<void> {
     let res: SessionResponse | undefined;
     try {
       res = (await fetchJson('/api/auth/wander/me', { method: 'GET' })) as SessionResponse;
-      if (res && res.error === 'unauthorized') throw new Error('unauthorized');
+      if (res && (res.error === 'unauthorized' || res.error === 'no_session')) {
+        throw new Error(res.error);
+      }
     } catch (error) {
       try {
         res = (await fetchJson('/api/auth/wallet/me', { method: 'GET' })) as SessionResponse;
       } catch {
         res = {};
       }
-      if (error instanceof Error && error.message !== 'unauthorized') state.error = error.message;
+      if (
+        error instanceof Error &&
+        error.message !== 'unauthorized' &&
+        error.message !== 'no_session'
+      ) {
+        state.error = error.message;
+      }
     }
     state.address = res?.address ?? null;
     state.walletHash = res?.walletHash ?? null;

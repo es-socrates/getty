@@ -139,10 +139,10 @@ export async function fetchJson(url, opts = {}) {
     try { bodyText = await res.text(); } catch {}
     try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch { parsed = null; }
     const errCode = parsed && (parsed.error || parsed.code);
-    
+
     if (res.status === 401 && url.includes('/api/auth/wander/me')) {
       if (raw) return res;
-      try { return await res.json(); } catch { return {}; }
+      return parsed || { error: errCode || 'unauthorized' };
     }
     
     if (errCode === 'legacy_removed' && parsed && parsed.mode === 'wallet_only') {
