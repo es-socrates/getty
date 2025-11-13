@@ -604,18 +604,53 @@ const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'))
 
 const wanderSession = useWanderSession();
 let hardRedirecting = false;
+let loginRedirectTimer = null;
 
 watch(
-  () => [wanderSession.state.address, wanderSession.state.loading, route.path],
-  ([address, loading, path]) => {
-    if (loading || hardRedirecting) return;
-    if (!address && path.startsWith('/admin')) {
-      hardRedirecting = true;
-      try {
-        window.location.replace('/');
-      } catch {
-        router.replace('/');
+  () => [
+    wanderSession.state.address,
+    wanderSession.state.loading,
+    route.path,
+    wanderSession.state.requiresLogin,
+  ],
+  ([address, loading, path, requiresLogin]) => {
+    if (!path.startsWith('/admin')) {
+      if (loginRedirectTimer) {
+        clearTimeout(loginRedirectTimer);
+        loginRedirectTimer = null;
       }
+      return;
+    }
+
+    if (loading || hardRedirecting) return;
+
+    if (address) {
+      if (loginRedirectTimer) {
+        clearTimeout(loginRedirectTimer);
+        loginRedirectTimer = null;
+      }
+      return;
+    }
+
+    if (!requiresLogin) return;
+
+    if (!loginRedirectTimer) {
+      loginRedirectTimer = window.setTimeout(() => {
+        loginRedirectTimer = null;
+        if (
+          wanderSession.state.address ||
+          wanderSession.state.loading ||
+          !wanderSession.state.requiresLogin
+        ) {
+          return;
+        }
+        hardRedirecting = true;
+        try {
+          window.location.replace('/');
+        } catch {
+          router.replace('/');
+        }
+      }, 1200);
     }
   },
   { immediate: true }
@@ -828,6 +863,10 @@ onBeforeUnmount(() => {
     try {
       window.removeEventListener('storage', storageHandler);
     } catch {}
+  }
+  if (loginRedirectTimer) {
+    clearTimeout(loginRedirectTimer);
+    loginRedirectTimer = null;
   }
 });
 
