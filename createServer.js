@@ -1932,12 +1932,20 @@ try {
         }
   const secureCookie = SECURE_COOKIE(req);
 
-        res.cookie('getty_wallet_session', result.signed, {
+        const cookieOptions = {
           httpOnly: true,
           sameSite: 'lax',
           secure: secureCookie,
-          maxAge: ttl
-        });
+          maxAge: ttl,
+          path: '/'
+        };
+        try {
+          if (walletAuth && typeof walletAuth.getSessionCookieDomain === 'function') {
+            const cookieDomain = walletAuth.getSessionCookieDomain(req);
+            if (cookieDomain) cookieOptions.domain = cookieDomain;
+          }
+        } catch {}
+        res.cookie('getty_wallet_session', result.signed, cookieOptions);
         return res.json(result.response);
       } catch (e) {
         const code = e && e.code ? e.code : 'wander_verify_failed';
@@ -1959,7 +1967,19 @@ try {
 
     app.post('/api/auth/wander/logout', (req,res)=>{
       try {
-        res.clearCookie('getty_wallet_session');
+        const clearOptions = {
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: SECURE_COOKIE(req),
+          path: '/'
+        };
+        try {
+          if (walletAuth && typeof walletAuth.getSessionCookieDomain === 'function') {
+            const cookieDomain = walletAuth.getSessionCookieDomain(req);
+            if (cookieDomain) clearOptions.domain = cookieDomain;
+          }
+        } catch {}
+        res.clearCookie('getty_wallet_session', clearOptions);
         return res.json({ success: true });
       } catch (e) { return res.status(500).json({ error: 'wander_logout_failed', details: e?.message }); }
     });
