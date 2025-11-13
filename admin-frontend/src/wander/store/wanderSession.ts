@@ -26,6 +26,7 @@ interface WanderSessionState {
   backupsNeeded: number;
   balanceInfo: BalanceInfo | null;
   pendingRequests: number;
+  requiresLogin: boolean;
 }
 
 interface SessionResponse {
@@ -51,7 +52,8 @@ const state = reactive<WanderSessionState>({
   authType: null,
   backupsNeeded: 0,
   balanceInfo: null,
-  pendingRequests: 0
+  pendingRequests: 0,
+  requiresLogin: false
 });
 
 let lastAuthStatus: AuthInfo['authStatus'] | null = null;
@@ -79,6 +81,7 @@ function handleWanderAuth(authInfo: AuthInfo): void {
     state.balanceInfo = null;
     state.backupsNeeded = 0;
     state.pendingRequests = 0;
+    state.requiresLogin = true;
   }
 
   if (status && (status === 'authenticated' || status === 'not-authenticated') && status !== previousStatus) {
@@ -249,16 +252,21 @@ function onWalletDisconnected(event: WalletDisconnectedEvent): void {
 async function refreshSession(): Promise<void> {
   state.loading = true;
   state.error = null;
+  let loginRequired = false;
   try {
     let res: SessionResponse | undefined;
     try {
       res = (await fetchJson('/api/auth/wander/me', { method: 'GET' })) as SessionResponse;
       if (res && (res.error === 'unauthorized' || res.error === 'no_session')) {
+        loginRequired = true;
         throw new Error(res.error);
       }
     } catch (error) {
       try {
         res = (await fetchJson('/api/auth/wallet/me', { method: 'GET' })) as SessionResponse;
+        if (res && res.address) {
+          loginRequired = false;
+        }
       } catch {
         res = {};
       }
@@ -268,6 +276,8 @@ async function refreshSession(): Promise<void> {
         error.message !== 'no_session'
       ) {
         state.error = error.message;
+      } else if (error instanceof Error) {
+        loginRequired = true;
       }
     }
     state.address = res?.address ?? null;
@@ -276,7 +286,10 @@ async function refreshSession(): Promise<void> {
     state.expiresAt = res?.expiresAt ?? null;
     if (state.address) {
       markSessionStale(false);
+      state.requiresLogin = false;
       startHeartbeat();
+    } else if (loginRequired) {
+      state.requiresLogin = true;
     }
   } catch (error) {
     if (state.address) markSessionStale(true);
@@ -285,6 +298,7 @@ async function refreshSession(): Promise<void> {
     state.capabilities = [];
     state.expiresAt = null;
     state.error = error instanceof Error ? error.message : String(error ?? '');
+    state.requiresLogin = true;
   } finally {
     state.loading = false;
   }
@@ -311,6 +325,7 @@ async function logout(): Promise<void> {
   lastAuthRefreshTs = 0;
   lastAuthStatus = null;
   lastAuthRefreshTs = 0;
+  state.requiresLogin = true;
 }
 
 function markWsConnected(val: boolean): void {
@@ -340,6 +355,7 @@ function forceFullReset(reason = 'force_reset'): void {
   state.pendingRequests = 0;
   state.authStatus = null;
   state.authType = null;
+  state.requiresLogin = true;
   try {
     fetchJson('/api/auth/wander/logout', { method: 'POST' }).catch(() => {});
   } catch {
