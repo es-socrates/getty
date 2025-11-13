@@ -5,6 +5,8 @@ import type {
   WalletLoadedEvent,
   WalletSwitchEvent
 } from '../provider/walletTypes';
+import type { AuthInfo, BackupInfo, BalanceInfo, RequestsInfo } from '@wanderapp/connect';
+import { registerWanderCallbacks, closeWander } from '../connect/wanderConnect';
 
 type Capability = string;
 
@@ -19,6 +21,11 @@ interface WanderSessionState {
   sessionStale: boolean;
   lastHeartbeat: number;
   walletCheckedAt: number | null;
+  authStatus: AuthInfo['authStatus'] | null;
+  authType: AuthInfo['authType'] | null;
+  backupsNeeded: number;
+  balanceInfo: BalanceInfo | null;
+  pendingRequests: number;
 }
 
 interface SessionResponse {
@@ -39,10 +46,80 @@ const state = reactive<WanderSessionState>({
   wsConnected: false,
   sessionStale: false,
   lastHeartbeat: 0,
-  walletCheckedAt: null
+  walletCheckedAt: null,
+  authStatus: null,
+  authType: null,
+  backupsNeeded: 0,
+  balanceInfo: null,
+  pendingRequests: 0
 });
 
+let lastAuthStatus: AuthInfo['authStatus'] | null = null;
+let lastAuthRefreshTs = 0;
+
+function handleWanderAuth(authInfo: AuthInfo): void {
+  const status = authInfo.authStatus ?? null;
+  const previousStatus = lastAuthStatus;
+  state.authStatus = status;
+  state.authType = authInfo.authType ?? null;
+
+  if (status === 'loading') {
+    state.loading = true;
+    return;
+  }
+
+  state.loading = false;
+
+  if (status === 'not-authenticated') {
+    if (state.address) markSessionStale(true);
+    state.address = null;
+    state.walletHash = null;
+    state.capabilities = [];
+    state.expiresAt = null;
+    state.balanceInfo = null;
+    state.backupsNeeded = 0;
+    state.pendingRequests = 0;
+  }
+
+  if (status && (status === 'authenticated' || status === 'not-authenticated') && status !== previousStatus) {
+    void closeWander().catch(() => undefined);
+  }
+
+  if (status !== lastAuthStatus) {
+    lastAuthStatus = status;
+    const shouldRefresh = status === 'authenticated' || status === 'onboarding';
+    if (shouldRefresh) {
+      const now = Date.now();
+      if (now - lastAuthRefreshTs > 1000) {
+        lastAuthRefreshTs = now;
+        void refreshSession();
+      }
+    }
+  }
+}
+
+function handleWanderBackup(backupInfo: BackupInfo | null): void {
+  state.backupsNeeded = backupInfo?.backupsNeeded ?? 0;
+}
+
+function handleWanderBalance(balanceInfo: BalanceInfo | null): void {
+  state.balanceInfo = balanceInfo ?? null;
+}
+
+function handleWanderRequests(requestsInfo: RequestsInfo | null): void {
+  state.pendingRequests = requestsInfo?.pendingRequests ?? 0;
+}
+
 const stateProxy = readonly(state);
+
+if (typeof window !== 'undefined') {
+  void registerWanderCallbacks({
+    onAuth: handleWanderAuth,
+    onBackup: handleWanderBackup,
+    onBalance: handleWanderBalance,
+    onRequest: handleWanderRequests
+  });
+}
 
 let __hbTimer: ReturnType<typeof setInterval> | null = null;
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -217,6 +294,15 @@ async function logout(): Promise<void> {
   }
   await refreshSession();
   markSessionStale(false);
+  state.backupsNeeded = 0;
+  state.balanceInfo = null;
+  state.pendingRequests = 0;
+  state.authStatus = null;
+  state.authType = null;
+  lastAuthStatus = null;
+  lastAuthRefreshTs = 0;
+  lastAuthStatus = null;
+  lastAuthRefreshTs = 0;
 }
 
 function markWsConnected(val: boolean): void {
@@ -241,6 +327,11 @@ function forceFullReset(reason = 'force_reset'): void {
   state.capabilities = [];
   state.expiresAt = null;
   state.sessionStale = false;
+  state.backupsNeeded = 0;
+  state.balanceInfo = null;
+  state.pendingRequests = 0;
+  state.authStatus = null;
+  state.authType = null;
   try {
     fetchJson('/api/auth/wander/logout', { method: 'POST' }).catch(() => {});
   } catch {

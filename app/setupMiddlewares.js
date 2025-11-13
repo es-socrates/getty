@@ -55,28 +55,49 @@ function setupMiddlewares(app, {
       const styleHashes = splitEnv('GETTY_CSP_STYLE_HASHES');
       const allowUnsafeHashes = process.env.GETTY_CSP_UNSAFE_HASHES === '1';
       const scriptAttr = (process.env.GETTY_CSP_SCRIPT_ATTR || '').trim();
-      const allowInlineScripts = process.env.GETTY_CSP_ALLOW_INLINE_SCRIPTS === '1';
-      const allowInlineStyles = process.env.GETTY_CSP_ALLOW_INLINE_STYLES === '1';
+      let allowInlineScripts = process.env.GETTY_CSP_ALLOW_INLINE_SCRIPTS === '1';
+      let allowInlineStyles = process.env.GETTY_CSP_ALLOW_INLINE_STYLES === '1';
       const enableGoogleFonts = process.env.GETTY_CSP_ENABLE_GOOGLE_FONTS !== '0';
+      const enableWanderConnect = process.env.GETTY_ENABLE_WANDER_CONNECT === '1'
+        || process.env.GETTY_MULTI_TENANT_WALLET === '1';
+
+      if (enableWanderConnect) {
+        allowInlineStyles = true;
+        connectExtra.push('https://connect.wander.app', 'https://connect-api.wander.app');
+        frameExtra.push('https://connect.wander.app');
+        styleExtra.push('https://connect.wander.app');
+      }
+
+      const scriptSrc = [
+        self,
+        ...(allowInlineScripts ? ["'unsafe-inline'"] : []),
+        ...(allowUnsafeHashes ? ["'unsafe-hashes'"] : []),
+        ...unsafeEval,
+        ...scriptExtra,
+        ...scriptHashes
+      ];
+
+      const styleSrc = [
+        self,
+        ...(enableGoogleFonts ? ['https://fonts.googleapis.com'] : [])
+      ];
+
+      if (!enableWanderConnect) {
+        styleSrc.push((req, res) => `'nonce-${res.locals.cspNonce || ''}'`);
+      } else {
+        allowInlineStyles = true;
+      }
+
+      if (allowInlineStyles) {
+        styleSrc.push("'unsafe-inline'");
+      }
+
+      styleSrc.push(...styleExtra, ...styleHashes);
 
       const cspDirectives = {
         defaultSrc: [self],
-        scriptSrc: [
-          self,
-          ...(allowInlineScripts ? ["'unsafe-inline'"] : []),
-          ...(allowUnsafeHashes ? ["'unsafe-hashes'"] : []),
-          ...unsafeEval,
-          ...scriptExtra,
-          ...scriptHashes
-        ],
-        styleSrc: [
-          self,
-          ...(enableGoogleFonts ? ['https://fonts.googleapis.com'] : []),
-          (req, res) => `'nonce-${res.locals.cspNonce || ''}'`,
-          ...(allowInlineStyles ? ["'unsafe-inline'"] : []),
-          ...styleExtra,
-          ...styleHashes
-        ],
+        scriptSrc,
+        styleSrc,
         imgSrc: [
           self, 'data:', 'blob:',
           'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',

@@ -5,9 +5,13 @@ const path = require('path');
 const crypto = require('crypto');
 const { z } = require('zod');
 const __faviconCache = Object.create(null);
+const __imageProxyCache = Object.create(null);
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 const FAVICON_TTL_MS = 60 * 60 * 1000;
+const IMAGE_PROXY_TTL_MS = 15 * 60 * 1000;
+const IMAGE_PROXY_MAX_BYTES = 1024 * 1024;
+const ALLOWED_IMAGE_MIME_PREFIXES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg', 'image/x-icon'];
 
 function registerAnnouncementRoutes(app, announcementModule, limiters) {
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
@@ -792,6 +796,53 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
       res.json({ success: true, favicon: dataUri });
       } catch {
         res.json({ success: true, favicon: null });
+    }
+  });
+
+  app.get('/api/announcement/image-proxy', getLimiter('favicon'), async (req, res) => {
+    try {
+      const url = String(req.query.url || '').trim();
+      if (!/^https?:\/\//i.test(url)) return res.status(400).json({ success: false, error: 'invalid_url' });
+      const parsed = new URL(url);
+      const key = parsed.href;
+      const now = Date.now();
+      if (__imageProxyCache[key] && now - __imageProxyCache[key].ts < IMAGE_PROXY_TTL_MS) {
+        return res.json({ success: true, image: __imageProxyCache[key].dataUri });
+      }
+
+      const response = await axios
+        .get(parsed.href, {
+          responseType: 'arraybuffer',
+          timeout: 6000,
+          maxContentLength: IMAGE_PROXY_MAX_BYTES,
+          maxBodyLength: IMAGE_PROXY_MAX_BYTES,
+          headers: { Accept: 'image/*', 'User-Agent': 'getty-announcement-image-proxy/1.0' },
+        })
+        .catch(() => null);
+
+      if (!response || response.status >= 400 || !response.data) {
+        __imageProxyCache[key] = { dataUri: null, ts: now };
+        return res.json({ success: true, image: null });
+      }
+
+      const mime = String(response.headers['content-type'] || '').toLowerCase();
+      const isAllowed = ALLOWED_IMAGE_MIME_PREFIXES.some((prefix) => mime.startsWith(prefix));
+      if (!isAllowed) {
+        __imageProxyCache[key] = { dataUri: null, ts: now };
+        return res.json({ success: true, image: null });
+      }
+
+      const buf = Buffer.from(response.data);
+      if (buf.length > IMAGE_PROXY_MAX_BYTES) {
+        __imageProxyCache[key] = { dataUri: null, ts: now };
+        return res.json({ success: true, image: null });
+      }
+
+      const dataUri = `data:${mime || 'application/octet-stream'};base64,${buf.toString('base64')}`;
+      __imageProxyCache[key] = { dataUri, ts: now };
+      return res.json({ success: true, image: dataUri });
+    } catch {
+      return res.json({ success: true, image: null });
     }
   });
 }

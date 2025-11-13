@@ -150,7 +150,7 @@ function clampToken(token) {
 function buildLayout() {
   return `
 <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 bg-card text-white rounded px-3 py-2">Skip to main content</a>
-<div class="max-w-7xl mx-auto p-6">
+<div class="max-w-7xl mx-auto p-3">
   <header class="os-header flex justify-between items-center pb-5 mb-8 border-b border-border">
     <div class="flex items-center gap-4">
       <a href="/" class="logo-link" aria-label="getty home">
@@ -390,7 +390,7 @@ function buildLayout() {
   </footer>
 
   <noscript>
-    <div class="max-w-7xl mx-auto p-6 text-center text-sm text-gray-300">
+    <div class="max-w-7xl mx-auto p-3 text-center text-sm text-gray-300">
       JavaScript is required for widgets to load.
     </div>
   </noscript>

@@ -6,7 +6,7 @@
   </a>
   <div class="max-w-7xl mx-auto px-6 pb-16">
     <header
-      class="os-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border py-6">
+      class="os-header flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border py-4">
       <div class="flex items-center gap-3">
         <a href="/" class="logo-link" aria-label="getty home">
           <img
