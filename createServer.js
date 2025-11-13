@@ -1975,13 +1975,29 @@ try {
 
     app.get('/api/auth/wander/me', (req,res)=>{
       try {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[wander/me] request received, has walletSession:', !!req.walletSession);
+        }
         if (!req.walletSession) {
           try { const { ensureWalletSession } = require('./lib/wallet-session'); ensureWalletSession(req); } catch {}
         }
-        if (!req.walletSession) return res.status(401).json({ error: 'no_session' });
+        if (!req.walletSession) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[wander/me] no session, returning 401');
+          }
+          return res.status(401).json({ error: 'no_session' });
+        }
         const s = req.walletSession;
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[wander/me] session found for', s.addr.slice(0,10) + '...');
+        }
         return res.json({ address: s.addr, walletHash: s.walletHash, expiresAt: new Date(s.exp).toISOString(), capabilities: s.caps, mode: 'wander-bridge' });
-      } catch (e) { return res.status(500).json({ error: 'wander_me_failed', details: e?.message }); }
+      } catch (e) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[wander/me] error:', e.message);
+        }
+        return res.status(500).json({ error: 'wander_me_failed', details: e?.message });
+      }
     });
 
     app.post('/api/auth/wander/logout', (req,res)=>{
@@ -4411,7 +4427,13 @@ if (fs.existsSync(adminDist)) {
         const wantsHtmlDoc = isHtmlAccept && (req.path === '/' || req.path === '');
         const blockAssets = process.env.GETTY_ADMIN_BLOCK_ASSETS === '1';
         const isAsset = /\.(js|css|map|json|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot)$/i.test(req.path);
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[adminGuard] check:', { path: req.path, hasWallet, hasNs, wantsHtmlDoc, isAsset });
+        }
         if (!hasWallet && !hasNs) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[adminGuard] blocking access, redirecting to login');
+          }
           if (wantsHtmlDoc) return res.redirect(302, '/?admin=login');
           if (blockAssets && isAsset) return res.status(401).json({ error: 'admin_auth_required' });
         }
@@ -4423,11 +4445,16 @@ if (fs.existsSync(adminDist)) {
     const indexPath = path.join(adminDist, 'index.html');
     if (!fs.existsSync(indexPath)) return next();
     const nonce = res.locals?.cspNonce || '';
+    const apiBase = process.env.GETTY_API_BASE || '';
     let html = fs.readFileSync(indexPath, 'utf8');
     if (nonce && !/property=["']csp-nonce["']/.test(html)) {
       const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
       const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
       html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    if (apiBase) {
+      const apiScript = `<script>window.API_BASE = '${apiBase.replace(/'/g, "\\'")}';</script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${apiScript}`);
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}
@@ -4438,11 +4465,16 @@ if (fs.existsSync(adminDist)) {
     const indexPath = path.join(adminDist, 'index.html');
     if (!fs.existsSync(indexPath)) return next();
     const nonce = res.locals?.cspNonce || '';
+    const apiBase = process.env.GETTY_API_BASE || '';
     let html = fs.readFileSync(indexPath, 'utf8');
     if (nonce && !/property=["']csp-nonce["']/.test(html)) {
       const meta = `<meta property="csp-nonce" nonce="${nonce}">`;
       const patch = `<script src="/js/nonce-style-patch.js" nonce="${nonce}" defer></script>`;
       html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${meta}\n    ${patch}`);
+    }
+    if (apiBase) {
+      const apiScript = `<script>window.API_BASE = '${apiBase.replace(/'/g, "\\'")}';</script>`;
+      html = html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n    ${apiScript}`);
     }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     try { if (nonce) res.setHeader('X-CSP-Nonce', nonce); } catch {}

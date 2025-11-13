@@ -14,7 +14,8 @@ async function fetchCsrfToken(force = false) {
   if (__csrfDisabled) return null;
   if (!force && __csrfToken && (Date.now() - __lastFetchTs) < CSRF_MAX_AGE_MS) return __csrfToken;
   if (__csrfPromise && !force) return __csrfPromise;
-  __csrfPromise = fetch('/api/admin/csrf', { credentials: 'include' })
+  const fullUrl = ((typeof window !== 'undefined' && window.API_BASE) || '') + '/api/admin/csrf';
+  __csrfPromise = fetch(fullUrl, { credentials: 'include' })
     .then(r => {
       if (r.ok) return r.json();
 
@@ -47,7 +48,7 @@ async function fetchCsrfToken(force = false) {
   return __csrfPromise;
 }
 
-const api = axios.create({ baseURL: '/' });
+const api = axios.create({ baseURL: (typeof window !== 'undefined' && window.API_BASE) || '/' });
 
 function shouldSuppressCsrfLogs() {
   try {
@@ -132,7 +133,8 @@ export async function fetchJson(url, opts = {}) {
       finalHeaders[CSRF_HEADER] = __csrfToken;
     }
   } catch { /* noop */ }
-  const res = await fetch(url, { method, body: payload, headers: finalHeaders, credentials: 'include' });
+  const fullUrl = ((typeof window !== 'undefined' && window.API_BASE) || '') + url;
+  const res = await fetch(fullUrl, { method, body: payload, headers: finalHeaders, credentials: 'include' });
   if (!res.ok) {
     let bodyText = '';
     let parsed = null;
