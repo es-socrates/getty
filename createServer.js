@@ -1932,20 +1932,21 @@ try {
         }
   const secureCookie = SECURE_COOKIE(req);
 
-        const cookieOptions = {
-          httpOnly: true,
-          sameSite: 'lax',
-          secure: secureCookie,
+        const cookieBaseOptions = {
           maxAge: ttl,
-          path: '/'
+          secure: secureCookie
         };
-        try {
-          if (walletAuth && typeof walletAuth.getSessionCookieDomain === 'function') {
-            const cookieDomain = walletAuth.getSessionCookieDomain(req);
-            if (cookieDomain) cookieOptions.domain = cookieDomain;
-          }
-        } catch {}
-        res.cookie('getty_wallet_session', result.signed, cookieOptions);
+        if (walletAuth && typeof walletAuth.setSessionCookie === 'function') {
+          walletAuth.setSessionCookie(res, req, result.signed, cookieBaseOptions);
+        } else {
+          res.cookie('getty_wallet_session', result.signed, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: secureCookie,
+            maxAge: ttl,
+            path: '/'
+          });
+        }
         return res.json(result.response);
       } catch (e) {
         const code = e && e.code ? e.code : 'wander_verify_failed';
@@ -1967,19 +1968,17 @@ try {
 
     app.post('/api/auth/wander/logout', (req,res)=>{
       try {
-        const clearOptions = {
-          httpOnly: true,
-          sameSite: 'lax',
-          secure: SECURE_COOKIE(req),
-          path: '/'
-        };
-        try {
-          if (walletAuth && typeof walletAuth.getSessionCookieDomain === 'function') {
-            const cookieDomain = walletAuth.getSessionCookieDomain(req);
-            if (cookieDomain) clearOptions.domain = cookieDomain;
-          }
-        } catch {}
-        res.clearCookie('getty_wallet_session', clearOptions);
+        const secureCookie = SECURE_COOKIE(req);
+        if (walletAuth && typeof walletAuth.clearSessionCookie === 'function') {
+          walletAuth.clearSessionCookie(res, req, { secure: secureCookie });
+        } else {
+          res.clearCookie('getty_wallet_session', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: secureCookie,
+            path: '/'
+          });
+        }
         return res.json({ success: true });
       } catch (e) { return res.status(500).json({ error: 'wander_logout_failed', details: e?.message }); }
     });
