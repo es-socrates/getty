@@ -54,6 +54,13 @@ const { t } = useI18n();
 
 async function globalLogoutSequence() {
   try {
+    const wander = window.wanderInstance;
+    if (wander && typeof wander.signOut === 'function') {
+      await wander.signOut().catch(() => undefined);
+    }
+  } catch {}
+
+  try {
     await fetch('/api/auth/wander/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

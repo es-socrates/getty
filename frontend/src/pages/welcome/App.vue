@@ -113,6 +113,16 @@
 import { onBeforeUnmount, onMounted } from 'vue';
 
 const bodyClasses = ['bg-background', 'text-gray-100', 'font-sans'];
+const viewportVar = '--welcome-vh';
+let previousBodyOverflow = '';
+let previousDocOverflow = '';
+
+function updateViewportHeight() {
+  const doc = document.documentElement;
+  const visualHeight = Math.min(window.innerHeight, doc.clientHeight || window.innerHeight);
+  const unit = visualHeight * 0.01;
+  document.documentElement.style.setProperty(viewportVar, `${unit}px`);
+}
 
 function notifyLegacyBridge() {
   const root = document.getElementById('app-root');
@@ -131,6 +141,13 @@ function notifyLegacyBridge() {
 }
 
 onMounted(() => {
+  updateViewportHeight();
+  window.addEventListener('resize', updateViewportHeight);
+  const doc = document.documentElement;
+  previousDocOverflow = doc.style.overflowY;
+  previousBodyOverflow = document.body.style.overflow;
+  doc.style.overflowY = 'hidden';
+  document.body.style.overflow = 'hidden';
   bodyClasses.forEach((className) => {
     if (!document.body.classList.contains(className)) {
       document.body.classList.add(className);
@@ -140,6 +157,11 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewportHeight);
+  document.documentElement.style.removeProperty(viewportVar);
+  const doc = document.documentElement;
+  doc.style.overflowY = previousDocOverflow;
+  document.body.style.overflow = previousBodyOverflow;
   bodyClasses.forEach((className) => {
     document.body.classList.remove(className);
   });
@@ -148,26 +170,30 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .welcome-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  min-height: calc(var(--welcome-vh, 1vh) * 100);
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 0 1.5rem;
 }
 
 .header {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  right: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1.5rem;
 }
 
 .wrap {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1.5rem 3rem;
   text-align: center;
   gap: 1.5rem;
 }
@@ -198,8 +224,12 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .header {
-    flex-wrap: wrap;
     justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    left: 1rem;
+    right: 1rem;
+    top: 1rem;
   }
 }
 </style>

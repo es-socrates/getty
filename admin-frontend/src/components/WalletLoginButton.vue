@@ -1,6 +1,5 @@
 <template>
   <div class="relative" :class="{ 'opacity-70 pointer-events-none': busy }">
-    <!-- Logged out button -->
     <button
       v-if="!session.state.address"
       @click="startLogin"
@@ -36,6 +35,7 @@ import { ref, computed } from 'vue';
 import { useWanderSession } from '../wander/store/wanderSession';
 import { getWalletProvider } from '../wander/provider/walletProvider';
 import { fetchJson } from '../services/api';
+import { ensureWander, openWander, closeWander } from '../wander/connect/wanderConnect';
 import WalletIcon from './icons/WalletIcon.vue';
 import WsStatusDot from './WsStatusDot.vue';
 
@@ -45,6 +45,10 @@ const error = ref('');
 let providerPromise = null;
 
 const walletConnected = computed(() => !!session.state.address && !session.state.sessionStale);
+
+const wanderAuthReady = computed(() =>
+  ['authenticated', 'onboarding'].includes((session.state.authStatus || '').toString())
+);
 
 const shortAddr = computed(() => {
   if (!session.state.address) return '';
@@ -60,15 +64,22 @@ async function startLogin() {
   error.value = '';
   busy.value = true;
   try {
-    const provider = await ensureProvider();
-    if (!provider.hasProvider) throw new Error('Extension not detected');
+    const wander = await ensureWander();
+    if (wander && !wanderAuthReady.value) {
+      busy.value = false;
+      await openWander();
+      error.value = 'Inicia sesión en Wander Connect para continuar.';
+      return;
+    }
 
-    await provider.ensurePermissions([
-      'ACCESS_ADDRESS',
-      'ACCESS_PUBLIC_KEY',
-      'SIGN_MESSAGE',
-      'SIGNATURE',
-    ]);
+    let provider = await ensureProvider();
+    if (!provider.hasProvider) {
+      providerPromise = null;
+      provider = await ensureProvider();
+    }
+    if (!provider.hasProvider) throw new Error('Wallet provider not detected');
+
+    await provider.ensurePermissions(['ACCESS_ADDRESS', 'ACCESS_PUBLIC_KEY', 'SIGN_MESSAGE']);
     const address = await provider.getActiveAddress();
     if (!address) throw new Error('No se obtuvo dirección');
     const nonce = await fetchJson('/api/auth/wander/nonce', { method: 'POST', body: { address } });
@@ -116,16 +127,32 @@ async function startLogin() {
     }
     if (!verify.success) throw new Error(verify.error || 'verify_failed');
     await session.refreshSession();
+    try {
+      await closeWander();
+    } catch {}
   } catch (e) {
-    error.value = e.message || String(e);
+    const message = e instanceof Error ? e.message : String(e);
+    if (/Missing permission/i.test(message) || /No wallets added/i.test(message)) {
+      try {
+        await openWander();
+      } catch {}
+      error.value = 'Autoriza el acceso a tu wallet en Wander Connect.';
+    } else {
+      error.value = message;
+    }
   } finally {
     busy.value = false;
   }
 }
 
 const balanceLabel = computed(() => {
-  if (!session.state.address) return '';
-  return '';
+  const balanceInfo = session.state.balanceInfo;
+  if (!balanceInfo) return '';
+  if (balanceInfo.formattedBalance) return balanceInfo.formattedBalance;
+  if (balanceInfo.amount == null) return '';
+  return balanceInfo.currency
+    ? `${balanceInfo.amount} ${balanceInfo.currency}`
+    : String(balanceInfo.amount);
 });
 </script>
 <style scoped>

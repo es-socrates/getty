@@ -66,6 +66,18 @@ function renderMarkdown(text) {
 }
 
 const __clientFavCache = new Map();
+const __imageProxyCache = new Map();
+const SAFE_IMAGE_HOSTS = new Set([
+  window.location.origin,
+  'https://thumbs.odycdn.com',
+  'https://thumbnails.odycdn.com',
+  'https://odysee.com',
+  'https://static.odycdn.com',
+  'https://twemoji.maxcdn.com',
+  'https://spee.ch',
+  'https://arweave.net',
+  'https://uexkkutudmzozimeopch.supabase.co'
+]);
 async function ensureFavicon(linkUrl) {
   if (!linkUrl) return null;
   if (__clientFavCache.has(linkUrl)) return __clientFavCache.get(linkUrl);
@@ -81,7 +93,50 @@ async function ensureFavicon(linkUrl) {
   return null;
 }
 
-function createCtaButton(msg) {
+function isSafeDirectSrc(url) {
+  if (!url) return false;
+  if (url.startsWith('data:') || url.startsWith('blob:')) return true;
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin === window.location.origin) return true;
+    const lowerHost = parsed.hostname.toLowerCase();
+    if (SAFE_IMAGE_HOSTS.has(parsed.origin)) return true;
+    if (lowerHost.endsWith('.arweave.net')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveImageSrc(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (isSafeDirectSrc(trimmed)) {
+    try {
+      const parsed = new URL(trimmed, window.location.origin);
+      return parsed.href;
+    } catch {
+      return trimmed;
+    }
+  }
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  if (__imageProxyCache.has(trimmed)) return __imageProxyCache.get(trimmed);
+  try {
+    const res = await fetch('/api/announcement/image-proxy?url=' + encodeURIComponent(trimmed));
+    if (res.ok) {
+      const data = await res.json();
+      const image = data && typeof data.image === 'string' ? data.image : null;
+      __imageProxyCache.set(trimmed, image);
+      return image;
+    }
+  } catch {}
+  __imageProxyCache.set(trimmed, null);
+  return null;
+}
+
+function createCtaButton(msg, iconSrc) {
   if (!msg || !msg.ctaText) return null;
   const btn = document.createElement('a');
   btn.className = 'ann-cta-btn';
@@ -98,10 +153,10 @@ function createCtaButton(msg) {
   } else {
     btn.href = 'javascript:void(0)';
   }
-  if (msg.ctaIcon) {
+  if (iconSrc) {
     const icon = document.createElement('img');
     icon.className = 'ann-cta-icon';
-    icon.src = msg.ctaIcon;
+    icon.src = iconSrc;
     btn.prepend(icon);
   }
   if (msg.ctaBgColor) {
@@ -132,12 +187,13 @@ async function showAnnouncement(msg) {
   content.className = 'ann-content';
 
   let media = null;
-  if (msg.imageUrl) {
+  const resolvedImageUrl = msg.imageUrl ? await resolveImageSrc(msg.imageUrl) : null;
+  if (resolvedImageUrl) {
     media = document.createElement('div');
     media.className = 'ann-media';
     const img = document.createElement('img');
     img.className = 'ann-image';
-    img.src = msg.imageUrl;
+    img.src = resolvedImageUrl;
     media.appendChild(img);
   }
 
@@ -203,7 +259,8 @@ async function showAnnouncement(msg) {
   }
   wrapper.appendChild(content);
 
-  const cta = createCtaButton(msg);
+  const ctaIconSrc = msg.ctaIcon ? await resolveImageSrc(msg.ctaIcon) : null;
+  const cta = createCtaButton(msg, ctaIconSrc);
   if (cta && isHorizontal) {
     const side = document.createElement('div');
     side.className = 'ann-side';
