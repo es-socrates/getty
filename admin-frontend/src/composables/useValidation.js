@@ -4,7 +4,9 @@ export function useValidation(initialErrors = {}) {
   const errors = reactive({ ...initialErrors });
   const rules = {};
 
-  function setRule(field, fn) { rules[field] = fn; }
+  function setRule(field, fn) {
+    rules[field] = fn;
+  }
 
   function validate() {
     let ok = true;
@@ -17,7 +19,7 @@ export function useValidation(initialErrors = {}) {
   }
 
   function hasErrors() {
-    return Object.values(errors).some(v => v);
+    return Object.values(errors).some((v) => v);
   }
 
   return { errors, setRule, validate, hasErrors };

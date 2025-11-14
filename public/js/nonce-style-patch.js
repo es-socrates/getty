@@ -1,7 +1,10 @@
 (function () {
   try {
     var meta = document.querySelector('meta[property="csp-nonce"]');
-    var n = (meta && (meta.nonce || meta.getAttribute('nonce'))) || (document.head && document.head.dataset && document.head.dataset.cspNonce) || '';
+    var n =
+      (meta && (meta.nonce || meta.getAttribute('nonce'))) ||
+      (document.head && document.head.dataset && document.head.dataset.cspNonce) ||
+      '';
     if (!n) return;
 
     try {
@@ -31,9 +34,14 @@
             var node = m.addedNodes[j];
             try {
               if (node && node.nodeType === 1) {
-                if (node.tagName === 'STYLE' && !node.getAttribute('nonce')) node.setAttribute('nonce', n);
-                var styles = node.querySelectorAll ? node.querySelectorAll('style:not([nonce])') : [];
-                for (var k = 0; k < styles.length; k++) { styles[k].setAttribute('nonce', n); }
+                if (node.tagName === 'STYLE' && !node.getAttribute('nonce'))
+                  node.setAttribute('nonce', n);
+                var styles = node.querySelectorAll
+                  ? node.querySelectorAll('style:not([nonce])')
+                  : [];
+                for (var k = 0; k < styles.length; k++) {
+                  styles[k].setAttribute('nonce', n);
+                }
               }
             } catch {}
           }

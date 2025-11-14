@@ -17,20 +17,23 @@ async function main() {
   const sslEnabled = process.env.GETTY_PG_SSL === '1' || process.env.PGSSLMODE === 'require';
 
   if (!connectionString && !process.env.PGHOST) {
-    console.error('Missing PostgreSQL connection details. Set GETTY_PG_URI or standard PG* env vars.');
+    console.error(
+      'Missing PostgreSQL connection details. Set GETTY_PG_URI or standard PG* env vars.'
+    );
     process.exit(1);
   }
 
   const client = new Client({
     connectionString,
-    ssl: sslEnabled ? { rejectUnauthorized: false } : undefined
+    ssl: sslEnabled ? { rejectUnauthorized: false } : undefined,
   });
 
   try {
     await client.connect();
 
-    const files = fs.readdirSync(MIGRATIONS_DIR)
-      .filter(name => name.toLowerCase().endsWith('.sql'))
+    const files = fs
+      .readdirSync(MIGRATIONS_DIR)
+      .filter((name) => name.toLowerCase().endsWith('.sql'))
       .sort();
 
     await client.query(`
@@ -41,7 +44,7 @@ async function main() {
     `);
 
     const appliedRows = await client.query('SELECT migration_id FROM stream_schema_version');
-    const applied = new Set(appliedRows.rows.map(row => row.migration_id));
+    const applied = new Set(appliedRows.rows.map((row) => row.migration_id));
 
     for (const file of files) {
       if (applied.has(file)) {
@@ -49,16 +52,13 @@ async function main() {
       }
       const fullPath = path.join(MIGRATIONS_DIR, file);
       const sql = fs.readFileSync(fullPath, 'utf8');
-  console.warn(`Running migration ${file}...`);
+      console.warn(`Running migration ${file}...`);
       try {
         await client.query('BEGIN');
         await client.query(sql);
-        await client.query(
-          'INSERT INTO stream_schema_version (migration_id) VALUES ($1)',
-          [file]
-        );
+        await client.query('INSERT INTO stream_schema_version (migration_id) VALUES ($1)', [file]);
         await client.query('COMMIT');
-  console.warn(`Migration ${file} applied.`);
+        console.warn(`Migration ${file} applied.`);
       } catch (err) {
         await client.query('ROLLBACK');
         console.error(`Migration ${file} failed:`, err);
@@ -67,7 +67,7 @@ async function main() {
       }
     }
 
-  console.warn('Migrations complete.');
+    console.warn('Migrations complete.');
   } catch (err) {
     console.error('Migration runner error:', err);
     process.exitCode = 1;

@@ -1,4 +1,4 @@
-(function(){
+(function () {
   const STORAGE_KEY = 'raffle-winner-data';
   const ACTIVE_STATE_KEY = 'raffle-active-state';
   const EXPIRATION_DAYS = 7;
@@ -8,7 +8,7 @@
     command: null,
     imageUrl: null,
     timestamp: null,
-    participants: []
+    participants: [],
   };
   let lastActiveState = null;
 
@@ -17,7 +17,10 @@
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        if (parsed.timestamp && (Date.now() - parsed.timestamp) < (EXPIRATION_DAYS * 24 * 60 * 60 * 1000)) {
+        if (
+          parsed.timestamp &&
+          Date.now() - parsed.timestamp < EXPIRATION_DAYS * 24 * 60 * 60 * 1000
+        ) {
           raffleData = parsed;
           return true;
         }
@@ -30,7 +33,11 @@
     if (activeState) {
       try {
         const parsed = JSON.parse(activeState);
-        if (!raffleData.winner && parsed.timestamp && (Date.now() - parsed.timestamp) < (30 * 60 * 1000)) {
+        if (
+          !raffleData.winner &&
+          parsed.timestamp &&
+          Date.now() - parsed.timestamp < 30 * 60 * 1000
+        ) {
           lastActiveState = parsed;
           renderRaffleContent();
           return false;
@@ -49,7 +56,7 @@
       command,
       imageUrl,
       timestamp: Date.now(),
-      participants: raffleData.participants
+      participants: raffleData.participants,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(raffleData));
   }
@@ -72,16 +79,13 @@
         imageUrl = winnerData.imageUrl || '';
       } else if (typeof winnerData.winner === 'object' && winnerData.winner !== null) {
         winnerNames = [
-          winnerData.winner.winner ||
-          winnerData.winner.username ||
-          winnerData.winner.name ||
-          ''
+          winnerData.winner.winner || winnerData.winner.username || winnerData.winner.name || '',
         ];
         prize = winnerData.winner.prize || winnerData.prize || '';
         command = winnerData.winner.command || winnerData.command || '';
         imageUrl = winnerData.winner.imageUrl || winnerData.imageUrl || '';
       }
-      if (winnerNames.length > 0 && winnerNames.some(name => !!name)) {
+      if (winnerNames.length > 0 && winnerNames.some((name) => !!name)) {
         saveWinnerData(
           winnerNames.length === 1 ? winnerNames[0] : winnerNames,
           prize,
@@ -96,8 +100,14 @@
   function renderRaffleContent() {
     const container = document.getElementById('raffleContentContainer');
     if (!container) return;
-    if (!raffleData.winner && (!lastActiveState || !lastActiveState.enabled || (!lastActiveState.active && !lastActiveState.paused))) {
-      container.innerHTML = '<div class="text-center text-gray-400 text-lg"><span data-i18n="raffleInactive"></span></div>';
+    if (
+      !raffleData.winner &&
+      (!lastActiveState ||
+        !lastActiveState.enabled ||
+        (!lastActiveState.active && !lastActiveState.paused))
+    ) {
+      container.innerHTML =
+        '<div class="text-center text-gray-400 text-lg"><span data-i18n="raffleInactive"></span></div>';
       if (window.languageManager) window.languageManager.updatePageLanguage();
       return;
     }
@@ -110,15 +120,20 @@
     }
 
     if (raffleData.winner) {
-      const truncate = (name) => name.length > 12 ? name.slice(0, 12) + '…' : name;
-      const winnerNameHTML = winnerNames.length > 2
-        ? '<span class="winner-name-fade" id="winnerNameFade"></span>'
-        : winnerNames.map(name => `<span class="winner-name">${truncate(name)}</span>`).join(', ');
+      const truncate = (name) => (name.length > 12 ? name.slice(0, 12) + '…' : name);
+      const winnerNameHTML =
+        winnerNames.length > 2
+          ? '<span class="winner-name-fade" id="winnerNameFade"></span>'
+          : winnerNames
+              .map((name) => `<span class="winner-name">${truncate(name)}</span>`)
+              .join(', ');
 
-      const winnerTimestampText = raffleData.timestamp ? (() => {
-        const date = new Date(raffleData.timestamp);
-        return `Winner announced on ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
-      })() : '';
+      const winnerTimestampText = raffleData.timestamp
+        ? (() => {
+            const date = new Date(raffleData.timestamp);
+            return `Winner announced on ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
+          })()
+        : '';
 
       container.innerHTML = `
         <div class="winner-display">
@@ -159,19 +174,23 @@
 
     const state = lastActiveState;
     const participantsList =
-      (lastActiveState && Array.isArray(lastActiveState.participants) && lastActiveState.participants.length > 0)
+      lastActiveState &&
+      Array.isArray(lastActiveState.participants) &&
+      lastActiveState.participants.length > 0
         ? lastActiveState.participants
-        : (Array.isArray(raffleData.participants) ? raffleData.participants : []);
+        : Array.isArray(raffleData.participants)
+          ? raffleData.participants
+          : [];
 
     let participantsHTML = '';
     let participantCount = 0;
     if (participantsList.length > 0) {
-      participantsList.forEach(p => {
+      participantsList.forEach((p) => {
         let username = '';
         if (typeof p === 'object' && p !== null) {
           username = p.username || p.name || '';
         } else if (typeof p === 'string') {
-          username = (p.length > 20) ? '' : p;
+          username = p.length > 20 ? '' : p;
         }
         if (!username) username = 'Spaceman';
         participantsHTML += '<div class="participant">' + username + '</div>';
@@ -180,7 +199,7 @@
     } else {
       participantsHTML = '<div class="text-center text-gray-400">No participants yet</div>';
     }
-  container.innerHTML = `
+    container.innerHTML = `
       <div id="raffleActiveContent">
     <div id="raffleTimer" class="text-center text-lg font-bold text-yellow-300 mb-2 hidden"></div>
         <div class="raffle-header">
@@ -190,16 +209,16 @@
           </div>
         </div>
         <div class="raffle-prize">
-          <img id="prizeImage" src="${(state && state.imageUrl) ? state.imageUrl : ''}" alt="Prize" class="prize-image${(state && state.imageUrl) ? '' : ' hidden'}">
+          <img id="prizeImage" src="${state && state.imageUrl ? state.imageUrl : ''}" alt="Prize" class="prize-image${state && state.imageUrl ? '' : ' hidden'}">
           <div>
             <div class="font-medium" data-i18n="rafflePrizeLabel">Prize:</div>
-            <div id="prizeName" class="text-yellow-300">${(state && state.prize) ? state.prize : '<span data-i18n="raffleLoading">Loading...</span>'}</div>
+            <div id="prizeName" class="text-yellow-300">${state && state.prize ? state.prize : '<span data-i18n="raffleLoading">Loading...</span>'}</div>
           </div>
         </div>
         <div class="participants-list" id="participantsList">${participantsHTML}</div>
         <div class="stats">
-          <div><span data-i18n="raffleCommand"></span> <span id="raffleCommand" class="font-mono">${(state && state.command) ? state.command : '!giveaway'}</span></div>
-          <div><span data-i18n="raffleWinners">Winners:</span> <span id="winnersCount">${(state && state.totalWinners) ? state.totalWinners : 0}</span></div>
+          <div><span data-i18n="raffleCommand"></span> <span id="raffleCommand" class="font-mono">${state && state.command ? state.command : '!giveaway'}</span></div>
+          <div><span data-i18n="raffleWinners">Winners:</span> <span id="winnersCount">${state && state.totalWinners ? state.totalWinners : 0}</span></div>
         </div>
       </div>`;
     if (window.languageManager) window.languageManager.updatePageLanguage();
@@ -218,11 +237,13 @@
 
   function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-  ws = new WebSocket(protocol + window.location.host);
+    ws = new WebSocket(protocol + window.location.host);
 
     ws.onopen = () => {
       reconnectAttempts = 0;
-      try { ws.send(JSON.stringify({ type: 'get_raffle_state' })); } catch (e) {}
+      try {
+        ws.send(JSON.stringify({ type: 'get_raffle_state' }));
+      } catch (e) {}
       console.log('WebSocket connected');
     };
 
@@ -237,7 +258,7 @@
               command: data.command || '!giveaway',
               imageUrl: null,
               timestamp: null,
-              participants: []
+              participants: [],
             };
             localStorage.removeItem(STORAGE_KEY);
           }
@@ -274,16 +295,19 @@
         command: state.command,
         imageUrl: null,
         timestamp: null,
-        participants: []
+        participants: [],
       };
       localStorage.removeItem(STORAGE_KEY);
     }
 
     if (!isRestore && !raffleData.winner && state.enabled && (state.active || state.paused)) {
-      localStorage.setItem(ACTIVE_STATE_KEY, JSON.stringify({
-        ...state,
-        timestamp: Date.now()
-      }));
+      localStorage.setItem(
+        ACTIVE_STATE_KEY,
+        JSON.stringify({
+          ...state,
+          timestamp: Date.now(),
+        })
+      );
       lastActiveState = state;
     }
 

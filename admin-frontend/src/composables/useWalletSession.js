@@ -13,7 +13,9 @@ export function useWalletSession() {
   const canWriteConfig = computed(() => capabilities.value.includes('config.write'));
   const hasSession = computed(() => !!walletHash.value && !!address.value);
 
-  function withAuth(urlBase) { return urlBase; }
+  function withAuth(urlBase) {
+    return urlBase;
+  }
 
   return {
     walletHash,

@@ -50,23 +50,35 @@ function registerObsRoutes(app, strictLimiter, obsWsConfig, OBS_WS_CONFIG_FILE, 
         return res.status(401).json({ success: false, error: 'session_required' });
       }
       const body = req.body || {};
-      const ip = (typeof body.ip === 'string' && body.ip.length <= 100) ? body.ip : '';
-      const port = (typeof body.port === 'string' && /^\d{1,5}$/.test(body.port)) ? body.port : (typeof body.port === 'number' ? String(body.port) : '');
-      const password = (typeof body.password === 'string' && body.password.length <= 256) ? body.password : '';
+      const ip = typeof body.ip === 'string' && body.ip.length <= 100 ? body.ip : '';
+      const port =
+        typeof body.port === 'string' && /^\d{1,5}$/.test(body.port)
+          ? body.port
+          : typeof body.port === 'number'
+            ? String(body.port)
+            : '';
+      const password =
+        typeof body.password === 'string' && body.password.length <= 256 ? body.password : '';
       const newCfg = { ip, port, password };
 
       if (multiTenant) {
         if (!ns) return res.status(401).json({ success: false, error: 'session_required' });
         if (store) {
-          try { await store.setConfig(ns, STORE_KEY, newCfg); } catch {}
+          try {
+            await store.setConfig(ns, STORE_KEY, newCfg);
+          } catch {}
         }
 
         return res.json({ success: true });
       }
 
       Object.assign(obsWsConfig, newCfg);
-      try { fs.writeFileSync(OBS_WS_CONFIG_FILE, JSON.stringify(obsWsConfig, null, 2)); } catch {}
-      try { await connectOBS(); } catch {}
+      try {
+        fs.writeFileSync(OBS_WS_CONFIG_FILE, JSON.stringify(obsWsConfig, null, 2));
+      } catch {}
+      try {
+        await connectOBS();
+      } catch {}
       return res.json({ success: true });
     } catch {
       return res.status(500).json({ success: false, error: 'obs_config_write_failed' });

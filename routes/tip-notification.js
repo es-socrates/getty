@@ -4,7 +4,11 @@ const { z } = require('zod');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 function readJsonSafe(file, fallback) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return fallback;
+  }
 }
 
 function writeJsonSafe(file, data) {
@@ -14,14 +18,31 @@ function writeJsonSafe(file, data) {
 
 const themeSchema = z.literal('classic').or(z.literal('deterministic'));
 
-const configSchema = z.object({
-  bgColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-  fontColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-  borderColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-  amountColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-  fromColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-  theme: themeSchema.optional(),
-}).strict();
+const configSchema = z
+  .object({
+    bgColor: z
+      .string()
+      .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+      .optional(),
+    fontColor: z
+      .string()
+      .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+      .optional(),
+    borderColor: z
+      .string()
+      .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+      .optional(),
+    amountColor: z
+      .string()
+      .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+      .optional(),
+    fromColor: z
+      .string()
+      .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+      .optional(),
+    theme: themeSchema.optional(),
+  })
+  .strict();
 
 const DEFAULTS = {
   bgColor: '#080c10',
@@ -29,7 +50,7 @@ const DEFAULTS = {
   borderColor: '#00ff7f',
   amountColor: '#00ff7f',
   fromColor: '#ffffff',
-  theme: 'classic'
+  theme: 'classic',
 };
 
 module.exports = function registerTipNotificationRoutes(app, strictLimiter, { wss, store } = {}) {
@@ -48,7 +69,7 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       if (!wss || !wss.clients) return;
       const payload = JSON.stringify({ type: 'tipNotificationConfigUpdate', data: cfg });
 
-      wss.clients.forEach(c => {
+      wss.clients.forEach((c) => {
         const open = c.readyState === (c.OPEN || 1);
         if (open) c.send(payload);
       });
@@ -70,18 +91,23 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
               const ns = req.ns.admin || req.ns.pub;
               const st = await store.get(ns, 'tip-notification-config', null);
               if (st) return res.json({ success: true, ...normalize(st) });
-            } catch { /* fallthrough to disk */ }
+            } catch {
+              /* fallthrough to disk */
+            }
           }
           const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
           const data = loaded.data?.data ? loaded.data.data : loaded.data;
-          const meta = loaded.data && (loaded.data.__version || loaded.data.checksum) ? {
-            __version: loaded.data.__version,
-            checksum: loaded.data.checksum,
-            updatedAt: loaded.data.updatedAt
-          } : null;
+          const meta =
+            loaded.data && (loaded.data.__version || loaded.data.checksum)
+              ? {
+                  __version: loaded.data.__version,
+                  checksum: loaded.data.checksum,
+                  updatedAt: loaded.data.updatedAt,
+                }
+              : null;
           const cfg = normalize(data);
           return res.json(meta ? { success: true, meta, ...cfg } : { success: true, ...cfg });
-  } catch {
+        } catch {
           return res.json({ success: true, ...DEFAULTS });
         }
       })();
@@ -98,7 +124,7 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
       if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
         return res.status(401).json({ error: 'no_session' });
       }
-  const parsed = configSchema.safeParse(req.body || {});
+      const parsed = configSchema.safeParse(req.body || {});
       if (!parsed.success) {
         return res.status(400).json({ error: 'Invalid colors' });
       }
@@ -121,17 +147,25 @@ module.exports = function registerTipNotificationRoutes(app, strictLimiter, { ws
               const merged = { ...(current || {}), ...parsed.data };
               await store.set(ns, 'tip-notification-config', merged);
 
-              const saveRes = await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, merged);
+              const saveRes = await saveTenantConfig(
+                req,
+                store,
+                CONFIG_FILE,
+                CONFIG_FILENAME,
+                merged
+              );
               doBroadcast(merged, saveRes.meta);
               return res.json({ success: true, meta: saveRes.meta, ...normalize(merged) });
-            } catch {/* fallthrough to disk only */}
+            } catch {
+              /* fallthrough to disk only */
+            }
           }
           const merged = { ...parsed.data };
           const saveRes = await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, merged);
           const norm = normalize(merged);
           doBroadcast(norm, saveRes.meta);
           return res.json({ success: true, meta: saveRes.meta, ...norm });
-  } catch {
+        } catch {
           try {
             const prev = readJsonSafe(CONFIG_FILE, {});
             const legacyMerged = { ...prev, ...parsed.data };

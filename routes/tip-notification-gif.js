@@ -15,7 +15,6 @@ function normalizeProvider(provider) {
   return lower;
 }
 
-
 function readGifDimensionsFromBuffer(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 10) {
     throw new Error('Invalid buffer');
@@ -46,20 +45,21 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       } else {
         cb(new Error('Only GIF images are allowed'));
       }
-    }
+    },
   });
 
   function ensureConfigShape(raw = {}) {
-    const pos = typeof raw.position === 'string' && ['left', 'right', 'top', 'bottom'].includes(raw.position)
-      ? raw.position
-      : 'right';
+    const pos =
+      typeof raw.position === 'string' && ['left', 'right', 'top', 'bottom'].includes(raw.position)
+        ? raw.position
+        : 'right';
     return {
       gifPath: typeof raw.gifPath === 'string' ? raw.gifPath : '',
       position: pos,
       width: Number.isFinite(raw.width) ? raw.width : Number(raw.width) || 0,
       height: Number.isFinite(raw.height) ? raw.height : Number(raw.height) || 0,
       libraryId: typeof raw.libraryId === 'string' ? raw.libraryId : '',
-      storageProvider: typeof raw.storageProvider === 'string' ? raw.storageProvider : ''
+      storageProvider: typeof raw.storageProvider === 'string' ? raw.storageProvider : '',
     };
   }
 
@@ -96,12 +96,15 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         if (typeof raw.fingerprint === 'string' && raw.fingerprint) {
           return raw.fingerprint;
         }
-        const baseName = (typeof raw.originalName === 'string' && raw.originalName
-          ? raw.originalName
-          : typeof raw.id === 'string'
-          ? raw.id
-          :
-            '').trim().toLowerCase();
+        const baseName = (
+          typeof raw.originalName === 'string' && raw.originalName
+            ? raw.originalName
+            : typeof raw.id === 'string'
+              ? raw.id
+              : ''
+        )
+          .trim()
+          .toLowerCase();
         if (!baseName || !raw.size) return '';
         return `${baseName}::${Number(raw.size) || 0}`;
       })(),
@@ -112,7 +115,11 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     try {
       if (fs.existsSync(LIBRARY_FILE)) {
         const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
-        const list = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.items) ? parsed.items : []);
+        const list = Array.isArray(parsed)
+          ? parsed
+          : parsed && Array.isArray(parsed.items)
+            ? parsed.items
+            : [];
         return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
       }
     } catch (error) {
@@ -133,7 +140,11 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     if (store && ns) {
       try {
         const stored = await store.get(ns, 'tip-notification-gif-library', null);
-        const list = Array.isArray(stored) ? stored : (stored && Array.isArray(stored.items) ? stored.items : []);
+        const list = Array.isArray(stored)
+          ? stored
+          : stored && Array.isArray(stored.items)
+            ? stored.items
+            : [];
         return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
       } catch (error) {
         console.warn('[gif-library] store load error', error.message);
@@ -187,7 +198,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       if (!hasNs) {
         const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
         if (requireSessionFlag) {
-
           return res.json({ gifPath: '', width: 0, height: 0, libraryId: '' });
         }
         return res.json({ gifPath: '', position: 'right', width: 0, height: 0, libraryId: '' });
@@ -232,7 +242,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   app.delete('/api/tip-notification-gif/library/:id', strictLimiter, async (req, res) => {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
     const hosted = !!process.env.REDIS_URL;
-    const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
+    const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hosted;
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
     if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
       return res.status(401).json({ error: 'no_session' });
@@ -318,152 +328,160 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     }
   });
 
-  app.post('/api/tip-notification-gif', strictLimiter, (req, res, next) => {
-    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-    const hosted = !!process.env.REDIS_URL;
-    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-    const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
-  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
-      return res.status(401).json({ error: 'no_session' });
-    }
-  if (!isOpenTestMode() && requireAdminWrites) {
-      const isAdmin = !!(req?.auth && req.auth.isAdmin);
-      if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
-    }
-    upload.single('gifFile')(req, res, function (err) {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
-      next();
-    });
-  }, async (req, res) => {
-    try {
-      const bodySchema = z
-        .object({
-          position: z.enum(['left', 'right', 'top', 'bottom']).default('right'),
-          selectedGifId: z.string().max(220).optional().nullable()
-        })
-        .passthrough();
-      const parsed = bodySchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: 'Invalid position' });
-      const position = parsed.data.position;
-      const selectedGifIdRaw = parsed.data.selectedGifId;
-      const selectedGifId = typeof selectedGifIdRaw === 'string' && selectedGifIdRaw.trim()
-        ? selectedGifIdRaw.trim()
-        : null;
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-      let config = ensureConfigShape(loadConfig());
-      let libraryEntry = null;
-
-      if (req.file) {
-
-        let dims;
-        try {
-          dims = readGifDimensionsFromBuffer(req.file.buffer);
-        } catch {
-          return res.status(400).json({ error: 'Invalid GIF file' });
-        }
-
-        const preferredProvider = typeof req.body?.storageProvider === 'string'
-          ? req.body.storageProvider
-          : '';
-        const storage = getStorage(preferredProvider);
-        if (!storage) {
-          if (process.env.NODE_ENV === 'test') {
-            const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-            const mockUrl = `https://mock.supabase.co/storage/v1/object/public/notification-gifs/${safeNs}/tip-notification.gif`;
-            config.gifPath = mockUrl;
-            config.width = dims.width;
-            config.height = dims.height;
-            config.libraryId = '';
-            config.storageProvider = STORAGE_PROVIDERS.SUPABASE;
-          } else {
-            return res.status(500).json({ error: 'Storage service not configured' });
-          }
-        } else {
-          const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-          const filePath = `${safeNs}/tip-notification.gif`;
-
-          const fileBuffer = req.file.buffer || Buffer.alloc(0);
-          const sizeFromRequest = Number(req.file.size);
-          const fileSize = Number.isFinite(sizeFromRequest) && sizeFromRequest >= 0
-            ? sizeFromRequest
-            : fileBuffer.length;
-          let fileHash = '';
-          try {
-            fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-          } catch (hashError) {
-            console.warn('[gif-library] failed to hash upload', hashError.message);
-          }
-          const normalizedName = (req.file.originalname || '').toLowerCase();
-          const fingerprint = normalizedName
-            ? `${normalizedName}::${fileSize || 0}`
-            : `${filePath.toLowerCase()}::${fileSize || 0}`;
-
-          try {
-            const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, fileBuffer, {
-              contentType: 'image/gif'
-            });
-
-            config.gifPath = uploadResult.publicUrl;
-            config.width = dims.width;
-            config.height = dims.height;
-            config.storageProvider = uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE;
-            libraryEntry = {
-              id: uploadResult.fileName,
-              url: uploadResult.publicUrl,
-              width: dims.width,
-              height: dims.height,
-              size: fileSize || 0,
-              originalName: req.file.originalname || '',
-              uploadedAt: new Date().toISOString(),
-              provider: uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE,
-              path: uploadResult.path || '',
-              sha256: fileHash,
-              fingerprint,
-            };
-            config.libraryId = libraryEntry.id;
-            await upsertLibraryEntry(ns, libraryEntry);
-          } catch (uploadError) {
-            console.error('Supabase upload error:', uploadError);
-            return res.status(500).json({ error: 'Failed to upload file' });
-          }
-        }
-      } else if (selectedGifId) {
-        try {
-          const entry = await findLibraryEntry(ns, selectedGifId);
-          if (!entry) {
-            return res.status(404).json({ error: 'library_item_not_found' });
-          }
-          config.gifPath = entry.url || '';
-          config.width = Number.isFinite(entry.width) ? entry.width : Number(entry.width) || 0;
-          config.height = Number.isFinite(entry.height) ? entry.height : Number(entry.height) || 0;
-          config.libraryId = entry.id;
-          config.storageProvider = entry.provider || STORAGE_PROVIDERS.SUPABASE;
-          libraryEntry = entry;
-        } catch (error) {
-          console.error('[gif-library] lookup error', error.message);
-          return res.status(500).json({ error: 'library_lookup_failed' });
-        }
-      }
-
-      config.position = position;
+  app.post(
+    '/api/tip-notification-gif',
+    strictLimiter,
+    (req, res, next) => {
+      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hosted = !!process.env.REDIS_URL;
-      if (store && ns) {
-        try {
-          await store.set(ns, 'tip-notification-gif', config);
-        } catch {}
-        if (!hosted) saveConfig(config);
-        res.json({ success: true, ...config, libraryItem: libraryEntry });
-      } else {
-        saveConfig(config);
-        res.json({ success: true, ...config, libraryItem: libraryEntry });
+      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+      const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hosted;
+      if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+        return res.status(401).json({ error: 'no_session' });
       }
-    } catch (_e) {
-      console.error('Error saving GIF config:', _e);
-      res.status(500).json({ error: 'Internal server error' });
+      if (!isOpenTestMode() && requireAdminWrites) {
+        const isAdmin = !!(req?.auth && req.auth.isAdmin);
+        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+      }
+      upload.single('gifFile')(req, res, function (err) {
+        if (err) {
+          return res.status(400).json({ error: err.message });
+        }
+        next();
+      });
+    },
+    async (req, res) => {
+      try {
+        const bodySchema = z
+          .object({
+            position: z.enum(['left', 'right', 'top', 'bottom']).default('right'),
+            selectedGifId: z.string().max(220).optional().nullable(),
+          })
+          .passthrough();
+        const parsed = bodySchema.safeParse(req.body);
+        if (!parsed.success) return res.status(400).json({ error: 'Invalid position' });
+        const position = parsed.data.position;
+        const selectedGifIdRaw = parsed.data.selectedGifId;
+        const selectedGifId =
+          typeof selectedGifIdRaw === 'string' && selectedGifIdRaw.trim()
+            ? selectedGifIdRaw.trim()
+            : null;
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+        let config = ensureConfigShape(loadConfig());
+        let libraryEntry = null;
+
+        if (req.file) {
+          let dims;
+          try {
+            dims = readGifDimensionsFromBuffer(req.file.buffer);
+          } catch {
+            return res.status(400).json({ error: 'Invalid GIF file' });
+          }
+
+          const preferredProvider =
+            typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
+          const storage = getStorage(preferredProvider);
+          if (!storage) {
+            if (process.env.NODE_ENV === 'test') {
+              const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+              const mockUrl = `https://mock.supabase.co/storage/v1/object/public/notification-gifs/${safeNs}/tip-notification.gif`;
+              config.gifPath = mockUrl;
+              config.width = dims.width;
+              config.height = dims.height;
+              config.libraryId = '';
+              config.storageProvider = STORAGE_PROVIDERS.SUPABASE;
+            } else {
+              return res.status(500).json({ error: 'Storage service not configured' });
+            }
+          } else {
+            const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+            const filePath = `${safeNs}/tip-notification.gif`;
+
+            const fileBuffer = req.file.buffer || Buffer.alloc(0);
+            const sizeFromRequest = Number(req.file.size);
+            const fileSize =
+              Number.isFinite(sizeFromRequest) && sizeFromRequest >= 0
+                ? sizeFromRequest
+                : fileBuffer.length;
+            let fileHash = '';
+            try {
+              fileHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+            } catch (hashError) {
+              console.warn('[gif-library] failed to hash upload', hashError.message);
+            }
+            const normalizedName = (req.file.originalname || '').toLowerCase();
+            const fingerprint = normalizedName
+              ? `${normalizedName}::${fileSize || 0}`
+              : `${filePath.toLowerCase()}::${fileSize || 0}`;
+
+            try {
+              const uploadResult = await storage.uploadFile(BUCKET_NAME, filePath, fileBuffer, {
+                contentType: 'image/gif',
+              });
+
+              config.gifPath = uploadResult.publicUrl;
+              config.width = dims.width;
+              config.height = dims.height;
+              config.storageProvider =
+                uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE;
+              libraryEntry = {
+                id: uploadResult.fileName,
+                url: uploadResult.publicUrl,
+                width: dims.width,
+                height: dims.height,
+                size: fileSize || 0,
+                originalName: req.file.originalname || '',
+                uploadedAt: new Date().toISOString(),
+                provider: uploadResult.provider || storage.provider || STORAGE_PROVIDERS.SUPABASE,
+                path: uploadResult.path || '',
+                sha256: fileHash,
+                fingerprint,
+              };
+              config.libraryId = libraryEntry.id;
+              await upsertLibraryEntry(ns, libraryEntry);
+            } catch (uploadError) {
+              console.error('Supabase upload error:', uploadError);
+              return res.status(500).json({ error: 'Failed to upload file' });
+            }
+          }
+        } else if (selectedGifId) {
+          try {
+            const entry = await findLibraryEntry(ns, selectedGifId);
+            if (!entry) {
+              return res.status(404).json({ error: 'library_item_not_found' });
+            }
+            config.gifPath = entry.url || '';
+            config.width = Number.isFinite(entry.width) ? entry.width : Number(entry.width) || 0;
+            config.height = Number.isFinite(entry.height)
+              ? entry.height
+              : Number(entry.height) || 0;
+            config.libraryId = entry.id;
+            config.storageProvider = entry.provider || STORAGE_PROVIDERS.SUPABASE;
+            libraryEntry = entry;
+          } catch (error) {
+            console.error('[gif-library] lookup error', error.message);
+            return res.status(500).json({ error: 'library_lookup_failed' });
+          }
+        }
+
+        config.position = position;
+        const hosted = !!process.env.REDIS_URL;
+        if (store && ns) {
+          try {
+            await store.set(ns, 'tip-notification-gif', config);
+          } catch {}
+          if (!hosted) saveConfig(config);
+          res.json({ success: true, ...config, libraryItem: libraryEntry });
+        } else {
+          saveConfig(config);
+          res.json({ success: true, ...config, libraryItem: libraryEntry });
+        }
+      } catch (_e) {
+        console.error('Error saving GIF config:', _e);
+        res.status(500).json({ error: 'Internal server error' });
+      }
     }
-  });
+  );
 
   app.delete('/api/tip-notification-gif', strictLimiter, async (req, res) => {
     const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
@@ -472,15 +490,15 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       return res.status(405).json({ error: 'gif_delete_disabled' });
     }
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-    const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
-  if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+    const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hosted;
+    if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
       return res.status(401).json({ error: 'no_session' });
     }
-  if (!isOpenTestMode() && requireAdminWrites) {
+    if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
     }
-  if (!isOpenTestMode() && !hosted && !requireSessionFlag && !isTrustedLocalAdmin(req)) {
+    if (!isOpenTestMode() && !hosted && !requireSessionFlag && !isTrustedLocalAdmin(req)) {
       return res.status(403).json({ error: 'forbidden_untrusted_context' });
     }
     try {
@@ -494,7 +512,9 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       }
 
       const shouldDeleteStoredFile =
-        cfgToUse.gifPath && !cfgToUse.libraryId && cfgToUse.storageProvider === STORAGE_PROVIDERS.SUPABASE;
+        cfgToUse.gifPath &&
+        !cfgToUse.libraryId &&
+        cfgToUse.storageProvider === STORAGE_PROVIDERS.SUPABASE;
       if (shouldDeleteStoredFile) {
         const storage = getStorage();
         if (storage) {
@@ -510,16 +530,25 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         }
       }
 
-  const cleared = { gifPath: '', position: 'right', width: 0, height: 0, libraryId: '', storageProvider: '' };
+      const cleared = {
+        gifPath: '',
+        position: 'right',
+        width: 0,
+        height: 0,
+        libraryId: '',
+        storageProvider: '',
+      };
       const hosted = !!process.env.REDIS_URL;
       if (store && ns) {
-        try { await store.set(ns, 'tip-notification-gif', cleared); } catch {}
+        try {
+          await store.set(ns, 'tip-notification-gif', cleared);
+        } catch {}
         if (!hosted) saveConfig(cleared);
         return res.json({ success: true, ...cleared });
       }
       saveConfig(cleared);
       res.json({ success: true, ...cleared });
-  } catch {
+    } catch {
       res.status(500).json({ error: 'Internal server error' });
     }
   });

@@ -1,33 +1,44 @@
 /* eslint-env node */
 const crypto = require('crypto');
 
-function setupMiddlewares(app, {
-  store,
-  historyStore,
-  helmet,
-  express: expressModule,
-  cookieParser,
-  walletAuth,
-  compression,
-  morgan,
-  anonymizeIp,
-  __allow,
-  __LOG_LEVEL
-}) {
-  try { app.set('store', store); } catch {}
-  try { app.set('historyStore', historyStore); } catch {}
+function setupMiddlewares(
+  app,
+  {
+    store,
+    historyStore,
+    helmet,
+    express: expressModule,
+    cookieParser,
+    walletAuth,
+    compression,
+    morgan,
+    anonymizeIp,
+    __allow,
+    __LOG_LEVEL,
+  }
+) {
+  try {
+    app.set('store', store);
+  } catch {}
+  try {
+    app.set('historyStore', historyStore);
+  } catch {}
   try {
     if (process.env.REDIS_URL && !store?.redis && process.env.NODE_ENV !== 'test') {
-      console.warn('[hosted] REDIS_URL is set but Redis client is not initialized. Check network/VPC/credentials.');
+      console.warn(
+        '[hosted] REDIS_URL is set but Redis client is not initialized. Check network/VPC/credentials.'
+      );
     }
   } catch {}
 
-  try { app.use(helmet({ contentSecurityPolicy: false })); } catch {}
+  try {
+    app.use(helmet({ contentSecurityPolicy: false }));
+  } catch {}
 
   try {
     const isProd = process.env.NODE_ENV === 'production';
     const cspFlag = process.env.GETTY_ENABLE_CSP;
-    const enableCsp = (cspFlag === '1') || (typeof cspFlag === 'undefined' && isProd);
+    const enableCsp = cspFlag === '1' || (typeof cspFlag === 'undefined' && isProd);
     if (enableCsp) {
       app.use((req, res, next) => {
         try {
@@ -39,10 +50,11 @@ function setupMiddlewares(app, {
       });
       const self = "'self'";
       const unsafeEval = isProd ? [] : ["'unsafe-eval'"];
-      const splitEnv = (k) => (process.env[k] || '')
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
+      const splitEnv = (k) =>
+        (process.env[k] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
 
       const connectExtra = splitEnv('GETTY_CSP_CONNECT_EXTRA');
       const scriptExtra = splitEnv('GETTY_CSP_SCRIPT_EXTRA');
@@ -67,7 +79,7 @@ function setupMiddlewares(app, {
           ...(allowUnsafeHashes ? ["'unsafe-hashes'"] : []),
           ...unsafeEval,
           ...scriptExtra,
-          ...scriptHashes
+          ...scriptHashes,
         ],
         styleSrc: [
           self,
@@ -75,36 +87,55 @@ function setupMiddlewares(app, {
           (req, res) => `'nonce-${res.locals.cspNonce || ''}'`,
           ...(allowInlineStyles ? ["'unsafe-inline'"] : []),
           ...styleExtra,
-          ...styleHashes
+          ...styleHashes,
         ],
         imgSrc: [
-          self, 'data:', 'blob:',
-          'https://thumbs.odycdn.com', 'https://thumbnails.odycdn.com',
-          'https://odysee.com', 'https://static.odycdn.com',
-          'https://twemoji.maxcdn.com', 'https://spee.ch',
-          'https://arweave.net', 'https://*.arweave.net',
-          ...imgExtra
+          self,
+          'data:',
+          'blob:',
+          'https://thumbs.odycdn.com',
+          'https://thumbnails.odycdn.com',
+          'https://odysee.com',
+          'https://static.odycdn.com',
+          'https://twemoji.maxcdn.com',
+          'https://spee.ch',
+          'https://arweave.net',
+          'https://*.arweave.net',
+          ...imgExtra,
         ],
-        fontSrc: [self, 'data:', 'blob:', ...(enableGoogleFonts ? ['https://fonts.gstatic.com'] : []), ...fontExtra],
+        fontSrc: [
+          self,
+          'data:',
+          'blob:',
+          ...(enableGoogleFonts ? ['https://fonts.gstatic.com'] : []),
+          ...fontExtra,
+        ],
         mediaSrc: [
           self,
           'blob:',
-          'https://arweave.net', 'https://*.arweave.net',
-          'https://ardrive.net', 'https://*.ardrive.net',
+          'https://arweave.net',
+          'https://*.arweave.net',
+          'https://ardrive.net',
+          'https://*.ardrive.net',
           'https://*.supabase.co',
-          ...mediaExtra
+          ...mediaExtra,
         ],
         connectSrc: [self, 'ws:', 'wss:', 'https://api.na-backend.odysee.com', ...connectExtra],
-        frameSrc: [self, ...frameExtra]
+        frameSrc: [self, ...frameExtra],
       };
 
       if (scriptAttr) {
-        const parts = scriptAttr.split(',').map(s => s.trim()).filter(Boolean);
+        const parts = scriptAttr
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
         if (parts.length) cspDirectives.scriptSrcAttr = parts;
       }
 
       try {
-        const existing = Array.isArray(cspDirectives.scriptSrcAttr) ? cspDirectives.scriptSrcAttr : [];
+        const existing = Array.isArray(cspDirectives.scriptSrcAttr)
+          ? cspDirectives.scriptSrcAttr
+          : [];
         const merged = Array.from(new Set([...existing, 'integrity']));
         cspDirectives.scriptSrcAttr = merged;
       } catch {}
@@ -113,13 +144,25 @@ function setupMiddlewares(app, {
     }
   } catch {}
 
-  try { app.set('trust proxy', 1); } catch {}
-  try { app.use('/api/stream-history/import', expressModule.json({ limit: '32mb' })); } catch {}
-  try { app.use(expressModule.json({ limit: '1mb' })); } catch {}
-  try { app.use(expressModule.urlencoded({ extended: true, limit: '1mb' })); } catch {}
-  try { app.use(cookieParser()); } catch {}
+  try {
+    app.set('trust proxy', 1);
+  } catch {}
+  try {
+    app.use('/api/stream-history/import', expressModule.json({ limit: '32mb' }));
+  } catch {}
+  try {
+    app.use(expressModule.json({ limit: '1mb' }));
+  } catch {}
+  try {
+    app.use(expressModule.urlencoded({ extended: true, limit: '1mb' }));
+  } catch {}
+  try {
+    app.use(cookieParser());
+  } catch {}
 
-  try { if (walletAuth && walletAuth.attachSessionMiddleware) walletAuth.attachSessionMiddleware(app); } catch {}
+  try {
+    if (walletAuth && walletAuth.attachSessionMiddleware) walletAuth.attachSessionMiddleware(app);
+  } catch {}
 
   try {
     app.use(async (req, _res, next) => {
@@ -134,14 +177,23 @@ function setupMiddlewares(app, {
             }
 
             if (!req.auth || !req.auth.isAdmin) {
-              req.auth = { ...(req.auth || {}), isAdmin: true, source: (req.auth && req.auth.source) || 'wallet-session', tokenRole: 'admin' };
+              req.auth = {
+                ...(req.auth || {}),
+                isAdmin: true,
+                source: (req.auth && req.auth.source) || 'wallet-session',
+                tokenRole: 'admin',
+              };
             }
 
             try {
               if (store && hash) {
                 const meta = await store.get(hash, 'meta', null);
                 if (!meta) {
-                  await store.set(hash, 'meta', { role: 'admin', createdAt: Date.now(), walletAddr: req.walletSession.addr });
+                  await store.set(hash, 'meta', {
+                    role: 'admin',
+                    createdAt: Date.now(),
+                    walletAddr: req.walletSession.addr,
+                  });
                 }
                 const admTok = await store.get(hash, 'adminToken', null);
                 if (!admTok) {
@@ -161,21 +213,31 @@ function setupMiddlewares(app, {
     });
   } catch {}
 
-  try { app.use(compression()); } catch {}
+  try {
+    app.use(compression());
+  } catch {}
 
   try {
     morgan.token('anonip', (req) => anonymizeIp(req.ip || req.connection?.remoteAddress || ''));
-    const logFormat = process.env.GETTY_LOG_FORMAT || ':method :url :status :res[content-length] - :response-time ms :anonip';
+    const logFormat =
+      process.env.GETTY_LOG_FORMAT ||
+      ':method :url :status :res[content-length] - :response-time ms :anonip';
     if (process.env.NODE_ENV !== 'test' && __allow('info')) {
-      app.use(morgan(logFormat, {
-        skip: () => __LOG_LEVEL === 'silent'
-      }));
+      app.use(
+        morgan(logFormat, {
+          skip: () => __LOG_LEVEL === 'silent',
+        })
+      );
     }
   } catch {}
 
   try {
     app.use((req, _res, next) => {
-      try { req.anonymizedIp = anonymizeIp(req.ip || req.connection?.remoteAddress || ''); } catch { req.anonymizedIp = ''; }
+      try {
+        req.anonymizedIp = anonymizeIp(req.ip || req.connection?.remoteAddress || '');
+      } catch {
+        req.anonymizedIp = '';
+      }
       next();
     });
   } catch {}
@@ -196,7 +258,10 @@ function setupMiddlewares(app, {
   } catch {}
 
   try {
-    const rawAllowed = (process.env.GETTY_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const rawAllowed = (process.env.GETTY_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const allowedSet = new Set(rawAllowed);
     if (allowedSet.size) {
       app.use((req, res, next) => {
@@ -211,7 +276,9 @@ function setupMiddlewares(app, {
           }
           res.setHeader('Vary', 'Origin');
           return next();
-        } catch { return next(); }
+        } catch {
+          return next();
+        }
       });
 
       app.options('*', (req, res, next) => {
@@ -230,5 +297,5 @@ function setupMiddlewares(app, {
 }
 
 module.exports = {
-  setupMiddlewares
+  setupMiddlewares,
 };

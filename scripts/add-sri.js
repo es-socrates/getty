@@ -18,31 +18,37 @@ function stripSriAttrs(segment) {
 function addSriToHtml(htmlPath, rootDir) {
   let html = fs.readFileSync(htmlPath, 'utf8');
   let changed = false;
-  html = html.replace(/<(script)\s+([^>]*?)src=["']([^"']+)["']([^>]*)><\/script>/gi, (m, tag, pre, src, post) => {
-    if (!src.startsWith('/')) return m;
-    const cleanPath = src.split('?')[0];
-    const fileFs = path.join(rootDir, cleanPath.replace(/^\//, ''));
-    if (!fs.existsSync(fileFs)) return m;
-    const sri = integrityFor(fileFs);
+  html = html.replace(
+    /<(script)\s+([^>]*?)src=["']([^"']+)["']([^>]*)><\/script>/gi,
+    (m, tag, pre, src, post) => {
+      if (!src.startsWith('/')) return m;
+      const cleanPath = src.split('?')[0];
+      const fileFs = path.join(rootDir, cleanPath.replace(/^\//, ''));
+      if (!fs.existsSync(fileFs)) return m;
+      const sri = integrityFor(fileFs);
 
-    const newPre = stripSriAttrs(pre);
-    const newPost = stripSriAttrs(post);
-    changed = true;
-    return `<script ${newPre}src="${src}" integrity="${sri}" crossorigin="anonymous"${newPost}></script>`;
-  });
-  html = html.replace(/<(link)\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi, (m, tag, pre, href, post) => {
-    if (!/rel=["'](?:stylesheet|preload)["']/i.test(m)) return m;
-    if (!href.startsWith('/')) return m;
-    const cleanPath = href.split('?')[0];
-    const fileFs = path.join(rootDir, cleanPath.replace(/^\//, ''));
-    if (!fs.existsSync(fileFs)) return m;
-    const sri = integrityFor(fileFs);
+      const newPre = stripSriAttrs(pre);
+      const newPost = stripSriAttrs(post);
+      changed = true;
+      return `<script ${newPre}src="${src}" integrity="${sri}" crossorigin="anonymous"${newPost}></script>`;
+    }
+  );
+  html = html.replace(
+    /<(link)\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi,
+    (m, tag, pre, href, post) => {
+      if (!/rel=["'](?:stylesheet|preload)["']/i.test(m)) return m;
+      if (!href.startsWith('/')) return m;
+      const cleanPath = href.split('?')[0];
+      const fileFs = path.join(rootDir, cleanPath.replace(/^\//, ''));
+      if (!fs.existsSync(fileFs)) return m;
+      const sri = integrityFor(fileFs);
 
-    const newPre = stripSriAttrs(pre);
-    const newPost = stripSriAttrs(post);
-    changed = true;
-    return `<link ${newPre}href="${href}" integrity="${sri}" crossorigin="anonymous"${newPost}>`;
-  });
+      const newPre = stripSriAttrs(pre);
+      const newPost = stripSriAttrs(post);
+      changed = true;
+      return `<link ${newPre}href="${href}" integrity="${sri}" crossorigin="anonymous"${newPost}>`;
+    }
+  );
   if (changed) fs.writeFileSync(htmlPath, html);
   return changed;
 }
@@ -76,11 +82,15 @@ module.exports = {
   stripSriAttrs,
   addSriToHtml,
   collectHtmlFiles,
-  processDirectory
+  processDirectory,
 };
 
 if (require.main === module) {
   const publicDir = path.join(process.cwd(), 'public');
   const { processed, updated } = processDirectory(publicDir);
-  try { console.warn(`[SRI] Processed ${processed} HTML files, updated ${updated} with integrity attributes.`); } catch {}
+  try {
+    console.warn(
+      `[SRI] Processed ${processed} HTML files, updated ${updated} with integrity attributes.`
+    );
+  } catch {}
 }

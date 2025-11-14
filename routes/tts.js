@@ -12,7 +12,7 @@ function loadSettings() {
       return {
         ttsEnabled: typeof settings.ttsEnabled === 'boolean' ? settings.ttsEnabled : true,
         ttsAllChat: typeof settings.ttsAllChat === 'boolean' ? settings.ttsAllChat : false,
-        ttsLanguage: settings.ttsLanguage || 'en'
+        ttsLanguage: settings.ttsLanguage || 'en',
       };
     }
   } catch (error) {
@@ -44,10 +44,10 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const hostedWithRedis = !!process.env.REDIS_URL;
   const shouldRequireSession = requireSessionFlag || hostedWithRedis;
-  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
+  const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hostedWithRedis;
   app.get('/api/tts-setting', async (req, res) => {
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-  if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
+    if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
       return res.json({ ttsEnabled: true, ttsAllChat: false });
     }
 
@@ -63,17 +63,17 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-setting', limiter, async (req, res) => {
-  if (!isOpenTestMode() && shouldRequireSession) {
+    if (!isOpenTestMode() && shouldRequireSession) {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
     }
-  if (!isOpenTestMode() && requireAdminWrites) {
+    if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
     }
     const bodySchema = z.object({
       ttsEnabled: z.coerce.boolean().optional(),
-      ttsAllChat: z.coerce.boolean().optional()
+      ttsAllChat: z.coerce.boolean().optional(),
     });
     const parsed = bodySchema.safeParse(req.body || {});
     if (!parsed.success) {
@@ -98,13 +98,13 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
       type: 'ttsSettingUpdate',
       data: {
         ...(typeof ttsEnabled !== 'undefined' ? { ttsEnabled: Boolean(ttsEnabled) } : {}),
-        ...(typeof ttsAllChat !== 'undefined' ? { ttsAllChat: Boolean(ttsAllChat) } : {})
-      }
+        ...(typeof ttsAllChat !== 'undefined' ? { ttsAllChat: Boolean(ttsAllChat) } : {}),
+      },
     };
     if (typeof wss.broadcast === 'function' && req.ns && (req.ns.admin || req.ns.pub)) {
-      wss.broadcast((req.ns.admin || req.ns.pub), payload);
+      wss.broadcast(req.ns.admin || req.ns.pub, payload);
     } else {
-      wss.clients.forEach(client => {
+      wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(payload));
         }
@@ -112,7 +112,10 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
     }
 
     if (store && req.ns && req.ns.admin) {
-      const latest = await store.get(req.ns.admin, 'tts-settings', { ttsEnabled: true, ttsAllChat: false });
+      const latest = await store.get(req.ns.admin, 'tts-settings', {
+        ttsEnabled: true,
+        ttsAllChat: false,
+      });
       return res.json({ success: true, ...latest, message: 'TTS setting updated successfully' });
     } else {
       const latest = loadSettings();
@@ -122,7 +125,7 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
 
   app.get('/api/tts-language', async (req, res) => {
     const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-  if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
+    if (!isOpenTestMode() && shouldRequireSession && !hasNs) {
       return res.json({ ttsLanguage: 'en' });
     }
 
@@ -138,11 +141,11 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
   });
 
   app.post('/api/tts-language', limiter, async (req, res) => {
-  if (!isOpenTestMode() && shouldRequireSession) {
+    if (!isOpenTestMode() && shouldRequireSession) {
       const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (!nsCheck) return res.status(401).json({ success: false, error: 'session_required' });
     }
-  if (!isOpenTestMode() && requireAdminWrites) {
+    if (!isOpenTestMode() && requireAdminWrites) {
       const isAdmin = !!(req?.auth && req.auth.isAdmin);
       if (!isAdmin) return res.status(401).json({ success: false, error: 'admin_required' });
     }
@@ -161,15 +164,15 @@ function registerTtsRoutes(app, wss, limiter, options = {}) {
 
     const payload = { type: 'ttsLanguageUpdate', data: { ttsLanguage } };
     if (typeof wss.broadcast === 'function' && req.ns && (req.ns.admin || req.ns.pub)) {
-      wss.broadcast((req.ns.admin || req.ns.pub), payload);
+      wss.broadcast(req.ns.admin || req.ns.pub, payload);
     } else {
-      wss.clients.forEach(client => {
+      wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(payload));
         }
       });
     }
-  res.json({ success: true, ttsLanguage, message: 'TTS language updated successfully' });
+    res.json({ success: true, ttsLanguage, message: 'TTS language updated successfully' });
   });
 }
 

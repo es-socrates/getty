@@ -2,7 +2,7 @@ export function loadScriptOnce(src, id = '') {
   return new Promise((resolve, reject) => {
     try {
       if (id && document.getElementById(id)) return resolve();
-      const existing = Array.from(document.scripts).some(s => s.src && s.src.includes(src));
+      const existing = Array.from(document.scripts).some((s) => s.src && s.src.includes(src));
       if (existing && !id) return resolve();
       const el = document.createElement('script');
       if (id) el.id = id;
@@ -17,10 +17,14 @@ export function loadScriptOnce(src, id = '') {
       };
       el.onerror = (e) => reject(e);
       document.head.appendChild(el);
-    } catch (e) { reject(e); }
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
 export function markLoaded(key) {
-  try { document.documentElement.setAttribute(`data-${key}-loaded`, '1'); } catch(_) {}
+  try {
+    document.documentElement.setAttribute(`data-${key}-loaded`, '1');
+  } catch (_) {}
 }

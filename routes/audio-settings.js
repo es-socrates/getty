@@ -14,7 +14,9 @@ function normalizeProvider(provider) {
 
 function ensureSettingsShape(raw = {}) {
   const src = raw.audioSource === 'custom' ? 'custom' : 'remote';
-  const size = Number.isFinite(raw.audioFileSize) ? raw.audioFileSize : Number(raw.audioFileSize) || 0;
+  const size = Number.isFinite(raw.audioFileSize)
+    ? raw.audioFileSize
+    : Number(raw.audioFileSize) || 0;
   const volRaw = Number.isFinite(raw.volume) ? raw.volume : parseFloat(raw.volume);
   const volume = Number.isFinite(volRaw) ? Math.max(0, Math.min(1, volRaw)) : 0.5;
   return {
@@ -58,9 +60,17 @@ function saveAudioSettings(AUDIO_CONFIG_FILE, newSettings) {
   }
 }
 
-function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, AUDIO_CONFIG_FILE = './audio-settings.json', { store } = {}) {
+function registerAudioSettingsRoutes(
+  app,
+  wss,
+  audioUpload,
+  AUDIO_UPLOADS_DIR,
+  AUDIO_CONFIG_FILE = './audio-settings.json',
+  { store } = {}
+) {
   const { isOpenTestMode } = require('../lib/test-open-mode');
-  const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || !!process.env.REDIS_URL;
+  const requireAdminWrites =
+    process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || !!process.env.REDIS_URL;
   const HOSTED_ENV = !!process.env.REDIS_URL;
   const LIBRARY_FILE = path.join(process.cwd(), 'config', 'audio-library.json');
 
@@ -319,7 +329,10 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
             url: uploadResult.publicUrl,
             size: Number(req.file.size) || Number(uploadResult.size) || 0,
             originalName:
-              req.file.originalname || uploadResult.originalName || uploadResult.fileName || derivedId,
+              req.file.originalname ||
+              uploadResult.originalName ||
+              uploadResult.fileName ||
+              derivedId,
             path: uploadResult.path || uploadResult.fileName || derivedId,
             uploadedAt: new Date().toISOString(),
             mimeType: req.file.mimetype || 'audio/mpeg',
@@ -398,7 +411,6 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           return res.status(500).json({ error: 'Error saving audio configuration' });
         }
       } else {
-
         const merged = ensureSettingsShape({ ...currentSettings, ...settings });
         success = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
         if (success) {
@@ -515,7 +527,10 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
             }
           }
         } catch (settingsError) {
-          console.warn('[audio-library] failed to reset audio settings after deletion:', settingsError.message);
+          console.warn(
+            '[audio-library] failed to reset audio settings after deletion:',
+            settingsError.message
+          );
         }
       } else {
         const currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
@@ -555,14 +570,15 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           } else {
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
-                client.send(
-                  JSON.stringify({ type: 'audioSettingsUpdate', data: settingsPayload })
-                );
+                client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: settingsPayload }));
               }
             });
           }
         } catch (broadcastError) {
-          console.warn('Error broadcasting audio settings update after library delete:', broadcastError);
+          console.warn(
+            'Error broadcasting audio settings update after library delete:',
+            broadcastError
+          );
         }
       }
 
@@ -586,7 +602,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
         if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
       }
       const ns = req?.ns?.admin || req?.ns?.pub || null;
-      
+
       let currentSettings = null;
       if (ns && store) {
         try {
@@ -621,7 +637,7 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       } else {
         currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
       }
-      
+
       const shouldDeleteStoredFile =
         currentSettings.audioFilePath && !currentSettings.audioLibraryId;
       if (
@@ -653,7 +669,6 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       let payload = null;
 
       if (ns && store) {
-
         try {
           const merged = ensureSettingsShape({ ...currentSettings, ...resetSettings });
           await store.set(ns, 'audio-settings', merged);
@@ -664,7 +679,6 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           return res.status(500).json({ error: 'Error deleting audio configuration' });
         }
       } else {
-
         success = saveAudioSettings(AUDIO_CONFIG_FILE, resetSettings);
         if (success) {
           payload = loadAudioSettings(AUDIO_CONFIG_FILE);
@@ -678,10 +692,16 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
           if (typeof wss.broadcast === 'function') {
             wss.broadcast(ns, { type: 'audioSettingsUpdate', data: payload });
           } else {
-            wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN)
+                client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload }));
+            });
           }
         } else {
-          wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload })); });
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN)
+              client.send(JSON.stringify({ type: 'audioSettingsUpdate', data: payload }));
+          });
         }
       } catch (broadcastError) {
         console.warn('Error broadcasting audio settings reset:', broadcastError);
@@ -710,11 +730,11 @@ function registerAudioSettingsRoutes(app, wss, audioUpload, AUDIO_UPLOADS_DIR, A
       if (!settings) {
         settings = loadAudioSettings(AUDIO_CONFIG_FILE);
       }
-      
+
       if (!settings || !settings.audioFileUrl) {
         return res.status(404).json({ error: 'Custom audio not found' });
       }
-      
+
       res.json({ url: settings.audioFileUrl });
     } catch (error) {
       console.error('Error serving custom audio:', error);

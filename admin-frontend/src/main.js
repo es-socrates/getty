@@ -16,10 +16,14 @@ app.use(ToastService);
 app.mount('#app');
 
 try {
-		window.addEventListener('storage', (e) => {
-			if (e && e.key === 'getty_logout') {
-				try { console.warn('[admin] detected global logout event, forcing reload'); } catch {}
-				setTimeout(() => { window.location.reload(); }, 100);
-			}
-		});
+  window.addEventListener('storage', (e) => {
+    if (e && e.key === 'getty_logout') {
+      try {
+        console.warn('[admin] detected global logout event, forcing reload');
+      } catch {}
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    }
+  });
 } catch {}

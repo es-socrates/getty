@@ -43,7 +43,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       if (fs.existsSync(LIBRARY_FILE)) {
         const parsed = JSON.parse(fs.readFileSync(LIBRARY_FILE, 'utf8'));
-        const list = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.items) ? parsed.items : []);
+        const list = Array.isArray(parsed)
+          ? parsed
+          : parsed && Array.isArray(parsed.items)
+            ? parsed.items
+            : [];
         return list.map(normalizeLibraryEntry).filter(Boolean);
       }
     } catch (error) {
@@ -64,7 +68,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     if (store && ns) {
       try {
         const stored = await store.get(ns, 'raffle-image-library', null);
-        const list = Array.isArray(stored) ? stored : (stored && Array.isArray(stored.items) ? stored.items : []);
+        const list = Array.isArray(stored)
+          ? stored
+          : stored && Array.isArray(stored.items)
+            ? stored.items
+            : [];
         return list.map(normalizeLibraryEntry).filter(Boolean);
       } catch (error) {
         console.warn('[raffle-library] store load error', error.message);
@@ -108,6 +116,17 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     return items.find((item) => item && item.id === entryId) || null;
   }
 
+  async function deleteLibraryFile(provider, storagePath) {
+    if (provider === STORAGE_PROVIDERS.SUPABASE && storagePath) {
+      try {
+        const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+        await storage?.deleteFile(BUCKET_NAME, storagePath);
+      } catch (error) {
+        console.warn('[raffle-library] delete file failed', error.message);
+      }
+    }
+  }
+
   function mapEntryToImagePayload(entry) {
     if (!entry) return null;
     return {
@@ -128,20 +147,22 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       const allowedMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
       const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
       const isValidMime = allowedMimes.includes(file.mimetype);
-      const isValidExt = allowedExtensions.some(ext => file.originalname.toLowerCase().endsWith(ext));
-      
+      const isValidExt = allowedExtensions.some((ext) =>
+        file.originalname.toLowerCase().endsWith(ext)
+      );
+
       if (isValidMime && isValidExt) {
         cb(null, true);
       } else {
         cb(new Error('Only PNG, JPEG, GIF, and WebP images are allowed'));
       }
-    }
+    },
   });
 
   app.get('/api/raffle/settings', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
         return res.json({});
       }
       const { settings, meta } = await raffle.getSettingsWithMeta(adminNs);
@@ -166,7 +187,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.get('/api/raffle/state', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
         return res.json({ active: false, paused: false, participants: [], totalWinners: 0 });
       }
       const state = await raffle.getPublicState(adminNs);
@@ -203,15 +224,78 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     }
   });
 
+  app.delete('/api/raffle/image-library/:id', async (req, res) => {
+    try {
+      const adminNs = resolveAdminNamespace(req);
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs) {
+        return res.status(401).json({ error: 'session_required' });
+      }
+
+      const { canWriteConfig } = require('../lib/authz');
+      if (!isOpenTestMode() && shouldRequireSession) {
+        const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
+        if (!allowRemoteWrites && !canWriteConfig(req)) {
+          return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
+        }
+      }
+
+      const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
+      if (!entryId) {
+        return res.status(400).json({ error: 'invalid_library_id' });
+      }
+
+      const items = await loadLibrary(adminNs);
+      const target = items.find((item) => item && item.id === entryId) || null;
+      if (!target) {
+        return res.status(404).json({ error: 'image_library_item_not_found' });
+      }
+
+      const providerId = (target.provider || '').toString().trim().toLowerCase();
+      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE) {
+        return res.status(400).json({ error: 'image_library_delete_unsupported' });
+      }
+
+      if (target.path) {
+        await deleteLibraryFile(providerId || STORAGE_PROVIDERS.SUPABASE, target.path);
+      }
+
+      const updated = items.filter((item) => item && item.id !== entryId);
+      await saveLibrary(adminNs, updated);
+
+      let activeImageCleared = false;
+      try {
+        const currentState = await raffle.getPublicState(adminNs);
+        if ((currentState?.imageLibraryId || '') === entryId) {
+          await raffle.setImage(adminNs, '');
+          activeImageCleared = true;
+        }
+      } catch (clearError) {
+        console.warn('[raffle-library] failed to clear active image', clearError.message);
+      }
+
+      if (activeImageCleared) {
+        broadcastRaffleState(wss, raffle, adminNs);
+      }
+
+      return res.json({ success: true, activeImageCleared });
+    } catch (error) {
+      console.error('[raffle-library] delete error', error.message);
+      res.status(500).json({ error: 'image_library_delete_failed' });
+    }
+  });
+
   app.post('/api/raffle/settings', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-    if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
-  if (!isOpenTestMode() && shouldRequireSession) {
+      if (!isOpenTestMode() && shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       const schema = z.object({
@@ -221,30 +305,36 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         maxWinners: z.coerce.number().int().positive().default(1),
         enabled: z
           .union([z.boolean(), z.string(), z.number()])
-          .transform(v => v === true || v === 'true' || v === 1 || v === '1')
+          .transform((v) => v === true || v === 'true' || v === 1 || v === '1')
           .optional(),
         mode: z.enum(['manual', 'auto']).default('manual').optional(),
         interval: z.coerce.number().int().positive().default(5),
-        imageUrl: z.string().optional().refine(v => {
-          if (v === undefined || v === '') return true;
-          if (typeof v !== 'string') return false;
-          if (/^https?:\/\/.+/i.test(v)) return true;
-          if (v.startsWith('/uploads/raffle/')) return true;
-          return false;
-        }, { message: 'Invalid URL' }),
+        imageUrl: z
+          .string()
+          .optional()
+          .refine(
+            (v) => {
+              if (v === undefined || v === '') return true;
+              if (typeof v !== 'string') return false;
+              if (/^https?:\/\/.+/i.test(v)) return true;
+              if (v.startsWith('/uploads/raffle/')) return true;
+              return false;
+            },
+            { message: 'Invalid URL' }
+          ),
         imageLibraryId: z.string().max(200).optional(),
         imageStorageProvider: z.string().max(50).optional(),
         imageStoragePath: z.string().max(400).optional(),
         imageSha256: z.string().max(128).optional(),
         imageFingerprint: z.string().max(256).optional(),
-        imageOriginalName: z.string().max(260).optional()
+        imageOriginalName: z.string().max(260).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
         const first = parsed.error?.issues?.[0];
         const msg = first?.path?.length
           ? `${first.path.join('.')}: ${first.message}`
-          : (first?.message || 'Invalid payload');
+          : first?.message || 'Invalid payload';
         return res.status(400).json({ success: false, error: msg });
       }
       const settings = parsed.data;
@@ -260,12 +350,15 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.post('/api/raffle/start', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
-  if (!isOpenTestMode() && shouldRequireSession) {
+      if (!isOpenTestMode() && shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       await raffle.start(adminNs);
@@ -279,12 +372,15 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.post('/api/raffle/stop', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
-  if (!isOpenTestMode() && shouldRequireSession) {
+      if (!isOpenTestMode() && shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       await raffle.stop(adminNs);
@@ -299,15 +395,23 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       let adminNs = req?.ns?.admin || null;
       if (!adminNs && req.query && req.query.ns) adminNs = String(req.query.ns);
-      if (!adminNs && process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession && req.walletSession.walletHash) {
+      if (
+        !adminNs &&
+        process.env.GETTY_MULTI_TENANT_WALLET === '1' &&
+        req.walletSession &&
+        req.walletSession.walletHash
+      ) {
         adminNs = req.walletSession.walletHash;
       }
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
-  if (!isOpenTestMode() && shouldRequireSession) {
+      if (!isOpenTestMode() && shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       await raffle.pause(adminNs);
@@ -321,12 +425,15 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.post('/api/raffle/resume', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
-  if (!isOpenTestMode() && shouldRequireSession) {
+      if (!isOpenTestMode() && shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       await raffle.resume(adminNs);
@@ -340,12 +447,15 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.post('/api/raffle/draw', async (req, res) => {
     try {
       let adminNs = resolveAdminNamespace(req);
-      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       const winner = await raffle.drawWinner(adminNs);
@@ -360,12 +470,15 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
   app.post('/api/raffle/reset', async (req, res) => {
     try {
       const adminNs = req?.ns?.admin || null;
-      if (shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
       const { canWriteConfig } = require('../lib/authz');
       if (shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       await raffle.resetWinners(adminNs);
@@ -390,8 +503,10 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       }
     }
 
-    const preferredProvider = typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
-    const requestedLibraryId = typeof req.body?.libraryId === 'string' ? req.body.libraryId.trim() : '';
+    const preferredProvider =
+      typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
+    const requestedLibraryId =
+      typeof req.body?.libraryId === 'string' ? req.body.libraryId.trim() : '';
 
     if (!req.file && !requestedLibraryId) {
       return res.status(400).json({ error: 'no_image_supplied' });
@@ -399,7 +514,11 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
 
     try {
       const prevState = await (async () => {
-        try { return await raffle.getPublicState(adminNs); } catch { return null; }
+        try {
+          return await raffle.getPublicState(adminNs);
+        } catch {
+          return null;
+        }
       })();
 
       if (requestedLibraryId && !req.file) {
@@ -579,13 +698,21 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     try {
       let adminNs = req?.ns?.admin || null;
       if (!adminNs && req.query && req.query.ns) adminNs = String(req.query.ns);
-      if (!adminNs && process.env.GETTY_MULTI_TENANT_WALLET === '1' && req.walletSession && req.walletSession.walletHash) {
+      if (
+        !adminNs &&
+        process.env.GETTY_MULTI_TENANT_WALLET === '1' &&
+        req.walletSession &&
+        req.walletSession.walletHash
+      ) {
         adminNs = req.walletSession.walletHash;
       }
-  if (!isOpenTestMode() && shouldRequireSession && !adminNs) return res.status(401).json({ success: false, error: 'session_required' });
+      if (!isOpenTestMode() && shouldRequireSession && !adminNs)
+        return res.status(401).json({ success: false, error: 'session_required' });
 
       let currentState = null;
-      try { currentState = await raffle.getPublicState(adminNs); } catch {}
+      try {
+        currentState = await raffle.getPublicState(adminNs);
+      } catch {}
       const currentUrl = currentState?.imageUrl || '';
       const currentProvider = currentState?.imageStorageProvider || '';
       const currentPath = currentState?.imageStoragePath || '';
@@ -593,7 +720,9 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
       if (shouldRequireSession) {
         const allowRemoteWrites = process.env.GETTY_ALLOW_REMOTE_WRITES === '1';
         if (!allowRemoteWrites && !canWriteConfig(req)) {
-          return res.status(403).json({ success: false, error: 'forbidden_untrusted_remote_write' });
+          return res
+            .status(403)
+            .json({ success: false, error: 'forbidden_untrusted_remote_write' });
         }
       }
       await raffle.setImage(adminNs, '');
@@ -647,7 +776,7 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         } else {
           const st = await raffle.getPublicState(token);
           const payload = JSON.stringify({ type: 'raffle_state', ...st, ...extra });
-          wss.clients.forEach(client => {
+          wss.clients.forEach((client) => {
             try {
               if (client.readyState !== WebSocket.OPEN) return;
               if (token && client.nsToken && client.nsToken !== token) return;
@@ -671,20 +800,26 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
     }
     const doSend = async (token) => {
       try {
-        const pub = await (async () => { try { return await raffle.getPublicState(token); } catch { return {}; } })();
+        const pub = await (async () => {
+          try {
+            return await raffle.getPublicState(token);
+          } catch {
+            return {};
+          }
+        })();
         const payloadObj = {
           type: 'raffle_winner',
           ...(typeof winner === 'object' ? winner : { winner }),
           command: pub.command,
           prize: pub.prize,
-          imageUrl: pub.imageUrl
+          imageUrl: pub.imageUrl,
         };
 
         if (typeof wss.broadcast === 'function' && token) {
           wss.broadcast(token, payloadObj);
         } else {
           const payload = JSON.stringify(payloadObj);
-          wss.clients.forEach(client => {
+          wss.clients.forEach((client) => {
             try {
               if (client.readyState !== WebSocket.OPEN) return;
               if (token && client.nsToken && client.nsToken !== token) return;

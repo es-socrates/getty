@@ -39,7 +39,7 @@ function main() {
     const normalized = cssContent.replace(/\r?\n/g, '\n');
     fs.writeFileSync(destCss, normalized, 'utf8');
 
-  console.warn('PrimeIcons assets copied to public/vendor/primeicons');
+    console.warn('PrimeIcons assets copied to public/vendor/primeicons');
   } catch (err) {
     console.error('Failed to copy PrimeIcons assets:', err);
     process.exit(1);

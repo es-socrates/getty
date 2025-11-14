@@ -32,13 +32,12 @@ window.addEventListener('DOMContentLoaded', async function () {
     await waitForWelcomeLayout(root);
   }
   try {
-    var isLocal = (
+    var isLocal =
       location.protocol === 'file:' ||
       location.hostname === 'localhost' ||
       location.hostname === '127.0.0.1' ||
       location.hostname === '::1' ||
-      (location.hostname && location.hostname.endsWith && location.hostname.endsWith('.local'))
-    );
+      (location.hostname && location.hostname.endsWith && location.hostname.endsWith('.local'));
     if (isLocal) {
       var footEl = document.querySelector('.foot');
       if (footEl) footEl.classList.add('hidden');
@@ -47,14 +46,20 @@ window.addEventListener('DOMContentLoaded', async function () {
 
   function resolveThemePreference() {
     let stored = null;
-    try { stored = localStorage.getItem('theme'); } catch (_) {}
+    try {
+      stored = localStorage.getItem('theme');
+    } catch (_) {}
     if (stored === 'dark' || stored === 'light') return stored;
     let legacy = null;
-    try { legacy = localStorage.getItem('prefers-dark'); } catch (_) {}
+    try {
+      legacy = localStorage.getItem('prefers-dark');
+    } catch (_) {}
     if (legacy === '1') return 'dark';
     if (legacy === '0') return 'light';
     try {
-      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
     } catch (_) {
       return 'dark';
     }
@@ -64,22 +69,30 @@ window.addEventListener('DOMContentLoaded', async function () {
     const isDark = mode === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.classList.toggle('light', !isDark);
-    try { document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (_) {}
+    try {
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    } catch (_) {}
     const body = document.body;
     if (body) {
       body.classList.toggle('dark', isDark);
       body.classList.toggle('light', !isDark);
     }
     if (persist) {
-      try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (_) {}
-      try { localStorage.setItem('prefers-dark', isDark ? '1' : '0'); } catch (_) {}
+      try {
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      } catch (_) {}
+      try {
+        localStorage.setItem('prefers-dark', isDark ? '1' : '0');
+      } catch (_) {}
     }
   }
 
   function syncToggleState(mode) {
     const toggle = document.getElementById('theme-toggle');
     if (!toggle) return;
-    try { toggle.setAttribute('aria-pressed', (mode === 'dark').toString()); } catch (_) {}
+    try {
+      toggle.setAttribute('aria-pressed', (mode === 'dark').toString());
+    } catch (_) {}
   }
 
   const initialTheme = resolveThemePreference();
@@ -118,16 +131,16 @@ window.addEventListener('DOMContentLoaded', async function () {
 
   function buildCaps() {
     return [
-        tr('welcomeCaptionTips', 'Real-time tip notifications'),
-        tr('welcomeCaptionGoals', 'Donation goals with celebratory effects'),
-        tr('welcomeCaptionChatRaffle', 'Live chat overlay and raffles'),
-        tr('welcomeCaptionAnnouncements', 'Announcements and external notifications'),
-        tr('welcomeCaptionPrivacy', 'Privacy-aware hosted mode'),
-        tr('welcomeCaptionObs', 'OBS-friendly widgets, zero fuss'),
-        tr('welcomeCaptionAllForOdysee', 'Everything for your livestreams on Odysee'),
-        tr('welcomeCaptionSocialWidgets', 'Social media widgets'),
-        tr('welcomeCaptionRunLocalOrHosted', 'Run locally or online'),
-        tr('welcomeCaptionArweaveTips', 'Your decentralized tips via Arweave')
+      tr('welcomeCaptionTips', 'Real-time tip notifications'),
+      tr('welcomeCaptionGoals', 'Donation goals with celebratory effects'),
+      tr('welcomeCaptionChatRaffle', 'Live chat overlay and raffles'),
+      tr('welcomeCaptionAnnouncements', 'Announcements and external notifications'),
+      tr('welcomeCaptionPrivacy', 'Privacy-aware hosted mode'),
+      tr('welcomeCaptionObs', 'OBS-friendly widgets, zero fuss'),
+      tr('welcomeCaptionAllForOdysee', 'Everything for your livestreams on Odysee'),
+      tr('welcomeCaptionSocialWidgets', 'Social media widgets'),
+      tr('welcomeCaptionRunLocalOrHosted', 'Run locally or online'),
+      tr('welcomeCaptionArweaveTips', 'Your decentralized tips via Arweave'),
     ].filter(Boolean);
   }
 
@@ -138,11 +151,18 @@ window.addEventListener('DOMContentLoaded', async function () {
   let pausedForMotion = false;
 
   function prefersReducedMotion() {
-    try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; }
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (_) {
+      return false;
+    }
   }
 
   function clearTimers() {
-    if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; }
+    if (typingTimer) {
+      clearTimeout(typingTimer);
+      typingTimer = null;
+    }
   }
 
   function setText(text) {
@@ -153,7 +173,6 @@ window.addEventListener('DOMContentLoaded', async function () {
   function typewrite(texts) {
     if (!el || !texts || texts.length === 0) return;
     if (prefersReducedMotion()) {
-
       pausedForMotion = true;
       el.classList.remove('typewriter');
       setText(texts[idx] || '');
@@ -202,14 +221,16 @@ window.addEventListener('DOMContentLoaded', async function () {
     typewrite(caps);
   }
 
-  try { refreshCaptions(true); } catch (e) {}
+  try {
+    refreshCaptions(true);
+  } catch (e) {}
 
   try {
     if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
       const _origSet = window.__i18n.setLanguage;
       window.__i18n.setLanguage = function (lang) {
         _origSet.call(window.__i18n, lang);
-  refreshCaptions(true);
+        refreshCaptions(true);
       };
     }
   } catch (e) {}
@@ -218,10 +239,18 @@ window.addEventListener('DOMContentLoaded', async function () {
     function setCookie(name, value, days) {
       try {
         const d = new Date();
-        d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+        d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
         const expires = 'expires=' + d.toUTCString();
         const secure = location.protocol === 'https:' ? '; Secure' : '';
-        document.cookie = name + '=' + encodeURIComponent(value) + '; ' + expires + '; Path=/' + '; SameSite=Lax' + secure;
+        document.cookie =
+          name +
+          '=' +
+          encodeURIComponent(value) +
+          '; ' +
+          expires +
+          '; Path=/' +
+          '; SameSite=Lax' +
+          secure;
       } catch (_) {}
     }
     function getCookie(name) {
@@ -237,13 +266,17 @@ window.addEventListener('DOMContentLoaded', async function () {
     }
 
     function clearStoredWidgetToken() {
-      try { localStorage.removeItem('getty_widget_token'); } catch {}
+      try {
+        localStorage.removeItem('getty_widget_token');
+      } catch {}
       setCookie('getty_widget_token', '', -1);
     }
 
     function getStoredWidgetToken() {
       let token = null;
-      try { token = localStorage.getItem('getty_widget_token'); } catch {}
+      try {
+        token = localStorage.getItem('getty_widget_token');
+      } catch {}
       if (token && token.trim()) return token.trim();
       const cookieToken = getCookie('getty_widget_token');
       return cookieToken && cookieToken.trim() ? cookieToken.trim() : '';
@@ -257,7 +290,9 @@ window.addEventListener('DOMContentLoaded', async function () {
         const existing = window.__gettyLangMenu;
         if (existing && typeof existing.applyLabel === 'function') {
           try {
-            existing.applyLabel(existing.getCurrentLanguage ? existing.getCurrentLanguage() : undefined);
+            existing.applyLabel(
+              existing.getCurrentLanguage ? existing.getCurrentLanguage() : undefined
+            );
           } catch (_) {}
         }
       } else {
@@ -273,7 +308,8 @@ window.addEventListener('DOMContentLoaded', async function () {
           langBtn.setAttribute('aria-expanded', 'true');
         }
         function toggleMenu() {
-          if (langMenu.classList.contains('hidden')) openMenu(); else closeMenu();
+          if (langMenu.classList.contains('hidden')) openMenu();
+          else closeMenu();
         }
         langBtn.addEventListener('click', (e) => {
           e.preventDefault();
@@ -292,7 +328,9 @@ window.addEventListener('DOMContentLoaded', async function () {
 
         function persistLanguage(lang) {
           if (!lang) return;
-          try { localStorage.setItem('lang', lang); } catch {}
+          try {
+            localStorage.setItem('lang', lang);
+          } catch {}
           setCookie('getty_lang', lang, 365);
           try {
             if (window.__i18n && typeof window.__i18n.setLanguage === 'function') {
@@ -303,8 +341,14 @@ window.addEventListener('DOMContentLoaded', async function () {
 
         let saved = null;
         let cookieLang = getCookie('getty_lang');
-        try { saved = localStorage.getItem('lang'); } catch {}
-        let current = (cookieLang || saved || (window.__i18n && window.__i18n.getLanguage && window.__i18n.getLanguage()) || 'en');
+        try {
+          saved = localStorage.getItem('lang');
+        } catch {}
+        let current =
+          cookieLang ||
+          saved ||
+          (window.__i18n && window.__i18n.getLanguage && window.__i18n.getLanguage()) ||
+          'en';
         applyLangLabel(current);
 
         try {
@@ -321,7 +365,7 @@ window.addEventListener('DOMContentLoaded', async function () {
           closeMenu();
         }
 
-        langMenu.querySelectorAll('button[data-lang]').forEach(btn => {
+        langMenu.querySelectorAll('button[data-lang]').forEach((btn) => {
           btn.dataset.langMenuBound = 'true';
           btn.addEventListener('click', () => {
             setLanguage(btn.getAttribute('data-lang'));
@@ -336,7 +380,7 @@ window.addEventListener('DOMContentLoaded', async function () {
             applyLabel: applyLangLabel,
             persistLanguage,
             setLanguage,
-            getCurrentLanguage: () => current
+            getCurrentLanguage: () => current,
           };
         }
       }
@@ -358,15 +402,22 @@ window.addEventListener('DOMContentLoaded', async function () {
         clearStoredWidgetToken();
         if (statusEl) {
           statusEl.classList.remove('hidden');
-          statusEl.textContent = reason === 'expired-token'
-            ? tr('welcomeTokenExpired', 'Session expired. Please log in again to refresh your dashboard link.')
-            : tr('welcomeTokenInvalid', 'We could not open your dashboard. Please log in again.');
+          statusEl.textContent =
+            reason === 'expired-token'
+              ? tr(
+                  'welcomeTokenExpired',
+                  'Session expired. Please log in again to refresh your dashboard link.'
+                )
+              : tr('welcomeTokenInvalid', 'We could not open your dashboard. Please log in again.');
         }
         if (labelEl) {
           labelEl.textContent = tr('welcomeLogin', 'Login');
         }
         params.delete('reason');
-        const nextUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '') + (window.location.hash || '');
+        const nextUrl =
+          window.location.pathname +
+          (params.toString() ? `?${params.toString()}` : '') +
+          (window.location.hash || '');
         window.history.replaceState({}, document.title, nextUrl);
         return;
       }
@@ -384,7 +435,11 @@ window.addEventListener('DOMContentLoaded', async function () {
           statusEl.textContent = tr('welcomeRedirecting', 'Redirecting to your dashboard…');
         }
         setTimeout(() => {
-          try { window.location.replace(destination); } catch { window.location.href = destination; }
+          try {
+            window.location.replace(destination);
+          } catch {
+            window.location.href = destination;
+          }
         }, 800);
       } else if (loginLink) {
         loginLink.href = '/';

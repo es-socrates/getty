@@ -1,14 +1,14 @@
 fetch('/api/socialmedia-config')
-  .then(res => res.json())
-  .then(data => {
+  .then((res) => res.json())
+  .then((data) => {
     if (!data.success || !Array.isArray(data.config)) return;
     const config = data.config;
     const container = document.createElement('div');
     container.className = 'socialmedia-widget';
-    config.forEach(item => {
-    const panel = document.createElement('div');
-    panel.className = 'socialmedia-panel';
-      
+    config.forEach((item) => {
+      const panel = document.createElement('div');
+      panel.className = 'socialmedia-panel';
+
       const icon = document.createElement('div');
       icon.className = 'socialmedia-icon';
       if (item.icon === 'custom' && item.customIcon) {
@@ -22,7 +22,7 @@ fetch('/api/socialmedia-config')
       name.className = 'socialmedia-name';
       name.textContent = item.name;
       panel.appendChild(name);
-      
+
       const link = document.createElement('a');
       link.className = 'socialmedia-link';
       link.href = item.link;
@@ -35,7 +35,7 @@ fetch('/api/socialmedia-config')
   });
 
 function getSocialIconSVG(icon) {
-  switch(icon) {
+  switch (icon) {
     case 'x':
       return '<svg width="40" height="40" viewBox="0 0 24 24"><rect width="24" height="24" rx="2" fill="#222"/><path fill="#fff" d="M7 7l10 10M17 7L7 17" stroke="#fff" stroke-width="2"/></svg>';
     case 'odysee':

@@ -48,7 +48,7 @@ import { useActivityLogPrefs } from '../../stores/activityLogPrefs';
 /**
  * @returns {ActivityPanelComposable}
  */
-export function useActivityPanel(){
+export function useActivityPanel() {
   const { t: translate } = useI18n();
   /** @type {(key: string, ...params: any[]) => string} */
   const t = translate;
@@ -87,21 +87,25 @@ export function useActivityPanel(){
    * @param {string | number | Date} ts
    * @returns {string}
    */
-  function formatTs(ts){
-    try { return new Date(ts).toLocaleString(); } catch { return String(ts); }
+  function formatTs(ts) {
+    try {
+      return new Date(ts).toLocaleString();
+    } catch {
+      return String(ts);
+    }
   }
 
   /**
    * @param {string} lvl
    * @returns {string}
    */
-  function badgeClass(lvl){
+  function badgeClass(lvl) {
     if (lvl === 'error') return 'bg-red-500/20 text-red-300 border border-red-500/40';
     if (lvl === 'warn') return 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
     return 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
   }
 
-  async function refresh(){
+  async function refresh() {
     if (!enabled.value) return;
     try {
       const response = await api.get('/api/activity', {
@@ -110,8 +114,8 @@ export function useActivityPanel(){
           q: q.value || undefined,
           limit: limit.value,
           offset: offset.value,
-          order: order.value
-        }
+          order: order.value,
+        },
       });
       const data = response?.data || {};
       items.value = Array.isArray(data.items) ? data.items : [];
@@ -125,7 +129,7 @@ export function useActivityPanel(){
     } catch {}
   }
 
-  async function clearLog(){
+  async function clearLog() {
     try {
       await api.post('/api/activity/clear');
       offset.value = 0;
@@ -133,12 +137,12 @@ export function useActivityPanel(){
     } catch {}
   }
 
-  function downloadLog(){
+  function downloadLog() {
     const params = new URLSearchParams();
     if (level.value) params.set('level', level.value);
     if (q.value) params.set('q', q.value);
     const qs = params.toString();
-    const url = `/api/activity/export${qs ? (`?${qs}`) : ''}`;
+    const url = `/api/activity/export${qs ? `?${qs}` : ''}`;
     const a = document.createElement('a');
     a.href = url;
     a.download = '';
@@ -146,21 +150,21 @@ export function useActivityPanel(){
     a.click();
   }
 
-  function prevPage(){
+  function prevPage() {
     if (limit.value === 'all') return;
     offset.value = Math.max(offset.value - limit.value, 0);
     refresh();
   }
 
-  function nextPage(){
+  function nextPage() {
     if (limit.value === 'all') return;
-    if ((offset.value + limit.value) < total.value) {
+    if (offset.value + limit.value < total.value) {
       offset.value += limit.value;
       refresh();
     }
   }
 
-  function showAll(){
+  function showAll() {
     limit.value = 'all';
     offset.value = 0;
     refresh();
@@ -169,42 +173,63 @@ export function useActivityPanel(){
   /**
    * @param {ActivityLogItem} it
    */
-  function copyLine(it){
-    try { navigator.clipboard.writeText(`[${formatTs(it.ts)}] ${String(it.level || '').toUpperCase()} ${it.message}`); } catch {}
+  function copyLine(it) {
+    try {
+      navigator.clipboard.writeText(
+        `[${formatTs(it.ts)}] ${String(it.level || '').toUpperCase()} ${it.message}`
+      );
+    } catch {}
   }
 
   /** @type {import('vue').ComputedRef<ActivityChip[]>} */
-  const chips = computed(()=>{
+  const chips = computed(() => {
     /** @type {ActivityChip[]} */
     const c = [];
-    if (level.value) c.push({ label: 'Level', value: level.value, clear: ()=>{ level.value = ''; } });
-    if (q.value) c.push({ label: 'Search', value: q.value, clear: ()=>{ q.value = ''; } });
+    if (level.value)
+      c.push({
+        label: 'Level',
+        value: level.value,
+        clear: () => {
+          level.value = '';
+        },
+      });
+    if (q.value)
+      c.push({
+        label: 'Search',
+        value: q.value,
+        clear: () => {
+          q.value = '';
+        },
+      });
     return c;
   });
 
-  function setupInterval(){
-    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+  function setupInterval() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
     if (!enabled.value) return;
-    intervalId = setInterval(()=>{
+    intervalId = setInterval(() => {
       if (!collapsed.value) refresh();
     }, 5000);
   }
 
-  onMounted(()=>{
+  onMounted(() => {
     if (enabled.value) refresh();
     setupInterval();
   });
 
-  onUnmounted(()=>{
+  onUnmounted(() => {
     if (intervalId) clearInterval(intervalId);
   });
 
-  watch([level, limit, order, q], ()=>{
+  watch([level, limit, order, q], () => {
     offset.value = 0;
     refresh();
   });
 
-  watch(enabled, (v)=>{
+  watch(enabled, (v) => {
     if (v) {
       refresh();
     } else {
@@ -214,16 +239,40 @@ export function useActivityPanel(){
     setupInterval();
   });
 
-  watch(collapsed, (c)=>{
+  watch(collapsed, (c) => {
     if (!c && enabled.value) refresh();
   });
 
-  watch([autoScroll, limit], ()=>{
+  watch([autoScroll, limit], () => {
     try {
       autoScrollDefault.value = autoScroll.value;
-      if (limit.value !== 'all' && [50,100,200].includes(Number(limit.value))) limitDefault.value = Number(limit.value);
+      if (limit.value !== 'all' && [50, 100, 200].includes(Number(limit.value)))
+        limitDefault.value = Number(limit.value);
     } catch {}
   });
 
-  return { t, items, level, q, limit, order, offset, total, autoScroll, listRef, formatTs, badgeClass, refresh, clearLog, downloadLog, prevPage, nextPage, showAll, copyLine, chips, enabled, collapsed };
+  return {
+    t,
+    items,
+    level,
+    q,
+    limit,
+    order,
+    offset,
+    total,
+    autoScroll,
+    listRef,
+    formatTs,
+    badgeClass,
+    refresh,
+    clearLog,
+    downloadLog,
+    prevPage,
+    nextPage,
+    showAll,
+    copyLine,
+    chips,
+    enabled,
+    collapsed,
+  };
 }

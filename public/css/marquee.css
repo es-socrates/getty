@@ -3,8 +3,12 @@
 }
 
 .marquee-content {
-  animation: marquee 40s linear infinite;
+  --marquee-duration: 40s;
+  --marquee-start: 100%;
+  --marquee-end: -100%;
+  animation: marquee var(--marquee-duration) linear infinite;
   white-space: nowrap;
+  will-change: transform;
 }
 
 .marquee-content > * {
@@ -21,10 +25,10 @@
 
 @keyframes marquee {
   0% {
-    transform: translateX(100%);
+    transform: translateX(var(--marquee-start));
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(var(--marquee-end));
   }
 }
 

@@ -1,15 +1,17 @@
 function notify(message, type = 'error') {
   try {
     if (window.showAlert) return window.showAlert(message, type);
-  } catch(e) {}
+  } catch (e) {}
   try {
-  const el = document.createElement('div');
-  el.textContent = message;
-  el.setAttribute('role','status');
-  el.className = `lv-toast ${type === 'success' ? 'lv-toast-success' : 'lv-toast-error'}`;
+    const el = document.createElement('div');
+    el.textContent = message;
+    el.setAttribute('role', 'status');
+    el.className = `lv-toast ${type === 'success' ? 'lv-toast-success' : 'lv-toast-error'}`;
     document.body.appendChild(el);
-    setTimeout(() => { el.remove(); }, 2500);
-  } catch(e) {
+    setTimeout(() => {
+      el.remove();
+    }, 2500);
+  } catch (e) {
     console.log(`[${type}]`, message);
   }
 }
@@ -17,18 +19,22 @@ function notify(message, type = 'error') {
 function t(key) {
   try {
     if (window.__i18n && typeof window.__i18n.t === 'function') return window.__i18n.t(key);
-    if (window.languageManager && typeof window.languageManager.getText === 'function') return window.languageManager.getText(key);
+    if (window.languageManager && typeof window.languageManager.getText === 'function')
+      return window.languageManager.getText(key);
   } catch (e) {}
   return key;
 }
 if (!window.languageManager && window.__i18n && typeof window.__i18n.t === 'function') {
   window.languageManager = {
     getText: (k) => window.__i18n.t(k),
-    updatePageLanguage: () => { renderLiveviewsUI(); }
+    updatePageLanguage: () => {
+      renderLiveviewsUI();
+    },
   };
 }
 
-const LIVEVIEWS_FONT_STACK = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
+const LIVEVIEWS_FONT_STACK =
+  'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const liveviewsState = {
   live: false,
@@ -36,7 +42,7 @@ const liveviewsState = {
   labelIsCustom: false,
   customLabel: '',
   adminActive: false,
-  adminCount: 0
+  adminCount: 0,
 };
 
 function getViewerLabel() {
@@ -47,7 +53,8 @@ function getViewerLabel() {
 }
 
 function renderLiveviewsUI() {
-  const liveButtonEl = document.getElementById('live-button') || document.querySelector('.live-button');
+  const liveButtonEl =
+    document.getElementById('live-button') || document.querySelector('.live-button');
   if (liveButtonEl) {
     const key = liveviewsState.live ? 'liveNow' : 'notLive';
     if (liveButtonEl.getAttribute('data-i18n') !== key) {
@@ -59,7 +66,10 @@ function renderLiveviewsUI() {
   const liveviewsStatus = document.getElementById('liveviews-status');
   if (liveviewsStatus) {
     if (liveviewsState.adminActive) {
-      const adminCount = typeof liveviewsState.adminCount === 'number' && !Number.isNaN(liveviewsState.adminCount) ? liveviewsState.adminCount : 0;
+      const adminCount =
+        typeof liveviewsState.adminCount === 'number' && !Number.isNaN(liveviewsState.adminCount)
+          ? liveviewsState.adminCount
+          : 0;
       liveviewsStatus.textContent = `${t('liveNow')}: ${adminCount} ${t('views')}`;
     } else {
       liveviewsStatus.textContent = t('notLive');
@@ -68,7 +78,10 @@ function renderLiveviewsUI() {
 
   const viewerCountEl = document.getElementById('viewer-count');
   if (viewerCountEl) {
-    const count = typeof liveviewsState.count === 'number' && !Number.isNaN(liveviewsState.count) ? liveviewsState.count : 0;
+    const count =
+      typeof liveviewsState.count === 'number' && !Number.isNaN(liveviewsState.count)
+        ? liveviewsState.count
+        : 0;
     viewerCountEl.textContent = `${count} ${getViewerLabel()}`;
   }
 }
@@ -89,11 +102,17 @@ if (typeof MutationObserver === 'function') {
 
 function ensureLanguageHooks(attempts = 20) {
   try {
-    if (window.__i18n && typeof window.__i18n.setLanguage === 'function' && !window.__i18n.__liveviewsHooked) {
+    if (
+      window.__i18n &&
+      typeof window.__i18n.setLanguage === 'function' &&
+      !window.__i18n.__liveviewsHooked
+    ) {
       const originalSetLanguage = window.__i18n.setLanguage.bind(window.__i18n);
       window.__i18n.setLanguage = async function patchedSetLanguage(lang) {
         const result = await originalSetLanguage(lang);
-        try { renderLiveviewsUI(); } catch {}
+        try {
+          renderLiveviewsUI();
+        } catch {}
         return result;
       };
       window.__i18n.__liveviewsHooked = true;
@@ -101,18 +120,30 @@ function ensureLanguageHooks(attempts = 20) {
   } catch {}
 
   try {
-    if (window.languageManager && typeof window.languageManager.updatePageLanguage === 'function' && !window.languageManager.__liveviewsHooked) {
+    if (
+      window.languageManager &&
+      typeof window.languageManager.updatePageLanguage === 'function' &&
+      !window.languageManager.__liveviewsHooked
+    ) {
       const originalUpdate = window.languageManager.updatePageLanguage.bind(window.languageManager);
       window.languageManager.updatePageLanguage = function patchedUpdatePageLanguage(...args) {
         const result = originalUpdate(...args);
-        try { renderLiveviewsUI(); } catch {}
+        try {
+          renderLiveviewsUI();
+        } catch {}
         return result;
       };
       window.languageManager.__liveviewsHooked = true;
     }
   } catch {}
 
-  if (attempts > 0 && (!window.__i18n || !window.__i18n.__liveviewsHooked || !window.languageManager || !window.languageManager.__liveviewsHooked)) {
+  if (
+    attempts > 0 &&
+    (!window.__i18n ||
+      !window.__i18n.__liveviewsHooked ||
+      !window.languageManager ||
+      !window.languageManager.__liveviewsHooked)
+  ) {
     setTimeout(() => ensureLanguageHooks(attempts - 1), 100);
   }
 }
@@ -165,7 +196,9 @@ async function applyPreferredLanguage() {
       }
     } catch {}
   }
-  try { console.debug('[Liveviews] preferred language candidate', preferred); } catch {}
+  try {
+    console.debug('[Liveviews] preferred language candidate', preferred);
+  } catch {}
   if (!preferred) return;
 
   try {
@@ -185,7 +218,9 @@ function getNonce() {
   try {
     const m = document.querySelector('meta[property="csp-nonce"]');
     return (m && (m.nonce || m.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
-  } catch { return ''; }
+  } catch {
+    return '';
+  }
 }
 function ensureStyleTag(id) {
   let tag = document.getElementById(id);
@@ -196,7 +231,10 @@ function ensureStyleTag(id) {
     if (n) tag.setAttribute('nonce', n);
     document.head.appendChild(tag);
   } else {
-    try { const n = getNonce(); if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n); } catch {}
+    try {
+      const n = getNonce();
+      if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n);
+    } catch {}
   }
   return tag;
 }
@@ -207,8 +245,10 @@ function setLiveviewsVars({ bg, fg, font, sizePx }) {
       bg ? `--lv-bg:${bg};` : '',
       fg ? `--lv-fg:${fg};` : '',
       font ? `--lv-font:${font};` : '',
-      sizePx ? `--lv-size-px:${sizePx};` : ''
-    ].filter(Boolean).join('');
+      sizePx ? `--lv-size-px:${sizePx};` : '',
+    ]
+      .filter(Boolean)
+      .join('');
     tag.textContent = decls ? `#viewer-count{${decls}}` : '';
   } catch {}
 }
@@ -223,7 +263,7 @@ async function fetchLiveviewsConfig() {
       color: '#ffffff',
       font: LIVEVIEWS_FONT_STACK,
       size: '32',
-      icon: ''
+      icon: '',
     };
   }
 }
@@ -237,8 +277,10 @@ function applyLiveviewsConfig(config) {
 
   const viewerCountEl = document.getElementById('viewer-count');
   if (viewerCountEl) {
-  const sizePx = (config.size || '32').toString().endsWith('px') ? config.size : `${config.size}px`;
-  setLiveviewsVars({ bg: config.bg, fg: config.color, font: config.font, sizePx });
+    const sizePx = (config.size || '32').toString().endsWith('px')
+      ? config.size
+      : `${config.size}px`;
+    setLiveviewsVars({ bg: config.bg, fg: config.color, font: config.font, sizePx });
   }
 
   renderLiveviewsUI();
@@ -268,39 +310,47 @@ function applyLiveviewsConfig(config) {
 
 async function fetchViewerCountAndDisplay(url) {
   try {
-  const response = await fetch(url, { cache: 'no-cache' });
+    const response = await fetch(url, { cache: 'no-cache' });
     if (!response.ok) {
-      throw new Error(`Network response was not ok: status ${response.status}, ${response.statusText}`);
+      throw new Error(
+        `Network response was not ok: status ${response.status}, ${response.statusText}`
+      );
     }
-  const data = await response.json();
-  console.log('[Liveviews] endpoint:', url);
-  console.log('[Liveviews] API response:', data);
+    const data = await response.json();
+    console.log('[Liveviews] endpoint:', url);
+    console.log('[Liveviews] API response:', data);
 
     let config = window._liveviewsConfigCache;
     if (!config) {
       try {
         const configRes = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
         if (configRes.ok) config = await configRes.json();
-      } catch (e) { config = {}; }
+      } catch (e) {
+        config = {};
+      }
     }
     let bg = config && config.bg ? config.bg : '#222222';
     let color = config && config.color ? config.color : '#ffffff';
     let font = config && config.font ? config.font : LIVEVIEWS_FONT_STACK;
     let size = config && config.size ? config.size : '32';
-    liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
+    liveviewsState.labelIsCustom = !!(
+      config &&
+      typeof config.viewersLabel === 'string' &&
+      config.viewersLabel.trim()
+    );
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
-      try {
-        const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
-        setLiveviewsVars({ bg, fg: color, font, sizePx });
-      } catch {}
+    try {
+      const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
+      setLiveviewsVars({ bg, fg: color, font, sizePx });
+    } catch {}
     const previousLive = liveviewsState.live;
-  if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
+    if (data && data.data && typeof data.data.ViewerCount !== 'undefined') {
       const nowLive = !!data.data.Live;
       liveviewsState.live = nowLive;
       liveviewsState.count = typeof data.data.ViewerCount === 'number' ? data.data.ViewerCount : 0;
       renderLiveviewsUI();
       if (previousLive !== nowLive) reportStreamState(nowLive, liveviewsState.count);
-  } else if (data && data.data && typeof data.data.Live !== 'undefined') {
+    } else if (data && data.data && typeof data.data.Live !== 'undefined') {
       const nowLive = !!data.data.Live;
       liveviewsState.live = nowLive;
       liveviewsState.count = 0;
@@ -315,14 +365,19 @@ async function fetchViewerCountAndDisplay(url) {
   } catch (error) {
     console.error('Error details:', error);
     const viewerCountEl = document.getElementById('viewer-count');
-    const liveButtonEl = document.getElementById('live-button') || document.querySelector('.live-button');
-  const liveviewsStatusEl = document.getElementById('liveviews-status');
+    const liveButtonEl =
+      document.getElementById('live-button') || document.querySelector('.live-button');
+    const liveviewsStatusEl = document.getElementById('liveviews-status');
     let config = window._liveviewsConfigCache || {};
     let bg = config && config.bg ? config.bg : '#222222';
     let color = config && config.color ? config.color : '#ffffff';
     let font = config && config.font ? config.font : LIVEVIEWS_FONT_STACK;
     let size = config && config.size ? config.size : '32';
-    liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
+    liveviewsState.labelIsCustom = !!(
+      config &&
+      typeof config.viewersLabel === 'string' &&
+      config.viewersLabel.trim()
+    );
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
     try {
       const sizePx = size.toString().endsWith('px') ? size : `${size}px`;
@@ -362,7 +417,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   await applyPreferredLanguage();
   try {
     console.debug('[Liveviews] current lang', window.__i18n && window.__i18n.current);
-    console.debug('[Liveviews] liveNow translation', window.__i18n && window.__i18n.t ? window.__i18n.t('liveNow') : 'n/a');
+    console.debug(
+      '[Liveviews] liveNow translation',
+      window.__i18n && window.__i18n.t ? window.__i18n.t('liveNow') : 'n/a'
+    );
   } catch {}
   renderLiveviewsUI();
 
@@ -375,11 +433,22 @@ window.addEventListener('DOMContentLoaded', async () => {
     const viewerCount = document.getElementById('viewer-count');
     if (viewerCount) {
       let config = window._liveviewsConfigCache || {};
-      liveviewsState.labelIsCustom = !!(config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim());
+      liveviewsState.labelIsCustom = !!(
+        config &&
+        typeof config.viewersLabel === 'string' &&
+        config.viewersLabel.trim()
+      );
       liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
       try {
-        const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || LIVEVIEWS_FONT_STACK, sizePx });
+        const sizePx = (config.size || '32').toString().endsWith('px')
+          ? config.size || '32'
+          : `${config.size || '32'}px`;
+        setLiveviewsVars({
+          bg: config.bg || '#222222',
+          fg: config.color || '#ffffff',
+          font: config.font || LIVEVIEWS_FONT_STACK,
+          sizePx,
+        });
       } catch {}
     }
     renderLiveviewsUI();
@@ -435,38 +504,50 @@ window.addEventListener('DOMContentLoaded', async () => {
     liveviewsState.customLabel = liveviewsState.labelIsCustom ? config.viewersLabel.trim() : '';
     liveviewsState.count = 0;
     try {
-  const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || LIVEVIEWS_FONT_STACK, sizePx });
+      const sizePx = (config.size || '32').toString().endsWith('px')
+        ? config.size || '32'
+        : `${config.size || '32'}px`;
+      setLiveviewsVars({
+        bg: config.bg || '#222222',
+        fg: config.color || '#ffffff',
+        font: config.font || LIVEVIEWS_FONT_STACK,
+        sizePx,
+      });
     } catch {}
     renderLiveviewsUI();
   }
 
-  const searchToken = (() => { try { return new URL(window.location.href).searchParams.get('token') || ''; } catch { return ''; } })();
+  const searchToken = (() => {
+    try {
+      return new URL(window.location.href).searchParams.get('token') || '';
+    } catch {
+      return '';
+    }
+  })();
   const API_URL = '/api/liveviews/status';
 
   startViewerCountUpdates(API_URL);
   startAdminViewerCountUpdates(API_URL);
   const iconInput = document.getElementById('liveviews-icon-input');
   if (iconInput) {
-
     let warning = document.createElement('div');
-  warning.className = 'liveviews-warning';
+    warning.className = 'liveviews-warning';
     warning.innerText = 'The icon must weigh a maximum of 1MB.';
     iconInput.parentNode.insertBefore(warning, iconInput);
-    iconInput.addEventListener('change', function() {
+    iconInput.addEventListener('change', function () {
       validateIconSize(iconInput);
     });
   }
 
   const colorPickerIds = ['liveviews-bg-color', 'liveviews-font-color'];
-  colorPickerIds.forEach(id => {
+  colorPickerIds.forEach((id) => {
     const el = document.getElementById(id);
     const hexLabel = document.getElementById(id + '-hex');
     if (el) {
       el.classList.add('color-picker');
       if (hexLabel) {
         hexLabel.textContent = el.value;
-        el.addEventListener('input', function() {
+        el.addEventListener('input', function () {
           hexLabel.textContent = el.value;
         });
       }
@@ -491,194 +572,205 @@ function reportStreamState(isLive, viewers) {
   try {
     const url = new URL(window.location.href);
     const token = url.searchParams.get('token') || '';
-  const endpoint = '/api/stream-history/event';
+    const endpoint = '/api/stream-history/event';
     fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ live: !!isLive, at: Date.now(), viewers: typeof viewers === 'number' ? viewers : undefined })
+      body: JSON.stringify({
+        live: !!isLive,
+        at: Date.now(),
+        viewers: typeof viewers === 'number' ? viewers : undefined,
+      }),
     }).catch(() => {});
   } catch {}
 }
 
 async function loadLiveviewsViewersLabel() {
-    var input = document.getElementById('liveviews-viewers-label');
-    if (input) {
-        try {
-            const res = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
-            if (res.ok) {
-                const config = await res.json();
-                if (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) {
-                    input.value = config.viewersLabel;
-                }
-            }
-        } catch (e) {}
-    }
+  var input = document.getElementById('liveviews-viewers-label');
+  if (input) {
+    try {
+      const res = await fetch('/config/liveviews-config.json', { cache: 'no-cache' });
+      if (res.ok) {
+        const config = await res.json();
+        if (config && typeof config.viewersLabel === 'string' && config.viewersLabel.trim()) {
+          input.value = config.viewersLabel;
+        }
+      }
+    } catch (e) {}
+  }
 }
 
 async function saveLiveviewsViewersLabel() {
-    var input = document.getElementById('liveviews-viewers-label');
-    if (input) {
-        const label = input.value || 'viewers';
-        localStorage.setItem('liveviews-viewers-label', label);
-        
-        try {
-            const res = await fetch('/api/save-liveviews-label', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ viewersLabel: label })
-            });
-            if (!res.ok) throw new Error('Could not save to backend');
+  var input = document.getElementById('liveviews-viewers-label');
+  if (input) {
+    const label = input.value || 'viewers';
+    localStorage.setItem('liveviews-viewers-label', label);
+
+    try {
+      const res = await fetch('/api/save-liveviews-label', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ viewersLabel: label }),
+      });
+      if (!res.ok) throw new Error('Could not save to backend');
     } catch (e) {
       notify('Error saving the label in the backend: ' + (e.message || e), 'error');
     }
-    }
+  }
 }
 
 if (window.location.pathname.startsWith('/admin')) {
-    document.addEventListener('DOMContentLoaded', async function () {
-        await loadLiveviewsViewersLabel();
+  document.addEventListener('DOMContentLoaded', async function () {
+    await loadLiveviewsViewersLabel();
 
-        const config = await fetchLiveviewsConfig();
-        const iconPreview = document.getElementById('liveviews-icon-preview');
-        const iconMeta = document.getElementById('liveviews-icon-meta');
-        const removeBtn = document.getElementById('liveviews-remove-icon');
+    const config = await fetchLiveviewsConfig();
+    const iconPreview = document.getElementById('liveviews-icon-preview');
+    const iconMeta = document.getElementById('liveviews-icon-meta');
+    const removeBtn = document.getElementById('liveviews-remove-icon');
     if (config.icon && iconPreview) {
       iconPreview.innerHTML = `<img src="${config.icon}" alt="icon" class="liveviews-admin-preview">`;
       if (removeBtn) removeBtn.classList.remove('hidden');
-            if (iconMeta) iconMeta.textContent = '';
-        } else if (iconPreview) {
-            iconPreview.innerHTML = '';
+      if (iconMeta) iconMeta.textContent = '';
+    } else if (iconPreview) {
+      iconPreview.innerHTML = '';
       if (removeBtn) removeBtn.classList.add('hidden');
-            if (iconMeta) iconMeta.textContent = '';
-        }
+      if (iconMeta) iconMeta.textContent = '';
+    }
 
-        if (removeBtn) {
+    if (removeBtn) {
       removeBtn.onclick = function () {
-                iconPreview.innerHTML = '';
-                if (iconMeta) iconMeta.textContent = '';
-                if (iconInput) iconInput.value = '';
+        iconPreview.innerHTML = '';
+        if (iconMeta) iconMeta.textContent = '';
+        if (iconInput) iconInput.value = '';
         removeBtn.classList.add('hidden');
 
-                iconInput.dataset.remove = '1';
-            };
-        }
+        iconInput.dataset.remove = '1';
+      };
+    }
 
-        const iconInput = document.getElementById('liveviews-icon-input');
-        if (iconInput) {
-            iconInput.addEventListener('change', function () {
-                const file = iconInput.files && iconInput.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
+    const iconInput = document.getElementById('liveviews-icon-input');
+    if (iconInput) {
+      iconInput.addEventListener('change', function () {
+        const file = iconInput.files && iconInput.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
             if (iconPreview) {
               iconPreview.innerHTML = `<img src="${e.target.result}" alt="icon" class="liveviews-admin-preview">`;
             }
-                    };
-                    reader.readAsDataURL(file);
-                    if (iconMeta) {
-                        iconMeta.textContent = `${file.name} (${(file.size/1024).toFixed(1)} KB)`;
-                    }
+          };
+          reader.readAsDataURL(file);
+          if (iconMeta) {
+            iconMeta.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+          }
           if (removeBtn) removeBtn.classList.remove('hidden');
-                    iconInput.dataset.remove = '';
-                } else {
-                    if (iconPreview) iconPreview.innerHTML = '';
-                    if (iconMeta) iconMeta.textContent = '';
+          iconInput.dataset.remove = '';
+        } else {
+          if (iconPreview) iconPreview.innerHTML = '';
+          if (iconMeta) iconMeta.textContent = '';
           if (removeBtn) removeBtn.classList.add('hidden');
-                }
-            });
         }
-    });
+      });
+    }
+  });
 
-    document.getElementById('liveviews-save')?.addEventListener('click', async function (e) {
-        e.preventDefault();
-        let bg = document.getElementById('liveviews-bg-color')?.value;
-        let color = document.getElementById('liveviews-font-color')?.value;
-        let font = document.getElementById('liveviews-font-family')?.value;
-        let size = document.getElementById('liveviews-size')?.value;
-        let claimid = document.getElementById('liveviews-claimid')?.value;
-        let viewersLabel = document.getElementById('liveviews-viewers-label')?.value;
+  document.getElementById('liveviews-save')?.addEventListener('click', async function (e) {
+    e.preventDefault();
+    let bg = document.getElementById('liveviews-bg-color')?.value;
+    let color = document.getElementById('liveviews-font-color')?.value;
+    let font = document.getElementById('liveviews-font-family')?.value;
+    let size = document.getElementById('liveviews-size')?.value;
+    let claimid = document.getElementById('liveviews-claimid')?.value;
+    let viewersLabel = document.getElementById('liveviews-viewers-label')?.value;
 
-        if (!bg) bg = '#222222';
-        if (!color) color = '#ffffff';
-        if (!font) font = LIVEVIEWS_FONT_STACK;
-        if (!size) size = '32';
-        if (!claimid) claimid = '';
-        if (!viewersLabel) viewersLabel = 'viewers';
-        const iconInput = document.getElementById('liveviews-icon-input');
-        const iconFile = iconInput && iconInput.files && iconInput.files[0] ? iconInput.files[0] : null;
-        const removeIcon = iconInput && iconInput.dataset.remove === '1';
+    if (!bg) bg = '#222222';
+    if (!color) color = '#ffffff';
+    if (!font) font = LIVEVIEWS_FONT_STACK;
+    if (!size) size = '32';
+    if (!claimid) claimid = '';
+    if (!viewersLabel) viewersLabel = 'viewers';
+    const iconInput = document.getElementById('liveviews-icon-input');
+    const iconFile = iconInput && iconInput.files && iconInput.files[0] ? iconInput.files[0] : null;
+    const removeIcon = iconInput && iconInput.dataset.remove === '1';
 
-        const formData = new FormData();
-        formData.append('bg', bg);
-        formData.append('color', color);
-        formData.append('font', font);
-        formData.append('size', size);
-        formData.append('claimid', claimid);
-        formData.append('viewersLabel', viewersLabel);
-        if (iconFile) {
-            formData.append('icon', iconFile);
-        }
-        if (removeIcon) {
-            formData.append('removeIcon', '1');
-        }
+    const formData = new FormData();
+    formData.append('bg', bg);
+    formData.append('color', color);
+    formData.append('font', font);
+    formData.append('size', size);
+    formData.append('claimid', claimid);
+    formData.append('viewersLabel', viewersLabel);
+    if (iconFile) {
+      formData.append('icon', iconFile);
+    }
+    if (removeIcon) {
+      formData.append('removeIcon', '1');
+    }
 
-        try {
-            const res = await fetch('/config/liveviews-config.json', {
-                method: 'POST',
-                body: formData
-            });
-            if (!res.ok) throw new Error('Could not save configuration');
+    try {
+      const res = await fetch('/config/liveviews-config.json', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Could not save configuration');
 
-            const saveBtn = document.getElementById('liveviews-save');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.classList.add('saved');
-                const oldText = saveBtn.querySelector('span[data-i18n]')?.textContent;
-                const span = saveBtn.querySelector('span[data-i18n]');
-                if (span) span.textContent = 'Saved!';
-            if (span) span.textContent = t('saved') || 'Saved!';
-                setTimeout(() => {
-                    if (span && oldText) span.textContent = oldText;
-                    saveBtn.classList.remove('saved');
-                    saveBtn.disabled = false;
-                }, 1500);
-            }
+      const saveBtn = document.getElementById('liveviews-save');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.classList.add('saved');
+        const oldText = saveBtn.querySelector('span[data-i18n]')?.textContent;
+        const span = saveBtn.querySelector('span[data-i18n]');
+        if (span) span.textContent = 'Saved!';
+        if (span) span.textContent = t('saved') || 'Saved!';
+        setTimeout(() => {
+          if (span && oldText) span.textContent = oldText;
+          saveBtn.classList.remove('saved');
+          saveBtn.disabled = false;
+        }, 1500);
+      }
 
-            const config = await fetchLiveviewsConfig();
-            const iconPreview = document.getElementById('liveviews-icon-preview');
-            const iconMeta = document.getElementById('liveviews-icon-meta');
-            const removeBtn = document.getElementById('liveviews-remove-icon');
+      const config = await fetchLiveviewsConfig();
+      const iconPreview = document.getElementById('liveviews-icon-preview');
+      const iconMeta = document.getElementById('liveviews-icon-meta');
+      const removeBtn = document.getElementById('liveviews-remove-icon');
       if (config.icon && iconPreview) {
         iconPreview.innerHTML = `<img src="${config.icon}" alt="icon" class="liveviews-admin-preview">`;
         if (removeBtn) removeBtn.classList.remove('hidden');
-                if (iconMeta) iconMeta.textContent = '';
-            } else if (iconPreview) {
-                iconPreview.innerHTML = '';
+        if (iconMeta) iconMeta.textContent = '';
+      } else if (iconPreview) {
+        iconPreview.innerHTML = '';
         if (removeBtn) removeBtn.classList.add('hidden');
-                if (iconMeta) iconMeta.textContent = '';
-            }
-            if (iconInput) iconInput.value = '';
-            if (iconInput) iconInput.dataset.remove = '';
+        if (iconMeta) iconMeta.textContent = '';
+      }
+      if (iconInput) iconInput.value = '';
+      if (iconInput) iconInput.dataset.remove = '';
 
-            window._liveviewsConfigCache = config;
-            const claimidInput = document.getElementById('liveviews-claimid');
-            if (claimidInput && config.claimid) claimidInput.value = config.claimid;
-            const viewersLabelInput = document.getElementById('liveviews-viewers-label');
-            if (viewersLabelInput && config.viewersLabel) viewersLabelInput.value = config.viewersLabel;
-            const viewerCountSave = document.getElementById('viewer-count');
-            if (viewerCountSave) {
-                let label = config.viewersLabel || 'viewers';
-                let count = typeof config.count === 'number' ? config.count : 0;
-                viewerCountSave.textContent = `${count} ${label}`;
-                try {
-                  const sizePx = (config.size || '32').toString().endsWith('px') ? (config.size || '32') : `${config.size || '32'}px`;
-                  setLiveviewsVars({ bg: config.bg || '#222222', fg: config.color || '#ffffff', font: config.font || LIVEVIEWS_FONT_STACK, sizePx });
-                } catch {}
-            }
+      window._liveviewsConfigCache = config;
+      const claimidInput = document.getElementById('liveviews-claimid');
+      if (claimidInput && config.claimid) claimidInput.value = config.claimid;
+      const viewersLabelInput = document.getElementById('liveviews-viewers-label');
+      if (viewersLabelInput && config.viewersLabel) viewersLabelInput.value = config.viewersLabel;
+      const viewerCountSave = document.getElementById('viewer-count');
+      if (viewerCountSave) {
+        let label = config.viewersLabel || 'viewers';
+        let count = typeof config.count === 'number' ? config.count : 0;
+        viewerCountSave.textContent = `${count} ${label}`;
+        try {
+          const sizePx = (config.size || '32').toString().endsWith('px')
+            ? config.size || '32'
+            : `${config.size || '32'}px`;
+          setLiveviewsVars({
+            bg: config.bg || '#222222',
+            fg: config.color || '#ffffff',
+            font: config.font || LIVEVIEWS_FONT_STACK,
+            sizePx,
+          });
+        } catch {}
+      }
     } catch (err) {
       notify('Error saving configuration: ' + (err.message || err), 'error');
     }
-    });
+  });
 }

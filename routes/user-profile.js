@@ -153,7 +153,8 @@ function registerUserProfileRoutes(app, options = {}) {
   function buildShareUrl(req, slug) {
     if (!slug) return null;
     try {
-      const proto = (req.headers['x-forwarded-proto'] || '').split(',')[0]?.trim() || req.protocol || 'https';
+      const proto =
+        (req.headers['x-forwarded-proto'] || '').split(',')[0]?.trim() || req.protocol || 'https';
       const host = req.get('host');
       if (host) return `${proto}://${host}/profile/${slug}`;
     } catch {}
@@ -163,7 +164,12 @@ function registerUserProfileRoutes(app, options = {}) {
   async function ensureShareSlug(_adminNs) {
     let slug;
     for (let attempt = 0; attempt < 5; attempt++) {
-      slug = crypto.randomBytes(6).toString('base64').replace(/[^a-z0-9]/gi, '').slice(0, 12).toLowerCase();
+      slug = crypto
+        .randomBytes(6)
+        .toString('base64')
+        .replace(/[^a-z0-9]/gi, '')
+        .slice(0, 12)
+        .toLowerCase();
       if (slug.length < 8) continue;
       const existing = await lookupShareSlug(slug);
       if (!existing) break;
@@ -190,7 +196,9 @@ function registerUserProfileRoutes(app, options = {}) {
       const first = Array.isArray(items) && items.length ? items[0] : null;
       if (!first) return null;
       const uri = first.canonical_url || first.permanent_url || '';
-      const webUrl = uri ? `https://odysee.com/${uri.replace(/^lbry:\/\//i, '').replace('#', ':')}` : '';
+      const webUrl = uri
+        ? `https://odysee.com/${uri.replace(/^lbry:\/\//i, '').replace('#', ':')}`
+        : '';
       const thumbnail = first.value?.thumbnail?.url || first.value?.thumbnail_url || '';
       const cover = first.value?.cover?.url || first.value?.cover_url || '';
       const followers = Number(first.meta?.follower_count || first.meta?.followers || 0);
@@ -213,7 +221,12 @@ function registerUserProfileRoutes(app, options = {}) {
 
   async function loadProfileConfig(reqLike) {
     try {
-      const loaded = await loadTenantConfig(reqLike, store, USER_PROFILE_CONFIG_FILE, USER_PROFILE_FILENAME);
+      const loaded = await loadTenantConfig(
+        reqLike,
+        store,
+        USER_PROFILE_CONFIG_FILE,
+        USER_PROFILE_FILENAME
+      );
       if (loaded && loaded.data) return normalizeConfig(loaded.data);
     } catch {}
     return defaultConfig();
@@ -231,8 +244,18 @@ function registerUserProfileRoutes(app, options = {}) {
       if (cfg && typeof cfg.claimid === 'string' && cfg.claimid.trim()) return cfg.claimid.trim();
     } catch {}
     try {
-      const loaded = await loadTenantConfig(reqLike, store, LIVEVIEWS_CONFIG_FILE, 'liveviews-config.json');
-      if (loaded && loaded.data && typeof loaded.data.claimid === 'string' && loaded.data.claimid.trim()) {
+      const loaded = await loadTenantConfig(
+        reqLike,
+        store,
+        LIVEVIEWS_CONFIG_FILE,
+        'liveviews-config.json'
+      );
+      if (
+        loaded &&
+        loaded.data &&
+        typeof loaded.data.claimid === 'string' &&
+        loaded.data.claimid.trim()
+      ) {
         return loaded.data.claimid.trim();
       }
     } catch {}
@@ -272,7 +295,8 @@ function registerUserProfileRoutes(app, options = {}) {
     } catch {}
     const channel = await fetchChannelDetails(claimId);
     const config = await loadProfileConfig(reqLike);
-    const shareUrl = config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
+    const shareUrl =
+      config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
 
     const payload = {
       claimId,
@@ -324,7 +348,8 @@ function registerUserProfileRoutes(app, options = {}) {
     }
 
     const payload = await buildOverviewPayload(req, adminNs, { shareContext: true, ...options });
-    const shareUrl = config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
+    const shareUrl =
+      config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
 
     return {
       slug,
@@ -344,7 +369,8 @@ function registerUserProfileRoutes(app, options = {}) {
         return res.json(defaultConfig());
       }
       const config = await loadProfileConfig(req);
-      const shareUrl = config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
+      const shareUrl =
+        config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
       res.json({ ...config, shareUrl });
     } catch (err) {
       res.status(500).json({ error: 'failed_to_load_user_profile_config', details: err?.message });
@@ -360,7 +386,8 @@ function registerUserProfileRoutes(app, options = {}) {
         return res.status(401).json({ error: 'session_required' });
       }
       const incoming = req.body || {};
-      const incomingSections = incoming.sections && typeof incoming.sections === 'object' ? incoming.sections : {};
+      const incomingSections =
+        incoming.sections && typeof incoming.sections === 'object' ? incoming.sections : {};
       const shareEnabled = incoming.shareEnabled === true || incoming.shareEnabled === 'true';
       const merged = {
         shareEnabled,
@@ -382,7 +409,8 @@ function registerUserProfileRoutes(app, options = {}) {
       }
       config = { ...config, ...merged };
       await storeProfileConfig(req, adminNs, config);
-      const shareUrl = config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
+      const shareUrl =
+        config.shareEnabled && config.shareSlug ? buildShareUrl(req, config.shareSlug) : null;
       res.json({ success: true, config: { ...config, shareUrl } });
     } catch (err) {
       res.status(500).json({ error: 'failed_to_save_user_profile_config', details: err?.message });

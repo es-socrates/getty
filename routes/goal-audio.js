@@ -10,7 +10,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     storage: multer.memoryStorage(),
     limits: {
       fileSize: 1024 * 1024 * 1, // 1MB limit
-      files: 1
+      files: 1,
     },
     fileFilter: (_req, file, cb) => {
       if (file.mimetype.startsWith('audio/')) {
@@ -18,7 +18,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       } else {
         cb(new Error('Only audio files are allowed'));
       }
-    }
+    },
   });
   const { isOpenTestMode } = require('../lib/test-open-mode');
   const { loadConfigWithFallback, saveTenantAwareConfig } = require('../lib/tenant');
@@ -117,10 +117,12 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
   }
   app.get('/api/goal-audio', (req, res) => {
     try {
-
-      const tokenParam = (typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim())
-        ? req.query.widgetToken.trim()
-        : (typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '');
+      const tokenParam =
+        typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+          ? req.query.widgetToken.trim()
+          : typeof req.query?.token === 'string' && req.query.token.trim()
+            ? req.query.token.trim()
+            : '';
       if (tokenParam && req.app?.get('store')) {
         try {
           const walletHash = req.app.get('store').get(tokenParam, 'walletHash');
@@ -160,7 +162,9 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
       if (customAudioUrl && typeof customAudioUrl === 'string') {
         return res.json({ url: customAudioUrl, storageProvider });
       } else {
-        return res.json({ url: 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60' });
+        return res.json({
+          url: 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60',
+        });
       }
     } catch (error) {
       console.error('Error serving goal audio:', error);
@@ -176,11 +180,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     const size = Number.isFinite(base.audioFileSize)
       ? base.audioFileSize
       : Number(base.audioFileSize) || 0;
-    const volumeRaw =
-      typeof base.volume === 'number' ? base.volume : parseFloat(base.volume);
-    const volume = Number.isFinite(volumeRaw)
-      ? Math.min(Math.max(volumeRaw, 0), 1)
-      : 0.8;
+    const volumeRaw = typeof base.volume === 'number' ? base.volume : parseFloat(base.volume);
+    const volume = Number.isFinite(volumeRaw) ? Math.min(Math.max(volumeRaw, 0), 1) : 0.8;
     const enabled = (() => {
       if (typeof base.enabled === 'boolean') return base.enabled;
       if (typeof base.enabled === 'string') {
@@ -200,8 +201,8 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         typeof base.audioFileUrl === 'string' && base.audioFileUrl
           ? base.audioFileUrl
           : typeof base.customAudioUrl === 'string'
-          ? base.customAudioUrl
-          : null,
+            ? base.customAudioUrl
+            : null,
       audioFilePath:
         typeof base.audioFilePath === 'string' && base.audioFilePath ? base.audioFilePath : null,
       audioLibraryId: typeof base.audioLibraryId === 'string' ? base.audioLibraryId : '',
@@ -213,9 +214,12 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
 
   app.get('/api/goal-audio-settings', async (req, res) => {
     try {
-      const tokenParam = (typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim())
-        ? req.query.widgetToken.trim()
-        : (typeof req.query?.token === 'string' && req.query.token.trim() ? req.query.token.trim() : '');
+      const tokenParam =
+        typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+          ? req.query.widgetToken.trim()
+          : typeof req.query?.token === 'string' && req.query.token.trim()
+            ? req.query.token.trim()
+            : '';
       if (tokenParam && req.app?.get('store')) {
         try {
           const walletHash = req.app.get('store').get(tokenParam, 'walletHash');
@@ -241,7 +245,9 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         const meta = loaded.tenant ? { source: 'tenant' } : { source: 'global' };
         const flat = normalizeSettings(raw || {});
         const ns = req?.ns?.admin || req?.ns?.pub || null;
-        const libraryItem = flat.audioLibraryId ? await findLibraryEntry(ns, flat.audioLibraryId) : null;
+        const libraryItem = flat.audioLibraryId
+          ? await findLibraryEntry(ns, flat.audioLibraryId)
+          : null;
         return res.json(meta ? { meta, libraryItem, ...flat } : { libraryItem, ...flat });
       } catch (e) {
         console.error('Error loading goal audio settings (tenant):', e);
@@ -253,186 +259,209 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     }
   });
 
-  app.post('/api/goal-audio-settings', strictLimiter, multerUpload.single('audioFile'), async (req, res) => {
-    try {
-      const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
-      const hosted = !!process.env.REDIS_URL;
-      const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
-      if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
-        return res.status(401).json({ error: 'no_session' });
-      }
-      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
-      if (requireAdminWrites) {
-        const isAdmin = !!(req?.auth && req.auth.isAdmin);
-        if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
-      }
-
-      const { audioSource } = req.body;
-      const requestedStorageProviderRaw =
-        typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
-      const preferredProvider = normalizeProvider(requestedStorageProviderRaw);
-      if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
-        return res.status(400).json({ error: 'Invalid audio source' });
-      }
-
-      const selectedAudioIdRaw = req.body.selectedAudioId;
-      const selectedAudioId =
-        typeof selectedAudioIdRaw === 'string' && selectedAudioIdRaw.trim()
-          ? selectedAudioIdRaw.trim()
-          : '';
-
-      const current = loadConfigWithFallback(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
-      const currentData = normalizeSettings(current.data || {});
-      const ns = req?.ns?.admin || req?.ns?.pub || null;
-
-      const settings = {
-        audioSource,
-        storageProvider: currentData.storageProvider,
-        hasCustomAudio: currentData.hasCustomAudio,
-        audioFileName: currentData.audioFileName,
-        audioFileSize: currentData.audioFileSize,
-        audioFileUrl: currentData.audioFileUrl,
-        audioFilePath: currentData.audioFilePath,
-        audioLibraryId: currentData.audioLibraryId,
-        enabled: typeof currentData.enabled === 'boolean' ? currentData.enabled : true,
-        volume: Number.isFinite(currentData.volume) ? currentData.volume : 0.8,
-      };
-      let libraryItem = null;
-
-      if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
-        const rawEnabled = req.body.enabled;
-        if (typeof rawEnabled === 'boolean') {
-          settings.enabled = rawEnabled;
-        } else if (typeof rawEnabled === 'string') {
-          const lowered = rawEnabled.trim().toLowerCase();
-          if (['false', '0', 'off', 'no'].includes(lowered)) settings.enabled = false;
-          if (['true', '1', 'on', 'yes'].includes(lowered)) settings.enabled = true;
-        }
-      }
-      if (Object.prototype.hasOwnProperty.call(req.body, 'volume')) {
-        const parsedVolume = parseFloat(req.body.volume);
-        if (Number.isFinite(parsedVolume)) {
-          settings.volume = Math.min(Math.max(parsedVolume, 0), 1);
-        }
-      }
-
-      if (audioSource === 'custom' && req.file) {
-        const nsSafe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
-        const fileName = `goal-audio-${nsSafe}-${Date.now()}.mp3`;
-
-        const shouldDeleteStoredFile = currentData.audioFilePath && !currentData.audioLibraryId;
-        if (
-          shouldDeleteStoredFile &&
-          normalizeProvider(currentData.storageProvider) === STORAGE_PROVIDERS.SUPABASE
-        ) {
-          try {
-            const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
-            if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
-              await storage.deleteFile('tip-goal-audio', currentData.audioFilePath);
-            }
-          } catch (deleteError) {
-            console.warn('[goal-audio] failed to delete previous audio from Supabase:', deleteError.message);
-          }
-        }
-
-        const storage = getStorage(preferredProvider || undefined);
-        if (!storage) {
-          throw new Error('Storage service not configured');
-        }
-        const fileBuffer = req.file.buffer || Buffer.alloc(0);
-        const fileHash =
-          fileBuffer.length ? crypto.createHash('sha256').update(fileBuffer).digest('hex') : '';
-        const normalizedName = (req.file.originalname || fileName || '').toLowerCase();
-        const fingerprint = `${normalizedName}::${req.file.size || 0}`;
-
-        const uploadResult = await storage.uploadFile('tip-goal-audio', fileName, fileBuffer, {
-          contentType: req.file.mimetype || 'audio/mpeg',
-        });
-
-        const providerId = normalizeProvider(
-          uploadResult.provider || storage.provider || preferredProvider
-        );
-        const derivedId =
-          uploadResult.fileName ||
-          uploadResult.path ||
-          uploadResult.transactionId ||
-          fingerprint ||
-          `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-        libraryItem = {
-          id: derivedId,
-          url: uploadResult.publicUrl,
-          size: Number(req.file.size) || Number(uploadResult.size) || 0,
-          originalName:
-            req.file.originalname || uploadResult.originalName || uploadResult.fileName || derivedId,
-          path: uploadResult.path || uploadResult.fileName || derivedId,
-          uploadedAt: new Date().toISOString(),
-          mimeType: req.file.mimetype || 'audio/mpeg',
-          sha256: fileHash,
-          fingerprint,
-          provider: providerId,
-        };
-
-        await upsertLibraryEntry(ns, libraryItem);
-
-        settings.hasCustomAudio = true;
-        settings.audioFileName = libraryItem.originalName;
-        settings.audioFileSize = libraryItem.size;
-        settings.audioFileUrl = libraryItem.url;
-        settings.audioFilePath = libraryItem.path;
-        settings.audioLibraryId = libraryItem.id;
-        settings.storageProvider = providerId;
-      } else if (audioSource === 'custom' && selectedAudioId) {
-        try {
-          const entry = await findLibraryEntry(ns, selectedAudioId);
-          if (!entry) {
-            return res.status(404).json({ error: 'audio_library_item_not_found' });
-          }
-          const providerId = normalizeProvider(entry.provider);
-          libraryItem = entry;
-          settings.hasCustomAudio = true;
-          settings.audioFileName = entry.originalName || entry.id;
-          settings.audioFileSize = Number(entry.size) || 0;
-          settings.audioFileUrl = entry.url || null;
-          settings.audioFilePath = entry.path || entry.id || null;
-          settings.audioLibraryId = entry.id;
-          settings.storageProvider = providerId;
-        } catch (lookupError) {
-          console.error('[goal-audio][library] lookup error', lookupError.message);
-          return res.status(500).json({ error: 'audio_library_lookup_failed' });
-        }
-      } else if (audioSource === 'remote') {
-        const shouldDeleteStoredFile = currentData.audioFilePath && !currentData.audioLibraryId;
-        if (
-          shouldDeleteStoredFile &&
-          normalizeProvider(currentData.storageProvider) === STORAGE_PROVIDERS.SUPABASE
-        ) {
-          try {
-            const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
-            if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
-              await storage.deleteFile('tip-goal-audio', currentData.audioFilePath);
-            }
-          } catch (deleteError) {
-            console.warn('Error deleting old goal audio file from Supabase:', deleteError);
-          }
-        }
-        settings.hasCustomAudio = false;
-        settings.audioFileName = null;
-        settings.audioFileSize = 0;
-        settings.audioFileUrl = null;
-        settings.audioFilePath = null;
-        settings.audioLibraryId = '';
-        settings.storageProvider = '';
-      }
-
-      const next = normalizeSettings({ ...currentData, ...settings });
-      const saveRes = await saveTenantAwareConfig(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME, () => next);
-
+  app.post(
+    '/api/goal-audio-settings',
+    strictLimiter,
+    multerUpload.single('audioFile'),
+    async (req, res) => {
       try {
-        const nsForBroadcast = req?.ns?.admin || req?.ns?.pub || null;
-        if (nsForBroadcast) {
-          if (typeof wss.broadcast === 'function') {
-            wss.broadcast(nsForBroadcast, { type: 'goalAudioSettingsUpdate', data: next });
+        const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+        const hosted = !!process.env.REDIS_URL;
+        const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+        if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+          return res.status(401).json({ error: 'no_session' });
+        }
+        const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hosted;
+        if (requireAdminWrites) {
+          const isAdmin = !!(req?.auth && req.auth.isAdmin);
+          if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+        }
+
+        const { audioSource } = req.body;
+        const requestedStorageProviderRaw =
+          typeof req.body.storageProvider === 'string' ? req.body.storageProvider : '';
+        const preferredProvider = normalizeProvider(requestedStorageProviderRaw);
+        if (!audioSource || (audioSource !== 'remote' && audioSource !== 'custom')) {
+          return res.status(400).json({ error: 'Invalid audio source' });
+        }
+
+        const selectedAudioIdRaw = req.body.selectedAudioId;
+        const selectedAudioId =
+          typeof selectedAudioIdRaw === 'string' && selectedAudioIdRaw.trim()
+            ? selectedAudioIdRaw.trim()
+            : '';
+
+        const current = loadConfigWithFallback(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME);
+        const currentData = normalizeSettings(current.data || {});
+        const ns = req?.ns?.admin || req?.ns?.pub || null;
+
+        const settings = {
+          audioSource,
+          storageProvider: currentData.storageProvider,
+          hasCustomAudio: currentData.hasCustomAudio,
+          audioFileName: currentData.audioFileName,
+          audioFileSize: currentData.audioFileSize,
+          audioFileUrl: currentData.audioFileUrl,
+          audioFilePath: currentData.audioFilePath,
+          audioLibraryId: currentData.audioLibraryId,
+          enabled: typeof currentData.enabled === 'boolean' ? currentData.enabled : true,
+          volume: Number.isFinite(currentData.volume) ? currentData.volume : 0.8,
+        };
+        let libraryItem = null;
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'enabled')) {
+          const rawEnabled = req.body.enabled;
+          if (typeof rawEnabled === 'boolean') {
+            settings.enabled = rawEnabled;
+          } else if (typeof rawEnabled === 'string') {
+            const lowered = rawEnabled.trim().toLowerCase();
+            if (['false', '0', 'off', 'no'].includes(lowered)) settings.enabled = false;
+            if (['true', '1', 'on', 'yes'].includes(lowered)) settings.enabled = true;
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body, 'volume')) {
+          const parsedVolume = parseFloat(req.body.volume);
+          if (Number.isFinite(parsedVolume)) {
+            settings.volume = Math.min(Math.max(parsedVolume, 0), 1);
+          }
+        }
+
+        if (audioSource === 'custom' && req.file) {
+          const nsSafe = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
+          const fileName = `goal-audio-${nsSafe}-${Date.now()}.mp3`;
+
+          const shouldDeleteStoredFile = currentData.audioFilePath && !currentData.audioLibraryId;
+          if (
+            shouldDeleteStoredFile &&
+            normalizeProvider(currentData.storageProvider) === STORAGE_PROVIDERS.SUPABASE
+          ) {
+            try {
+              const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+              if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+                await storage.deleteFile('tip-goal-audio', currentData.audioFilePath);
+              }
+            } catch (deleteError) {
+              console.warn(
+                '[goal-audio] failed to delete previous audio from Supabase:',
+                deleteError.message
+              );
+            }
+          }
+
+          const storage = getStorage(preferredProvider || undefined);
+          if (!storage) {
+            throw new Error('Storage service not configured');
+          }
+          const fileBuffer = req.file.buffer || Buffer.alloc(0);
+          const fileHash = fileBuffer.length
+            ? crypto.createHash('sha256').update(fileBuffer).digest('hex')
+            : '';
+          const normalizedName = (req.file.originalname || fileName || '').toLowerCase();
+          const fingerprint = `${normalizedName}::${req.file.size || 0}`;
+
+          const uploadResult = await storage.uploadFile('tip-goal-audio', fileName, fileBuffer, {
+            contentType: req.file.mimetype || 'audio/mpeg',
+          });
+
+          const providerId = normalizeProvider(
+            uploadResult.provider || storage.provider || preferredProvider
+          );
+          const derivedId =
+            uploadResult.fileName ||
+            uploadResult.path ||
+            uploadResult.transactionId ||
+            fingerprint ||
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+          libraryItem = {
+            id: derivedId,
+            url: uploadResult.publicUrl,
+            size: Number(req.file.size) || Number(uploadResult.size) || 0,
+            originalName:
+              req.file.originalname ||
+              uploadResult.originalName ||
+              uploadResult.fileName ||
+              derivedId,
+            path: uploadResult.path || uploadResult.fileName || derivedId,
+            uploadedAt: new Date().toISOString(),
+            mimeType: req.file.mimetype || 'audio/mpeg',
+            sha256: fileHash,
+            fingerprint,
+            provider: providerId,
+          };
+
+          await upsertLibraryEntry(ns, libraryItem);
+
+          settings.hasCustomAudio = true;
+          settings.audioFileName = libraryItem.originalName;
+          settings.audioFileSize = libraryItem.size;
+          settings.audioFileUrl = libraryItem.url;
+          settings.audioFilePath = libraryItem.path;
+          settings.audioLibraryId = libraryItem.id;
+          settings.storageProvider = providerId;
+        } else if (audioSource === 'custom' && selectedAudioId) {
+          try {
+            const entry = await findLibraryEntry(ns, selectedAudioId);
+            if (!entry) {
+              return res.status(404).json({ error: 'audio_library_item_not_found' });
+            }
+            const providerId = normalizeProvider(entry.provider);
+            libraryItem = entry;
+            settings.hasCustomAudio = true;
+            settings.audioFileName = entry.originalName || entry.id;
+            settings.audioFileSize = Number(entry.size) || 0;
+            settings.audioFileUrl = entry.url || null;
+            settings.audioFilePath = entry.path || entry.id || null;
+            settings.audioLibraryId = entry.id;
+            settings.storageProvider = providerId;
+          } catch (lookupError) {
+            console.error('[goal-audio][library] lookup error', lookupError.message);
+            return res.status(500).json({ error: 'audio_library_lookup_failed' });
+          }
+        } else if (audioSource === 'remote') {
+          const shouldDeleteStoredFile = currentData.audioFilePath && !currentData.audioLibraryId;
+          if (
+            shouldDeleteStoredFile &&
+            normalizeProvider(currentData.storageProvider) === STORAGE_PROVIDERS.SUPABASE
+          ) {
+            try {
+              const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
+              if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
+                await storage.deleteFile('tip-goal-audio', currentData.audioFilePath);
+              }
+            } catch (deleteError) {
+              console.warn('Error deleting old goal audio file from Supabase:', deleteError);
+            }
+          }
+          settings.hasCustomAudio = false;
+          settings.audioFileName = null;
+          settings.audioFileSize = 0;
+          settings.audioFileUrl = null;
+          settings.audioFilePath = null;
+          settings.audioLibraryId = '';
+          settings.storageProvider = '';
+        }
+
+        const next = normalizeSettings({ ...currentData, ...settings });
+        const saveRes = await saveTenantAwareConfig(
+          req,
+          GLOBAL_SETTINGS_PATH,
+          SETTINGS_FILENAME,
+          () => next
+        );
+
+        try {
+          const nsForBroadcast = req?.ns?.admin || req?.ns?.pub || null;
+          if (nsForBroadcast) {
+            if (typeof wss.broadcast === 'function') {
+              wss.broadcast(nsForBroadcast, { type: 'goalAudioSettingsUpdate', data: next });
+            } else {
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+                }
+              });
+            }
           } else {
             wss.clients.forEach((client) => {
               if (client.readyState === WebSocket.OPEN) {
@@ -440,32 +469,26 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
               }
             });
           }
-        } else {
-          wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
-            }
-          });
+        } catch (broadcastError) {
+          console.warn('Error broadcasting goal audio settings update:', broadcastError);
         }
-      } catch (broadcastError) {
-        console.warn('Error broadcasting goal audio settings update:', broadcastError);
-      }
 
-      return res.json({ success: true, meta: saveRes.meta, ...next, libraryItem });
-    } catch (error) {
-      console.error('Error saving goal audio settings:', error);
-      res.status(500).json({ error: 'Error saving settings' });
+        return res.json({ success: true, meta: saveRes.meta, ...next, libraryItem });
+      } catch (error) {
+        console.error('Error saving goal audio settings:', error);
+        res.status(500).json({ error: 'Error saving settings' });
+      }
     }
-  });
+  );
 
   app.delete('/api/goal-audio-settings', strictLimiter, (req, res) => {
     try {
       const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
       const hostedWithRedis = !!process.env.REDIS_URL;
       const shouldRequireSession = requireSessionFlag || hostedWithRedis;
-      const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hostedWithRedis;
+      const requireAdminWrites = process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || hostedWithRedis;
 
-  if (!isOpenTestMode() && shouldRequireSession) {
+      if (!isOpenTestMode() && shouldRequireSession) {
         const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
@@ -486,7 +509,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
         ) {
           const storage = getStorage(STORAGE_PROVIDERS.SUPABASE);
           if (storage && storage.provider === STORAGE_PROVIDERS.SUPABASE) {
-            storage.deleteFile('tip-goal-audio', data.audioFilePath).catch(deleteError => {
+            storage.deleteFile('tip-goal-audio', data.audioFilePath).catch((deleteError) => {
               console.warn('Failed to delete goal audio from Supabase:', deleteError.message);
             });
           }
@@ -509,7 +532,12 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
             enabled: true,
             volume: 0.8,
           };
-          const saveRes = await saveTenantAwareConfig(req, GLOBAL_SETTINGS_PATH, SETTINGS_FILENAME, () => next);
+          const saveRes = await saveTenantAwareConfig(
+            req,
+            GLOBAL_SETTINGS_PATH,
+            SETTINGS_FILENAME,
+            () => next
+          );
 
           try {
             const ns = req?.ns?.admin || req?.ns?.pub || null;
@@ -517,10 +545,16 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
               if (typeof wss.broadcast === 'function') {
                 wss.broadcast(ns, { type: 'goalAudioSettingsUpdate', data: next });
               } else {
-                wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next })); });
+                wss.clients.forEach((client) => {
+                  if (client.readyState === WebSocket.OPEN)
+                    client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+                });
               }
             } else {
-              wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next })); });
+              wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN)
+                  client.send(JSON.stringify({ type: 'goalAudioSettingsUpdate', data: next }));
+              });
             }
           } catch (broadcastError) {
             console.warn('Error broadcasting goal audio settings reset:', broadcastError);
@@ -542,7 +576,7 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
     try {
       const ns = req?.ns?.admin || req?.ns?.pub || null;
       const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
-  if (!isOpenTestMode() && hosted && !ns) {
+      if (!isOpenTestMode() && hosted && !ns) {
         return res.status(404).json({ error: 'Custom goal audio not found' });
       }
 

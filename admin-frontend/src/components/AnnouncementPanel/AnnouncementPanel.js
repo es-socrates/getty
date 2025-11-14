@@ -9,7 +9,7 @@ import { usePublicToken } from '../../composables/usePublicToken';
 export function useAnnouncementPanel(t) {
   const settings = ref({
     cooldownSeconds: 300,
-  theme: 'horizontal',
+    theme: 'horizontal',
     bgColor: '#0a0e12',
     textColor: '#ffffff',
     animationMode: 'fade',
@@ -18,11 +18,16 @@ export function useAnnouncementPanel(t) {
     bannerBgType: 'solid',
     gradientFrom: '#4f36ff',
     gradientTo: '#10d39e',
-    staticMode: false
+    staticMode: false,
   });
   const cooldownMinutes = computed({
-    get() { return Math.max(1, Math.round((settings.value.cooldownSeconds || 300) / 60)); },
-    set(v) { const n = Number(v); settings.value.cooldownSeconds = Number.isFinite(n) && n > 0 ? n * 60 : 300; }
+    get() {
+      return Math.max(1, Math.round((settings.value.cooldownSeconds || 300) / 60));
+    },
+    set(v) {
+      const n = Number(v);
+      settings.value.cooldownSeconds = Number.isFinite(n) && n > 0 ? n * 60 : 300;
+    },
   });
   const messages = ref([]);
   const newMsg = ref({
@@ -123,7 +128,9 @@ export function useAnnouncementPanel(t) {
       }
     } catch {
       pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
-    } finally { savingSettings.value = false; }
+    } finally {
+      savingSettings.value = false;
+    }
   }
 
   function onNewImage(e) {
@@ -146,21 +153,26 @@ export function useAnnouncementPanel(t) {
   function validateNew() {
     errors.value = { text: '', durationSeconds: '' };
 
-    if (newMsg.value.text && newMsg.value.text.trim().length > 90) errors.value.text = t('announcementValidationTooLong') || 'Too long';
-    if (!withinRange(newMsg.value.durationSeconds, 1, 60)) errors.value.durationSeconds = t('valRange1to60');
+    if (newMsg.value.text && newMsg.value.text.trim().length > 90)
+      errors.value.text = t('announcementValidationTooLong') || 'Too long';
+    if (!withinRange(newMsg.value.durationSeconds, 1, 60))
+      errors.value.durationSeconds = t('valRange1to60');
 
     const hasContent = Boolean(
       (newMsg.value.text && newMsg.value.text.trim().length) ||
-      (newMsg.value.title && newMsg.value.title.trim().length) ||
-      (newMsg.value.subtitle1 && newMsg.value.subtitle1.trim().length) ||
-      (newMsg.value.subtitle2 && newMsg.value.subtitle2.trim().length) ||
-      (newMsg.value.subtitle3 && newMsg.value.subtitle3.trim().length) ||
-      (newMsg.value.ctaText && newMsg.value.ctaText.trim().length) ||
-      newMsg.value.imageFile ||
-      (newMsg.value.imageUrl && newMsg.value.imageUrl.trim().length)
+        (newMsg.value.title && newMsg.value.title.trim().length) ||
+        (newMsg.value.subtitle1 && newMsg.value.subtitle1.trim().length) ||
+        (newMsg.value.subtitle2 && newMsg.value.subtitle2.trim().length) ||
+        (newMsg.value.subtitle3 && newMsg.value.subtitle3.trim().length) ||
+        (newMsg.value.ctaText && newMsg.value.ctaText.trim().length) ||
+        newMsg.value.imageFile ||
+        (newMsg.value.imageUrl && newMsg.value.imageUrl.trim().length)
     );
     if (!hasContent) {
-      pushToast({ type: 'error', message: t('announcementValidationNoContent') || 'The banner cannot be empty.' });
+      pushToast({
+        type: 'error',
+        message: t('announcementValidationNoContent') || 'The banner cannot be empty.',
+      });
       return false;
     }
     return !errors.value.text && !errors.value.durationSeconds;
@@ -174,18 +186,23 @@ export function useAnnouncementPanel(t) {
       const fd = new FormData();
       fd.append('text', newMsg.value.text);
       if (newMsg.value.durationSeconds) fd.append('durationSeconds', newMsg.value.durationSeconds);
-      const preferredProvider = typeof opts.storageProvider === 'string' ? opts.storageProvider : '';
+      const preferredProvider =
+        typeof opts.storageProvider === 'string' ? opts.storageProvider : '';
       if (preferredProvider) fd.append('storageProvider', preferredProvider);
       if (newMsg.value.imageFile) {
         fd.append('image', newMsg.value.imageFile);
       } else if (newMsg.value.imageLibraryId) {
         fd.append('imageLibraryId', newMsg.value.imageLibraryId);
         if (newMsg.value.imageUrl) fd.append('imageUrl', newMsg.value.imageUrl);
-        if (newMsg.value.imageStorageProvider) fd.append('imageStorageProvider', newMsg.value.imageStorageProvider);
-        if (newMsg.value.imageStoragePath) fd.append('imageStoragePath', newMsg.value.imageStoragePath);
+        if (newMsg.value.imageStorageProvider)
+          fd.append('imageStorageProvider', newMsg.value.imageStorageProvider);
+        if (newMsg.value.imageStoragePath)
+          fd.append('imageStoragePath', newMsg.value.imageStoragePath);
         if (newMsg.value.imageSha256) fd.append('imageSha256', newMsg.value.imageSha256);
-        if (newMsg.value.imageFingerprint) fd.append('imageFingerprint', newMsg.value.imageFingerprint);
-        if (newMsg.value.imageOriginalName) fd.append('imageOriginalName', newMsg.value.imageOriginalName);
+        if (newMsg.value.imageFingerprint)
+          fd.append('imageFingerprint', newMsg.value.imageFingerprint);
+        if (newMsg.value.imageOriginalName)
+          fd.append('imageOriginalName', newMsg.value.imageOriginalName);
       } else if (newMsg.value.imageUrl) {
         fd.append('imageUrl', newMsg.value.imageUrl);
       }
@@ -198,14 +215,18 @@ export function useAnnouncementPanel(t) {
       if (newMsg.value.subtitle2Color) fd.append('subtitle2Color', newMsg.value.subtitle2Color);
       if (newMsg.value.subtitle3Color) fd.append('subtitle3Color', newMsg.value.subtitle3Color);
       if (newMsg.value.titleSize) fd.append('titleSize', String(newMsg.value.titleSize));
-      if (newMsg.value.subtitle1Size) fd.append('subtitle1Size', String(newMsg.value.subtitle1Size));
-      if (newMsg.value.subtitle2Size) fd.append('subtitle2Size', String(newMsg.value.subtitle2Size));
-      if (newMsg.value.subtitle3Size) fd.append('subtitle3Size', String(newMsg.value.subtitle3Size));
+      if (newMsg.value.subtitle1Size)
+        fd.append('subtitle1Size', String(newMsg.value.subtitle1Size));
+      if (newMsg.value.subtitle2Size)
+        fd.append('subtitle2Size', String(newMsg.value.subtitle2Size));
+      if (newMsg.value.subtitle3Size)
+        fd.append('subtitle3Size', String(newMsg.value.subtitle3Size));
       if (newMsg.value.ctaText) fd.append('ctaText', newMsg.value.ctaText);
       if (newMsg.value.ctaIcon) fd.append('ctaIcon', newMsg.value.ctaIcon);
       if (newMsg.value.ctaBgColor) fd.append('ctaBgColor', newMsg.value.ctaBgColor);
       if (newMsg.value.ctaTextSize) fd.append('ctaTextSize', String(newMsg.value.ctaTextSize));
-      if (newMsg.value.textColorOverride) fd.append('textColorOverride', newMsg.value.textColorOverride);
+      if (newMsg.value.textColorOverride)
+        fd.append('textColorOverride', newMsg.value.textColorOverride);
       if (newMsg.value.textSize) fd.append('textSize', String(newMsg.value.textSize));
       const r = await api.post('/api/announcement/message', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -293,7 +314,7 @@ export function useAnnouncementPanel(t) {
         ctaBgColor: m.ctaBgColor,
         ctaTextSize: m.ctaTextSize,
         textColorOverride: m.textColorOverride,
-        textSize: m.textSize
+        textSize: m.textSize,
       };
 
       Object.keys(payload).forEach((k) => {
@@ -302,24 +323,32 @@ export function useAnnouncementPanel(t) {
 
       if (typeof m.text === 'string') {
         const trimmed = m.text.trim();
-            if (trimmed.length > 0 && trimmed.length <= 90) {
+        if (trimmed.length > 0 && trimmed.length <= 90) {
           payload.text = m.text;
-            } else if (trimmed.length > 90) {
-          pushToast({ type: 'warning', message: t('announcementValidationTooLong') + ' — text not updated' });
+        } else if (trimmed.length > 90) {
+          pushToast({
+            type: 'warning',
+            message: t('announcementValidationTooLong') + ' — text not updated',
+          });
         }
       }
       const r = await api.put(`/api/announcement/message/${m.id}`, payload);
       if (r.data.success) {
         pushToast({ type: 'success', message: t('announcementMsgUpdated') });
-      } else { pushToast({ type: 'error', message: r.data.error }); }
-    } catch { pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') }); }
+      } else {
+        pushToast({ type: 'error', message: r.data.error });
+      }
+    } catch {
+      pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+    }
   }
 
   function openEdit(m, evt) {
     if (evt && evt.currentTarget instanceof HTMLElement) {
       lastTriggerEl.value = evt.currentTarget;
     } else {
-      lastTriggerEl.value = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      lastTriggerEl.value =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
     }
     editing.value = true;
     editForm.value = {
@@ -348,17 +377,25 @@ export function useAnnouncementPanel(t) {
       textSize: m.textSize ?? 16,
       imageUrl: m.imageUrl || '',
       imageLibraryId: typeof m.imageLibraryId === 'string' ? m.imageLibraryId : '',
-      imageStorageProvider: typeof m.imageStorageProvider === 'string' ? m.imageStorageProvider : '',
+      imageStorageProvider:
+        typeof m.imageStorageProvider === 'string' ? m.imageStorageProvider : '',
       imageStoragePath: typeof m.imageStoragePath === 'string' ? m.imageStoragePath : '',
       imageSha256: typeof m.imageSha256 === 'string' ? m.imageSha256 : '',
       imageFingerprint: typeof m.imageFingerprint === 'string' ? m.imageFingerprint : '',
       imageOriginalName: typeof m.imageOriginalName === 'string' ? m.imageOriginalName : '',
     };
-    nextTick(() => { const first = modalRef.value?.querySelector('input,button,select,textarea'); first && first.focus(); });
+    nextTick(() => {
+      const first = modalRef.value?.querySelector('input,button,select,textarea');
+      first && first.focus();
+    });
   }
-  function closeEdit() { 
-    editing.value = false; 
-    nextTick(() => { if (lastTriggerEl.value) { lastTriggerEl.value.focus(); } });
+  function closeEdit() {
+    editing.value = false;
+    nextTick(() => {
+      if (lastTriggerEl.value) {
+        lastTriggerEl.value.focus();
+      }
+    });
   }
 
   async function submitEdit() {
@@ -394,23 +431,38 @@ export function useAnnouncementPanel(t) {
         if (trimmed.length <= 90) {
           payload.text = raw;
         } else {
-          pushToast({ type: 'warning', message: t('announcementValidationTooLong') + ' — text not updated' });
+          pushToast({
+            type: 'warning',
+            message: t('announcementValidationTooLong') + ' — text not updated',
+          });
         }
       }
       if (!editForm.value.removeImage) {
         if (editForm.value.imageUrl) payload.imageUrl = editForm.value.imageUrl;
         if (editForm.value.imageLibraryId) payload.imageLibraryId = editForm.value.imageLibraryId;
-        if (editForm.value.imageStorageProvider) payload.imageStorageProvider = editForm.value.imageStorageProvider;
-        if (editForm.value.imageStoragePath) payload.imageStoragePath = editForm.value.imageStoragePath;
+        if (editForm.value.imageStorageProvider)
+          payload.imageStorageProvider = editForm.value.imageStorageProvider;
+        if (editForm.value.imageStoragePath)
+          payload.imageStoragePath = editForm.value.imageStoragePath;
         if (editForm.value.imageSha256) payload.imageSha256 = editForm.value.imageSha256;
-        if (editForm.value.imageFingerprint) payload.imageFingerprint = editForm.value.imageFingerprint;
-        if (editForm.value.imageOriginalName) payload.imageOriginalName = editForm.value.imageOriginalName;
+        if (editForm.value.imageFingerprint)
+          payload.imageFingerprint = editForm.value.imageFingerprint;
+        if (editForm.value.imageOriginalName)
+          payload.imageOriginalName = editForm.value.imageOriginalName;
       }
-  const r = await api.put(`/api/announcement/message/${editForm.value.id}`, payload);
-      if (r.data.success) { pushToast({ type: 'success', message: t('announcementMsgUpdated') }); editing.value = false; load(); }
-      else { pushToast({ type: 'error', message: r.data.error }); }
-    } catch { pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') }); }
-    finally { updating.value = false; }
+      const r = await api.put(`/api/announcement/message/${editForm.value.id}`, payload);
+      if (r.data.success) {
+        pushToast({ type: 'success', message: t('announcementMsgUpdated') });
+        editing.value = false;
+        load();
+      } else {
+        pushToast({ type: 'error', message: r.data.error });
+      }
+    } catch {
+      pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+    } finally {
+      updating.value = false;
+    }
   }
 
   async function onEditImage(e, opts = {}) {
@@ -425,7 +477,8 @@ export function useAnnouncementPanel(t) {
 
       const fd = new FormData();
       fd.append('image', f);
-      const preferredProvider = typeof opts.storageProvider === 'string' ? opts.storageProvider : '';
+      const preferredProvider =
+        typeof opts.storageProvider === 'string' ? opts.storageProvider : '';
       if (preferredProvider) fd.append('storageProvider', preferredProvider);
       const r = await api.put(`/api/announcement/message/${editForm.value.id}/image`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -455,38 +508,97 @@ export function useAnnouncementPanel(t) {
   }
 
   async function deleteMessage(m) {
-    const ok = await confirmDialog({ title: t('commonDelete') + '?', description: t('announcementMsgDeleteConfirm') || 'This will permanently delete the announcement.', confirmText: t('commonDelete') || 'Delete', cancelText: t('commonCancel') || 'Cancel', danger: true });
+    const ok = await confirmDialog({
+      title: t('commonDelete') + '?',
+      description:
+        t('announcementMsgDeleteConfirm') || 'This will permanently delete the announcement.',
+      confirmText: t('commonDelete') || 'Delete',
+      cancelText: t('commonCancel') || 'Cancel',
+      danger: true,
+    });
     if (!ok) return;
     try {
       const r = await api.delete(`/api/announcement/message/${m.id}`);
-      if (r.data.success) { pushToast({ type: 'success', message: t('announcementMsgDeleted') }); load(); }
-      else { pushToast({ type: 'error', message: r.data.error || t('announcementMsgDeleteFailed') }); }
-    } catch { pushToast({ type: 'error', message: t('announcementMsgDeleteFailed') }); }
+      if (r.data.success) {
+        pushToast({ type: 'success', message: t('announcementMsgDeleted') });
+        load();
+      } else {
+        pushToast({ type: 'error', message: r.data.error || t('announcementMsgDeleteFailed') });
+      }
+    } catch {
+      pushToast({ type: 'error', message: t('announcementMsgDeleteFailed') });
+    }
   }
 
   async function clearAll(mode) {
     try {
       const r = await api.delete(`/api/announcement/messages?mode=${mode}`);
-      if (r.data.success) { pushToast({ type: 'success', message: t('announcementCleared') }); load(); }
-      else { pushToast({ type: 'error', message: t('announcementClearFailed') }); }
-    } catch { pushToast({ type: 'error', message: t('announcementClearFailed') }); }
+      if (r.data.success) {
+        pushToast({ type: 'success', message: t('announcementCleared') });
+        load();
+      } else {
+        pushToast({ type: 'error', message: t('announcementClearFailed') });
+      }
+    } catch {
+      pushToast({ type: 'error', message: t('announcementClearFailed') });
+    }
   }
 
   function trapFocus(e) {
     if (!editing.value) return;
-    const focusable = modalRef.value?.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const focusable = modalRef.value?.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
     if (!focusable || !focusable.length) return;
-    const first = focusable[0]; const last = focusable[focusable.length - 1];
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
     if (e.key === 'Tab') {
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     if (e.key === 'Escape') closeEdit();
   }
 
-  onMounted(async () => { try { await wallet.refresh(); await refresh(); } catch {} load(); document.addEventListener('keydown', trapFocus); });
+  onMounted(async () => {
+    try {
+      await wallet.refresh();
+      await refresh();
+    } catch {}
+    load();
+    document.addEventListener('keydown', trapFocus);
+  });
   onBeforeUnmount(() => document.removeEventListener('keydown', trapFocus));
 
-  return { settings, cooldownMinutes, messages, newMsg, errors, editing, editForm, savingSettings, adding, updating, modalRef, widgetUrl, activeTab,
-    load, saveSettings, onNewImage, addMessage, toggleMessageEnabled, updateMessage, openEdit, closeEdit, submitEdit, deleteMessage, clearAll, onEditImage };
+  return {
+    settings,
+    cooldownMinutes,
+    messages,
+    newMsg,
+    errors,
+    editing,
+    editForm,
+    savingSettings,
+    adding,
+    updating,
+    modalRef,
+    widgetUrl,
+    activeTab,
+    load,
+    saveSettings,
+    onNewImage,
+    addMessage,
+    toggleMessageEnabled,
+    updateMessage,
+    openEdit,
+    closeEdit,
+    submitEdit,
+    deleteMessage,
+    clearAll,
+    onEditImage,
+  };
 }

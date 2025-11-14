@@ -27,7 +27,7 @@ function http(url, token, method = 'GET', data, adminTokenCookie) {
     data,
     headers,
     timeout: 10000,
-    validateStatus: s => s >= 200 && s < 300
+    validateStatus: (s) => s >= 200 && s < 300,
   });
 }
 
@@ -51,32 +51,44 @@ async function verifyModules(baseUrl, token) {
 
 async function wsProbe(baseUrl, token, { start, draw, admin }) {
   return new Promise((resolve) => {
-  const wsUrl = `${toWsUrl(baseUrl)}/?widgetToken=${encodeURIComponent(token)}`;
+    const wsUrl = `${toWsUrl(baseUrl)}/?widgetToken=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     let gotInit = false;
     let gotRaffleState = false;
     let gotWinner = false;
 
     const finish = (label) => {
-      try { ws.close(); } catch {}
+      try {
+        ws.close();
+      } catch {}
       resolve(label);
     };
 
     ws.on('open', async () => {
-  try { console.warn('ws: connected'); } catch {}
+      try {
+        console.warn('ws: connected');
+      } catch {}
 
       if (admin && start) {
         try {
           await http(`${baseUrl}/api/raffle/start`, token, 'POST', {}, admin);
           console.warn('raffle/start -> OK');
-        } catch (e) { try { console.warn('raffle/start -> FAIL', e?.response?.status); } catch {} }
+        } catch (e) {
+          try {
+            console.warn('raffle/start -> FAIL', e?.response?.status);
+          } catch {}
+        }
       }
       if (admin && draw) {
         setTimeout(async () => {
           try {
             await http(`${baseUrl}/api/raffle/draw`, token, 'POST', {}, admin);
             console.warn('raffle/draw -> OK');
-          } catch (e) { try { console.warn('raffle/draw -> FAIL', e?.response?.status); } catch {} }
+          } catch (e) {
+            try {
+              console.warn('raffle/draw -> FAIL', e?.response?.status);
+            } catch {}
+          }
         }, 1000);
       }
 
@@ -92,31 +104,40 @@ async function wsProbe(baseUrl, token, { start, draw, admin }) {
           const lt = msg.data.lastTip || {};
           const ld = lt && lt.lastDonation ? lt.lastDonation : lt;
           if (r) {
-            try { console.warn('init.raffle:', {
-              command: r.command,
-              prize: r.prize,
-              imageUrl: r.imageUrl,
-              active: r.active,
-              paused: r.paused
-            }); } catch {}
+            try {
+              console.warn('init.raffle:', {
+                command: r.command,
+                prize: r.prize,
+                imageUrl: r.imageUrl,
+                active: r.active,
+                paused: r.paused,
+              });
+            } catch {}
           }
-          if (ld) try { console.warn('init.lastTip.lastDonation:', ld); } catch {}
+          if (ld)
+            try {
+              console.warn('init.lastTip.lastDonation:', ld);
+            } catch {}
         } else if (msg.type === 'raffle_state') {
           gotRaffleState = true;
-          try { console.warn('raffle_state:', {
-            active: msg.active,
-            paused: msg.paused,
-            prize: msg.prize,
-            imageUrl: msg.imageUrl,
-            command: msg.command
-          }); } catch {}
+          try {
+            console.warn('raffle_state:', {
+              active: msg.active,
+              paused: msg.paused,
+              prize: msg.prize,
+              imageUrl: msg.imageUrl,
+              command: msg.command,
+            });
+          } catch {}
         } else if (msg.type === 'raffle_winner') {
           gotWinner = true;
-          try { console.warn('raffle_winner:', {
-            winner: msg.winner,
-            prize: msg.prize,
-            imageUrl: msg.imageUrl
-          }); } catch {}
+          try {
+            console.warn('raffle_winner:', {
+              winner: msg.winner,
+              prize: msg.prize,
+              imageUrl: msg.imageUrl,
+            });
+          } catch {}
         }
         if (gotInit && (!start || gotRaffleState) && (!draw || gotWinner)) {
           finish('ok');
@@ -125,7 +146,9 @@ async function wsProbe(baseUrl, token, { start, draw, admin }) {
     });
 
     ws.on('error', (e) => {
-  try { console.warn('ws error:', e?.message || e); } catch {}
+      try {
+        console.warn('ws error:', e?.message || e);
+      } catch {}
       finish('error');
     });
   });
@@ -136,7 +159,9 @@ async function wsProbe(baseUrl, token, { start, draw, admin }) {
     const args = parseArgs();
     await verifyModules(args.url, args.token);
     const label = await wsProbe(args.url, args.token, args);
-    try { console.warn('probe result:', label); } catch {}
+    try {
+      console.warn('probe result:', label);
+    } catch {}
   } catch (e) {
     console.error('verify failed:', e.message || e);
     process.exitCode = 1;

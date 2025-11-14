@@ -4,7 +4,11 @@ const { z } = require('zod');
 const { loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config');
 
 function readJsonSafe(file, fallback) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return fallback;
+  }
 }
 
 function writeJsonSafe(file, data) {
@@ -12,16 +16,29 @@ function writeJsonSafe(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-const eventsSettingsSchema = z.object({
-  eventCount: z.number().min(0).max(10).optional(),
-  enabledActivities: z.array(z.string()).optional(),
-  theme: z.object({
-    bgColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-    textColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-    accentColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/).optional(),
-  }).optional(),
-  animation: z.string().optional(),
-}).strict();
+const eventsSettingsSchema = z
+  .object({
+    eventCount: z.number().min(0).max(10).optional(),
+    enabledActivities: z.array(z.string()).optional(),
+    theme: z
+      .object({
+        bgColor: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+          .optional(),
+        textColor: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+          .optional(),
+        accentColor: z
+          .string()
+          .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+          .optional(),
+      })
+      .optional(),
+    animation: z.string().optional(),
+  })
+  .strict();
 
 const DEFAULTS = {
   eventCount: 6,
@@ -43,7 +60,9 @@ module.exports = function registerEventsSettingsRoutes(app, strictLimiter, { sto
     const base = raw && typeof raw === 'object' ? raw : {};
     return {
       eventCount: typeof base.eventCount === 'number' ? base.eventCount : DEFAULTS.eventCount,
-      enabledActivities: Array.isArray(base.enabledActivities) ? base.enabledActivities : DEFAULTS.enabledActivities,
+      enabledActivities: Array.isArray(base.enabledActivities)
+        ? base.enabledActivities
+        : DEFAULTS.enabledActivities,
       theme: { ...DEFAULTS.theme, ...(base.theme || {}) },
       animation: typeof base.animation === 'string' ? base.animation : DEFAULTS.animation,
     };
@@ -64,15 +83,20 @@ module.exports = function registerEventsSettingsRoutes(app, strictLimiter, { sto
               const ns = req.ns.admin || req.ns.pub;
               const st = await store.get(ns, 'events-settings', null);
               if (st) return res.json({ success: true, ...normalize(st) });
-            } catch { /* fallthrough to disk */ }
+            } catch {
+              /* fallthrough to disk */
+            }
           }
           const loaded = await loadTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME);
           const data = loaded.data?.data ? loaded.data.data : loaded.data;
-          const meta = loaded.data && (loaded.data.__version || loaded.data.checksum) ? {
-            __version: loaded.data.__version,
-            checksum: loaded.data.checksum,
-            updatedAt: loaded.data.updatedAt
-          } : null;
+          const meta =
+            loaded.data && (loaded.data.__version || loaded.data.checksum)
+              ? {
+                  __version: loaded.data.__version,
+                  checksum: loaded.data.checksum,
+                  updatedAt: loaded.data.updatedAt,
+                }
+              : null;
           const cfg = normalize(data);
           return res.json(meta ? { success: true, meta, ...cfg } : { success: true, ...cfg });
         } catch {
@@ -105,9 +129,17 @@ module.exports = function registerEventsSettingsRoutes(app, strictLimiter, { sto
               const merged = { ...current, ...parsed.data };
               await store.set(ns, 'events-settings', merged);
 
-              const saveRes = await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, merged);
+              const saveRes = await saveTenantConfig(
+                req,
+                store,
+                CONFIG_FILE,
+                CONFIG_FILENAME,
+                merged
+              );
               return res.json({ success: true, meta: saveRes.meta, ...normalize(merged) });
-            } catch {/* fallthrough to disk only */}
+            } catch {
+              /* fallthrough to disk only */
+            }
           }
           const merged = { ...parsed.data };
           const saveRes = await saveTenantConfig(req, store, CONFIG_FILE, CONFIG_FILENAME, merged);

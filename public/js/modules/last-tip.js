@@ -1,7 +1,16 @@
 let __lt_started = false;
 
-function getCookie(name){
-  try { return document.cookie.split('; ').find(r=>r.startsWith(name+'='))?.split('=')[1] || ''; } catch { return ''; }
+function getCookie(name) {
+  try {
+    return (
+      document.cookie
+        .split('; ')
+        .find((r) => r.startsWith(name + '='))
+        ?.split('=')[1] || ''
+    );
+  } catch {
+    return '';
+  }
 }
 
 export async function initLastTip() {
@@ -30,7 +39,9 @@ export async function initLastTip() {
     try {
       const m = document.querySelector('meta[property="csp-nonce"]');
       return (m && (m.nonce || m.getAttribute('nonce'))) || document.head?.dataset?.cspNonce || '';
-    } catch { return ''; }
+    } catch {
+      return '';
+    }
   }
   function ensureStyleTag(id) {
     let tag = document.getElementById(id);
@@ -41,7 +52,10 @@ export async function initLastTip() {
       if (n) tag.setAttribute('nonce', n);
       document.head.appendChild(tag);
     } else {
-      try { const n = getNonce(); if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n); } catch {}
+      try {
+        const n = getNonce();
+        if (n && !tag.getAttribute('nonce')) tag.setAttribute('nonce', n);
+      } catch {}
     }
     return tag;
   }
@@ -55,15 +69,19 @@ export async function initLastTip() {
         c.fontColor ? `--lt-text:${c.fontColor};` : '',
         c.amountColor ? `--lt-amount:${c.amountColor};` : '',
         c.iconBgColor ? `--lt-icon-bg:${c.iconBgColor};` : '',
-        c.fromColor ? `--lt-from:${c.fromColor};` : ''
-      ].filter(Boolean).join('');
+        c.fromColor ? `--lt-from:${c.fromColor};` : '',
+      ]
+        .filter(Boolean)
+        .join('');
       tag.textContent = decls ? `#last-donation{${decls}}` : '';
     } catch {}
   }
 
   const formatArAmount = (amount) => {
     const num = parseFloat(amount);
-    return isFinite(num) ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) : '0.00';
+    return isFinite(num)
+      ? num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+      : '0.00';
   };
   const calculateUsdValue = (arAmount) => {
     const arNum = parseFloat(arAmount);
@@ -73,23 +91,31 @@ export async function initLastTip() {
   };
   const updateExchangeRate = async () => {
     try {
-      const res = await fetch('/api/ar-price').catch(()=>null);
+      const res = await fetch('/api/ar-price').catch(() => null);
       if (res && res.ok) {
-        const data = await res.json().catch(()=>null);
-        if (data?.arweave?.usd) { AR_TO_USD = Number(data.arweave.usd) || AR_TO_USD || 5; return; }
+        const data = await res.json().catch(() => null);
+        if (data?.arweave?.usd) {
+          AR_TO_USD = Number(data.arweave.usd) || AR_TO_USD || 5;
+          return;
+        }
       }
     } catch {}
     try {
-      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd');
+      const r = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=arweave&vs_currencies=usd'
+      );
       const j = await r.json();
-      if (j?.arweave?.usd) { AR_TO_USD = j.arweave.usd; return; }
+      if (j?.arweave?.usd) {
+        AR_TO_USD = j.arweave.usd;
+        return;
+      }
     } catch {}
     AR_TO_USD = AR_TO_USD || 5;
   };
   async function loadColors() {
     if (!isOBSWidget) return;
     try {
-  const res = await fetch('/api/modules');
+      const res = await fetch('/api/modules');
       const data = await res.json();
       if (data.lastTip) {
         lastTipColors = {
@@ -98,17 +124,21 @@ export async function initLastTip() {
           borderColor: data.lastTip.borderColor,
           amountColor: data.lastTip.amountColor,
           iconBgColor: data.lastTip.iconBgColor,
-          fromColor: data.lastTip.fromColor
+          fromColor: data.lastTip.fromColor,
         };
         const cached = data.lastTip.lastDonation;
-        if (cached && !hasRenderedOnce) { hasRenderedOnce = true; await updateExchangeRate(); updateUI(cached); }
+        if (cached && !hasRenderedOnce) {
+          hasRenderedOnce = true;
+          await updateExchangeRate();
+          updateUI(cached);
+        }
       }
     } catch {}
   }
   function applyCustomColors(customColors = {}) {
     if (!isOBSWidget) return;
     const colors = { ...lastTipColors, ...customColors };
-  setLastTipVars(colors);
+    setLastTipVars(colors);
   }
   async function updateUI(data) {
     if (!data) {
@@ -127,14 +157,16 @@ export async function initLastTip() {
     const formattedAmount = formatArAmount(data.amount);
     const usdValue = calculateUsdValue(data.amount);
     try {
-      const modulesRes = await fetch('/api/modules').catch(()=>null);
+      const modulesRes = await fetch('/api/modules').catch(() => null);
       if (modulesRes && modulesRes.ok) {
-        const modulesData = await modulesRes.json().catch(()=>null);
+        const modulesData = await modulesRes.json().catch(() => null);
         const customTitle = modulesData?.lastTip?.title;
         if (customTitle && customTitle.trim()) titleElement.textContent = customTitle.trim();
         else titleElement.textContent = 'Last tip received 👏';
       } else titleElement.textContent = 'Last tip received 👏';
-    } catch { titleElement.textContent = 'Last tip received 👏'; }
+    } catch {
+      titleElement.textContent = 'Last tip received 👏';
+    }
 
     if (amountElement) amountElement.textContent = formattedAmount;
     if (symbolElement) symbolElement.textContent = 'AR';
@@ -150,10 +182,10 @@ export async function initLastTip() {
 
   async function loadInitialData() {
     try {
-  const modulesUrl = '/api/modules';
+      const modulesUrl = '/api/modules';
       const controller = new AbortController();
       const to = setTimeout(() => controller.abort(), 4000);
-  const response = await fetch(modulesUrl, { signal: controller.signal });
+      const response = await fetch(modulesUrl, { signal: controller.signal });
       clearTimeout(to);
       if (!response.ok) throw new Error('modules fetch failed');
       const modulesData = await response.json();
@@ -161,12 +193,18 @@ export async function initLastTip() {
       await updateExchangeRate();
       await loadColors();
       updateUI(payload);
-    } catch { updateUI(null); }
+    } catch {
+      updateUI(null);
+    }
   }
 
   try {
-  ws = new WebSocket(`${wsProto}://${window.location.host}`);
-    ws.onopen = () => { loadColors(); updateExchangeRate(); loadInitialData(); };
+    ws = new WebSocket(`${wsProto}://${window.location.host}`);
+    ws.onopen = () => {
+      loadColors();
+      updateExchangeRate();
+      loadInitialData();
+    };
     ws.onmessage = async (event) => {
       try {
         const msg = JSON.parse(event.data);
@@ -174,7 +212,10 @@ export async function initLastTip() {
           if (msg.data.lastTip) {
             await updateExchangeRate();
             await loadColors();
-            const payload = (msg.data.lastTip && msg.data.lastTip.lastDonation) ? msg.data.lastTip.lastDonation : msg.data.lastTip;
+            const payload =
+              msg.data.lastTip && msg.data.lastTip.lastDonation
+                ? msg.data.lastTip.lastDonation
+                : msg.data.lastTip;
             updateUI(payload);
           }
           return;

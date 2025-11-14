@@ -1,7 +1,13 @@
+/* global module */
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import api from '../../services/api';
 import { pushToast } from '../../services/toast';
-import { formatHours, formatTotalHours, usdFromAr, buildDisplayData } from './utils/streamHistoryUtils.js';
+import {
+  formatHours,
+  formatTotalHours,
+  usdFromAr,
+  buildDisplayData,
+} from './utils/streamHistoryUtils.js';
 import { renderStreamHistoryChart, renderViewersSparkline } from './utils/renderChart.js';
 
 export function createStreamHistoryPanel(t) {
@@ -89,7 +95,9 @@ export function createStreamHistoryPanel(t) {
       viewerHoursDiff: delta(current?.viewerHours, prev?.viewerHours),
       activeDayKey: current?.activeDayKey || null,
       activeDayDiff: hasPrev
-        ? (current?.activeDayKey && prev?.activeDayKey && current.activeDayKey !== prev.activeDayKey ? 1 : 0)
+        ? current?.activeDayKey && prev?.activeDayKey && current.activeDayKey !== prev.activeDayKey
+          ? 1
+          : 0
         : null,
       totalHoursDiff: hasPrev ? toNumber(current?.durationHours) : null,
       highestViewersDiff: delta(current?.peakViewers, prev?.peakViewers),
@@ -120,11 +128,18 @@ export function createStreamHistoryPanel(t) {
     const mm = String(abs % 60).padStart(2, '0');
     return `UTC${sign}${hh}:${mm}`;
   });
-  const tzOffsetShort = computed(() => { try { const val = tzDisplay.value || ''; return val.startsWith('UTC') ? val.slice(3) : val; } catch { return ''; } });
+  const tzOffsetShort = computed(() => {
+    try {
+      const val = tzDisplay.value || '';
+      return val.startsWith('UTC') ? val.slice(3) : val;
+    } catch {
+      return '';
+    }
+  });
 
   const sampleCount = computed(() => Number(status.value.sampleCount || 0));
-  const sparklineAvailable = computed(
-    () => (lastSummaryData.value || []).some(item => Number(item?.avgViewers || 0) > 0),
+  const sparklineAvailable = computed(() =>
+    (lastSummaryData.value || []).some((item) => Number(item?.avgViewers || 0) > 0)
   );
 
   function formatSeconds(value) {
@@ -138,9 +153,12 @@ export function createStreamHistoryPanel(t) {
   function formatAgo(ms) {
     const diffMs = Number(ms || 0);
     if (!isFinite(diffMs) || diffMs < 0) return '';
-    if (diffMs < 45000) return t('streamHistoryAgoSeconds', { value: Math.max(1, Math.round(diffMs / 1000)) });
-    if (diffMs < 90 * 60000) return t('streamHistoryAgoMinutes', { value: Math.max(1, Math.round(diffMs / 60000)) });
-    if (diffMs < 36 * 3600000) return t('streamHistoryAgoHours', { value: Math.max(1, Math.round(diffMs / 3600000)) });
+    if (diffMs < 45000)
+      return t('streamHistoryAgoSeconds', { value: Math.max(1, Math.round(diffMs / 1000)) });
+    if (diffMs < 90 * 60000)
+      return t('streamHistoryAgoMinutes', { value: Math.max(1, Math.round(diffMs / 60000)) });
+    if (diffMs < 36 * 3600000)
+      return t('streamHistoryAgoHours', { value: Math.max(1, Math.round(diffMs / 3600000)) });
     return t('streamHistoryAgoDays', { value: Math.max(1, Math.round(diffMs / 86400000)) });
   }
 
@@ -149,7 +167,8 @@ export function createStreamHistoryPanel(t) {
     const lastTs = Number(status.value.lastSampleTs || 0);
     const cadenceStr = cadenceSec > 0 ? formatSeconds(cadenceSec) : '';
     const ageStr = lastTs > 0 ? formatAgo(nowTick.value - lastTs) : '';
-    if (cadenceStr && ageStr) return t('streamHistorySamplingCaption', { cadence: cadenceStr, ago: ageStr });
+    if (cadenceStr && ageStr)
+      return t('streamHistorySamplingCaption', { cadence: cadenceStr, ago: ageStr });
     if (cadenceStr) return t('streamHistorySamplingCadenceOnly', { cadence: cadenceStr });
     if (ageStr) return t('streamHistorySamplingLastOnly', { ago: ageStr });
     return '';
@@ -259,36 +278,97 @@ export function createStreamHistoryPanel(t) {
     if (autoRefresh) scheduleRefresh(true);
   }
 
-  let ro = null; let resizeTimer = null; let refreshDebounceTimer = null; let pollTimer = null; let nowTimer = null;
+  let ro = null;
+  let resizeTimer = null;
+  let refreshDebounceTimer = null;
+  let pollTimer = null;
+  let nowTimer = null;
   const REFRESH_DEBOUNCE_MS = 150;
 
   function setScrollLock(lock) {
-    try { const el = document.documentElement; const body = document.body; if (lock) { el.style.overflow = 'hidden'; body.style.overflow = 'hidden'; } else { el.style.overflow=''; body.style.overflow=''; } } catch {}
+    try {
+      const el = document.documentElement;
+      const body = document.body;
+      if (lock) {
+        el.style.overflow = 'hidden';
+        body.style.overflow = 'hidden';
+      } else {
+        el.style.overflow = '';
+        body.style.overflow = '';
+      }
+    } catch {}
   }
-  function onKeydown(e) { try { if (e.key === 'Escape' && anyModalOpen.value && !clearBusy.value) { showClearModal.value = false; showClaimChangeModal.value = false; } } catch {} }
-  watch(anyModalOpen, (open) => { setScrollLock(open); try { if (open) window.addEventListener('keydown', onKeydown); else window.removeEventListener('keydown', onKeydown); } catch {} });
+  function onKeydown(e) {
+    try {
+      if (e.key === 'Escape' && anyModalOpen.value && !clearBusy.value) {
+        showClearModal.value = false;
+        showClaimChangeModal.value = false;
+      }
+    } catch {}
+  }
+  watch(anyModalOpen, (open) => {
+    setScrollLock(open);
+    try {
+      if (open) window.addEventListener('keydown', onKeydown);
+      else window.removeEventListener('keydown', onKeydown);
+    } catch {}
+  });
 
   onUnmounted(() => {
     setScrollLock(false);
-    try { window.removeEventListener('keydown', onKeydown); } catch {}
-    try { if (ro && ro.disconnect) ro.disconnect(); } catch {}
-    try { if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer); } catch {}
-    try { if (nowTimer) { clearInterval(nowTimer); nowTimer = null; } } catch {}
-    try { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } } catch {}
+    try {
+      window.removeEventListener('keydown', onKeydown);
+    } catch {}
+    try {
+      if (ro && ro.disconnect) ro.disconnect();
+    } catch {}
+    try {
+      if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+    } catch {}
+    try {
+      if (nowTimer) {
+        clearInterval(nowTimer);
+        nowTimer = null;
+      }
+    } catch {}
+    try {
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    } catch {}
   });
 
-  async function loadConfig() { try { const r = await api.get('/config/stream-history-config.json'); claimid.value = r?.data?.claimid || ''; initialClaimid.value = claimid.value; } catch {} }
+  async function loadConfig() {
+    try {
+      const r = await api.get('/config/stream-history-config.json');
+      claimid.value = r?.data?.claimid || '';
+      initialClaimid.value = claimid.value;
+    } catch {}
+  }
 
   async function saveConfig() {
     try {
-      saving.value = true; const changed = (claimid.value || '') !== (initialClaimid.value || '');
-  await api.post('/config/stream-history-config.json', { claimid: claimid.value });
-      try { pushToast({ type: 'success', message: t('savedStreamHistory') }); } catch {}
-      if (changed) showClaimChangeModal.value = true; initialClaimid.value = claimid.value; await refresh();
+      saving.value = true;
+      const changed = (claimid.value || '') !== (initialClaimid.value || '');
+      await api.post('/config/stream-history-config.json', { claimid: claimid.value });
+      try {
+        pushToast({ type: 'success', message: t('savedStreamHistory') });
+      } catch {}
+      if (changed) showClaimChangeModal.value = true;
+      initialClaimid.value = claimid.value;
+      await refresh();
     } catch (e) {
-      const msg = (e && e.response && e.response.data && e.response.data.error === 'session_required') ? t('sessionRequiredToast') : t('saveFailedStreamHistory');
-      try { pushToast({ type: 'error', message: msg }); } catch {}
-    } finally { saving.value = false; }
+      const msg =
+        e && e.response && e.response.data && e.response.data.error === 'session_required'
+          ? t('sessionRequiredToast')
+          : t('saveFailedStreamHistory');
+      try {
+        pushToast({ type: 'error', message: msg });
+      } catch {}
+    } finally {
+      saving.value = false;
+    }
   }
 
   async function refresh() {
@@ -323,29 +403,48 @@ export function createStreamHistoryPanel(t) {
         };
         recentStreams.value = Array.isArray(p.data.recentStreams) ? p.data.recentStreams : [];
       }
-  try { const pr = await api.get('/api/ar-price'); arUsd.value = pr?.data?.arweave?.usd || arUsd.value; } catch {}
-  try { const er = await api.get('/api/last-tip/earnings'); totalAR.value = Number(er?.data?.totalAR || 0); } catch {}
-  try {
-    const sr = await api.get('/api/stream-history/status');
-    if (sr?.data) {
-      const toNumberOrNull = (val) => {
-        const num = Number(val);
-        return Number.isFinite(num) ? num : null;
-      };
-      status.value = {
-        connected: !!sr.data.connected,
-        live: !!sr.data.live,
-        sampleCount: Number(sr.data.sampleCount || 0),
-        lastSampleTs: toNumberOrNull(sr.data.lastSampleTs),
-        avgSampleIntervalSec: toNumberOrNull(sr.data.avgSampleIntervalSec),
-        latestSampleIntervalSec: toNumberOrNull(sr.data.latestSampleIntervalSec),
-      };
+      try {
+        const pr = await api.get('/api/ar-price');
+        arUsd.value = pr?.data?.arweave?.usd || arUsd.value;
+      } catch {}
+      try {
+        const er = await api.get('/api/last-tip/earnings');
+        totalAR.value = Number(er?.data?.totalAR || 0);
+      } catch {}
+      try {
+        const sr = await api.get('/api/stream-history/status');
+        if (sr?.data) {
+          const toNumberOrNull = (val) => {
+            const num = Number(val);
+            return Number.isFinite(num) ? num : null;
+          };
+          status.value = {
+            connected: !!sr.data.connected,
+            live: !!sr.data.live,
+            sampleCount: Number(sr.data.sampleCount || 0),
+            lastSampleTs: toNumberOrNull(sr.data.lastSampleTs),
+            avgSampleIntervalSec: toNumberOrNull(sr.data.avgSampleIntervalSec),
+            latestSampleIntervalSec: toNumberOrNull(sr.data.latestSampleIntervalSec),
+          };
+        }
+      } catch {}
+    } catch {
+      renderCharts([]);
     }
-  } catch {}
-  } catch { renderCharts([]); }
   }
 
-  function scheduleRefresh(immediate = false) { try { if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer); } catch {}; if (immediate) { refresh(); return; } refreshDebounceTimer = setTimeout(() => { refresh(); }, REFRESH_DEBOUNCE_MS); }
+  function scheduleRefresh(immediate = false) {
+    try {
+      if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+    } catch {}
+    if (immediate) {
+      refresh();
+      return;
+    }
+    refreshDebounceTimer = setTimeout(() => {
+      refresh();
+    }, REFRESH_DEBOUNCE_MS);
+  }
 
   function onQuickFilterChange() {
     try {
@@ -369,15 +468,53 @@ export function createStreamHistoryPanel(t) {
       }
     } catch {}
   }
-  function clearHistory() { showClearModal.value = true; }
-  async function confirmClear() { try { clearBusy.value = true; await api.post('/api/stream-history/clear'); await refresh(); showClearModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
-  async function confirmClearAfterClaimChange() { try { clearBusy.value = true; await api.post('/api/stream-history/clear'); await refresh(); showClaimChangeModal.value = false; try { pushToast({ type: 'success', message: t('streamHistoryCleared') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryClearFailed') }); } catch {} } finally { clearBusy.value = false; } }
+  function clearHistory() {
+    showClearModal.value = true;
+  }
+  async function confirmClear() {
+    try {
+      clearBusy.value = true;
+      await api.post('/api/stream-history/clear');
+      await refresh();
+      showClearModal.value = false;
+      try {
+        pushToast({ type: 'success', message: t('streamHistoryCleared') });
+      } catch {}
+    } catch {
+      try {
+        pushToast({ type: 'error', message: t('streamHistoryClearFailed') });
+      } catch {}
+    } finally {
+      clearBusy.value = false;
+    }
+  }
+  async function confirmClearAfterClaimChange() {
+    try {
+      clearBusy.value = true;
+      await api.post('/api/stream-history/clear');
+      await refresh();
+      showClaimChangeModal.value = false;
+      try {
+        pushToast({ type: 'success', message: t('streamHistoryCleared') });
+      } catch {}
+    } catch {
+      try {
+        pushToast({ type: 'error', message: t('streamHistoryClearFailed') });
+      } catch {}
+    } finally {
+      clearBusy.value = false;
+    }
+  }
   async function downloadExport() {
     try {
       let text = '';
       try {
-        const resp = await api.get('/api/stream-history/export', { responseType: 'text', transformResponse: [r => r] });
-        text = typeof resp?.data === 'string' ? resp.data : JSON.stringify(resp?.data || {}, null, 2);
+        const resp = await api.get('/api/stream-history/export', {
+          responseType: 'text',
+          transformResponse: [(r) => r],
+        });
+        text =
+          typeof resp?.data === 'string' ? resp.data : JSON.stringify(resp?.data || {}, null, 2);
       } catch (e) {
         try {
           const r = await fetch('/api/stream-history/export', { cache: 'no-cache' });
@@ -398,15 +535,41 @@ export function createStreamHistoryPanel(t) {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      try { pushToast({ type: 'error', message: t('streamHistoryExportFailed') }); } catch {}
+      try {
+        pushToast({ type: 'error', message: t('streamHistoryExportFailed') });
+      } catch {}
     }
   }
-  async function onImport(e) { try { const file = e?.target?.files?.[0]; if (!file) return; const text = await file.text(); const json = JSON.parse(text); await api.post('/api/stream-history/import', json); await refresh(); try { pushToast({ type: 'success', message: t('streamHistoryImported') }); } catch {} } catch { try { pushToast({ type: 'error', message: t('streamHistoryImportFailed') }); } catch {} } finally { try { e.target.value = ''; } catch {} } }
-  function toggleEarningsHidden() { earningsHidden.value = !earningsHidden.value; }
+  async function onImport(e) {
+    try {
+      const file = e?.target?.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const json = JSON.parse(text);
+      await api.post('/api/stream-history/import', json);
+      await refresh();
+      try {
+        pushToast({ type: 'success', message: t('streamHistoryImported') });
+      } catch {}
+    } catch {
+      try {
+        pushToast({ type: 'error', message: t('streamHistoryImportFailed') });
+      } catch {}
+    } finally {
+      try {
+        e.target.value = '';
+      } catch {}
+    }
+  }
+  function toggleEarningsHidden() {
+    earningsHidden.value = !earningsHidden.value;
+  }
 
-  watch([mode, period, span], () => { scheduleRefresh(); });
+  watch([mode, period, span], () => {
+    scheduleRefresh();
+  });
   watch(period, (p) => {
-    if (!['day','week','month','year'].includes(p)) return;
+    if (!['day', 'week', 'month', 'year'].includes(p)) return;
     if (customRangeActive.value) return;
     filterQuick.value = p;
   });
@@ -422,7 +585,11 @@ export function createStreamHistoryPanel(t) {
       filterQuick.value = period.value;
     }
   });
-  watch(overlayCollapsed, (v) => { try { localStorage.setItem(OVERLAY_KEY, v ? '1':'0'); } catch {} });
+  watch(overlayCollapsed, (v) => {
+    try {
+      localStorage.setItem(OVERLAY_KEY, v ? '1' : '0');
+    } catch {}
+  });
 
   watch(
     () => Number(status.value.sampleCount || 0),
@@ -440,7 +607,11 @@ export function createStreamHistoryPanel(t) {
       scheduleRefresh(true);
     }
   );
-  watch(showViewers, () => { try { renderCharts(lastSummaryData.value || []); } catch {} });
+  watch(showViewers, () => {
+    try {
+      renderCharts(lastSummaryData.value || []);
+    } catch {}
+  });
   watch(goalHours, (val) => {
     let safe = Number(val);
     if (!Number.isFinite(safe) || safe < 0) safe = 0;
@@ -448,12 +619,20 @@ export function createStreamHistoryPanel(t) {
       goalHours.value = safe;
       return;
     }
-    try { localStorage.setItem(GOAL_KEY, JSON.stringify({ value: safe })); } catch {}
-    try { renderCharts(lastSummaryData.value || []); } catch {}
+    try {
+      localStorage.setItem(GOAL_KEY, JSON.stringify({ value: safe }));
+    } catch {}
+    try {
+      renderCharts(lastSummaryData.value || []);
+    } catch {}
   });
   watch(showViewerTrend, (val) => {
-    try { localStorage.setItem(TREND_KEY, val ? '1' : '0'); } catch {}
-    try { renderCharts(lastSummaryData.value || []); } catch {}
+    try {
+      localStorage.setItem(TREND_KEY, val ? '1' : '0');
+    } catch {}
+    try {
+      renderCharts(lastSummaryData.value || []);
+    } catch {}
   });
 
   function renderCharts(data) {
@@ -483,11 +662,19 @@ export function createStreamHistoryPanel(t) {
     const fallbackCandidate = peakFromChart || buildPeakCandidate(data);
     peakSessionSummary.value = formatPeakSummary(fallbackCandidate);
   }
-  function toggleShowViewers() { showViewers.value = !showViewers.value; }
+  function toggleShowViewers() {
+    showViewers.value = !showViewers.value;
+  }
 
   onMounted(async () => {
-    try { const v = localStorage.getItem(OVERLAY_KEY); if (v==='1'||v==='0') overlayCollapsed.value = (v==='1'); } catch {}
-    try { const h = localStorage.getItem(EARNINGS_HIDE_KEY); if (h==='1'||h==='0') earningsHidden.value = (h==='1'); } catch {}
+    try {
+      const v = localStorage.getItem(OVERLAY_KEY);
+      if (v === '1' || v === '0') overlayCollapsed.value = v === '1';
+    } catch {}
+    try {
+      const h = localStorage.getItem(EARNINGS_HIDE_KEY);
+      if (h === '1' || h === '0') earningsHidden.value = h === '1';
+    } catch {}
     try {
       const savedGoal = JSON.parse(localStorage.getItem(GOAL_KEY) || 'null');
       if (savedGoal && typeof savedGoal.value === 'number' && isFinite(savedGoal.value)) {
@@ -499,39 +686,146 @@ export function createStreamHistoryPanel(t) {
       if (trendPref === '0' || trendPref === '1') showViewerTrend.value = trendPref === '1';
     } catch {}
     try {
-      if (!nowTimer) nowTimer = setInterval(() => { nowTick.value = Date.now(); }, NOW_TICK_INTERVAL);
+      if (!nowTimer)
+        nowTimer = setInterval(() => {
+          nowTick.value = Date.now();
+        }, NOW_TICK_INTERVAL);
     } catch {}
     await loadConfig();
-    try { const stored = localStorage.getItem(TZ_KEY); if (stored != null && stored !== '') { const parsed = Number(stored); if (Number.isFinite(parsed) && Math.abs(parsed) <= 840) { effectiveTzOffset.value = parsed; if (parsed !== tzOffsetMinutes.value) { previousTzOffset.value = parsed; tzChangeVisible.value = true; } } } else { localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value)); } } catch {}
-    await refresh();
-  try { const el = chartEl.value; if (el && typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(() => { try { chartEl.value?.classList.add('reflowing'); } catch {} if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { try { renderCharts(lastSummaryData.value || []); } catch {} try { setTimeout(()=>chartEl.value?.classList.remove('reflowing'),120);} catch {} }, 80); }); ro.observe(el); } else { const onR = () => { if (resizeTimer) clearTimeout(resizeTimer); resizeTimer = setTimeout(()=>renderCharts(lastSummaryData.value||[]),120); }; window.addEventListener('resize', onR); ro = { disconnect(){ try { window.removeEventListener('resize', onR); } catch {} } }; } } catch {}
-    async function pollStatus() {
     try {
-      const r = await api.get('/api/stream-history/status', { timeout: 4000 });
-      const data = r?.data || {};
-      const toNumberOrNull = (val) => {
-        const num = Number(val);
-        return Number.isFinite(num) ? num : null;
-      };
-      status.value = {
-        connected: !!data.connected,
-        live: !!data.live,
-        sampleCount: Number(data.sampleCount || 0),
-        lastSampleTs: toNumberOrNull(data.lastSampleTs),
-        avgSampleIntervalSec: toNumberOrNull(data.avgSampleIntervalSec),
-        latestSampleIntervalSec: toNumberOrNull(data.latestSampleIntervalSec),
-      };
+      const stored = localStorage.getItem(TZ_KEY);
+      if (stored != null && stored !== '') {
+        const parsed = Number(stored);
+        if (Number.isFinite(parsed) && Math.abs(parsed) <= 840) {
+          effectiveTzOffset.value = parsed;
+          if (parsed !== tzOffsetMinutes.value) {
+            previousTzOffset.value = parsed;
+            tzChangeVisible.value = true;
+          }
+        }
+      } else {
+        localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value));
+      }
     } catch {}
+    await refresh();
+    try {
+      const el = chartEl.value;
+      if (el && typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(() => {
+          try {
+            chartEl.value?.classList.add('reflowing');
+          } catch {}
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => {
+            try {
+              renderCharts(lastSummaryData.value || []);
+            } catch {}
+            try {
+              setTimeout(() => chartEl.value?.classList.remove('reflowing'), 120);
+            } catch {}
+          }, 80);
+        });
+        ro.observe(el);
+      } else {
+        const onR = () => {
+          if (resizeTimer) clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(() => renderCharts(lastSummaryData.value || []), 120);
+        };
+        window.addEventListener('resize', onR);
+        ro = {
+          disconnect() {
+            try {
+              window.removeEventListener('resize', onR);
+            } catch {}
+          },
+        };
+      }
+    } catch {}
+    async function pollStatus() {
+      try {
+        const r = await api.get('/api/stream-history/status', { timeout: 4000 });
+        const data = r?.data || {};
+        const toNumberOrNull = (val) => {
+          const num = Number(val);
+          return Number.isFinite(num) ? num : null;
+        };
+        status.value = {
+          connected: !!data.connected,
+          live: !!data.live,
+          sampleCount: Number(data.sampleCount || 0),
+          lastSampleTs: toNumberOrNull(data.lastSampleTs),
+          avgSampleIntervalSec: toNumberOrNull(data.avgSampleIntervalSec),
+          latestSampleIntervalSec: toNumberOrNull(data.latestSampleIntervalSec),
+        };
+      } catch {}
       pollTimer = setTimeout(pollStatus, 5000);
     }
     pollStatus();
   });
 
-  function acceptNewTimezone() { try { previousTzOffset.value = effectiveTzOffset.value; effectiveTzOffset.value = tzOffsetMinutes.value; localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value)); tzChangeVisible.value = false; scheduleRefresh(true); try { pushToast({ type: 'success', message: t('streamHistoryUseNewTz') }); } catch {} } catch {} }
-  function keepPreviousTimezone() { try { tzChangeVisible.value = false; localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value)); try { pushToast({ type: 'info', message: t('streamHistoryKeepPrevTz') }); } catch {} } catch {} }
-  function forceRefreshTimezone() { try { tzOffsetMinutes.value = -new Date().getTimezoneOffset(); if (tzOffsetMinutes.value !== effectiveTzOffset.value) { previousTzOffset.value = effectiveTzOffset.value; tzChangeVisible.value = true; } } catch {} }
+  function acceptNewTimezone() {
+    try {
+      previousTzOffset.value = effectiveTzOffset.value;
+      effectiveTzOffset.value = tzOffsetMinutes.value;
+      localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value));
+      tzChangeVisible.value = false;
+      scheduleRefresh(true);
+      try {
+        pushToast({ type: 'success', message: t('streamHistoryUseNewTz') });
+      } catch {}
+    } catch {}
+  }
+  function keepPreviousTimezone() {
+    try {
+      tzChangeVisible.value = false;
+      localStorage.setItem(TZ_KEY, String(effectiveTzOffset.value));
+      try {
+        pushToast({ type: 'info', message: t('streamHistoryKeepPrevTz') });
+      } catch {}
+    } catch {}
+  }
+  function forceRefreshTimezone() {
+    try {
+      tzOffsetMinutes.value = -new Date().getTimezoneOffset();
+      if (tzOffsetMinutes.value !== effectiveTzOffset.value) {
+        previousTzOffset.value = effectiveTzOffset.value;
+        tzChangeVisible.value = true;
+      }
+    } catch {}
+  }
 
-  function dispose() { try { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } } catch {}; try { if (refreshDebounceTimer) { clearTimeout(refreshDebounceTimer); refreshDebounceTimer = null; } } catch {}; try { if (resizeTimer) { clearTimeout(resizeTimer); resizeTimer = null; } } catch {}; try { if (nowTimer) { clearInterval(nowTimer); nowTimer = null; } } catch {}; try { if (ro && ro.disconnect) { ro.disconnect(); ro = null; } } catch {} }
+  function dispose() {
+    try {
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    } catch {}
+    try {
+      if (refreshDebounceTimer) {
+        clearTimeout(refreshDebounceTimer);
+        refreshDebounceTimer = null;
+      }
+    } catch {}
+    try {
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+        resizeTimer = null;
+      }
+    } catch {}
+    try {
+      if (nowTimer) {
+        clearInterval(nowTimer);
+        nowTimer = null;
+      }
+    } catch {}
+    try {
+      if (ro && ro.disconnect) {
+        ro.disconnect();
+        ro = null;
+      }
+    } catch {}
+  }
 
   return {
     chartEl,
@@ -553,10 +847,10 @@ export function createStreamHistoryPanel(t) {
     arUsd,
     earningsHidden,
     lastSummaryData,
-  recentStreams,
-  lastStream,
-  previousStream,
-  streamComparisons,
+    recentStreams,
+    lastStream,
+    previousStream,
+    streamComparisons,
     customRange,
     customRangeActive,
     initialClaimid,
@@ -597,5 +891,6 @@ export function createStreamHistoryPanel(t) {
 
 export default createStreamHistoryPanel;
 
-// eslint-disable-next-line no-undef
-if (typeof module !== 'undefined' && module?.exports) { module.exports = { createStreamHistoryPanel }; }
+if (typeof module !== 'undefined' && module?.exports) {
+  module.exports = { createStreamHistoryPanel };
+}
