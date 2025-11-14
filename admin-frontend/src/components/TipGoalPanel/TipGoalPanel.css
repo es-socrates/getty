@@ -112,7 +112,6 @@
 .tip-preview-card {
   width: min(100%, 420px);
   border-radius: 14px;
-  border: 1px solid var(--tg-border, #00ff7f);
   background: var(--tg-bg, #080c10);
   color: var(--tg-font, #ffffff);
   padding: 18px 20px;
@@ -145,7 +144,6 @@
   width: 100%;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tg-border, #00ff7f) 16%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tg-border, #00ff7f) 60%, transparent);
   overflow: hidden;
 }
 .tip-preview-card .tp-progress-fill {

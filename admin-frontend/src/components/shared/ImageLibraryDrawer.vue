@@ -57,9 +57,20 @@
                   <span v-if="itemUploaded(item)">{{ itemUploaded(item) }}</span>
                 </div>
               </div>
-              <button class="btn" type="button" @click="emitSelect(item)">
-                {{ t('imageLibraryUseImage') }}
-              </button>
+              <div class="img-actions">
+                <button class="btn" type="button" @click="emitSelect(item)">
+                  {{ t('imageLibraryUseImage') }}
+                </button>
+                <button
+                  v-if="props.allowDelete && canDelete(item)"
+                  class="btn-secondary btn-compact-secondary img-delete-btn"
+                  type="button"
+                  :disabled="isDeleting(item)"
+                  :aria-busy="isDeleting(item) ? 'true' : 'false'"
+                  @click="emitDelete(item)">
+                  {{ t('commonDelete') }}
+                </button>
+              </div>
             </li>
           </ul>
         </section>
@@ -83,16 +94,18 @@ import { useI18n } from 'vue-i18n';
  * @property {number} [height]
  */
 
-defineProps({
+const props = defineProps({
   open: { type: Boolean, required: true },
   items: { type: Array, required: true },
   loading: { type: Boolean, required: true },
   error: { type: String, default: '' },
   title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
+  allowDelete: { type: Boolean, default: false },
+  deletingId: { type: String, default: '' },
 });
 
-const emit = defineEmits(['close', 'select', 'refresh']);
+const emit = defineEmits(['close', 'select', 'refresh', 'delete']);
 const { t } = useI18n();
 
 const dateFormatter = computed(
@@ -112,6 +125,21 @@ function emitSelect(item) {
 
 function emitRefresh() {
   emit('refresh');
+}
+
+function emitDelete(item) {
+  emit('delete', item);
+}
+
+function canDelete(item) {
+  if (!item) return false;
+  const provider = (item.provider || '').toString().trim().toLowerCase();
+  return !provider || provider === 'supabase';
+}
+
+function isDeleting(item) {
+  if (!item || !item.id) return false;
+  return props.deletingId === item.id;
 }
 
 /**
@@ -356,6 +384,16 @@ function fallbackName(id) {
 
 .img-file-size {
   opacity: 0.78;
+}
+
+.img-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.img-delete-btn {
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {

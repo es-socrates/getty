@@ -871,9 +871,12 @@
       :items="imageLibrary.items"
       :loading="imageLibrary.loading"
       :error="imageLibrary.error"
+      :allow-delete="true"
+      :deleting-id="imageLibraryDeletingId"
       @close="closeImageLibraryDrawer"
       @refresh="fetchImageLibrary(true)"
-      @select="onLibraryImageSelect" />
+      @select="onLibraryImageSelect"
+      @delete="onLibraryImageDelete" />
   </section>
 </template>
 
@@ -886,6 +889,7 @@ import { useAnnouncementPanel } from './AnnouncementPanel.js';
 import { useStorageProviders } from '../../composables/useStorageProviders.js';
 import api from '../../services/api.js';
 import { pushToast } from '../../services/toast';
+import { confirmDialog } from '../../services/confirm.js';
 import './AnnouncementPanel.css';
 
 const { t } = useI18n();
@@ -960,6 +964,7 @@ const imageLibrary = reactive({
   open: false,
   target: null,
 });
+const imageLibraryDeletingId = ref('');
 
 const tabs = [
   { id: 'settings', label: t('settings') || t('announcementSettings') },
@@ -1052,6 +1057,60 @@ async function openImageLibraryDrawer(target) {
 function closeImageLibraryDrawer() {
   imageLibrary.open = false;
   imageLibrary.target = null;
+}
+
+function formatLibraryName(entry) {
+  if (!entry) return '';
+  return entry.originalName || entry.id || '';
+}
+
+async function onLibraryImageDelete(entry) {
+  if (!entry || !entry.id || imageLibraryDeletingId.value) return;
+  const provider = (entry.provider || '').toString().trim().toLowerCase();
+  if (provider && provider !== 'supabase') {
+    pushToast({ type: 'info', message: t('imageLibraryDeleteToastUnsupported') });
+    return;
+  }
+  const confirmed = await confirmDialog({
+    title: t('imageLibraryDeleteConfirmTitle'),
+    description: t('imageLibraryDeleteConfirmBody', {
+      fileName: formatLibraryName(entry) || t('imageLibraryUnknown'),
+    }),
+    confirmText: t('commonDelete'),
+    cancelText: t('commonCancel') || 'Cancel',
+    danger: true,
+  });
+  if (!confirmed) return;
+  try {
+    imageLibraryDeletingId.value = entry.id;
+    const { data } = await api.delete(
+      `/api/announcement/image-library/${encodeURIComponent(entry.id)}`
+    );
+    if (!data?.success) throw new Error('image_library_delete_failed');
+    imageLibrary.items = imageLibrary.items.filter((item) => item.id !== entry.id);
+    const clearedCount = Number(data?.clearedMessages) || 0;
+    const toastKey =
+      clearedCount > 0 ? 'imageLibraryDeleteToastSuccessCleared' : 'imageLibraryDeleteToastSuccess';
+    pushToast({ type: 'success', message: t(toastKey, { count: clearedCount }) });
+    if (newMsg?.value && newMsg.value.imageLibraryId === entry.id) {
+      clearNewImage();
+    }
+    if (editForm?.value && editForm.value.imageLibraryId === entry.id) {
+      clearEditImage();
+    }
+    if (clearedCount > 0) {
+      await load();
+    }
+  } catch (error) {
+    const code = error?.response?.data?.error;
+    if (code === 'image_library_delete_unsupported') {
+      pushToast({ type: 'info', message: t('imageLibraryDeleteToastUnsupported') });
+    } else {
+      pushToast({ type: 'error', message: t('imageLibraryDeleteToastError') });
+    }
+  } finally {
+    imageLibraryDeletingId.value = '';
+  }
 }
 
 function applyLibraryToNew(entry) {

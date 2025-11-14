@@ -34,8 +34,7 @@ const DEFAULT_META = {
   siteName: 'getty',
   ogType: 'website',
   locale: 'en_US',
-  image:
-    'https://aqet2p7rnwvvcvraawg2ojq7sfyals6jav2dh6vm7occr347kfsa.arweave.net/BAk9P_Ftq1FWIAWNpyYfkXAFy8kFdDP6rPuEKO-fUWQ',
+  image: 'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak',
   imageAlt: 'getty',
   imageType: 'image/png',
   imageWidth: '512',

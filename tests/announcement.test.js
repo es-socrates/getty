@@ -129,6 +129,31 @@ describe('Announcement API', () => {
     expect(update.body.message.imageUrl).toBe(null);
   });
 
+  it('DELETE /api/announcement/image-library/:id removes entry and clears messages', async () => {
+    const imgBuffer = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AApMBgYhRPJwAAAAASUVORK5CYII=','base64');
+    const marker = `Image library delete ${Date.now()}`;
+    const create = await base
+      .post('/api/announcement/message')
+      .field('text', marker)
+      .attach('image', imgBuffer, { filename: 'library-delete.png', contentType: 'image/png' });
+    expect(create.status).toBe(200);
+    const libId = create.body?.libraryItem?.id || create.body?.message?.imageLibraryId;
+    expect(libId).toBeTruthy();
+    const del = await base.delete(`/api/announcement/image-library/${encodeURIComponent(libId)}`);
+    expect(del.status).toBe(200);
+    expect(del.body.success).toBe(true);
+    expect(del.body.clearedMessages).toBeGreaterThanOrEqual(1);
+    const list = await base.get('/api/announcement/image-library');
+    expect(list.status).toBe(200);
+    const hasEntry = Array.isArray(list.body.items) && list.body.items.some((item) => item && item.id === libId);
+    expect(hasEntry).toBe(false);
+    const config = await base.get('/api/announcement');
+    const cleared = config.body?.config?.messages?.find((m) => m && m.text === marker);
+    expect(cleared).toBeTruthy();
+    expect(cleared.imageUrl).toBe(null);
+    expect(cleared.imageLibraryId).toBe('');
+  });
+
   it('POST /api/announcement defaultDurationSeconds applyAllDurations flow', async () => {
     const marker = 'DD-' + Date.now();
     await createMessage(marker + ' A');

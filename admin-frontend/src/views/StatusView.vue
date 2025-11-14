@@ -5,13 +5,16 @@
       <MetricsPanel />
 
       <div ref="historySentinel"></div>
-      <component v-if="showHistory" :is="AsyncStreamHistoryPanel" class="animate-fade-in" />
-      <div
-        v-else
-        class="os-card p-4 text-xs opacity-60 border border-[var(--card-border)] rounded-os-sm flex items-center gap-2">
-        <span
-          class="inline-block w-3 h-3 border-2 border-[var(--border)] border-t-[var(--text)] rounded-full animate-spin"></span>
-        <span>Loading history…</span>
+      <div class="history-container">
+        <component
+          v-if="showHistory"
+          :is="AsyncStreamHistoryPanel"
+          class="animate-fade-in history-panel-card" />
+        <div v-else class="history-placeholder">
+          <span
+            class="inline-block w-3 h-3 border-2 border-[var(--border)] border-t-[var(--text)] rounded-full animate-spin"></span>
+          <span>Loading history…</span>
+        </div>
       </div>
     </div>
   </section>
@@ -38,10 +41,6 @@ function revealHistory() {
 }
 
 onMounted(() => {
-  try {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  } catch {}
-
   const fallbackTimer = setTimeout(revealHistory, 2500);
 
   try {
@@ -75,14 +74,36 @@ onMounted(() => {
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 .animate-fade-in {
   animation: fade-in 240ms ease-out;
+}
+.history-container {
+  --history-frame: clamp(640px, 82vh, 1180px);
+  min-height: var(--history-frame);
+  position: relative;
+}
+.history-panel-card {
+  min-height: inherit;
+}
+.history-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: inherit;
+  border: 1px solid var(--card-border);
+  border-radius: var(--os-card-radius, 16px);
+  padding: 1.5rem;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  background: var(--card-bg);
+}
+.history-placeholder span:last-child {
+  display: inline-block;
 }
 </style>

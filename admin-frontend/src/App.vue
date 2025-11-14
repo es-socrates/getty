@@ -1,8 +1,6 @@
 <template>
   <a href="#main" class="skip-link">Skip to main content</a>
-  <div
-    class="admin-container mx-auto px-6 py-5 transition-[padding] duration-300 max-w-[1330px]"
-    :class="{ dark: isDark }">
+  <div class="admin-container mx-auto px-6 py-4 max-w-[1330px]" :class="{ dark: isDark }">
     <header
       class="os-header flex items-center justify-between pb-5 mb-8 border-b border-border"
       role="banner">
@@ -643,6 +641,35 @@ function applyTheme(dark, persist = true) {
   if (isDark.value === dark && !persist) return;
   isDark.value = dark;
   const mode = dark ? 'dark' : 'light';
+  let allowTransition = true;
+  try {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mq?.matches) allowTransition = false;
+  } catch {}
+  if (allowTransition) {
+    try {
+      if (themeTransitionTimer) {
+        clearTimeout(themeTransitionTimer);
+        themeTransitionTimer = null;
+      }
+      document.documentElement.classList.add('theme-transition');
+      document.body?.classList.add('theme-transition');
+      themeTransitionTimer = window.setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+        document.body?.classList.remove('theme-transition');
+        themeTransitionTimer = null;
+      }, 320);
+    } catch {}
+  } else {
+    try {
+      if (themeTransitionTimer) {
+        clearTimeout(themeTransitionTimer);
+        themeTransitionTimer = null;
+      }
+      document.documentElement.classList.remove('theme-transition');
+      document.body?.classList.remove('theme-transition');
+    } catch {}
+  }
   document.documentElement.classList.toggle('dark', dark);
   document.documentElement.classList.toggle('light', !dark);
   try {
@@ -722,6 +749,7 @@ function setHeaderHeightVar() {
 }
 let resizeTimer = null;
 let storageHandler = null;
+let themeTransitionTimer = null;
 function onResize() {
   if (resizeTimer) clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {

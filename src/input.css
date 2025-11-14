@@ -258,7 +258,7 @@
   }
 
   .dashboard-container {
-    @apply max-w-7xl mx-auto p-6 bg-gray-900;
+    @apply max-w-7xl mx-auto p-3 bg-gray-900;
   }
 
   .dashboard-header {

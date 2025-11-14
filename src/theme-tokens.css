@@ -30,20 +30,22 @@
   --badge-configured-fg: rgb(105 77 252);
   --badge-inactive-bg: rgba(239, 68, 68, 0.1);
   --badge-inactive-fg: #ef4444;
-}
-
-.modern-card {
-  --modern-bg: #fff;
   --modern-text: #0a0a0a;
   --modern-accent: #16a34a;
   --modern-progress-bg: #e5e7eb;
   background: var(--modern-bg);
   color: var(--modern-text);
-  border: 1px solid rgb(0 0 0 / 6%);
-  border-radius: 12px;
   padding: 14px;
   width: 100%;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.28s ease, border-color 0.28s ease, color 0.28s ease;
 }
 .modern-card .modern-top {
   display: flex;
@@ -139,9 +141,6 @@
   --badge-active-bg: rgba(34, 197, 94, 0.15);
   --badge-configured-bg: rgba(105, 77, 252, 0.2);
   --badge-inactive-bg: rgba(239, 68, 68, 0.15);
-}
-* {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 html:not(.dark) {
