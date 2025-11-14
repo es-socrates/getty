@@ -5,11 +5,19 @@ const embedMaxItems = (() => {
     if (!root) return 50;
     const v = parseInt(root.getAttribute('data-ach-max') || '50', 10);
     return Number.isFinite(v) && v > 0 ? Math.min(200, Math.max(5, v)) : 50;
-  } catch { return 50; }
+  } catch {
+    return 50;
+  }
 })();
 
-function qs(sel, el = document) { return el.querySelector(sel); }
-function h(tag, cls) { const el = document.createElement(tag); if (cls) el.className = cls; return el; }
+function qs(sel, el = document) {
+  return el.querySelector(sel);
+}
+function h(tag, cls) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  return el;
+}
 let __i18n = { 'ach.widget.unlocked': 'Achievement unlocked', 'ach.widget.now': 'Now' };
 let __lang = 'en';
 
@@ -40,11 +48,12 @@ async function detectPreferredLanguage() {
   } catch {}
   if (!preferred) {
     try {
-      preferred = localStorage.getItem('getty-language')
-        || localStorage.getItem('lang')
-        || localStorage.getItem('language')
-        || localStorage.getItem('i18nextLng')
-        || '';
+      preferred =
+        localStorage.getItem('getty-language') ||
+        localStorage.getItem('lang') ||
+        localStorage.getItem('language') ||
+        localStorage.getItem('i18nextLng') ||
+        '';
     } catch {}
   }
   if (!preferred) preferred = readCookie('getty_lang');
@@ -52,7 +61,7 @@ async function detectPreferredLanguage() {
   if (!preferred) preferred = readCookie('language');
   if (!preferred) {
     try {
-      preferred = navigator.language || navigator.languages && navigator.languages[0] || '';
+      preferred = navigator.language || (navigator.languages && navigator.languages[0]) || '';
     } catch {}
   }
   if (!preferred && document.documentElement && document.documentElement.lang) {
@@ -101,8 +110,12 @@ async function loadLang(forcedLang) {
 
   __lang = 'en';
 }
-function t(key, fallback) { return (__i18n && __i18n[key]) || fallback || key; }
-function nowLabel() { return t('ach.widget.now', 'Now'); }
+function t(key, fallback) {
+  return (__i18n && __i18n[key]) || fallback || key;
+}
+function nowLabel() {
+  return t('ach.widget.now', 'Now');
+}
 
 try {
   window.addEventListener('storage', (event) => {
@@ -117,13 +130,16 @@ try {
 } catch {}
 
 let sharedAudio = { audioSource: 'remote', hasCustomAudio: false, enabled: true, volume: 0.5 };
-const REMOTE_SOUND_URL = 'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
+const REMOTE_SOUND_URL =
+  'https://52agquhrbhkx3u72ikhun7oxngtan55uvxqbp4pzmhslirqys6wq.arweave.net/7oBoUPEJ1X3T-kKPRv3XaaYG97St4Bfx-WHktEYYl60';
 
 async function loadSharedAudio() {
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const widgetToken = urlParams.get('token');
-    const url = widgetToken ? `/api/goal-audio-settings?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/goal-audio-settings';
+    const url = widgetToken
+      ? `/api/goal-audio-settings?widgetToken=${encodeURIComponent(widgetToken)}`
+      : '/api/goal-audio-settings';
     const r = await fetch(url, { cache: 'no-store' });
     if (r.ok) {
       const j = await r.json();
@@ -138,7 +154,8 @@ async function loadSharedAudio() {
 }
 
 function resolveAchievementSound(urlFromCfg) {
-  if (sharedAudio.audioSource === 'custom' && sharedAudio.hasCustomAudio) return '/api/goal-custom-audio';
+  if (sharedAudio.audioSource === 'custom' && sharedAudio.hasCustomAudio)
+    return '/api/goal-custom-audio';
 
   return urlFromCfg || REMOTE_SOUND_URL;
 }
@@ -149,7 +166,9 @@ async function getAchievementAudioUrl(urlFromCfg) {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const widgetToken = urlParams.get('token');
-      const url = widgetToken ? `/api/goal-custom-audio?widgetToken=${encodeURIComponent(widgetToken)}` : '/api/goal-custom-audio';
+      const url = widgetToken
+        ? `/api/goal-custom-audio?widgetToken=${encodeURIComponent(widgetToken)}`
+        : '/api/goal-custom-audio';
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
@@ -162,33 +181,62 @@ async function getAchievementAudioUrl(urlFromCfg) {
   return baseUrl;
 }
 
-function perceptual(vol) { return Math.pow(vol, 2); }
+function perceptual(vol) {
+  return Math.pow(vol, 2);
+}
 
 async function playSound(urlFromCfg, volOverride) {
   try {
     if (!sharedAudio.enabled) return;
     const audioUrl = await getAchievementAudioUrl(urlFromCfg);
-    const linear = typeof volOverride === 'number'
-      ? Math.max(0, Math.min(1, volOverride))
-      : (typeof sharedAudio.volume === 'number' ? Math.max(0, Math.min(1, sharedAudio.volume)) : 0.5);
+    const linear =
+      typeof volOverride === 'number'
+        ? Math.max(0, Math.min(1, volOverride))
+        : typeof sharedAudio.volume === 'number'
+          ? Math.max(0, Math.min(1, sharedAudio.volume))
+          : 0.5;
     const effective = perceptual(linear);
     const a = new Audio(audioUrl);
     a.volume = effective;
-    a.play().catch(()=>{});
+    a.play().catch(() => {});
   } catch {}
 }
 
-async function getJson(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error('http '+r.status); return r.json(); }
+async function getJson(url) {
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
 
-let cfg = { enabled: true, theme: 'light', position: 'top-right', sound: { enabled: false, url: '', volume: 0.5 }, dnd: false, historySize: 10 };
+let cfg = {
+  enabled: true,
+  theme: 'light',
+  position: 'top-right',
+  sound: { enabled: false, url: '', volume: 0.5 },
+  dnd: false,
+  historySize: 10,
+};
 let queue = [];
 let showing = false;
 
 function applyPosition() {
   if (!root) return;
-  if (isEmbed) { root.classList.add('ach-embed'); return; }
-  root.classList.remove('ach-pos-top-right','ach-pos-top-left','ach-pos-bottom-right','ach-pos-bottom-left');
-  const map = { 'top-right':'ach-pos-top-right', 'top-left':'ach-pos-top-left', 'bottom-right':'ach-pos-bottom-right', 'bottom-left':'ach-pos-bottom-left' };
+  if (isEmbed) {
+    root.classList.add('ach-embed');
+    return;
+  }
+  root.classList.remove(
+    'ach-pos-top-right',
+    'ach-pos-top-left',
+    'ach-pos-bottom-right',
+    'ach-pos-bottom-left'
+  );
+  const map = {
+    'top-right': 'ach-pos-top-right',
+    'top-left': 'ach-pos-top-left',
+    'bottom-right': 'ach-pos-bottom-right',
+    'bottom-left': 'ach-pos-bottom-left',
+  };
   root.classList.add(map[cfg.position] || 'ach-pos-top-right');
 }
 
@@ -202,16 +250,23 @@ async function notify(item) {
     if (!root) {
       return;
     }
-    if (root.firstChild) root.insertBefore(card, root.firstChild); else root.appendChild(card);
+    if (root.firstChild) root.insertBefore(card, root.firstChild);
+    else root.appendChild(card);
     if (cfg.sound && cfg.sound.enabled) await playSound(cfg.sound.url, cfg.sound.volume);
-    try { trimEmbeddedOverflow(); } catch {}
+    try {
+      trimEmbeddedOverflow();
+    } catch {}
     return;
   }
 
   queue.push(item);
   if (!showing) flush();
-}async function flush() {
-  if (!queue.length) { showing = false; return; }
+}
+async function flush() {
+  if (!queue.length) {
+    showing = false;
+    return;
+  }
   showing = true;
   const it = queue.shift();
   const card = buildCard(it);
@@ -219,8 +274,15 @@ async function notify(item) {
   if (cfg.sound && cfg.sound.enabled) await playSound(cfg.sound.url, cfg.sound.volume);
   const duration = 8000;
   setTimeout(() => {
-    try { card.classList.add('ach-hide'); } catch {}
-    setTimeout(() => { try { card.remove(); } catch {} flush(); }, 260);
+    try {
+      card.classList.add('ach-hide');
+    } catch {}
+    setTimeout(() => {
+      try {
+        card.remove();
+      } catch {}
+      flush();
+    }, 260);
   }, duration);
 }
 
@@ -242,21 +304,35 @@ function trophySvg() {
 
 function buildCard(it) {
   const card = h('div', 'ach-card' + (cfg.theme === 'dark' ? ' dark' : ''));
-  try { if (it && it.id) card.setAttribute('data-id', String(it.id)); } catch {}
-  const icon = h('div', 'ach-icon'); icon.innerHTML = trophySvg();
-  try { if (it && it.category) icon.setAttribute('data-cat', String(it.category)); } catch {}
+  try {
+    if (it && it.id) card.setAttribute('data-id', String(it.id));
+  } catch {}
+  const icon = h('div', 'ach-icon');
+  icon.innerHTML = trophySvg();
+  try {
+    if (it && it.category) icon.setAttribute('data-cat', String(it.category));
+  } catch {}
   const content = h('div', 'ach-content');
-  const app = h('div', 'ach-app'); app.textContent = t('ach.widget.unlocked', 'Achievement unlocked');
+  const app = h('div', 'ach-app');
+  app.textContent = t('ach.widget.unlocked', 'Achievement unlocked');
   const title = h('div', 'ach-title');
   const desc = h('div', 'ach-desc');
-  const titleKey = it.titleKey; const descKey = it.descKey;
-  const resolvedTitle = titleKey ? t(titleKey, it.title || 'Achievement') : (it.title || 'Achievement');
-  const resolvedDesc = descKey ? t(descKey, it.desc || '') : (it.desc || '');
+  const titleKey = it.titleKey;
+  const descKey = it.descKey;
+  const resolvedTitle = titleKey
+    ? t(titleKey, it.title || 'Achievement')
+    : it.title || 'Achievement';
+  const resolvedDesc = descKey ? t(descKey, it.desc || '') : it.desc || '';
   title.textContent = resolvedTitle;
   desc.textContent = resolvedDesc;
-  const time = h('div', 'ach-time'); time.textContent = nowLabel();
-  content.appendChild(app); content.appendChild(title); content.appendChild(desc);
-  card.appendChild(icon); card.appendChild(content); card.appendChild(time);
+  const time = h('div', 'ach-time');
+  time.textContent = nowLabel();
+  content.appendChild(app);
+  content.appendChild(title);
+  content.appendChild(desc);
+  card.appendChild(icon);
+  card.appendChild(content);
+  card.appendChild(time);
   return card;
 }
 
@@ -271,14 +347,19 @@ function trimEmbeddedOverflow() {
 function fadeOutAndRemoveLast() {
   const last = root && root.lastElementChild;
   if (!last) return;
-  try { last.classList.add('ach-hide'); } catch {}
-  setTimeout(() => { try { last.remove(); } catch {} }, 260);
+  try {
+    last.classList.add('ach-hide');
+  } catch {}
+  setTimeout(() => {
+    try {
+      last.remove();
+    } catch {}
+  }, 260);
 }
 
 async function boot() {
-
   await loadLang();
-  try { 
+  try {
     const response = await getJson('/api/achievements/config');
     cfg = response.data || {};
   } catch {}
@@ -299,7 +380,8 @@ async function boot() {
     if (st && Array.isArray(st.notifications)) {
       const recent = st.notifications.slice(-Math.max(1, Math.min(cfg.historySize || 10, 20)));
 
-      const old = cfg.sound?.enabled; if (old) cfg.sound.enabled = false;
+      const old = cfg.sound?.enabled;
+      if (old) cfg.sound.enabled = false;
       for (const n of recent) {
         await notify(n);
       }
@@ -331,7 +413,7 @@ async function getCurrentNamespace() {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', '/api/auth/wander/me', true);
     xhr.setRequestHeader('Accept', 'application/json');
-    xhr.onreadystatechange = function() {
+    xhr.onreadystatechange = function () {
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
           try {
@@ -345,7 +427,7 @@ async function getCurrentNamespace() {
         }
       }
     };
-    xhr.onerror = function() {
+    xhr.onerror = function () {
       resolve(null);
     };
     xhr.send();
@@ -359,7 +441,7 @@ async function connectWebSocket() {
   } else {
     url += '/';
   }
-  
+
   try {
     ws = new WebSocket(url);
     ws.onmessage = (ev) => {
@@ -372,16 +454,26 @@ async function connectWebSocket() {
         if (msg && msg.type === 'achievement-clear' && msg.data && msg.data.id) {
           const clearId = String(msg.data.id);
 
-          try { queue = queue.filter(it => String(it?.id) !== clearId); } catch {}
+          try {
+            queue = queue.filter((it) => String(it?.id) !== clearId);
+          } catch {}
 
           try {
             const nodes = root ? root.querySelectorAll('.ach-card[data-id]') : [];
-            nodes && nodes.forEach && nodes.forEach(node => {
-              if (String(node.getAttribute('data-id')) === clearId) {
-                try { node.classList.add('ach-hide'); } catch {}
-                setTimeout(() => { try { node.remove(); } catch {} }, 260);
-              }
-            });
+            nodes &&
+              nodes.forEach &&
+              nodes.forEach((node) => {
+                if (String(node.getAttribute('data-id')) === clearId) {
+                  try {
+                    node.classList.add('ach-hide');
+                  } catch {}
+                  setTimeout(() => {
+                    try {
+                      node.remove();
+                    } catch {}
+                  }, 260);
+                }
+              });
           } catch {}
         }
         if (msg && msg.type === 'goalAudioSettingsUpdate' && msg.data) {
@@ -389,18 +481,19 @@ async function connectWebSocket() {
             sharedAudio = {
               audioSource: msg.data.audioSource || sharedAudio.audioSource,
               hasCustomAudio: !!msg.data.hasCustomAudio,
-              enabled: typeof msg.data.enabled === 'boolean' ? msg.data.enabled : sharedAudio.enabled,
-              volume: typeof msg.data.volume === 'number' && msg.data.volume >= 0 && msg.data.volume <= 1 ? msg.data.volume : sharedAudio.volume,
+              enabled:
+                typeof msg.data.enabled === 'boolean' ? msg.data.enabled : sharedAudio.enabled,
+              volume:
+                typeof msg.data.volume === 'number' && msg.data.volume >= 0 && msg.data.volume <= 1
+                  ? msg.data.volume
+                  : sharedAudio.volume,
             };
           } catch {}
         }
-      } catch (e) {
-      }
+      } catch (e) {}
     };
-    ws.onopen = () => {
-    };
-    ws.onerror = () => {
-    };
+    ws.onopen = () => {};
+    ws.onerror = () => {};
     ws.onclose = () => {
       setTimeout(connectWebSocket, 1000);
     };

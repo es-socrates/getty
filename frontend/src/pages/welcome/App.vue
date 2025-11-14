@@ -175,14 +175,19 @@ onBeforeUnmount(() => {
   overflow: hidden;
   display: grid;
   place-items: center;
-  padding: 0 1.5rem;
+  --welcome-max-width: 80rem;
+  --welcome-side-padding: 1.5rem;
+  padding: 1.5rem 0 2rem;
 }
 
 .header {
   position: absolute;
   top: 1.5rem;
-  left: 1.5rem;
-  right: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--welcome-max-width);
+  padding: 0 var(--welcome-side-padding);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -190,6 +195,10 @@ onBeforeUnmount(() => {
 }
 
 .wrap {
+  width: 100%;
+  max-width: var(--welcome-max-width);
+  margin: 0 auto;
+  padding: 0 var(--welcome-side-padding);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -227,9 +236,9 @@ onBeforeUnmount(() => {
     justify-content: center;
     gap: 0.5rem;
     flex-wrap: wrap;
-    left: 1rem;
-    right: 1rem;
     top: 1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 }
 </style>

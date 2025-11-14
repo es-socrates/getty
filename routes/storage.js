@@ -1,4 +1,9 @@
-const { getStorage, STORAGE_PROVIDERS, isSupabaseConfigured, isTurboConfigured } = require('../lib/storage');
+const {
+  getStorage,
+  STORAGE_PROVIDERS,
+  isSupabaseConfigured,
+  isTurboConfigured,
+} = require('../lib/storage');
 
 function registerStorageRoutes(app) {
   app.get('/api/storage/providers', (_req, res) => {
@@ -17,12 +22,11 @@ function registerStorageRoutes(app) {
         } catch {}
       }
 
-      const rawPreferred = typeof process.env.STORAGE_PROVIDER === 'string'
-        ? process.env.STORAGE_PROVIDER.trim().toLowerCase()
-        : '';
-      const envPreferred = rawPreferred === 'arweave'
-        ? STORAGE_PROVIDERS.TURBO
-        : rawPreferred;
+      const rawPreferred =
+        typeof process.env.STORAGE_PROVIDER === 'string'
+          ? process.env.STORAGE_PROVIDER.trim().toLowerCase()
+          : '';
+      const envPreferred = rawPreferred === 'arweave' ? STORAGE_PROVIDERS.TURBO : rawPreferred;
 
       const providers = [
         {

@@ -8,7 +8,9 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
       let ns = req?.ns?.admin || req?.ns?.pub || null;
       if (!ns && req.query && req.query.ns) ns = String(req.query.ns);
       return ns;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   router.get('/config', async (req, res) => {
@@ -17,7 +19,7 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
       const { config: cfg, meta } = await achievements.getConfigWithMeta(ns);
 
       try {
-        const hosted = (!!process.env.REDIS_URL) || (process.env.GETTY_REQUIRE_SESSION === '1');
+        const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
         if (hosted) {
           const { canReadSensitive } = require('../lib/authz');
           const allowSensitive = canReadSensitive(req);
@@ -41,7 +43,7 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
       const { config: cfg, meta } = await achievements.getConfigWithMeta(ns);
 
       try {
-        const hosted = (!!process.env.REDIS_URL) || (process.env.GETTY_REQUIRE_SESSION === '1');
+        const hosted = !!process.env.REDIS_URL || process.env.GETTY_REQUIRE_SESSION === '1';
         if (hosted) {
           const { canReadSensitive } = require('../lib/authz');
           const allowSensitive = canReadSensitive(req);
@@ -76,8 +78,10 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
       const { id } = req.params;
       if (!id) return res.status(400).json({ error: 'missing_id' });
 
-  if (/^v_/i.test(String(id))) return res.status(400).json({ error: 'reset_not_allowed_for_viewers' });
-  if (String(id) === 't_first') return res.status(400).json({ error: 'reset_not_allowed_for_t_first' });
+      if (/^v_/i.test(String(id)))
+        return res.status(400).json({ error: 'reset_not_allowed_for_viewers' });
+      if (String(id) === 't_first')
+        return res.status(400).json({ error: 'reset_not_allowed_for_t_first' });
       achievements.resetAchievement(ns, id);
       res.json({ ok: true });
     } catch (e) {
@@ -110,7 +114,7 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
         desc: achievements._t('en', pick.descKey, pick.desc || ''),
         category: pick.category,
         ts: now,
-        test: true
+        test: true,
       };
       const payload = { type: 'achievement', data };
 
@@ -136,7 +140,7 @@ module.exports = function registerAchievementsRoutes(app, achievements, limiter,
         desc: achievements._t('en', pick.descKey, pick.desc || ''),
         category: pick.category,
         ts: now,
-        test: true
+        test: true,
       };
       const payload = { type: 'achievement', data };
 

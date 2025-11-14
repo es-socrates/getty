@@ -1,9 +1,7 @@
 export function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text || '';
-  return div.innerHTML
-    .replace(/&lt;stkr&gt;/g,'<stkr>')
-    .replace(/&lt;\/stkr&gt;/g,'</stkr>');
+  return div.innerHTML.replace(/&lt;stkr&gt;/g, '<stkr>').replace(/&lt;\/stkr&gt;/g, '</stkr>');
 }
 
 export function formatWithMapping(rawText, emojiMapping) {
@@ -19,7 +17,9 @@ export function formatWithMapping(rawText, emojiMapping) {
         return `<img src="${decoded}" alt="Sticker" class="comment-sticker" loading="lazy" />`;
       }
       return m;
-    } catch { return m; }
+    } catch {
+      return m;
+    }
   });
   if (emojiMapping && typeof emojiMapping === 'object') {
     for (const [code, url] of Object.entries(emojiMapping)) {
@@ -27,7 +27,10 @@ export function formatWithMapping(rawText, emojiMapping) {
       const escapedCode = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const isSticker = url.includes('/stickers/');
       const cls = isSticker ? 'comment-sticker' : 'comment-emoji';
-      formatted = formatted.replace(new RegExp(escapedCode, 'g'), `<img src="${url}" alt="${code}" class="${cls}" loading="lazy" />`);
+      formatted = formatted.replace(
+        new RegExp(escapedCode, 'g'),
+        `<img src="${url}" alt="${code}" class="${cls}" loading="lazy" />`
+      );
     }
   }
   return formatted;

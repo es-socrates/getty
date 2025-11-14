@@ -21,7 +21,7 @@ body.user-dashboard-mode .os-header {
 const LEGACY_SCRIPTS = [
   { src: '/js/index-ui.js', defer: true },
   { src: '/js/public-wallet-login.js', defer: true },
-  { src: '/js/modules/achievements-widget.js', module: true, defer: true }
+  { src: '/js/modules/achievements-widget.js', module: true, defer: true },
 ];
 
 function shouldAugmentUrl(url) {
@@ -46,7 +46,8 @@ function formatUrlForInput(original, url) {
 }
 
 function setupWidgetTokenAdapters(widgetToken) {
-  const normalizedToken = (typeof widgetToken === 'string' && widgetToken.trim()) ? widgetToken.trim() : null;
+  const normalizedToken =
+    typeof widgetToken === 'string' && widgetToken.trim() ? widgetToken.trim() : null;
   const enablePublicFallback = !normalizedToken;
 
   if (!window.__GETTY_FETCH_PATCHED__ && typeof window.fetch === 'function') {
@@ -90,7 +91,7 @@ function setupWidgetTokenAdapters(widgetToken) {
   if (!window.__GETTY_WS_PATCHED__ && typeof window.WebSocket === 'function') {
     const OriginalWebSocket = window.WebSocket;
 
-    const patchedWebSocket = function(resource, protocols) {
+    const patchedWebSocket = function (resource, protocols) {
       try {
         let originalString = null;
         if (typeof resource === 'string') {
@@ -118,7 +119,9 @@ function setupWidgetTokenAdapters(widgetToken) {
     };
 
     patchedWebSocket.prototype = OriginalWebSocket.prototype;
-    try { Object.setPrototypeOf(patchedWebSocket, OriginalWebSocket); } catch {}
+    try {
+      Object.setPrototypeOf(patchedWebSocket, OriginalWebSocket);
+    } catch {}
 
     window.WebSocket = patchedWebSocket;
     window.__GETTY_WS_PATCHED__ = true;

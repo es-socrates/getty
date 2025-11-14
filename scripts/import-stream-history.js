@@ -8,10 +8,7 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const {
-  ensureTenant,
-  replaceTenantHistory
-} = require('../lib/db/stream-history');
+const { ensureTenant, replaceTenantHistory } = require('../lib/db/stream-history');
 
 function parseArgs(argv) {
   const args = {};
@@ -64,7 +61,7 @@ function normalizeSegments(rawSegments) {
         end,
         source: segment?.source || null,
         ingest_version: segment?.ingest_version || null,
-        payload: segment || null
+        payload: segment || null,
       };
     })
     .filter(Boolean);
@@ -82,7 +79,7 @@ function normalizeSamples(rawSamples) {
         live: !!entry?.live,
         viewers,
         ingest_version: entry?.ingest_version || null,
-        payload: entry || null
+        payload: entry || null,
       };
     })
     .filter(Boolean);
@@ -99,7 +96,9 @@ async function main() {
     const sourceLabel = args.source ? String(args.source) : 'json-import';
 
     if (!tenantId) {
-      console.error('Usage: node scripts/import-stream-history.js --tenant <tenantId> [--file <path>] [--claim <claimId>] [--dry-run]');
+      console.error(
+        'Usage: node scripts/import-stream-history.js --tenant <tenantId> [--file <path>] [--claim <claimId>] [--dry-run]'
+      );
       process.exit(1);
     }
 
@@ -108,7 +107,13 @@ async function main() {
     const segments = normalizeSegments(raw.segments);
     const samples = normalizeSamples(raw.samples);
 
-    console.warn('[import] tenant=%s file=%s segments=%d samples=%d', tenantId, filePath, segments.length, samples.length);
+    console.warn(
+      '[import] tenant=%s file=%s segments=%d samples=%d',
+      tenantId,
+      filePath,
+      segments.length,
+      samples.length
+    );
 
     if (dryRun) {
       console.warn('[import] dry run – no changes applied');
@@ -119,7 +124,7 @@ async function main() {
       tenantId,
       claimId,
       adminNamespace: tenantId,
-      pubNamespace
+      pubNamespace,
     });
 
     await replaceTenantHistory({
@@ -127,7 +132,7 @@ async function main() {
       segments,
       samples,
       source: sourceLabel,
-      ingestVersion
+      ingestVersion,
     });
 
     console.warn('[import] completed successfully');

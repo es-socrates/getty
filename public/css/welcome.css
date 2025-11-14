@@ -6,6 +6,8 @@
   --border-color: #2d333b;
   --text-primary: var(--fg);
   --bg-card: #0f1214;
+  --welcome-max-width: 80rem;
+  --welcome-side-padding: 1.5rem;
 }
 
 @media (prefers-color-scheme: light) {
@@ -69,21 +71,26 @@ body {
 .header {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: var(--welcome-max-width);
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 12px var(--welcome-side-padding);
   z-index: 10;
 }
 
 .wrap {
+  width: 100%;
+  max-width: var(--welcome-max-width);
+  margin: 0 auto;
   min-height: 100%;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 0 var(--welcome-side-padding);
 }
 
 .card {
@@ -215,6 +222,12 @@ html:not(.dark) .dark-logo {
   font-size: 0.95rem;
   max-width: 420px;
   line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --welcome-side-padding: 1rem;
+  }
 }
 
 html:not(.dark) .light-logo {

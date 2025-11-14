@@ -16,13 +16,13 @@ function listFiles(dir) {
   return out;
 }
 
-const files = listFiles(PUBLIC_JS).filter(f => !/[/\\]min[/\\]/.test(f));
+const files = listFiles(PUBLIC_JS).filter((f) => !/[/\\]min[/\\]/.test(f));
 const forbidden = [];
 const pattern = /(new\s+WebSocket\([^\n]*\?token=)|((ws|wss):\/\/[^\n]*\?token=)/g;
 
 for (const file of files) {
   if (file.endsWith(path.join('lib', 'token-compat.js'))) continue;
-  const rel = path.relative(ROOT, file).replace(/\\/g,'/');
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/');
   const content = fs.readFileSync(file, 'utf8');
 
   if (!content.includes('?token=')) continue;
@@ -45,6 +45,8 @@ if (forbidden.length) {
   process.exit(1);
 } else {
   if (process.env.GETTY_VERBOSE_GUARDS === '1') {
-    try { console.warn('[guard-ws-token] OK: no forbidden WebSocket ?token= patterns found.'); } catch {}
+    try {
+      console.warn('[guard-ws-token] OK: no forbidden WebSocket ?token= patterns found.');
+    } catch {}
   }
 }

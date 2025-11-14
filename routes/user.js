@@ -15,9 +15,10 @@ function registerUserRoutes(app, _options = {}) {
 
   app.get('/api/user/config', async (req, res) => {
     try {
-      const queryWidgetToken = typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
-        ? req.query.widgetToken.trim()
-        : null;
+      const queryWidgetToken =
+        typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+          ? req.query.widgetToken.trim()
+          : null;
       if (queryWidgetToken && store) {
         try {
           const walletHash = await store.get(queryWidgetToken, 'walletHash');
@@ -50,15 +51,15 @@ function registerUserRoutes(app, _options = {}) {
 
       const defaultConfig = {
         lastTip: {
-          title: 'Last Tip'
+          title: 'Last Tip',
         },
         goal: {
-          title: 'Monthly Goal'
+          title: 'Monthly Goal',
         },
         colors: {
           primary: '#3b82f6',
-          secondary: '#1f2937'
-        }
+          secondary: '#1f2937',
+        },
       };
 
       const mergedConfig = { ...defaultConfig, ...userConfig };
@@ -72,9 +73,10 @@ function registerUserRoutes(app, _options = {}) {
 
   app.post('/api/user/config', async (req, res) => {
     try {
-      const queryWidgetToken = typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
-        ? req.query.widgetToken.trim()
-        : null;
+      const queryWidgetToken =
+        typeof req.query?.widgetToken === 'string' && req.query.widgetToken.trim()
+          ? req.query.widgetToken.trim()
+          : null;
       if (queryWidgetToken && store) {
         try {
           const walletHash = await store.get(queryWidgetToken, 'walletHash');

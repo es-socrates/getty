@@ -30,7 +30,9 @@ export async function pollAchievementsViewers() {
 }
 
 export async function testAchievementsNotification(namespace) {
-  const url = namespace ? `/api/achievements/test-notification?ns=${encodeURIComponent(namespace)}` : '/api/achievements/test-notification';
+  const url = namespace
+    ? `/api/achievements/test-notification?ns=${encodeURIComponent(namespace)}`
+    : '/api/achievements/test-notification';
   console.warn('Making POST request to:', url);
   try {
     const r = await api.post(url);

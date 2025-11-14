@@ -213,9 +213,12 @@
       :items="imageLibrary.items"
       :loading="imageLibrary.loading"
       :error="imageLibrary.error"
+      :allow-delete="true"
+      :deleting-id="imageLibraryDeletingId"
       @close="closeImageLibraryDrawer"
       @refresh="fetchImageLibrary(true)"
-      @select="onLibraryImageSelect" />
+      @select="onLibraryImageSelect"
+      @delete="onLibraryImageDelete" />
   </section>
 </template>
 <script setup>
@@ -304,6 +307,7 @@ watch(storageOptions, () => {
 });
 
 const imageLibrary = reactive({ items: [], loading: false, error: '', loaded: false, open: false });
+const imageLibraryDeletingId = ref('');
 
 function upsertLibraryItem(entry) {
   if (!entry || !entry.id) return;
@@ -379,6 +383,59 @@ async function openImageLibraryDrawer() {
 
 function closeImageLibraryDrawer() {
   imageLibrary.open = false;
+}
+
+function formatLibraryName(entry) {
+  if (!entry) return '';
+  return entry.originalName || entry.id || '';
+}
+
+async function onLibraryImageDelete(entry) {
+  if (!entry || !entry.id || imageLibraryDeletingId.value) return;
+  const provider = (entry.provider || '').toString().trim().toLowerCase();
+  if (provider && provider !== 'supabase') {
+    pushToast({ type: 'info', message: t('imageLibraryDeleteToastUnsupported') });
+    return;
+  }
+  const confirmed = await confirmDialog({
+    title: t('imageLibraryDeleteConfirmTitle'),
+    description: t('imageLibraryDeleteConfirmBody', {
+      fileName: formatLibraryName(entry) || t('imageLibraryUnknown'),
+    }),
+    confirmText: t('commonDelete'),
+    cancelText: t('commonCancel') || 'Cancel',
+    danger: true,
+  });
+  if (!confirmed) return;
+  try {
+    imageLibraryDeletingId.value = entry.id;
+    const { data } = await api.delete(`/api/raffle/image-library/${encodeURIComponent(entry.id)}`);
+    if (!data?.success) throw new Error('image_library_delete_failed');
+    imageLibrary.items = imageLibrary.items.filter((item) => item.id !== entry.id);
+    pushToast({ type: 'success', message: t('imageLibraryDeleteToastSuccess') });
+    if (data?.activeImageCleared) {
+      form.imageUrl = '';
+      form.imageLibraryId = '';
+      form.imageStorageProvider = '';
+      form.imageStoragePath = '';
+      form.imageSha256 = '';
+      form.imageFingerprint = '';
+      form.imageOriginalName = '';
+      displayImageUrl.value = '';
+      selectedPrizeFilename.value = '';
+      if (imageInput.value) imageInput.value.value = '';
+      resolveStorageSelection();
+    }
+  } catch (error) {
+    const code = error?.response?.data?.error;
+    if (code === 'image_library_delete_unsupported') {
+      pushToast({ type: 'info', message: t('imageLibraryDeleteToastUnsupported') });
+    } else {
+      pushToast({ type: 'error', message: t('imageLibraryDeleteToastError') });
+    }
+  } finally {
+    imageLibraryDeletingId.value = '';
+  }
 }
 
 function connectWs() {

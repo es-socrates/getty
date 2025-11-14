@@ -40,6 +40,6 @@ export function pushToast(arg, type = 'info', timeout = 3000) {
 }
 
 export function removeToast(tid) {
-  const idx = toasts.findIndex(t => t.id === tid);
+  const idx = toasts.findIndex((t) => t.id === tid);
   if (idx >= 0) toasts.splice(idx, 1);
 }

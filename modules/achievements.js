@@ -7,37 +7,47 @@ class AchievementsModule {
   constructor(wss, opts = {}) {
     this.wss = wss;
     this.store = opts.store || null;
-    this.liveviewsCfgFile = opts.liveviewsCfgFile || path.join(process.cwd(), 'config', 'liveviews-config.json');
-    this.configFile = opts.configFile || path.join(process.cwd(), 'config', 'achievements-config.json');
+    this.liveviewsCfgFile =
+      opts.liveviewsCfgFile || path.join(process.cwd(), 'config', 'liveviews-config.json');
+    this.configFile =
+      opts.configFile || path.join(process.cwd(), 'config', 'achievements-config.json');
     this.stateFile = opts.stateFile || path.join(process.cwd(), 'data', 'achievements-state.json');
     this.namespaced = !!this.store;
     this.languageConfig = new LanguageConfig();
 
     this._i18nCache = { en: null, es: null };
 
-    this.state = {
+    this.state = {};
 
-    };
-
-    try { fs.mkdirSync(path.dirname(this.stateFile), { recursive: true }); } catch {}
+    try {
+      fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
+    } catch {}
     this._loadStateFromDisk();
   }
 
   async loadConfig(ns = null) {
     try {
       const reqShim = { ns: { admin: ns } };
-      const lt = await loadTenantConfig(reqShim, this.store, this.configFile, 'achievements-config.json');
-      return (lt && lt.data) ? lt.data : null;
-    } catch { return null; }
+      const lt = await loadTenantConfig(
+        reqShim,
+        this.store,
+        this.configFile,
+        'achievements-config.json'
+      );
+      return lt && lt.data ? lt.data : null;
+    } catch {
+      return null;
+    }
   }
   async saveConfig(ns, cfg) {
     try {
-      const existing = await this.loadConfig(ns) || {};
+      const existing = (await this.loadConfig(ns)) || {};
       const incoming = cfg && typeof cfg === 'object' ? cfg : {};
       const merged = { ...existing };
       for (const k of Object.keys(incoming)) {
         if (k === 'sound' && typeof incoming.sound === 'object' && incoming.sound) {
-          const prevSound = existing.sound && typeof existing.sound === 'object' ? existing.sound : {};
+          const prevSound =
+            existing.sound && typeof existing.sound === 'object' ? existing.sound : {};
           merged.sound = { ...prevSound, ...incoming.sound };
         } else {
           merged[k] = incoming[k];
@@ -45,19 +55,34 @@ class AchievementsModule {
       }
       const sane = this._withDefaults(merged);
       const reqShim = { ns: { admin: ns } };
-      const metaWrap = await saveTenantConfig(reqShim, this.store, this.configFile, 'achievements-config.json', sane);
+      const metaWrap = await saveTenantConfig(
+        reqShim,
+        this.store,
+        this.configFile,
+        'achievements-config.json',
+        sane
+      );
       return { ok: true, meta: metaWrap && metaWrap.meta ? metaWrap.meta : null };
-    } catch { return { ok: false, meta: null }; }
+    } catch {
+      return { ok: false, meta: null };
+    }
   }
 
   async getConfigWithMeta(ns = null) {
     try {
       const reqShim = { ns: { admin: ns } };
-      const lt = await loadTenantConfig(reqShim, this.store, this.configFile, 'achievements-config.json');
-      const cfg = (lt && lt.data) ? lt.data : {};
+      const lt = await loadTenantConfig(
+        reqShim,
+        this.store,
+        this.configFile,
+        'achievements-config.json'
+      );
+      const cfg = lt && lt.data ? lt.data : {};
       const meta = lt && lt.meta ? { ...lt.meta, source: lt.source } : null;
       return { config: this._withDefaults(cfg || {}), meta };
-    } catch { return { config: this._withDefaults({}), meta: null }; }
+    } catch {
+      return { config: this._withDefaults({}), meta: null };
+    }
   }
   _withDefaults(partial) {
     const p = partial || {};
@@ -67,9 +92,13 @@ class AchievementsModule {
       theme: typeof p.theme === 'string' ? p.theme : 'light',
       position: typeof p.position === 'string' ? p.position : 'top-right',
       color: typeof p.color === 'string' ? p.color : '#0b1220',
-      sound: { enabled: !!(p.sound?.enabled), url: (p.sound?.url || ''), volume: Number(p.sound?.volume || 0.5) },
+      sound: {
+        enabled: !!p.sound?.enabled,
+        url: p.sound?.url || '',
+        volume: Number(p.sound?.volume || 0.5),
+      },
       dnd: !!p.dnd,
-      historySize: Number(p.historySize || 10)
+      historySize: Number(p.historySize || 10),
     };
   }
 
@@ -79,7 +108,9 @@ class AchievementsModule {
         const raw = JSON.parse(fs.readFileSync(this.stateFile, 'utf8'));
         this.state = raw || {};
       }
-    } catch { this.state = {}; }
+    } catch {
+      this.state = {};
+    }
   }
   _saveStateToDisk() {
     try {
@@ -88,11 +119,11 @@ class AchievementsModule {
         const bag = bagAny || {};
         const completed = Array.isArray(bag.completed)
           ? bag.completed
-          : Array.from((bag._completedSet instanceof Set) ? bag._completedSet : new Set());
+          : Array.from(bag._completedSet instanceof Set ? bag._completedSet : new Set());
         out[key] = {
           completed,
           progress: bag.progress || {},
-          notifications: Array.isArray(bag.notifications) ? bag.notifications : []
+          notifications: Array.isArray(bag.notifications) ? bag.notifications : [],
         };
       }
       fs.writeFileSync(this.stateFile, JSON.stringify(out, null, 2));
@@ -101,20 +132,24 @@ class AchievementsModule {
 
   _loadI18n(lang) {
     try {
-      const safe = (lang === 'es') ? 'es' : 'en';
+      const safe = lang === 'es' ? 'es' : 'en';
       if (this._i18nCache[safe]) return this._i18nCache[safe];
       const file = path.join(process.cwd(), 'shared-i18n', `${safe}.json`);
       const obj = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
       this._i18nCache[safe] = obj || {};
       return this._i18nCache[safe];
-    } catch { return {}; }
+    } catch {
+      return {};
+    }
   }
   _t(lang, key, fallback = '') {
     try {
       const i18n = this._loadI18n(lang);
       const en = this._loadI18n('en');
       return (i18n && i18n[key]) || (en && en[key]) || fallback || key;
-    } catch { return fallback || key; }
+    } catch {
+      return fallback || key;
+    }
   }
 
   _getNs(ns) {
@@ -142,13 +177,13 @@ class AchievementsModule {
 
     try {
       if (Array.isArray(bag.notifications) && bag.notifications.length) {
-        bag.notifications = bag.notifications.filter(n => n && n.id !== id);
+        bag.notifications = bag.notifications.filter((n) => n && n.id !== id);
       }
     } catch {}
 
     try {
       const defs = this.getDefinitions();
-      const def = Array.isArray(defs) ? defs.find(d => d && d.id === id) : null;
+      const def = Array.isArray(defs) ? defs.find((d) => d && d.id === id) : null;
       if (def && def.metric) {
         const m = def.metric;
         if (m === 'chatMsgsSession') {
@@ -174,9 +209,11 @@ class AchievementsModule {
       }
     } catch {}
 
-  this._saveStateToDisk();
+    this._saveStateToDisk();
 
-  try { this._broadcast(ns, { type: 'achievement-clear', data: { id } }); } catch {}
+    try {
+      this._broadcast(ns, { type: 'achievement-clear', data: { id } });
+    } catch {}
   }
 
   onTip(ns, tip) {
@@ -203,7 +240,10 @@ class AchievementsModule {
   onViewerSample(ns, count) {
     try {
       const bag = this._getNs(ns);
-      bag.progress.viewersPeak = Math.max(Number(bag.progress.viewersPeak || 0), Number(count || 0));
+      bag.progress.viewersPeak = Math.max(
+        Number(bag.progress.viewersPeak || 0),
+        Number(count || 0)
+      );
       this._evaluateAll(ns);
     } catch {}
   }
@@ -225,7 +265,15 @@ class AchievementsModule {
       const d = new Date(now);
       const monthAnchor = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0).getTime();
       const day = (d.getDay() + 6) % 7;
-      const weekAnchor = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day, 0, 0, 0, 0).getTime();
+      const weekAnchor = new Date(
+        d.getFullYear(),
+        d.getMonth(),
+        d.getDate() - day,
+        0,
+        0,
+        0,
+        0
+      ).getTime();
 
       if (lastWeekStart !== weekAnchor) {
         bag.progress.weeklyHoursLive = 0;
@@ -237,7 +285,8 @@ class AchievementsModule {
       }
 
       if (isLive) {
-        const ms = (typeof deltaMs === 'number' && deltaMs > 0 && deltaMs < 3600000) ? deltaMs : 60000; // default 1 min
+        const ms =
+          typeof deltaMs === 'number' && deltaMs > 0 && deltaMs < 3600000 ? deltaMs : 60000; // default 1 min
         const hours = ms / 3600000;
         bag.progress.weeklyHoursLive = (bag.progress.weeklyHoursLive || 0) + hours;
         bag.progress.monthlyHoursLive = (bag.progress.monthlyHoursLive || 0) + hours;
@@ -250,42 +299,215 @@ class AchievementsModule {
   }
 
   getDefinitions() {
-
     return [
-      { id: 'v_5', category: 'viewers', titleKey: 'ach.def.v_5.title', descKey: 'ach.def.v_5.desc', target: 5, metric: 'viewersPeak' },
-      { id: 'v_20avg', category: 'viewers', titleKey: 'ach.def.v_20avg.title', descKey: 'ach.def.v_20avg.desc', target: 20, metric: 'viewersPeak' },
-      { id: 'v_30simul', category: 'viewers', titleKey: 'ach.def.v_30simul.title', descKey: 'ach.def.v_30simul.desc', target: 30, metric: 'viewersPeak' },
-      { id: 'v_50x5', category: 'viewers', titleKey: 'ach.def.v_50x5.title', descKey: 'ach.def.v_50x5.desc', target: 50, metric: 'viewersPeak' },
-      { id: 'v_100break', category: 'viewers', titleKey: 'ach.def.v_100break.title', descKey: 'ach.def.v_100break.desc', target: 100, metric: 'viewersPeak' },
-      { id: 'v_500break', category: 'viewers', titleKey: 'ach.def.v_500break.title', descKey: 'ach.def.v_500break.desc', target: 500, metric: 'viewersPeak' },
+      {
+        id: 'v_5',
+        category: 'viewers',
+        titleKey: 'ach.def.v_5.title',
+        descKey: 'ach.def.v_5.desc',
+        target: 5,
+        metric: 'viewersPeak',
+      },
+      {
+        id: 'v_20avg',
+        category: 'viewers',
+        titleKey: 'ach.def.v_20avg.title',
+        descKey: 'ach.def.v_20avg.desc',
+        target: 20,
+        metric: 'viewersPeak',
+      },
+      {
+        id: 'v_30simul',
+        category: 'viewers',
+        titleKey: 'ach.def.v_30simul.title',
+        descKey: 'ach.def.v_30simul.desc',
+        target: 30,
+        metric: 'viewersPeak',
+      },
+      {
+        id: 'v_50x5',
+        category: 'viewers',
+        titleKey: 'ach.def.v_50x5.title',
+        descKey: 'ach.def.v_50x5.desc',
+        target: 50,
+        metric: 'viewersPeak',
+      },
+      {
+        id: 'v_100break',
+        category: 'viewers',
+        titleKey: 'ach.def.v_100break.title',
+        descKey: 'ach.def.v_100break.desc',
+        target: 100,
+        metric: 'viewersPeak',
+      },
+      {
+        id: 'v_500break',
+        category: 'viewers',
+        titleKey: 'ach.def.v_500break.title',
+        descKey: 'ach.def.v_500break.desc',
+        target: 500,
+        metric: 'viewersPeak',
+      },
 
-      { id: 'c_100msg', category: 'chat', titleKey: 'ach.def.c_100msg.title', descKey: 'ach.def.c_100msg.desc', target: 100, metric: 'chatMsgsSession' },
-      { id: 'c_400msg', category: 'chat', titleKey: 'ach.def.c_400msg.title', descKey: 'ach.def.c_400msg.desc', target: 400, metric: 'chatMsgsSession' },
-      { id: 'c_50people', category: 'chat', titleKey: 'ach.def.c_50people.title', descKey: 'ach.def.c_50people.desc', target: 50, metric: 'chatActiveSenders' },
-      { id: 'c_200people', category: 'chat', titleKey: 'ach.def.c_200people.title', descKey: 'ach.def.c_200people.desc', target: 200, metric: 'chatActiveSenders' },
-      { id: 'c_1000msg', category: 'chat', titleKey: 'ach.def.c_1000msg.title', descKey: 'ach.def.c_1000msg.desc', target: 1000, metric: 'chatMsgsSession' },
-      { id: 'c_10000msg', category: 'chat', titleKey: 'ach.def.c_10000msg.title', descKey: 'ach.def.c_10000msg.desc', target: 10000, metric: 'chatMsgsSession' },
+      {
+        id: 'c_100msg',
+        category: 'chat',
+        titleKey: 'ach.def.c_100msg.title',
+        descKey: 'ach.def.c_100msg.desc',
+        target: 100,
+        metric: 'chatMsgsSession',
+      },
+      {
+        id: 'c_400msg',
+        category: 'chat',
+        titleKey: 'ach.def.c_400msg.title',
+        descKey: 'ach.def.c_400msg.desc',
+        target: 400,
+        metric: 'chatMsgsSession',
+      },
+      {
+        id: 'c_50people',
+        category: 'chat',
+        titleKey: 'ach.def.c_50people.title',
+        descKey: 'ach.def.c_50people.desc',
+        target: 50,
+        metric: 'chatActiveSenders',
+      },
+      {
+        id: 'c_200people',
+        category: 'chat',
+        titleKey: 'ach.def.c_200people.title',
+        descKey: 'ach.def.c_200people.desc',
+        target: 200,
+        metric: 'chatActiveSenders',
+      },
+      {
+        id: 'c_1000msg',
+        category: 'chat',
+        titleKey: 'ach.def.c_1000msg.title',
+        descKey: 'ach.def.c_1000msg.desc',
+        target: 1000,
+        metric: 'chatMsgsSession',
+      },
+      {
+        id: 'c_10000msg',
+        category: 'chat',
+        titleKey: 'ach.def.c_10000msg.title',
+        descKey: 'ach.def.c_10000msg.desc',
+        target: 10000,
+        metric: 'chatMsgsSession',
+      },
 
-      { id: 'time_weekly_144', category: 'time', titleKey: 'ach.def.time_weekly_144.title', descKey: 'ach.def.time_weekly_144.desc', target: 144, metric: 'weeklyHoursLive' },
-      { id: 'time_monthly_600', category: 'time', titleKey: 'ach.def.time_monthly_600.title', descKey: 'ach.def.time_monthly_600.desc', target: 600, metric: 'monthlyHoursLive' },
-      { id: 'time_total_200', category: 'time', titleKey: 'ach.def.time_total_200.title', descKey: 'ach.def.time_total_200.desc', target: 200, metric: 'totalHoursLive' },
-      { id: 'time_total_500', category: 'time', titleKey: 'ach.def.time_total_500.title', descKey: 'ach.def.time_total_500.desc', target: 500, metric: 'totalHoursLive' },
-      { id: 'time_total_1000', category: 'time', titleKey: 'ach.def.time_total_1000.title', descKey: 'ach.def.time_total_1000.desc', target: 1000, metric: 'totalHoursLive' },
-      { id: 'time_total_7000', category: 'time', titleKey: 'ach.def.time_total_7000.title', descKey: 'ach.def.time_total_7000.desc', target: 7000, metric: 'totalHoursLive' },
+      {
+        id: 'time_weekly_144',
+        category: 'time',
+        titleKey: 'ach.def.time_weekly_144.title',
+        descKey: 'ach.def.time_weekly_144.desc',
+        target: 144,
+        metric: 'weeklyHoursLive',
+      },
+      {
+        id: 'time_monthly_600',
+        category: 'time',
+        titleKey: 'ach.def.time_monthly_600.title',
+        descKey: 'ach.def.time_monthly_600.desc',
+        target: 600,
+        metric: 'monthlyHoursLive',
+      },
+      {
+        id: 'time_total_200',
+        category: 'time',
+        titleKey: 'ach.def.time_total_200.title',
+        descKey: 'ach.def.time_total_200.desc',
+        target: 200,
+        metric: 'totalHoursLive',
+      },
+      {
+        id: 'time_total_500',
+        category: 'time',
+        titleKey: 'ach.def.time_total_500.title',
+        descKey: 'ach.def.time_total_500.desc',
+        target: 500,
+        metric: 'totalHoursLive',
+      },
+      {
+        id: 'time_total_1000',
+        category: 'time',
+        titleKey: 'ach.def.time_total_1000.title',
+        descKey: 'ach.def.time_total_1000.desc',
+        target: 1000,
+        metric: 'totalHoursLive',
+      },
+      {
+        id: 'time_total_7000',
+        category: 'time',
+        titleKey: 'ach.def.time_total_7000.title',
+        descKey: 'ach.def.time_total_7000.desc',
+        target: 7000,
+        metric: 'totalHoursLive',
+      },
 
-      { id: 't_first', category: 'tips', titleKey: 'ach.def.t_first.title', descKey: 'ach.def.t_first.desc', target: 1, metric: 'tipCountSession' },
-      { id: 't_100usd', category: 'tips', titleKey: 'ach.def.t_100usd.title', descKey: 'ach.def.t_100usd.desc', target: 100, metric: 'tipUsdSession' },
-      { id: 't_5in1', category: 'tips', titleKey: 'ach.def.t_5in1.title', descKey: 'ach.def.t_5in1.desc', target: 5, metric: 'tipCountSession' },
-      { id: 't_50one', category: 'tips', titleKey: 'ach.def.t_50one.title', descKey: 'ach.def.t_50one.desc', target: 50, metric: 'tipBiggestUsd' },
-      { id: 't_1000usd', category: 'tips', titleKey: 'ach.def.t_1000usd.title', descKey: 'ach.def.t_1000usd.desc', target: 1000, metric: 'tipUsdSession' },
-      { id: 't_20000usd', category: 'tips', titleKey: 'ach.def.t_20000usd.title', descKey: 'ach.def.t_20000usd.desc', target: 20000, metric: 'tipUsdSession' },
+      {
+        id: 't_first',
+        category: 'tips',
+        titleKey: 'ach.def.t_first.title',
+        descKey: 'ach.def.t_first.desc',
+        target: 1,
+        metric: 'tipCountSession',
+      },
+      {
+        id: 't_100usd',
+        category: 'tips',
+        titleKey: 'ach.def.t_100usd.title',
+        descKey: 'ach.def.t_100usd.desc',
+        target: 100,
+        metric: 'tipUsdSession',
+      },
+      {
+        id: 't_5in1',
+        category: 'tips',
+        titleKey: 'ach.def.t_5in1.title',
+        descKey: 'ach.def.t_5in1.desc',
+        target: 5,
+        metric: 'tipCountSession',
+      },
+      {
+        id: 't_50one',
+        category: 'tips',
+        titleKey: 'ach.def.t_50one.title',
+        descKey: 'ach.def.t_50one.desc',
+        target: 50,
+        metric: 'tipBiggestUsd',
+      },
+      {
+        id: 't_1000usd',
+        category: 'tips',
+        titleKey: 'ach.def.t_1000usd.title',
+        descKey: 'ach.def.t_1000usd.desc',
+        target: 1000,
+        metric: 'tipUsdSession',
+      },
+      {
+        id: 't_20000usd',
+        category: 'tips',
+        titleKey: 'ach.def.t_20000usd.title',
+        descKey: 'ach.def.t_20000usd.desc',
+        target: 20000,
+        metric: 'tipUsdSession',
+      },
     ];
   }
 
   _evaluateAll(ns) {
     const bag = this._getNs(ns);
     const defs = this.getDefinitions();
-    const lang = (function getLang(self){ try { return self.languageConfig.getLanguage(); } catch { return 'en'; } })(this);
+    const lang = (function getLang(self) {
+      try {
+        return self.languageConfig.getLanguage();
+      } catch {
+        return 'en';
+      }
+    })(this);
     const now = Date.now();
     for (const d of defs) {
       if (bag._completedSet.has(d.id)) continue;
@@ -301,13 +523,14 @@ class AchievementsModule {
           titleKey: d.titleKey,
           descKey: d.descKey,
           category: d.category,
-          ts: now
+          ts: now,
         };
         const cfg = this._coerceConfigSync(ns);
         if (!cfg.dnd) this._broadcast(ns, { type: 'achievement', data: notif });
         bag.notifications.push(notif);
         const maxHist = Math.max(1, Math.min(Number(cfg.historySize || 10), 100));
-        if (bag.notifications.length > maxHist) bag.notifications.splice(0, bag.notifications.length - maxHist);
+        if (bag.notifications.length > maxHist)
+          bag.notifications.splice(0, bag.notifications.length - maxHist);
         this._saveStateToDisk();
       }
     }
@@ -319,7 +542,7 @@ class AchievementsModule {
         this.wss.broadcast(ns || null, payload);
         return;
       }
-      this.wss.clients.forEach(c => {
+      this.wss.clients.forEach((c) => {
         if (c && c.readyState === 1) c.send(JSON.stringify(payload));
       });
     } catch {}
@@ -328,11 +551,17 @@ class AchievementsModule {
   async getStatus(ns) {
     const bag = this._getNs(ns);
     const defs = this.getDefinitions();
-    const lang = (function getLang(self){ try { return self.languageConfig.getLanguage(); } catch { return 'en'; } })(this);
-    const items = defs.map(d => {
+    const lang = (function getLang(self) {
+      try {
+        return self.languageConfig.getLanguage();
+      } catch {
+        return 'en';
+      }
+    })(this);
+    const items = defs.map((d) => {
       const cur = Number(bag.progress[d.metric] || 0);
       const pct = Math.min(100, Math.floor((cur / (d.target || 1)) * 100));
-      const done = (bag._completedSet.has(d.id));
+      const done = bag._completedSet.has(d.id);
       return {
         id: d.id,
         title: this._t(lang, d.titleKey, ''),
@@ -341,10 +570,14 @@ class AchievementsModule {
         descKey: d.descKey,
         category: d.category,
         progress: { current: cur, target: d.target, percent: pct },
-        completed: done
+        completed: done,
       };
     });
-    return { items, completedIds: Array.from(bag._completedSet), notifications: bag.notifications.slice(-20) };
+    return {
+      items,
+      completedIds: Array.from(bag._completedSet),
+      notifications: bag.notifications.slice(-20),
+    };
   }
 
   async getConfigEffective(ns) {
@@ -369,11 +602,15 @@ class AchievementsModule {
     try {
       if (!fs.existsSync(this.liveviewsCfgFile)) return '';
       const raw = JSON.parse(fs.readFileSync(this.liveviewsCfgFile, 'utf8'));
-      return (typeof raw.claimid === 'string') ? raw.claimid.trim() : '';
-    } catch { return ''; }
+      return typeof raw.claimid === 'string' ? raw.claimid.trim() : '';
+    } catch {
+      return '';
+    }
   }
 
-  _coerceConfigSync(_ns) { return this._withDefaults({}); }
+  _coerceConfigSync(_ns) {
+    return this._withDefaults({});
+  }
 }
 
 module.exports = { AchievementsModule };

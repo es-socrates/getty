@@ -9,29 +9,54 @@ const { writeHybridConfig, readHybridConfig } = require('../lib/hybrid-config');
 function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}) {
   const store = options.store;
   const chatNs = options.chatNs;
-  const CHAT_CONFIG_FILE = chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
+  const CHAT_CONFIG_FILE =
+    chatConfigFilePath || path.join(process.cwd(), 'config', 'chat-config.json');
 
-  function __requireSessionFlag() { return process.env.GETTY_REQUIRE_SESSION === '1'; }
-  function __hostedWithRedis() { return !!process.env.REDIS_URL; }
-  function __shouldRequireSession() { return (__requireSessionFlag() || __hostedWithRedis()); }
+  function __requireSessionFlag() {
+    return process.env.GETTY_REQUIRE_SESSION === '1';
+  }
+  function __hostedWithRedis() {
+    return !!process.env.REDIS_URL;
+  }
+  function __shouldRequireSession() {
+    return __requireSessionFlag() || __hostedWithRedis();
+  }
 
   app.get('/api/chat-config', async (req, res) => {
     try {
-      const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
-      let loaded = null; let meta = null; let source = 'global';
+      const ns = req.ns && (req.ns.admin || req.ns.pub) ? req.ns.admin || req.ns.pub : null;
+      let loaded = null;
+      let meta = null;
+      let source = 'global';
       try {
-        const lt = await loadTenantConfig({ ns: { admin: ns } }, store, CHAT_CONFIG_FILE, 'chat-config.json');
+        const lt = await loadTenantConfig(
+          { ns: { admin: ns } },
+          store,
+          CHAT_CONFIG_FILE,
+          'chat-config.json'
+        );
         loaded = lt.data?.data ? lt.data.data : lt.data;
         source = lt.source;
         if (lt.tenantPath && fs.existsSync(lt.tenantPath)) {
           try {
             const raw = JSON.parse(fs.readFileSync(lt.tenantPath, 'utf8'));
-            meta = { __version: raw.__version, checksum: raw.checksum, updatedAt: raw.updatedAt, source };
+            meta = {
+              __version: raw.__version,
+              checksum: raw.checksum,
+              updatedAt: raw.updatedAt,
+              source,
+            };
           } catch {}
         } else if (fs.existsSync(CHAT_CONFIG_FILE)) {
           try {
             const raw = JSON.parse(fs.readFileSync(CHAT_CONFIG_FILE, 'utf8'));
-            if (raw && (raw.__version || raw.checksum)) meta = { __version: raw.__version, checksum: raw.checksum, updatedAt: raw.updatedAt, source };
+            if (raw && (raw.__version || raw.checksum))
+              meta = {
+                __version: raw.__version,
+                checksum: raw.checksum,
+                updatedAt: raw.updatedAt,
+                source,
+              };
           } catch {}
         }
       } catch {}
@@ -54,7 +79,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           themeCSS: config.themeCSS || '',
           avatarRandomBg: !!config.avatarRandomBg,
           chatUrl: '',
-          odyseeWsUrl: ''
+          odyseeWsUrl: '',
         };
         return res.json(meta ? { meta, ...sanitized } : sanitized);
       }
@@ -83,11 +108,23 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         donationColor: z.string().optional(),
         donationBgColor: z.string().optional(),
         themeCSS: z.string().max(20000).optional(),
-        avatarRandomBg: z.boolean().optional()
+        avatarRandomBg: z.boolean().optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid chat config' });
-      const { odyseeWsUrl, bgColor, msgBgColor, msgBgAltColor, borderColor, textColor, usernameColor, usernameBgColor, donationColor, donationBgColor, avatarRandomBg } = parsed.data;
+      const {
+        odyseeWsUrl,
+        bgColor,
+        msgBgColor,
+        msgBgAltColor,
+        borderColor,
+        textColor,
+        usernameColor,
+        usernameBgColor,
+        donationColor,
+        donationBgColor,
+        avatarRandomBg,
+      } = parsed.data;
       const chatUrl = (parsed.data.chatUrl || '').trim();
       let { themeCSS } = parsed.data;
       if (!chatUrl) {
@@ -103,17 +140,21 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         out = out.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
         return out.trim();
       }
-  if (typeof themeCSS === 'string') {
+      if (typeof themeCSS === 'string') {
         themeCSS = sanitizeThemeCSS(themeCSS).slice(0, 20000);
       }
 
-  let config = {};
-      let ns = (req.ns && req.ns.admin) ? req.ns.admin : null;
+      let config = {};
+      let ns = req.ns && req.ns.admin ? req.ns.admin : null;
       try {
-        const lt = await loadTenantConfig({ ns: { admin: ns } }, store, CHAT_CONFIG_FILE, 'chat-config.json');
+        const lt = await loadTenantConfig(
+          { ns: { admin: ns } },
+          store,
+          CHAT_CONFIG_FILE,
+          'chat-config.json'
+        );
         const base = lt.data?.data ? lt.data.data : lt.data;
         if (base && typeof base === 'object') config = base;
-
       } catch {}
 
       const newConfig = {
@@ -125,37 +166,57 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         msgBgAltColor: msgBgAltColor || config.msgBgAltColor || '#0d1114',
         borderColor: borderColor || config.borderColor || '#161b22',
         textColor: textColor || config.textColor || '#e6edf3',
-        usernameColor: (usernameColor !== undefined) ? usernameColor : (config.usernameColor ?? ''),
-        usernameBgColor: (usernameBgColor !== undefined) ? usernameBgColor : (config.usernameBgColor ?? ''),
+        usernameColor: usernameColor !== undefined ? usernameColor : (config.usernameColor ?? ''),
+        usernameBgColor:
+          usernameBgColor !== undefined ? usernameBgColor : (config.usernameBgColor ?? ''),
         donationColor: donationColor || config.donationColor || '#ddb826',
         donationBgColor: donationBgColor || config.donationBgColor || '#131313',
-        themeCSS: typeof themeCSS === 'string' ? themeCSS : (config.themeCSS || ''),
-        avatarRandomBg: (avatarRandomBg !== undefined) ? !!avatarRandomBg : !!config.avatarRandomBg
+        themeCSS: typeof themeCSS === 'string' ? themeCSS : config.themeCSS || '',
+        avatarRandomBg: avatarRandomBg !== undefined ? !!avatarRandomBg : !!config.avatarRandomBg,
       };
       const isHosted = !!(store && req.ns && req.ns.admin);
       let prevUrl = null;
       if (isHosted) {
-        try { const stPrev = await store.get(ns, 'chat-config', null); prevUrl = stPrev?.chatUrl || null; } catch {}
+        try {
+          const stPrev = await store.get(ns, 'chat-config', null);
+          prevUrl = stPrev?.chatUrl || null;
+        } catch {}
       }
       let meta = null;
       if (isHosted) {
         try {
-          const saveRes = await saveTenantConfig({ ns: { admin: ns } }, store, CHAT_CONFIG_FILE, 'chat-config.json', newConfig);
+          const saveRes = await saveTenantConfig(
+            { ns: { admin: ns } },
+            store,
+            CHAT_CONFIG_FILE,
+            'chat-config.json',
+            newConfig
+          );
           meta = saveRes.meta;
         } catch {
           await store.set(ns, 'chat-config', newConfig);
         }
       } else {
         try {
-          const saveRes = await saveTenantConfig({ ns: { admin: null } }, store, CHAT_CONFIG_FILE, 'chat-config.json', newConfig);
+          const saveRes = await saveTenantConfig(
+            { ns: { admin: null } },
+            store,
+            CHAT_CONFIG_FILE,
+            'chat-config.json',
+            newConfig
+          );
           meta = saveRes.meta;
         } catch {
           try {
             const saveRes = writeHybridConfig(CHAT_CONFIG_FILE, newConfig);
             meta = saveRes.meta || meta;
           } catch {
-            try { console.warn('[chat-config][save][fallback-flat] attempting fs.writeFileSync'); } catch {}
-            try { fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2)); } catch {}
+            try {
+              console.warn('[chat-config][save][fallback-flat] attempting fs.writeFileSync');
+            } catch {}
+            try {
+              fs.writeFileSync(CHAT_CONFIG_FILE, JSON.stringify(newConfig, null, 2));
+            } catch {}
           }
         }
       }
@@ -171,29 +232,33 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           const running = !!st.connected;
           if ((changed && newUrl) || (!running && newUrl)) {
             await chatNs.start(ns, newUrl);
-            result = { ...(result||{}), relay: { started: true } };
+            result = { ...(result || {}), relay: { started: true } };
           } else if ((changed && !newUrl) || (running && !newUrl)) {
             await chatNs.stop(ns);
-            result = { ...(result||{}), relay: { stopped: true } };
+            result = { ...(result || {}), relay: { stopped: true } };
           }
         }
       } catch (e) {
-        result = { ...(result||{}), relayError: e?.message };
+        result = { ...(result || {}), relayError: e?.message };
       }
 
       try {
         const wss = req.app?.get('wss');
         if (wss && typeof wss.broadcast === 'function') {
           if (ns) {
-            try { wss.broadcast(ns, { type: 'chatConfigUpdate', data: newConfig, meta }); } catch {}
             try {
-              const publicToken = await (store.get(ns, 'publicToken', null));
+              wss.broadcast(ns, { type: 'chatConfigUpdate', data: newConfig, meta });
+            } catch {}
+            try {
+              const publicToken = await store.get(ns, 'publicToken', null);
               if (typeof publicToken === 'string' && publicToken) {
                 wss.broadcast(publicToken, { type: 'chatConfigUpdate', data: newConfig, meta });
               }
             } catch {}
           } else {
-            try { wss.broadcast(null, { type: 'chatConfigUpdate', data: newConfig, meta }); } catch {}
+            try {
+              wss.broadcast(null, { type: 'chatConfigUpdate', data: newConfig, meta });
+            } catch {}
           }
         }
       } catch {}
@@ -217,7 +282,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       if (nameSet.has(name)) continue;
       const css = raw.css.slice(0, 50000);
       if (!css) continue;
-      const updatedAt = (typeof raw.updatedAt === 'number' && isFinite(raw.updatedAt)) ? raw.updatedAt : Date.now();
+      const updatedAt =
+        typeof raw.updatedAt === 'number' && isFinite(raw.updatedAt) ? raw.updatedAt : Date.now();
       nameSet.add(name);
       out.push({ name, css, updatedAt });
       if (out.length >= 200) break;
@@ -234,7 +300,7 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       if (fs.existsSync(CHAT_CUSTOM_THEMES_FILE)) {
         try {
           const hybrid = readHybridConfig(CHAT_CUSTOM_THEMES_FILE); // tolerant of legacy flat array
-          const rawData = hybrid && Array.isArray(hybrid.data) ? hybrid.data : (hybrid.data || []);
+          const rawData = hybrid && Array.isArray(hybrid.data) ? hybrid.data : hybrid.data || [];
           return sanitizeThemesArray(rawData);
         } catch {
           try {
@@ -243,7 +309,9 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
           } catch {}
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return [];
   }
 
@@ -256,19 +324,23 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
         try {
           writeHybridConfig(CHAT_CUSTOM_THEMES_FILE, sanitized);
         } catch {
-          try { fs.writeFileSync(CHAT_CUSTOM_THEMES_FILE, JSON.stringify(sanitized, null, 2)); } catch {}
+          try {
+            fs.writeFileSync(CHAT_CUSTOM_THEMES_FILE, JSON.stringify(sanitized, null, 2));
+          } catch {}
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return sanitized;
   }
 
   app.get('/api/chat-custom-themes', async (req, res) => {
     try {
-    const shouldRequire = __shouldRequireSession() && !isOpenTestMode();
-      const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
+      const shouldRequire = __shouldRequireSession() && !isOpenTestMode();
+      const ns = req.ns && (req.ns.admin || req.ns.pub) ? req.ns.admin || req.ns.pub : null;
       if (shouldRequire && !ns) return res.status(401).json({ error: 'session_required' });
-      const list = await loadStoredThemes( (store && ns && req.ns?.admin) ? req.ns.admin : null );
+      const list = await loadStoredThemes(store && ns && req.ns?.admin ? req.ns.admin : null);
       res.json({ themes: list, count: list.length });
     } catch (e) {
       res.status(500).json({ error: 'failed_to_load_custom_themes', details: e?.message });
@@ -277,8 +349,8 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
 
   app.post('/api/chat-custom-themes', limiter, async (req, res) => {
     try {
-    const shouldRequire = __shouldRequireSession() && !isOpenTestMode();
-      const ns = (req.ns && (req.ns.admin || req.ns.pub)) ? (req.ns.admin || req.ns.pub) : null;
+      const shouldRequire = __shouldRequireSession() && !isOpenTestMode();
+      const ns = req.ns && (req.ns.admin || req.ns.pub) ? req.ns.admin || req.ns.pub : null;
       if (shouldRequire && !ns) return res.status(401).json({ error: 'session_required' });
       const payload = req.body || {};
       const themes = Array.isArray(payload.themes) ? payload.themes : [];
@@ -289,7 +361,10 @@ function registerChatRoutes(app, chat, limiter, chatConfigFilePath, options = {}
       if (sanitized.length !== themes.length && themes.length > 0 && sanitized.length === 0) {
         return res.status(400).json({ error: 'invalid_payload' });
       }
-      const saved = await saveStoredThemes( (store && ns && req.ns?.admin) ? req.ns.admin : null, sanitized );
+      const saved = await saveStoredThemes(
+        store && ns && req.ns?.admin ? req.ns.admin : null,
+        sanitized
+      );
       res.json({ ok: true, count: saved.length });
     } catch (e) {
       res.status(500).json({ error: 'failed_to_save_custom_themes', details: e?.message });

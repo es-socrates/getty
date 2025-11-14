@@ -33,7 +33,11 @@ export function createChatPanel(t) {
   const lastStatusAt = ref(0);
   const savingTts = ref(false);
   const original = reactive({ snapshot: null });
-  const testForm = reactive({ username: t('testUsernameDefault'), message: t('testMessageDefault'), credits: 5 });
+  const testForm = reactive({
+    username: t('testUsernameDefault'),
+    message: t('testMessageDefault'),
+    credits: 5,
+  });
   const testSending = ref(false);
   const testKind = ref('');
 
@@ -138,7 +142,9 @@ export function createChatPanel(t) {
         usernameBgColor: overrideUsername.value ? form.colors.usernameBg : '',
         donationColor: form.colors.donation,
         donationBgColor: form.colors.donationBg,
-        themeCSS: clearedThemeCSS.value ? '' : localStorage.getItem('chatLiveThemeCSS') || undefined,
+        themeCSS: clearedThemeCSS.value
+          ? ''
+          : localStorage.getItem('chatLiveThemeCSS') || undefined,
         avatarRandomBg: avatarRandomBg.value,
       };
       await api.post('/api/chat', payload);
@@ -240,103 +246,103 @@ export function createChatPanel(t) {
             : 5;
         await api.post('/api/chat/test-message', {
           username: testForm.username || t('testUsernameDefault'),
-            message: testForm.message || '',
-            credits,
-            donationOnly: true,
-          });
-          pushToast({ type: 'success', message: t('sentTestDonation') || 'Test donation sent' });
-        } else {
-          await api.post('/api/chat/test-message', {
-            username: testForm.username || t('testUsernameDefault'),
-            message: testForm.message || t('testMessageDefault'),
-            credits: 0,
-            donationOnly: false,
-          });
-          pushToast({ type: 'success', message: t('sentTestMessage') || 'Test message sent' });
-        }
-      } catch (e) {
-        pushToast({
-          type: 'error',
-          message: t('sendFailed') || 'Failed to send',
-          detail: e?.response?.data?.error || e?.message,
+          message: testForm.message || '',
+          credits,
+          donationOnly: true,
         });
-      } finally {
-        testSending.value = false;
-        testKind.value = '';
+        pushToast({ type: 'success', message: t('sentTestDonation') || 'Test donation sent' });
+      } else {
+        await api.post('/api/chat/test-message', {
+          username: testForm.username || t('testUsernameDefault'),
+          message: testForm.message || t('testMessageDefault'),
+          credits: 0,
+          donationOnly: false,
+        });
+        pushToast({ type: 'success', message: t('sentTestMessage') || 'Test message sent' });
       }
+    } catch (e) {
+      pushToast({
+        type: 'error',
+        message: t('sendFailed') || 'Failed to send',
+        detail: e?.response?.data?.error || e?.message,
+      });
+    } finally {
+      testSending.value = false;
+      testKind.value = '';
     }
+  }
 
-    const price = reactive({
-      usd: 0,
-      source: 'none',
-      ageSeconds: 0,
-      providersTried: [],
-      loading: true,
-      refreshing: false,
-      isFallback: false,
-      isStale: false,
-    });
+  const price = reactive({
+    usd: 0,
+    source: 'none',
+    ageSeconds: 0,
+    providersTried: [],
+    loading: true,
+    refreshing: false,
+    isFallback: false,
+    isStale: false,
+  });
 
-    async function fetchPrice(force = false) {
-      try {
-        if (force) price.refreshing = true;
-        else price.loading = true;
-        const { data } = await api.get(`/api/ar-price${force ? '?force=1' : ''}`);
-        price.usd = Number(data?.arweave?.usd || 0);
-        price.source = data?.source || 'unknown';
-        price.ageSeconds = Number(data?.ageSeconds || 0);
-        price.providersTried = Array.isArray(data?.providersTried) ? data.providersTried : [];
-        price.isFallback = /fallback/.test(price.source);
-        price.isStale = !price.isFallback && price.ageSeconds > 90;
-      } catch {
-        price.source = 'error';
-      } finally {
-        price.loading = false;
-        price.refreshing = false;
-      }
+  async function fetchPrice(force = false) {
+    try {
+      if (force) price.refreshing = true;
+      else price.loading = true;
+      const { data } = await api.get(`/api/ar-price${force ? '?force=1' : ''}`);
+      price.usd = Number(data?.arweave?.usd || 0);
+      price.source = data?.source || 'unknown';
+      price.ageSeconds = Number(data?.ageSeconds || 0);
+      price.providersTried = Array.isArray(data?.providersTried) ? data.providersTried : [];
+      price.isFallback = /fallback/.test(price.source);
+      price.isStale = !price.isFallback && price.ageSeconds > 90;
+    } catch {
+      price.source = 'error';
+    } finally {
+      price.loading = false;
+      price.refreshing = false;
     }
-    function refreshPrice() {
-      fetchPrice(true);
-    }
+  }
+  function refreshPrice() {
+    fetchPrice(true);
+  }
 
-    onMounted(() => {
-      fetchPrice(false);
-      const id = setInterval(() => fetchPrice(false), 60000);
-      try {
-        onUnmounted(() => clearInterval(id));
-      } catch {}
-    });
+  onMounted(() => {
+    fetchPrice(false);
+    const id = setInterval(() => fetchPrice(false), 60000);
+    try {
+      onUnmounted(() => clearInterval(id));
+    } catch {}
+  });
 
-    return {
-      colorHeadingId,
-      form,
-      transparentBg,
-      avatarRandomBg,
-      overrideUsername,
-      clearedThemeCSS,
-      ttsAllChat,
-      errors,
-      CLAIM_BASE,
-      claimPlaceholder,
-      saving,
-      connected,
-      lastStatusAt,
-      savingTts,
-      original,
-      testForm,
-      testSending,
-      testKind,
-      publicToken,
-      widgetUrl,
-      widgetHorizontalUrl,
-      resetColors,
-      load,
-      save,
-      saveTtsAllChat,
-      extractClaimId,
-      validate,
-      sendTest,
-      price,
-      refreshPrice,
-    };
+  return {
+    colorHeadingId,
+    form,
+    transparentBg,
+    avatarRandomBg,
+    overrideUsername,
+    clearedThemeCSS,
+    ttsAllChat,
+    errors,
+    CLAIM_BASE,
+    claimPlaceholder,
+    saving,
+    connected,
+    lastStatusAt,
+    savingTts,
+    original,
+    testForm,
+    testSending,
+    testKind,
+    publicToken,
+    widgetUrl,
+    widgetHorizontalUrl,
+    resetColors,
+    load,
+    save,
+    saveTtsAllChat,
+    extractClaimId,
+    validate,
+    sendTest,
+    price,
+    refreshPrice,
+  };
 }

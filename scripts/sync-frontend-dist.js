@@ -106,7 +106,9 @@ function main() {
   const syncedHtml = nonWidgetHtmlFiles.concat(widgetHtmlFiles).sort();
   console.warn('[sync-frontend-dist] Synced HTML files:', syncedHtml.join(', ') || 'none');
   if (syncedHtmlAbsolute.length > 0) {
-    console.warn(`[sync-frontend-dist] Applied SRI to ${sriUpdates} of ${syncedHtmlAbsolute.length} synced HTML files.`);
+    console.warn(
+      `[sync-frontend-dist] Applied SRI to ${sriUpdates} of ${syncedHtmlAbsolute.length} synced HTML files.`
+    );
   }
 }
 

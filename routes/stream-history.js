@@ -27,7 +27,8 @@ async function maybeEnsureTenant(adminNs, claimId = null, pubNamespace = null) {
   if (!STREAM_DB_READY) return null;
   const tenantId = tenantIdForNamespace(adminNs);
   const normalizedClaim = claimId && typeof claimId === 'string' ? claimId.trim() : null;
-  const normalizedPub = pubNamespace && typeof pubNamespace === 'string' ? pubNamespace.trim() : null;
+  const normalizedPub =
+    pubNamespace && typeof pubNamespace === 'string' ? pubNamespace.trim() : null;
   const cache = ensuredTenantCache.get(tenantId);
   if (cache && cache.claimId === normalizedClaim && cache.pubNamespace === normalizedPub) {
     return cache.row || null;
@@ -37,12 +38,12 @@ async function maybeEnsureTenant(adminNs, claimId = null, pubNamespace = null) {
       tenantId,
       claimId: normalizedClaim,
       adminNamespace: adminNs || null,
-      pubNamespace: normalizedPub || null
+      pubNamespace: normalizedPub || null,
     });
     ensuredTenantCache.set(tenantId, {
       claimId: row?.claim_id || null,
       pubNamespace: row?.pub_namespace || null,
-      row: row || null
+      row: row || null,
     });
     return row || null;
   } catch (err) {
@@ -71,7 +72,7 @@ async function syncHistoryDb(adminNs, hist, opts = {}) {
         segments: Array.isArray(hist.segments) ? hist.segments : [],
         samples: Array.isArray(hist.samples) ? hist.samples : [],
         source,
-        ingestVersion
+        ingestVersion,
       });
     } catch (err) {
       console.error('[stream-history][db] replaceTenantHistory failed', err);
@@ -97,7 +98,7 @@ async function syncHistoryDb(adminNs, hist, opts = {}) {
         viewers,
         payload: sample || null,
         ingestVersion,
-        sessionId: null
+        sessionId: null,
       });
     } catch (err) {
       console.error('[stream-history][db] recordSample failed', err);
@@ -124,9 +125,8 @@ const STREAM_HISTORY_MAX_SAMPLES_OVERRIDE = (() => {
   if (Number.isFinite(raw) && raw >= 0) return Math.floor(raw);
   return null;
 })();
-let STREAM_HISTORY_MAX_SAMPLES = STREAM_HISTORY_MAX_SAMPLES_OVERRIDE != null
-  ? STREAM_HISTORY_MAX_SAMPLES_OVERRIDE
-  : 0;
+let STREAM_HISTORY_MAX_SAMPLES =
+  STREAM_HISTORY_MAX_SAMPLES_OVERRIDE != null ? STREAM_HISTORY_MAX_SAMPLES_OVERRIDE : 0;
 
 function setStreamHistorySampleCap(cap) {
   if (!Number.isFinite(cap) || cap < 0) {
@@ -204,7 +204,11 @@ function decryptJSON(payload, fallback) {
     }
     return JSON.parse(text);
   } catch {
-    try { return JSON.parse(String(payload || '')); } catch { return fallback; }
+    try {
+      return JSON.parse(String(payload || ''));
+    } catch {
+      return fallback;
+    }
   }
 }
 
@@ -254,14 +258,18 @@ function loadHistoryFromFile(filePath) {
   try {
     if (!fs.existsSync(filePath)) return { segments: [] };
     const j = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  if (!j || typeof j !== 'object' || !Array.isArray(j.segments)) return { segments: [] };
-  if (!Array.isArray(j.samples)) j.samples = [];
-  return j;
-  } catch { return { segments: [] }; }
+    if (!j || typeof j !== 'object' || !Array.isArray(j.segments)) return { segments: [] };
+    if (!Array.isArray(j.samples)) j.samples = [];
+    return j;
+  } catch {
+    return { segments: [] };
+  }
 }
 
 function saveHistoryToFile(filePath, data) {
-  try { fs.writeFileSync(filePath, JSON.stringify(data, null, 2)); } catch {}
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch {}
 }
 
 function startSegment(hist, ts) {
@@ -285,12 +293,12 @@ function truncateSegments(hist, maxDays = 400) {
     const cutoff = Date.now() - maxDays * 86400000;
     if (Array.isArray(hist.segments)) {
       const beforeSegCount = hist.segments.length;
-      hist.segments = hist.segments.filter(s => (s.end || s.start) >= cutoff);
+      hist.segments = hist.segments.filter((s) => (s.end || s.start) >= cutoff);
       if (hist.segments.length !== beforeSegCount) markSegmentsDirty(hist);
     }
     if (Array.isArray(hist.samples)) {
       const beforeLen = hist.samples.length;
-      const filtered = hist.samples.filter(s => s.ts >= cutoff);
+      const filtered = hist.samples.filter((s) => s.ts >= cutoff);
       const removedByCutoff = beforeLen - filtered.length;
       if (removedByCutoff > 0) markSamplesTrimmed(hist, removedByCutoff);
       hist.samples = filtered;
@@ -354,7 +362,7 @@ function splitSpanByDayTz(start, end, tzOffsetMinutes) {
 function sanitizeSegments(rawSegments, nowTs) {
   if (!Array.isArray(rawSegments)) return [];
   return rawSegments
-    .map(seg => {
+    .map((seg) => {
       const start = Number(seg?.start);
       const endRaw = seg?.end == null ? nowTs : Number(seg.end);
       if (!isFinite(start) || !isFinite(endRaw)) return null;
@@ -369,7 +377,7 @@ function sanitizeSegments(rawSegments, nowTs) {
 function sortSamples(rawSamples) {
   if (!Array.isArray(rawSamples)) return [];
   return [...rawSamples]
-    .filter(s => Number.isFinite(Number(s?.ts)))
+    .filter((s) => Number.isFinite(Number(s?.ts)))
     .sort((a, b) => Number(a.ts) - Number(b.ts));
 }
 
@@ -443,8 +451,8 @@ function subtractCoveredSpans(start, end, coverageIntervals) {
     return [[start, end]];
   }
   const relevant = coverageIntervals
-    .map(interval => ({ start: interval.start, end: interval.end }))
-    .filter(interval => interval.end > start && interval.start < end)
+    .map((interval) => ({ start: interval.start, end: interval.end }))
+    .filter((interval) => interval.end > start && interval.start < end)
     .sort((a, b) => a.start - b.start);
   if (!relevant.length) return [[start, end]];
 
@@ -459,7 +467,7 @@ function subtractCoveredSpans(start, end, coverageIntervals) {
     if (cursor >= end) break;
   }
   if (cursor < end) gaps.push([cursor, end]);
-  return gaps.filter(span => span[1] > span[0]);
+  return gaps.filter((span) => span[1] > span[0]);
 }
 
 function extendIntervalsWithSegments(intervals, segments, opts = {}) {
@@ -472,11 +480,19 @@ function extendIntervalsWithSegments(intervals, segments, opts = {}) {
     let start = interval.start;
     let end = interval.end;
     const duration = Math.max(0, end - start);
-    const overlaps = segments.filter(seg => seg.end > (start - maxPadMs) && seg.start < (end + maxPadMs));
-    const segStartBound = overlaps.length ? Math.min(...overlaps.map(s => s.start)) : start;
-    const segEndBound = overlaps.length ? Math.max(...overlaps.map(s => s.end)) : end;
-    const prevOfflineTs = interval.prevSample && interval.prevSample.live === false ? Number(interval.prevSample.ts) : null;
-    const nextOfflineTs = interval.nextSample && interval.nextSample.live === false ? Number(interval.nextSample.ts) : null;
+    const overlaps = segments.filter(
+      (seg) => seg.end > start - maxPadMs && seg.start < end + maxPadMs
+    );
+    const segStartBound = overlaps.length ? Math.min(...overlaps.map((s) => s.start)) : start;
+    const segEndBound = overlaps.length ? Math.max(...overlaps.map((s) => s.end)) : end;
+    const prevOfflineTs =
+      interval.prevSample && interval.prevSample.live === false
+        ? Number(interval.prevSample.ts)
+        : null;
+    const nextOfflineTs =
+      interval.nextSample && interval.nextSample.live === false
+        ? Number(interval.nextSample.ts)
+        : null;
     const lowerBound = Math.max(
       isFinite(segStartBound) ? segStartBound : start,
       prevOfflineTs != null && isFinite(prevOfflineTs) ? prevOfflineTs : -Infinity
@@ -542,9 +558,8 @@ function computeSessionStats(segments, samples, nowTs, tzOffsetMinutes = 0, limi
 
     const durationHours = liveMs / 3600000;
     const durationSeconds = liveMs / 1000;
-    const avgViewers = durationSeconds > 0
-      ? Number((viewerSeconds / durationSeconds).toFixed(2))
-      : 0;
+    const avgViewers =
+      durationSeconds > 0 ? Number((viewerSeconds / durationSeconds).toFixed(2)) : 0;
     const viewerHours = Number((viewerSeconds / 3600).toFixed(2));
     const dayKey = formatLocalDateYMD(start, tzOffsetMinutes) || null;
 
@@ -689,9 +704,8 @@ function makeEmptyAggregate(bucketStartEpoch, bucketPeriod, offsetMinutes = 0) {
   } else {
     bucketLabel = formatLocalDateYMD(bucketStartEpoch, offsetMinutes);
   }
-  const dateLabel = bucketPeriod === 'day'
-    ? bucketLabel
-    : formatLocalDateYMD(bucketStartEpoch, offsetMinutes);
+  const dateLabel =
+    bucketPeriod === 'day' ? bucketLabel : formatLocalDateYMD(bucketStartEpoch, offsetMinutes);
   return {
     date: dateLabel,
     epoch: bucketStartEpoch,
@@ -725,14 +739,16 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
     buckets.push({ key: dayStart, label: fmtYMD(dayStart), ms: 0, vsec: 0, lsec: 0, peak: 0 });
   }
   if (!buckets.length) return [];
-  const bmap = new Map(buckets.map(b => [b.key, b]));
+  const bmap = new Map(buckets.map((b) => [b.key, b]));
   const rangeStart = buckets[0].key;
   const rangeEndCandidate = buckets[buckets.length - 1].key + 86400000;
-  const rangeEnd = windowEndOverride != null
-    ? Math.min(rangeEndCandidate, windowEndOverride + 1)
-    : rangeEndCandidate;
+  const rangeEnd =
+    windowEndOverride != null
+      ? Math.min(rangeEndCandidate, windowEndOverride + 1)
+      : rangeEndCandidate;
 
-  const clampCandidate = windowEndOverride != null ? Math.min(windowEndOverride, rangeEnd) : rangeEnd;
+  const clampCandidate =
+    windowEndOverride != null ? Math.min(windowEndOverride, rangeEnd) : rangeEnd;
   const clampNow = Math.max(rangeStart, Math.min(runtimeNow, clampCandidate));
 
   const segments = sanitizeSegments(hist.segments, clampNow);
@@ -759,7 +775,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
       const cur = samples[i];
       const next = samples[i + 1] || null;
       const curTs = Number(cur?.ts || 0);
-  const nextTs = Number(next ? next.ts : clampNow);
+      const nextTs = Number(next ? next.ts : clampNow);
       if (!isFinite(curTs) || !isFinite(nextTs)) continue;
       const t0 = Math.max(rangeStart, curTs);
       const t1 = Math.min(rangeEnd, nextTs);
@@ -779,7 +795,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
   } catch {}
 
   const coverageIntervals = mergeIntervals(paddedIntervals)
-    .map(interval => clampInterval(interval.start, interval.end, rangeStart, rangeEnd))
+    .map((interval) => clampInterval(interval.start, interval.end, rangeStart, rangeEnd))
     .filter(Boolean);
 
   for (const seg of segments) {
@@ -794,7 +810,7 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
     }
   }
 
-  return buckets.map(b => ({
+  return buckets.map((b) => ({
     date: b.label,
     epoch: b.key,
     tzOffsetMinutes: offset,
@@ -812,7 +828,6 @@ function aggregateDailyBuckets(hist, spanDays = 30, tzOffsetMinutes = 0, options
 }
 
 function resolveWindowEndEpoch(hist, fallbackEpoch) {
-
   const base = Number.isFinite(fallbackEpoch) ? fallbackEpoch : Date.now();
   let latest = Number.NEGATIVE_INFINITY;
   if (!hist || typeof hist !== 'object') return base;
@@ -848,7 +863,7 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
     return aggregateDailyBuckets(hist, normalizedSpan, offset, baseOptions);
   }
 
-  const daysPerUnit = period === 'day' ? 1 : (period === 'week' ? 7 : (period === 'month' ? 30 : 365));
+  const daysPerUnit = period === 'day' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
   const totalDays = normalizedSpan * daysPerUnit;
   const daily = aggregateDailyBuckets(hist, totalDays, offset, baseOptions);
   if (bucketPeriod === 'day') {
@@ -937,7 +952,9 @@ function aggregate(hist, period = 'day', span = 30, tzOffsetMinutes = 0, options
     .map((entry) => {
       const anchorEpoch = Number.isFinite(entry.lastActiveEpoch)
         ? entry.lastActiveEpoch
-        : (Number.isFinite(entry.firstActiveEpoch) ? entry.firstActiveEpoch : entry.bucketStartEpoch);
+        : Number.isFinite(entry.firstActiveEpoch)
+          ? entry.firstActiveEpoch
+          : entry.bucketStartEpoch;
       const totalHours = Number(entry.hours || 0);
       return {
         date: formatLocalDateYMD(anchorEpoch, offset) || entry.bucketLabel,
@@ -992,10 +1009,17 @@ function rangeWindow(period = 'day', span = 30, tzOffsetMinutes = 0, options = {
     : null;
   const anchorNow = windowEndOverride != null ? windowEndOverride : Date.now();
   const todayStart = dayStartUTC(anchorNow, offset);
-  const days = period === 'day' ? span : (period === 'week' ? span * 7 : (period === 'month' ? span * 30 : span * 365));
+  const days =
+    period === 'day'
+      ? span
+      : period === 'week'
+        ? span * 7
+        : period === 'month'
+          ? span * 30
+          : span * 365;
   const start = todayStart - (days - 1) * 86400000;
   const rangeEndCandidate = todayStart + 86400000;
-  const windowEndExclusive = windowEndOverride != null ? (windowEndOverride + 1) : rangeEndCandidate;
+  const windowEndExclusive = windowEndOverride != null ? windowEndOverride + 1 : rangeEndCandidate;
   const end = Math.max(start, Math.min(rangeEndCandidate, windowEndExclusive));
   return { start, end };
 }
@@ -1019,7 +1043,7 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
   });
   const mergedIntervals = mergeIntervals(paddedIntervals);
   const coverageInRange = mergedIntervals
-    .map(interval => clampInterval(interval.start, interval.end, start, end))
+    .map((interval) => clampInterval(interval.start, interval.end, start, end))
     .filter(Boolean);
 
   let liveMsInRange = 0;
@@ -1037,8 +1061,14 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
   }
   const hoursStreamed = +(liveMsInRange / 3600000).toFixed(2);
 
-  const daily = aggregate(hist, 'day', Math.round((end - start) / 86400000), tzOffsetMinutes, options);
-  const activeDays = daily.filter(d => (d.hours || 0) > 0).length;
+  const daily = aggregate(
+    hist,
+    'day',
+    Math.round((end - start) / 86400000),
+    tzOffsetMinutes,
+    options
+  );
+  const activeDays = daily.filter((d) => (d.hours || 0) > 0).length;
 
   let peakViewers = 0;
   let rangeWatchedHours = 0;
@@ -1060,7 +1090,8 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
     rangeWatchedHours += v * (dtSec / 3600);
     liveWeightedSeconds += dtSec;
   }
-  const avgViewers = liveWeightedSeconds > 0 ? +(rangeWatchedHours / (liveWeightedSeconds / 3600)).toFixed(2) : 0;
+  const avgViewers =
+    liveWeightedSeconds > 0 ? +(rangeWatchedHours / (liveWeightedSeconds / 3600)).toFixed(2) : 0;
   const watchedHours = +rangeWatchedHours.toFixed(2);
 
   let totalLiveMs = 0;
@@ -1074,7 +1105,10 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
     }
   }
   const totalHoursStreamed = +(totalLiveMs / 3600000).toFixed(2);
-  const highestViewers = Array.isArray(hist.samples) && hist.samples.length ? Math.max(...hist.samples.map(s => Number(s.viewers || 0))) : 0;
+  const highestViewers =
+    Array.isArray(hist.samples) && hist.samples.length
+      ? Math.max(...hist.samples.map((s) => Number(s.viewers || 0)))
+      : 0;
   const recentStreams = computeSessionStats(segments, sortedSamples, nowTs, tzOffsetMinutes, 6);
 
   return {
@@ -1083,29 +1117,34 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
       avgViewers,
       peakViewers,
       hoursWatched: watchedHours,
-      activeDays
+      activeDays,
     },
     allTime: {
       totalHoursStreamed,
-      highestViewers
+      highestViewers,
     },
     recentStreams,
-    tzOffsetMinutes
+    tzOffsetMinutes,
   };
 }
 
 function registerStreamHistoryRoutes(app, limiter, options = {}) {
   const store = options.store || null;
   const historyStore = options.historyStore || null;
-  const forceFileStore = process.env.GETTY_STREAM_HISTORY_FORCE_FILE === '1' || options.forceFileStore === true;
+  const forceFileStore =
+    process.env.GETTY_STREAM_HISTORY_FORCE_FILE === '1' || options.forceFileStore === true;
   const configStore = forceFileStore ? null : store;
-  const redisStore = (!forceFileStore && historyStore && historyStore.redis)
-    ? historyStore
-    : (!forceFileStore && store && store.redis ? store : null);
+  const redisStore =
+    !forceFileStore && historyStore && historyStore.redis
+      ? historyStore
+      : !forceFileStore && store && store.redis
+        ? store
+        : null;
   const redis = redisStore ? redisStore.redis : null;
-  const storeTtlSeconds = redisStore && typeof redisStore.ttl === 'number'
-    ? Math.max(0, Math.floor(redisStore.ttl))
-    : null;
+  const storeTtlSeconds =
+    redisStore && typeof redisStore.ttl === 'number'
+      ? Math.max(0, Math.floor(redisStore.ttl))
+      : null;
   const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
   const DATA_DIR = path.join(process.cwd(), 'data');
@@ -1146,7 +1185,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const legacyKey = redisLegacyKey(adminNs);
     const pendingSamples = Array.isArray(hist.__pendingSamples) ? hist.__pendingSamples : [];
     const replaceAll = opts.forceReplace === true || hist.__replaceAll === true;
-    const segmentsDirty = replaceAll || opts.forceSegments === true || hist.__segmentsDirty === true;
+    const segmentsDirty =
+      replaceAll || opts.forceSegments === true || hist.__segmentsDirty === true;
     const trimmedCount = replaceAll ? 0 : Number(hist.__samplesTrimmed || 0);
     const totalSamples = Array.isArray(data.samples) ? data.samples.length : 0;
     let wrote = false;
@@ -1155,9 +1195,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (replaceAll) {
         await redis.del(samplesKey);
         if (totalSamples > 0) {
-          const payloads = data.samples
-            .map(sample => encryptJSON(sample))
-            .filter(Boolean);
+          const payloads = data.samples.map((sample) => encryptJSON(sample)).filter(Boolean);
           if (payloads.length) {
             await redis.rpush(samplesKey, ...payloads);
             wrote = true;
@@ -1167,9 +1205,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         }
       } else {
         if (pendingSamples.length) {
-          const payloads = pendingSamples
-            .map(sample => encryptJSON(sample))
-            .filter(Boolean);
+          const payloads = pendingSamples.map((sample) => encryptJSON(sample)).filter(Boolean);
           if (payloads.length) {
             await redis.rpush(samplesKey, ...payloads);
             wrote = true;
@@ -1188,7 +1224,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (segmentsDirty) {
         const payload = encryptJSON(data.segments);
         if (payload != null) {
-          if (storeTtlSeconds && storeTtlSeconds > 0) await redis.set(segmentsKey, payload, 'EX', storeTtlSeconds);
+          if (storeTtlSeconds && storeTtlSeconds > 0)
+            await redis.set(segmentsKey, payload, 'EX', storeTtlSeconds);
           else await redis.set(segmentsKey, payload);
         } else {
           await redis.del(segmentsKey);
@@ -1224,8 +1261,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       let samples = [];
       if (Array.isArray(samplesRaw) && samplesRaw.length) {
         samples = samplesRaw
-          .map(item => decryptJSON(item, null))
-          .filter(v => v && typeof v === 'object' && Number.isFinite(Number(v.ts)));
+          .map((item) => decryptJSON(item, null))
+          .filter((v) => v && typeof v === 'object' && Number.isFinite(Number(v.ts)));
       }
 
       if (!segmentsRaw && (!samplesRaw || samplesRaw.length === 0)) {
@@ -1235,7 +1272,9 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           markReplaceAll(normalized);
           await persistHistoryToRedis(adminNs, normalized, { forceReplace: true });
           if (store) {
-            try { await store.del(adminNs, 'stream-history-data'); } catch {}
+            try {
+              await store.del(adminNs, 'stream-history-data');
+            } catch {}
           }
           clearPersistenceMarkers(normalized);
           return normalized;
@@ -1265,13 +1304,21 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     return null;
   }
 
-  let loadTenantConfig = null, saveTenantConfig = null;
-  try { ({ loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config')); } catch {}
+  let loadTenantConfig = null,
+    saveTenantConfig = null;
+  try {
+    ({ loadTenantConfig, saveTenantConfig } = require('../lib/tenant-config'));
+  } catch {}
 
   async function loadConfigNS(req) {
     if (loadTenantConfig) {
       try {
-        const wrapped = await loadTenantConfig(req, configStore, CONFIG_FILE, 'stream-history-config.json');
+        const wrapped = await loadTenantConfig(
+          req,
+          configStore,
+          CONFIG_FILE,
+          'stream-history-config.json'
+        );
         if (wrapped && wrapped.data && typeof wrapped.data.claimid === 'string') {
           return { claimid: wrapped.data.claimid };
         }
@@ -1284,7 +1331,11 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         const legacy = await store.get(adminNs, 'stream-history-config', null);
         if (legacy && typeof legacy.claimid === 'string') {
           if (saveTenantConfig) {
-            try { await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', { claimid: legacy.claimid }); } catch {}
+            try {
+              await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', {
+                claimid: legacy.claimid,
+              });
+            } catch {}
           }
           return { claimid: legacy.claimid };
         }
@@ -1295,9 +1346,13 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (fs.existsSync(CONFIG_FILE)) {
         const c = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
         if (c && typeof c.claimid === 'string') {
-            if (saveTenantConfig && !store) {
-              try { await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', { claimid: c.claimid }); } catch {}
-            }
+          if (saveTenantConfig && !store) {
+            try {
+              await saveTenantConfig(req, store, CONFIG_FILE, 'stream-history-config.json', {
+                claimid: c.claimid,
+              });
+            } catch {}
+          }
           return { claimid: c.claimid };
         }
       }
@@ -1312,7 +1367,9 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
     if (saveTenantConfig && !saved) {
       try {
-        await saveTenantConfig(req, configStore, CONFIG_FILE, 'stream-history-config.json', { claimid });
+        await saveTenantConfig(req, configStore, CONFIG_FILE, 'stream-history-config.json', {
+          claimid,
+        });
         saved = true;
       } catch {}
     }
@@ -1361,7 +1418,9 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         closeStaleOpenSegment(hist);
         clearPersistenceMarkers(hist);
         return hist;
-      } catch { return { segments: [], samples: [] }; }
+      } catch {
+        return { segments: [], samples: [] };
+      }
     }
     const historyFile = getHistoryFilePath(adminNs);
     const fileHist = loadHistoryFromFile(historyFile);
@@ -1411,7 +1470,9 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   const optionBackgroundMs = Number(options.backgroundPollMs);
   const requestedBackgroundMs = Number.isFinite(envBackgroundMs)
     ? envBackgroundMs
-    : (Number.isFinite(optionBackgroundMs) ? optionBackgroundMs : NaN);
+    : Number.isFinite(optionBackgroundMs)
+      ? optionBackgroundMs
+      : NaN;
   const BACKGROUND_POLL_MS = Number.isFinite(requestedBackgroundMs)
     ? Math.max(MIN_BACKGROUND_POLL_MS, Math.floor(requestedBackgroundMs))
     : DEFAULT_BACKGROUND_POLL_MS;
@@ -1428,7 +1489,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const reqLike = {
       ns: { admin: adminNs || null, pub: pubNs || null },
       query: {},
-      headers: {}
+      headers: {},
     };
     if (adminNs) reqLike.__forceWalletHash = adminNs;
     return reqLike;
@@ -1437,9 +1498,16 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
   function stopBackgroundPoller(key) {
     const existing = bgPollers.get(key);
     if (existing) {
-      try { clearInterval(existing.timer); } catch {}
+      try {
+        clearInterval(existing.timer);
+      } catch {}
       bgPollers.delete(key);
-      recordHealth(key, { ts: Date.now(), claimId: existing.claimId || null, live: false, stopped: true }).catch(() => {});
+      recordHealth(key, {
+        ts: Date.now(),
+        claimId: existing.claimId || null,
+        live: false,
+        stopped: true,
+      }).catch(() => {});
     }
   }
 
@@ -1468,13 +1536,14 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const force = !!opts.force;
     if (!app.__shLastFetch) app.__shLastFetch = {};
     const lastTs = app.__shLastFetch[key] || 0;
-    if (!force && (nowTs - lastTs) < DEFAULT_POLL_EVERY_MS) return null;
+    if (!force && nowTs - lastTs < DEFAULT_POLL_EVERY_MS) return null;
     app.__shLastFetch[key] = nowTs;
     try {
       const url = `https://api.odysee.live/livestream/is_live?channel_claim_id=${encodeURIComponent(cfgClaim)}`;
       const resp = await axios.get(url, { timeout: 5000 });
       const nowLive = !!resp?.data?.data?.Live;
-      const viewerCount = typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
+      const viewerCount =
+        typeof resp?.data?.data?.ViewerCount === 'number' ? resp.data.data.ViewerCount : 0;
       const hist = await loadHistoryNS(reqLike);
       const last = hist.segments[hist.segments.length - 1];
       if (nowLive) {
@@ -1491,24 +1560,31 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       truncateSegments(hist);
       await saveHistoryNS(reqLike, hist, {
         claimId: cfgClaim,
-        source: 'poller'
+        source: 'poller',
       });
       const successTs = Date.now();
       const entry = bgPollers.get(key);
       if (entry) entry.lastSuccess = successTs;
-      recordHealth(key, { ts: successTs, claimId: cfgClaim, live: nowLive, viewers: viewerCount }).catch(() => {});
+      recordHealth(key, {
+        ts: successTs,
+        claimId: cfgClaim,
+        live: nowLive,
+        viewers: viewerCount,
+      }).catch(() => {});
       try {
         const nsToken = reqLike?.ns?.admin || reqLike?.ns?.pub || null;
         if (options.wss && nsToken) {
           options.wss.broadcast(nsToken, {
             type: 'stream-history-update',
-            data: { sampleCount: hist.samples.length, live: nowLive, viewerCount }
+            data: { sampleCount: hist.samples.length, live: nowLive, viewerCount },
           });
         }
       } catch {}
       return { nowLive, viewerCount };
     } catch {
-      recordHealth(key, { ts: Date.now(), claimId: cfgClaim, live: false, error: true }).catch(() => {});
+      recordHealth(key, { ts: Date.now(), claimId: cfgClaim, live: false, error: true }).catch(
+        () => {}
+      );
       return null;
     }
   }
@@ -1524,14 +1600,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     const existing = bgPollers.get(key);
     if (existing && existing.claimId === trimmed) return existing;
     stopBackgroundPoller(key);
-    const reqLike = sourceReq && sourceReq.ns
-      ? {
-          ns: { admin: adminNs || null, pub: sourceReq.ns.pub || null },
-          query: sourceReq.query || {},
-          headers: sourceReq.headers || {},
-          __forceWalletHash: sourceReq.__forceWalletHash || adminNs || null
-        }
-      : makeReqLike(adminNs);
+    const reqLike =
+      sourceReq && sourceReq.ns
+        ? {
+            ns: { admin: adminNs || null, pub: sourceReq.ns.pub || null },
+            query: sourceReq.query || {},
+            headers: sourceReq.headers || {},
+            __forceWalletHash: sourceReq.__forceWalletHash || adminNs || null,
+          }
+        : makeReqLike(adminNs);
     try {
       const entry = {
         claimId: trimmed,
@@ -1539,7 +1616,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         reqLike,
         adminNs: adminNs || null,
         lastSuccess: 0,
-        lastAttempt: 0
+        lastAttempt: 0,
       };
       const tick = () => {
         entry.lastAttempt = Date.now();
@@ -1569,17 +1646,23 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (!forceFileStore && store && store.redis) {
         try {
           const nsFromSet = await store.redis.smembers(STREAM_HISTORY_NS_SET);
-          if (Array.isArray(nsFromSet)) nsFromSet.forEach(ns => { if (ns && ns !== 'local') seen.add(ns); });
+          if (Array.isArray(nsFromSet))
+            nsFromSet.forEach((ns) => {
+              if (ns && ns !== 'local') seen.add(ns);
+            });
         } catch {}
       }
       try {
         const tenantRoot = path.join(process.cwd(), 'tenant');
         if (fs.existsSync(tenantRoot)) {
-          const dirs = fs.readdirSync(tenantRoot, { withFileTypes: true })
-            .filter(d => d.isDirectory())
-            .map(d => d.name)
+          const dirs = fs
+            .readdirSync(tenantRoot, { withFileTypes: true })
+            .filter((d) => d.isDirectory())
+            .map((d) => d.name)
             .slice(0, 500);
-          dirs.forEach(ns => { if (ns && ns !== 'local') seen.add(ns); });
+          dirs.forEach((ns) => {
+            if (ns && ns !== 'local') seen.add(ns);
+          });
         }
       } catch {}
 
@@ -1606,16 +1689,19 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         bgPollers.forEach((entry) => {
           if (!entry || !entry.claimId) return;
           const lastOk = entry.lastSuccess || 0;
-          if (!lastOk || (now - lastOk) > STALE_THRESHOLD_MS) {
+          if (!lastOk || now - lastOk > STALE_THRESHOLD_MS) {
             try {
-              const claimPreview = typeof entry.claimId === 'string' ? `${entry.claimId.slice(0, 8)}…` : null;
+              const claimPreview =
+                typeof entry.claimId === 'string' ? `${entry.claimId.slice(0, 8)}…` : null;
               console.warn('[stream-history][health] forcing poller refresh', {
                 ns: entry.adminNs || 'global',
                 claimId: claimPreview,
-                staleMs: now - lastOk
+                staleMs: now - lastOk,
               });
             } catch {}
-            pollLiveStatus(entry.reqLike, entry.adminNs, entry.claimId, { force: true }).catch(() => {});
+            pollLiveStatus(entry.reqLike, entry.adminNs, entry.claimId, { force: true }).catch(
+              () => {}
+            );
           }
         });
         if (!bgPollers.has('single')) {
@@ -1628,7 +1714,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
             .catch(() => {});
         }
         if (!forceFileStore && store && store.redis) {
-          store.redis.smembers(STREAM_HISTORY_NS_SET)
+          store.redis
+            .smembers(STREAM_HISTORY_NS_SET)
             .then((nsList) => {
               if (!Array.isArray(nsList)) return;
               nsList.forEach((ns) => {
@@ -1653,7 +1740,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   app.get('/config/stream-history-config.json', async (req, res) => {
     try {
-  let cfg = await loadConfigNS(req);
+      let cfg = await loadConfigNS(req);
 
       if (!cfg.claimid) {
         try {
@@ -1678,12 +1765,14 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         }
       } catch {}
       return res.json(cfg);
-    } catch { return res.json({ claimid: '' }); }
+    } catch {
+      return res.json({ claimid: '' });
+    }
   });
 
   app.post('/config/stream-history-config.json', limiter, async (req, res) => {
     try {
-      if (((store && store.redis) || requireSessionFlag)) {
+      if ((store && store.redis) || requireSessionFlag) {
         const nsCheck = req?.ns?.admin || req?.ns?.pub || null;
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
@@ -1694,22 +1783,23 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           return res.status(403).json({ error: 'forbidden_untrusted_remote_write' });
         }
       } catch {}
-  const body = req.body || {};
-  const claimid = (typeof body.claimid === 'string') ? body.claimid : '';
-  const cfg = { claimid };
-  const adminNsForPoll = await resolveAdminNs(req);
-  const ok = await saveConfigNS(req, cfg);
-  if (!ok) return res.status(500).json({ error: 'failed_to_save' });
-  ensureBackgroundPoller(adminNsForPoll, claimid, req).catch(() => {});
-  return res.json({ success: true, config: cfg });
-    } catch (e) { return res.status(500).json({ error: 'failed_to_save', details: e?.message }); }
+      const body = req.body || {};
+      const claimid = typeof body.claimid === 'string' ? body.claimid : '';
+      const cfg = { claimid };
+      const adminNsForPoll = await resolveAdminNs(req);
+      const ok = await saveConfigNS(req, cfg);
+      if (!ok) return res.status(500).json({ error: 'failed_to_save' });
+      ensureBackgroundPoller(adminNsForPoll, claimid, req).catch(() => {});
+      return res.json({ success: true, config: cfg });
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_save', details: e?.message });
+    }
   });
 
   app.post('/api/stream-history/event', limiter, async (req, res) => {
     try {
       let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-
         try {
           const token = (req.query?.token || '').toString();
           if (token && store) {
@@ -1721,7 +1811,10 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
       const live = !!req.body?.live;
       const at = typeof req.body?.at === 'number' ? req.body.at : Date.now();
-      const viewers = (() => { const v = Number(req.body?.viewers); return isNaN(v) || v < 0 ? 0 : Math.floor(v); })();
+      const viewers = (() => {
+        const v = Number(req.body?.viewers);
+        return isNaN(v) || v < 0 ? 0 : Math.floor(v);
+      })();
       const hist = await loadHistoryNS(req);
       if (!Array.isArray(hist.samples)) hist.samples = [];
       const last = hist.segments[hist.segments.length - 1];
@@ -1740,14 +1833,18 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       truncateSegments(hist);
       await saveHistoryNS(req, hist, { source: 'event-api' });
       return res.json({ ok: true });
-    } catch (e) { return res.status(500).json({ error: 'failed_to_record', details: e?.message }); }
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_record', details: e?.message });
+    }
   });
 
   app.get('/api/stream-history/summary', async (req, res) => {
     try {
       let period = (req.query?.period || 'day').toString();
       let span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
-      let tz = parseInt(req.query?.tz ?? '0', 10); if (isNaN(tz)) tz = 0; tz = Math.max(-840, Math.min(840, tz));
+      let tz = parseInt(req.query?.tz ?? '0', 10);
+      if (isNaN(tz)) tz = 0;
+      tz = Math.max(-840, Math.min(840, tz));
       const startDateRaw = (req.query?.startDate || '').toString().trim();
       const endDateRaw = (req.query?.endDate || '').toString().trim();
       let rangeOverride = null;
@@ -1787,14 +1884,18 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           }
         : null;
       return res.json({ period, span, tzOffsetMinutes: tz, data, appliedRange });
-    } catch (e) { return res.status(500).json({ error: 'failed_to_summarize', details: e?.message }); }
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_summarize', details: e?.message });
+    }
   });
 
   app.get('/api/stream-history/performance', async (req, res) => {
     try {
       let period = (req.query?.period || 'day').toString();
       let span = Math.max(1, Math.min(365, parseInt(req.query?.span || '30', 10)));
-      let tz = parseInt(req.query?.tz ?? '0', 10); if (isNaN(tz)) tz = 0; tz = Math.max(-840, Math.min(840, tz));
+      let tz = parseInt(req.query?.tz ?? '0', 10);
+      if (isNaN(tz)) tz = 0;
+      tz = Math.max(-840, Math.min(840, tz));
       const startDateRaw = (req.query?.startDate || '').toString().trim();
       const endDateRaw = (req.query?.endDate || '').toString().trim();
       let rangeOverride = null;
@@ -1834,14 +1935,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
           }
         : null;
       return res.json({ period, span, tzOffsetMinutes: tz, appliedRange, ...perf });
-    } catch (e) { return res.status(500).json({ error: 'failed_to_compute_performance', details: e?.message }); }
+    } catch (e) {
+      return res.status(500).json({ error: 'failed_to_compute_performance', details: e?.message });
+    }
   });
 
   app.post('/api/stream-history/backfill-current', limiter, async (req, res) => {
     try {
       let nsCheck = req?.ns?.admin || req?.ns?.pub || null;
       if (((store && store.redis) || requireSessionFlag) && !nsCheck) {
-
         try {
           const token = (req.query?.token || '').toString();
           if (token && store) {
@@ -1853,16 +1955,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
       const hours = Math.max(1, Math.min(24 * 30, parseInt(req.body?.hours || '0', 10)));
 
-  const hist = await loadHistoryNS(req);
+      const hist = await loadHistoryNS(req);
       let last = hist.segments && hist.segments[hist.segments.length - 1];
       if (!last || last.end) {
-
         try {
           const samples = Array.isArray(hist.samples) ? hist.samples : [];
           const ls = samples.length ? samples[samples.length - 1] : null;
           const lastTs = ls ? Number(ls.ts || 0) : 0;
           const FRESH_MS = 150000;
-          const isFreshLive = !!(ls && ls.live && lastTs > 0 && (Date.now() - lastTs) <= FRESH_MS);
+          const isFreshLive = !!(ls && ls.live && lastTs > 0 && Date.now() - lastTs <= FRESH_MS);
           if (isFreshLive) {
             startSegment(hist, Date.now());
             last = hist.segments[hist.segments.length - 1];
@@ -1875,8 +1976,8 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const prevStart = last.start;
       last.start = Math.min(last.start, targetStart);
       if (last.start !== prevStart) markSegmentsDirty(hist);
-    truncateSegments(hist);
-  await saveHistoryNS(req, hist, { source: 'backfill' });
+      truncateSegments(hist);
+      await saveHistoryNS(req, hist, { source: 'backfill' });
       return res.json({ ok: true, start: last.start });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_backfill', details: e?.message });
@@ -1896,9 +1997,9 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         } catch {}
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
-  const empty = { segments: [], samples: [] };
-  markReplaceAll(empty);
-  await saveHistoryNS(req, empty, { source: 'clear' });
+      const empty = { segments: [], samples: [] };
+      markReplaceAll(empty);
+      await saveHistoryNS(req, empty, { source: 'clear' });
       return res.json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_clear', details: e?.message });
@@ -1907,7 +2008,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   app.get('/api/stream-history/export', async (req, res) => {
     try {
-  const hist = await loadHistoryNS(req);
+      const hist = await loadHistoryNS(req);
       res.setHeader('Content-Type', 'application/json');
       return res.status(200).send(JSON.stringify(hist, null, 2));
     } catch (e) {
@@ -1929,16 +2030,21 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
         if (!nsCheck) return res.status(401).json({ error: 'session_required' });
       }
       const incoming = req.body || {};
-      if (!incoming || typeof incoming !== 'object') return res.status(400).json({ error: 'invalid_payload' });
+      if (!incoming || typeof incoming !== 'object')
+        return res.status(400).json({ error: 'invalid_payload' });
       const segments = Array.isArray(incoming.segments) ? incoming.segments : [];
       const samples = Array.isArray(incoming.samples) ? incoming.samples : [];
 
       const safeSegments = segments
-        .map(s => ({ start: Number(s.start), end: (s.end == null ? null : Number(s.end)) }))
-        .filter(s => !isNaN(s.start) && (s.end == null || (!isNaN(s.end) && s.end >= s.start)));
+        .map((s) => ({ start: Number(s.start), end: s.end == null ? null : Number(s.end) }))
+        .filter((s) => !isNaN(s.start) && (s.end == null || (!isNaN(s.end) && s.end >= s.start)));
       const safeSamples = samples
-        .map(s => ({ ts: Number(s.ts), live: !!s.live, viewers: Math.max(0, Number(s.viewers || 0)) }))
-        .filter(s => !isNaN(s.ts));
+        .map((s) => ({
+          ts: Number(s.ts),
+          live: !!s.live,
+          viewers: Math.max(0, Number(s.viewers || 0)),
+        }))
+        .filter((s) => !isNaN(s.ts));
       const data = { segments: safeSegments, samples: safeSamples };
       const hadSegments = data.segments.length;
       const hadSamples = data.samples.length;
@@ -1946,7 +2052,7 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       if (!data.segments.length && hadSegments) data.segments = safeSegments;
       if (!data.samples.length && hadSamples) data.samples = safeSamples;
       markReplaceAll(data);
-  await saveHistoryNS(req, data, { source: 'import-api' });
+      await saveHistoryNS(req, data, { source: 'import-api' });
       return res.json({ ok: true, segments: data.segments.length, samples: data.samples.length });
     } catch (e) {
       return res.status(500).json({ error: 'failed_to_import', details: e?.message });
@@ -1967,11 +2073,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       }
 
       let adminNs = null;
-      try { adminNs = await resolveAdminNs(req); } catch {}
-      try { await pollLiveStatus(req, adminNs, cfg.claimid); } catch {}
+      try {
+        adminNs = await resolveAdminNs(req);
+      } catch {}
+      try {
+        await pollLiveStatus(req, adminNs, cfg.claimid);
+      } catch {}
       ensureBackgroundPoller(adminNs, cfg.claimid, req).catch(() => {});
 
-  const hist = await loadHistoryNS(req);
+      const hist = await loadHistoryNS(req);
       const samples = Array.isArray(hist.samples) ? hist.samples : [];
       const lastSample = samples.length ? samples[samples.length - 1] : null;
       const lastTs = lastSample ? Number(lastSample.ts || 0) : 0;
@@ -1999,18 +2109,18 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
       const now = Date.now();
       const FRESH_MS = 150000;
       const hasClaim = !!(cfg.claimid && String(cfg.claimid).trim());
-      const connected = hasClaim && lastTs > 0 && (now - lastTs) <= FRESH_MS;
+      const connected = hasClaim && lastTs > 0 && now - lastTs <= FRESH_MS;
 
       try {
         const seg = hist.segments && hist.segments[hist.segments.length - 1];
         if (seg && !seg.end && !connected) {
-          const closeAt = lastTs > 0 ? lastTs : (now - FRESH_MS);
+          const closeAt = lastTs > 0 ? lastTs : now - FRESH_MS;
           if (typeof seg.start === 'number' && closeAt >= seg.start) {
             seg.end = closeAt;
             markSegmentsDirty(hist);
             await saveHistoryNS(req, hist, {
               claimId: cfg.claimid,
-              source: 'status-auto-close'
+              source: 'status-auto-close',
             });
           }
         }

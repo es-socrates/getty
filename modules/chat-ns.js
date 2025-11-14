@@ -43,13 +43,21 @@ class ChatNsManager {
     if (!ns || !chatUrlInput) return;
 
     if (this.__starting.has(ns)) {
-      try { console.warn('[chat-ns] start skipped (in-progress)', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
+      try {
+        console.warn('[chat-ns] start skipped (in-progress)', { ns: (ns || '').slice(0, 6) + '…' });
+      } catch {}
       return;
     }
     this.__starting.add(ns);
 
     if (process.env.NODE_ENV === 'test') {
-      this.sessions.set(ns, { ws: null, url: chatUrlInput, connected: false, history: [], reconnectTimer: null });
+      this.sessions.set(ns, {
+        ws: null,
+        url: chatUrlInput,
+        connected: false,
+        history: [],
+        reconnectTimer: null,
+      });
       this._broadcast(ns, { type: 'chatStatus', data: { connected: false } });
       this.__starting.delete(ns);
       return;
@@ -62,33 +70,47 @@ class ChatNsManager {
     }
     if (!/^wss?:\/\//i.test(url) || !url.includes('commentron')) return;
 
-  await this.stop(ns);
+    await this.stop(ns);
 
     try {
       const u = new URL(url);
       const id = u.searchParams.get('id') || '';
-      console.warn('[chat-ns] connecting', { ns: (ns||'').slice(0,6) + '…', host: u.host, path: u.pathname, idPreview: id ? (id.slice(0,8)+'…') : '' });
+      console.warn('[chat-ns] connecting', {
+        ns: (ns || '').slice(0, 6) + '…',
+        host: u.host,
+        path: u.pathname,
+        idPreview: id ? id.slice(0, 8) + '…' : '',
+      });
     } catch {}
 
     const originHeader = process.env.ODYSEE_WS_ORIGIN || 'https://odysee.com';
     const headers = {
       Origin: originHeader,
       Referer: originHeader + '/',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36'
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0 Safari/537.36',
     };
     const ws = new WebSocket(url, { headers });
-  const session = { ws, url, connected: false, history: [], reconnectTimer: null };
+    const session = { ws, url, connected: false, history: [], reconnectTimer: null };
     this.sessions.set(ns, session);
 
     ws.on('open', () => {
       session.connected = true;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: true } });
-      try { console.warn('[chat-ns] connected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
+      try {
+        console.warn('[chat-ns] connected', { ns: (ns || '').slice(0, 6) + '…' });
+      } catch {}
     });
     ws.on('error', (err) => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
-      try { console.warn('[chat-ns] error', { ns: (ns||'').slice(0,6) + '…', error: err && err.message ? err.message : String(err), code: err && err.code }); } catch {}
+      try {
+        console.warn('[chat-ns] error', {
+          ns: (ns || '').slice(0, 6) + '…',
+          error: err && err.message ? err.message : String(err),
+          code: err && err.code,
+        });
+      } catch {}
     });
 
     try {
@@ -97,11 +119,20 @@ class ChatNsManager {
           const status = res && res.statusCode;
           const statusMessage = res && res.statusMessage;
           let body = '';
-          res.on('data', (chunk) => { try { if (body.length < 2048) body += chunk.toString(); } catch {} });
+          res.on('data', (chunk) => {
+            try {
+              if (body.length < 2048) body += chunk.toString();
+            } catch {}
+          });
           res.on('end', () => {
             try {
               const snippet = body ? body.slice(0, 300).replace(/\s+/g, ' ').trim() : '';
-              console.warn('[chat-ns] unexpected-response', { ns: (ns||'').slice(0,6) + '…', status, statusMessage, bodyPreview: snippet });
+              console.warn('[chat-ns] unexpected-response', {
+                ns: (ns || '').slice(0, 6) + '…',
+                status,
+                statusMessage,
+                bodyPreview: snippet,
+              });
             } catch {}
           });
         } catch {}
@@ -110,16 +141,22 @@ class ChatNsManager {
     ws.on('close', () => {
       session.connected = false;
       this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
-      try { console.warn('[chat-ns] disconnected', { ns: (ns||'').slice(0,6) + '…' }); } catch {}
+      try {
+        console.warn('[chat-ns] disconnected', { ns: (ns || '').slice(0, 6) + '…' });
+      } catch {}
 
       if (process.env.NODE_ENV !== 'test') {
         if (!session.reconnectTimer) {
           session.reconnectTimer = setTimeout(() => {
             session.reconnectTimer = null;
-            try { this.start(ns, url); } catch {}
+            try {
+              this.start(ns, url);
+            } catch {}
           }, 5000);
           if (session.reconnectTimer && typeof session.reconnectTimer.unref === 'function') {
-            try { session.reconnectTimer.unref(); } catch {}
+            try {
+              session.reconnectTimer.unref();
+            } catch {}
           }
         }
       }
@@ -138,14 +175,27 @@ class ChatNsManager {
     const s = this.sessions.get(ns);
     if (!s) return;
     try {
-      if (s.reconnectTimer) { try { clearTimeout(s.reconnectTimer); } catch {} s.reconnectTimer = null; }
+      if (s.reconnectTimer) {
+        try {
+          clearTimeout(s.reconnectTimer);
+        } catch {}
+        s.reconnectTimer = null;
+      }
       if (s.ws) {
-        try { s.ws.removeAllListeners && s.ws.removeAllListeners(); } catch {}
-        try { s.ws.terminate && s.ws.terminate(); } catch { try { s.ws.close && s.ws.close(); } catch {} }
+        try {
+          s.ws.removeAllListeners && s.ws.removeAllListeners();
+        } catch {}
+        try {
+          s.ws.terminate && s.ws.terminate();
+        } catch {
+          try {
+            s.ws.close && s.ws.close();
+          } catch {}
+        }
       }
     } catch {}
     this.sessions.delete(ns);
-  this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
+    this._broadcastBoth(ns, { type: 'chatStatus', data: { connected: false } });
   }
 
   getStatus(ns) {
@@ -156,7 +206,9 @@ class ChatNsManager {
 
   dispose() {
     for (const ns of Array.from(this.sessions.keys())) {
-      try { this.stop(ns); } catch {}
+      try {
+        this.stop(ns);
+      } catch {}
     }
     this.sessions.clear();
   }
@@ -168,16 +220,20 @@ class ChatNsManager {
 
       const cached = this.channelCache.get(claimId);
       const now = Date.now();
-      if (cached && (now - cached.ts) < this.CACHE_TTL_MS) {
+      if (cached && now - cached.ts < this.CACHE_TTL_MS) {
         return { avatar: cached.avatar, title: cached.title };
       }
 
-      const resp = await axios.post('https://api.na-backend.odysee.com/api/v1/proxy', {
-        jsonrpc: '2.0',
-        method: 'claim_search',
-        params: { claim_id: claimId, page: 1, page_size: 1, no_totals: true },
-        id: Date.now()
-      }, { timeout: 5000 });
+      const resp = await axios.post(
+        'https://api.na-backend.odysee.com/api/v1/proxy',
+        {
+          jsonrpc: '2.0',
+          method: 'claim_search',
+          params: { claim_id: claimId, page: 1, page_size: 1, no_totals: true },
+          id: Date.now(),
+        },
+        { timeout: 5000 }
+      );
 
       const item = resp.data?.result?.items?.[0];
       if (!item) {
@@ -186,7 +242,8 @@ class ChatNsManager {
         return out;
       }
 
-      const thumbnailUrl = item.value?.thumbnail?.url || item.signing_channel?.value?.thumbnail?.url;
+      const thumbnailUrl =
+        item.value?.thumbnail?.url || item.signing_channel?.value?.thumbnail?.url;
       const channelTitle = item.signing_channel?.value?.title || item.value?.title || null;
 
       let avatar = null;
@@ -206,8 +263,10 @@ class ChatNsManager {
       const out = { avatar, title: channelTitle };
       this.channelCache.set(claimId, { ...out, ts: now });
       return out;
-  } catch {
-      try { this.channelCache.set(claimId, { avatar: null, title: null, ts: Date.now() }); } catch {}
+    } catch {
+      try {
+        this.channelCache.set(claimId, { avatar: null, title: null, ts: Date.now() });
+      } catch {}
       return { avatar: null, title: null };
     }
   }
@@ -233,23 +292,39 @@ class ChatNsManager {
         avatar: avatarUrl,
         timestamp: comment.timestamp || Date.now(),
         userId: comment.channel_id || comment.channel_claim_id || comment.channel_name,
-        username: titleFromApi || comment.channel_name || 'Anonymous'
+        username: titleFromApi || comment.channel_name || 'Anonymous',
       };
 
       try {
         const raffle = global && global.gettyRaffleInstance ? global.gettyRaffleInstance : null;
-        if (raffle && typeof raffle.getPublicState === 'function' && typeof raffle.addParticipant === 'function') {
+        if (
+          raffle &&
+          typeof raffle.getPublicState === 'function' &&
+          typeof raffle.addParticipant === 'function'
+        ) {
           const st = await raffle.getPublicState(ns);
-          if (st && st.active && !st.paused && typeof st.command === 'string' && typeof chatMessage.message === 'string') {
+          if (
+            st &&
+            st.active &&
+            !st.paused &&
+            typeof st.command === 'string' &&
+            typeof chatMessage.message === 'string'
+          ) {
             const msg = (chatMessage.message || '').trim().toLowerCase();
             const cmd = (st.command || '').trim().toLowerCase();
             const msgNorm = msg.replace(/^!+/, '');
             const cmdNorm = cmd.replace(/^!+/, '');
             if (msgNorm && cmdNorm && msgNorm === cmdNorm) {
               try {
-                const added = await raffle.addParticipant(ns, chatMessage.username, chatMessage.userId);
+                const added = await raffle.addParticipant(
+                  ns,
+                  chatMessage.username,
+                  chatMessage.userId
+                );
                 if (added) {
-                  try { console.warn('[giveaway] participant added', { user: chatMessage.username }); } catch {}
+                  try {
+                    console.warn('[giveaway] participant added', { user: chatMessage.username });
+                  } catch {}
                   try {
                     const newState = await raffle.getPublicState(ns);
                     this._broadcastBoth(ns, { type: 'raffle_state', ...newState });
@@ -262,17 +337,23 @@ class ChatNsManager {
       } catch {}
 
       try {
-        const sig = `${chatMessage.userId}|${chatMessage.timestamp}|${(chatMessage.message||'').slice(0,64)}`;
+        const sig = `${chatMessage.userId}|${chatMessage.timestamp}|${(chatMessage.message || '').slice(0, 64)}`;
         const prev = this.__lastMsgSig.get(ns);
         const now = Date.now();
-        if (!prev || prev.sig !== sig || (now - prev.ts) > 1500) {
+        if (!prev || prev.sig !== sig || now - prev.ts > 1500) {
           this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
           this.__lastMsgSig.set(ns, { sig, ts: now });
         }
-      } catch { this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage }); }
+      } catch {
+        this._broadcastBoth(ns, { type: 'chatMessage', data: chatMessage });
+      }
 
       try {
-        if (global && global.gettyAchievementsInstance && typeof global.gettyAchievementsInstance.onChatMessage === 'function') {
+        if (
+          global &&
+          global.gettyAchievementsInstance &&
+          typeof global.gettyAchievementsInstance.onChatMessage === 'function'
+        ) {
           global.gettyAchievementsInstance.onChatMessage(ns, chatMessage);
         }
       } catch {}
@@ -289,7 +370,7 @@ class ChatNsManager {
         const next = prev + 1;
         this.__msgCounters.set(key, next);
         if (next % 25 === 0) {
-          console.warn('[chat-ns] messages', { ns: (ns||'').slice(0,6) + '…', count: next });
+          console.warn('[chat-ns] messages', { ns: (ns || '').slice(0, 6) + '…', count: next });
         }
       } catch {}
 
@@ -301,11 +382,14 @@ class ChatNsManager {
           source: 'chat',
           timestamp: chatMessage.timestamp || new Date().toISOString(),
           creditsIsUsd: true,
-          isChatTip: true
+          isChatTip: true,
         };
         try {
           if (this.wss && typeof this.wss.emit === 'function') this.wss.emit('tip', tipData, ns);
-          console.warn('[chat-ns] tip', { ns: (ns||'').slice(0,6) + '…', amount: tipData.amount });
+          console.warn('[chat-ns] tip', {
+            ns: (ns || '').slice(0, 6) + '…',
+            amount: tipData.amount,
+          });
         } catch {}
       }
     }
@@ -316,7 +400,9 @@ class ChatNsManager {
       const s = this.sessions.get(ns);
       if (!s || !Array.isArray(s.history)) return [];
       return s.history.slice();
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   }
 }
 

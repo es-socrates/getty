@@ -1,10 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
-    function ensureConfirmElements() {
-        if (document.getElementById('confirm-overlay')) return;
-        const overlay = document.createElement('div');
-        overlay.id = 'confirm-overlay';
-        overlay.className = 'confirm-overlay';
-        overlay.innerHTML = `
+  function ensureConfirmElements() {
+    if (document.getElementById('confirm-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'confirm-overlay';
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
             <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
                 <div class="confirm-content">
                     <svg class="confirm-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 15h2v2h-2v-2m0-8h2v6h-2V7m1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Z"/></svg>
@@ -18,149 +18,159 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button type="button" class="confirm-ok-btn danger-btn" id="confirm-ok-btn">Remove</button>
                 </div>
             </div>`;
-        document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
+  }
+
+  async function showConfirm(
+    message,
+    { title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel', danger = false } = {}
+  ) {
+    ensureConfirmElements();
+    const overlay = document.getElementById('confirm-overlay');
+    const titleEl = overlay.querySelector('#confirm-title');
+    const msgEl = overlay.querySelector('#confirm-message');
+    const okBtn = overlay.querySelector('#confirm-ok-btn');
+    const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    okBtn.textContent = okLabel;
+    cancelBtn.textContent = cancelLabel;
+    if (danger) {
+      okBtn.classList.add('danger-btn');
+    } else {
+      okBtn.classList.remove('danger-btn');
     }
 
-    async function showConfirm(message, { title = 'Confirm', okLabel = 'OK', cancelLabel = 'Cancel', danger = false } = {}) {
-        ensureConfirmElements();
-        const overlay = document.getElementById('confirm-overlay');
-        const titleEl = overlay.querySelector('#confirm-title');
-        const msgEl = overlay.querySelector('#confirm-message');
-        const okBtn = overlay.querySelector('#confirm-ok-btn');
-        const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
+    return new Promise((resolve) => {
+      function cleanup(result) {
+        overlay.classList.remove('show');
+        document.removeEventListener('keydown', onKey);
+        setTimeout(() => resolve(result), 200);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') cleanup(false);
+        if (e.key === 'Enter') cleanup(true);
+      }
+      okBtn.onclick = () => cleanup(true);
+      cancelBtn.onclick = () => cleanup(false);
+      overlay.onclick = (e) => {
+        if (e.target === overlay) cleanup(false);
+      };
+      document.addEventListener('keydown', onKey);
+      requestAnimationFrame(() => overlay.classList.add('show'));
+      okBtn.focus();
+    });
+  }
+  window.showConfirm = showConfirm;
 
-        titleEl.textContent = title;
-        msgEl.textContent = message;
-        okBtn.textContent = okLabel;
-        cancelBtn.textContent = cancelLabel;
-        if (danger) {
-            okBtn.classList.add('danger-btn');
-        } else {
-            okBtn.classList.remove('danger-btn');
+  function initTipGifControls() {
+    if (!document.getElementById('tip-gif-controls')) return;
+    wireTipGifLogic();
+    fetchTipGifConfig();
+  }
+
+  function wireTipGifLogic() {
+    const fileInput = document.getElementById('tip-gif-file');
+    const chooseBtn = document.getElementById('tip-gif-choose');
+    const removeBtn = document.getElementById('tip-gif-remove');
+    const previewWrapper = document.getElementById('tip-gif-preview');
+    const previewImg = document.getElementById('tip-gif-preview-img');
+    const filenameLabel = document.getElementById('tip-gif-filename');
+
+    if (chooseBtn && fileInput) {
+      chooseBtn.addEventListener('click', () => fileInput.click());
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', (e) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        const file = e.target.files[0];
+        if (file.type !== 'image/gif' && !file.name.toLowerCase().endsWith('.gif')) {
+          showAlert('Only GIF files are allowed', 'error');
+          fileInput.value = '';
+          return;
         }
+        if (file.size > 2 * 1024 * 1024) {
+          showAlert('GIF too large (max 2MB)', 'error');
+          fileInput.value = '';
+          return;
+        }
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = function () {
+          previewImg.src = url;
+          if (previewWrapper) previewWrapper.classList.remove('hidden');
+          filenameLabel.textContent = file.name + ` (${img.width}x${img.height})`;
+        };
+        img.onerror = function () {
+          showAlert('Invalid GIF file', 'error');
+          fileInput.value = '';
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      });
+    }
 
-        return new Promise(resolve => {
-            function cleanup(result) {
-                overlay.classList.remove('show');
-                document.removeEventListener('keydown', onKey);
-                setTimeout(() => resolve(result), 200);
-            }
-            function onKey(e) {
-                if (e.key === 'Escape') cleanup(false);
-                if (e.key === 'Enter') cleanup(true);
-            }
-            okBtn.onclick = () => cleanup(true);
-            cancelBtn.onclick = () => cleanup(false);
-            overlay.onclick = (e) => { if (e.target === overlay) cleanup(false); };
-            document.addEventListener('keydown', onKey);
-            requestAnimationFrame(() => overlay.classList.add('show'));
-            okBtn.focus();
+    if (removeBtn) {
+      removeBtn.addEventListener('click', async () => {
+        const confirmed = await showConfirm('Remove current GIF?', {
+          title: 'Remove GIF',
+          okLabel: 'Remove',
+          cancelLabel: 'Cancel',
+          danger: true,
         });
-    }
-    window.showConfirm = showConfirm;
-
-    function initTipGifControls() {
-        if (!document.getElementById('tip-gif-controls')) return;
-        wireTipGifLogic();
-        fetchTipGifConfig();
-    }
-
-    function wireTipGifLogic() {
-        const fileInput = document.getElementById('tip-gif-file');
-        const chooseBtn = document.getElementById('tip-gif-choose');
-        const removeBtn = document.getElementById('tip-gif-remove');
-        const previewWrapper = document.getElementById('tip-gif-preview');
-        const previewImg = document.getElementById('tip-gif-preview-img');
-        const filenameLabel = document.getElementById('tip-gif-filename');
-
-        if (chooseBtn && fileInput) {
-            chooseBtn.addEventListener('click', () => fileInput.click());
-        }
-
-        if (fileInput) {
-            fileInput.addEventListener('change', (e) => {
-                if (!e.target.files || !e.target.files[0]) return;
-                const file = e.target.files[0];
-                if (file.type !== 'image/gif' && !file.name.toLowerCase().endsWith('.gif')) {
-                    showAlert('Only GIF files are allowed', 'error');
-                    fileInput.value = '';
-                    return;
-                }
-                if (file.size > 2 * 1024 * 1024) {
-                    showAlert('GIF too large (max 2MB)', 'error');
-                    fileInput.value = '';
-                    return;
-                }
-                const url = URL.createObjectURL(file);
-                const img = new Image();
-                img.onload = function() {
-                    previewImg.src = url;
-                    if (previewWrapper) previewWrapper.classList.remove('hidden');
-                    filenameLabel.textContent = file.name + ` (${img.width}x${img.height})`;
-                };
-                img.onerror = function() {
-                    showAlert('Invalid GIF file', 'error');
-                    fileInput.value = '';
-                    URL.revokeObjectURL(url);
-                };
-                img.src = url;
-            });
-        }
-
-        if (removeBtn) {
-            removeBtn.addEventListener('click', async () => {
-                const confirmed = await showConfirm('Remove current GIF?', { title: 'Remove GIF', okLabel: 'Remove', cancelLabel: 'Cancel', danger: true });
-                if (!confirmed) return;
-                try {
-                    const res = await fetch('/api/tip-notification-gif', { method: 'DELETE' });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to remove GIF');
-                    previewImg.src = '';
-                    if (previewWrapper) previewWrapper.classList.add('hidden');
-                    if (removeBtn) removeBtn.classList.add('hidden');
-                    document.getElementById('tip-gif-filename').textContent = '';
-                    showAlert('GIF removed', 'success');
-                } catch (err) {
-                    console.error('Error removing GIF:', err);
-                    showAlert(err.message || 'Error removing GIF', 'error');
-                }
-            });
-        }
-    }
-
-    async function fetchTipGifConfig() {
+        if (!confirmed) return;
         try {
-            const res = await fetch('/api/tip-notification-gif');
-            if (!res.ok) return;
-            const cfg = await res.json();
-            const posSel = document.getElementById('tip-gif-position');
-            const previewWrapper = document.getElementById('tip-gif-preview');
-            const previewImg = document.getElementById('tip-gif-preview-img');
-            const removeBtn = document.getElementById('tip-gif-remove');
-            if (posSel && cfg.position) posSel.value = cfg.position;
-            if (cfg.gifPath && previewImg) {
-                previewImg.src = cfg.gifPath + '?t=' + Date.now();
-                if (previewWrapper) previewWrapper.classList.remove('hidden');
-                if (removeBtn) removeBtn.classList.remove('hidden');
-            }
-        } catch (e) {
-            console.warn('Could not load GIF config:', e.message);
+          const res = await fetch('/api/tip-notification-gif', { method: 'DELETE' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.success) throw new Error(data.error || 'Failed to remove GIF');
+          previewImg.src = '';
+          if (previewWrapper) previewWrapper.classList.add('hidden');
+          if (removeBtn) removeBtn.classList.add('hidden');
+          document.getElementById('tip-gif-filename').textContent = '';
+          showAlert('GIF removed', 'success');
+        } catch (err) {
+          console.error('Error removing GIF:', err);
+          showAlert(err.message || 'Error removing GIF', 'error');
         }
+      });
     }
+  }
 
-    setTimeout(initTipGifControls, 50);
+  async function fetchTipGifConfig() {
+    try {
+      const res = await fetch('/api/tip-notification-gif');
+      if (!res.ok) return;
+      const cfg = await res.json();
+      const posSel = document.getElementById('tip-gif-position');
+      const previewWrapper = document.getElementById('tip-gif-preview');
+      const previewImg = document.getElementById('tip-gif-preview-img');
+      const removeBtn = document.getElementById('tip-gif-remove');
+      if (posSel && cfg.position) posSel.value = cfg.position;
+      if (cfg.gifPath && previewImg) {
+        previewImg.src = cfg.gifPath + '?t=' + Date.now();
+        if (previewWrapper) previewWrapper.classList.remove('hidden');
+        if (removeBtn) removeBtn.classList.remove('hidden');
+      }
+    } catch (e) {
+      console.warn('Could not load GIF config:', e.message);
+    }
+  }
 
-    const chatThemeSelect = document.getElementById('chat-theme-select');
-    const chatThemeEditBtn = document.getElementById('edit-chat-theme');
-    const chatThemePreview = document.getElementById('chat-theme-preview');
-    const chatThemeCSSInput = document.getElementById('chat-theme-css');
-    const chatThemeNameInput = document.getElementById('chat-theme-name');
-    const chatThemeSaveBtn = document.getElementById('save-chat-theme');
+  setTimeout(initTipGifControls, 50);
 
-    const defaultThemes = [
-        {
-            name: 'getty',
-            css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
+  const chatThemeSelect = document.getElementById('chat-theme-select');
+  const chatThemeEditBtn = document.getElementById('edit-chat-theme');
+  const chatThemePreview = document.getElementById('chat-theme-preview');
+  const chatThemeCSSInput = document.getElementById('chat-theme-css');
+  const chatThemeNameInput = document.getElementById('chat-theme-name');
+  const chatThemeSaveBtn = document.getElementById('save-chat-theme');
+
+  const defaultThemes = [
+    {
+      name: 'getty',
+      css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
             .message { background: #0a0e12 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; color: #fff !important; }
             .message.odd { background: #0a0e12 !important; }
             .message-username.cyberpunk { color: #fff; font-weight: 600; }
@@ -168,11 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation { background: #ececec !important; }
             .message.has-donation .message-username { color: #111 !important; }
             .message.has-donation .message-text-inline { color: #111 !important; }
-            .message-donation { background: #ddb826 !important; color: #111 !important; }`
-        },
-        {
-            name: 'X',
-            css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --border: #3b5aff; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
+            .message-donation { background: #ddb826 !important; color: #111 !important; }`,
+    },
+    {
+      name: 'X',
+      css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --border: #3b5aff; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
             .message { background: #f7f7f7 !important; border-radius: 6px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; border-left: 6px solid #3b5aff !important; color: #111 !important; }
             .message.odd { background: #f7f7f7 !important; }
             .message-username.cyberpunk { color: #111; font-weight: 600; }
@@ -180,11 +190,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation { background: #3b5aff !important; }
             .message.has-donation .message-username { color: #fff !important; }
             .message.has-donation .message-text-inline { color: #fff !important; }
-            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`
-        },
-        {
-            name: 'Twitch',
-            css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --border: #9147ff; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
+            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`,
+    },
+    {
+      name: 'Twitch',
+      css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --border: #9147ff; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
             .message { background: #111 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
             .message.odd { background: #111 !important; }
             .message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; }
@@ -192,11 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation { background: #9147ff !important; }
             .message.has-donation .message-username { color: #fff !important; }
             .message.has-donation .message-text-inline { color: #fff !important; }
-            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`
-        },
-        {
-            name: 'Claro',
-            css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
+            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`,
+    },
+    {
+      name: 'Claro',
+      css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
             .message { background: #f1f5f9 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
             .message.odd { background: #f1f5f9 !important; font-size: 14px; }
             .message-username.cyberpunk { color: #0969da; font-weight: 600; font-size: 14px; }
@@ -204,11 +214,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation { background: #fff4e5 !important; }
             .message.has-donation .message-username { color: #111 !important; font-size: 14px; }
             .message.has-donation .message-text-inline { color: #111 !important; font-size: 14px; }
-            .message-donation { background: #ffb44e !important; color: #111 !important; }`
-        },
-        {
-            name: 'Oscuro',
-            css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #2dcc89; }
+            .message-donation { background: #ffb44e !important; color: #111 !important; }`,
+    },
+    {
+      name: 'Oscuro',
+      css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #2dcc89; }
             .message { background: #0d1114 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
             .message.odd { background: #0d1114 !important; font-size: 14px; }
             .message-username.cyberpunk { color: #fff; font-weight: 600; font-size: 14px; }
@@ -216,11 +226,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation { background: #2dcc89 !important; }
             .message.has-donation .message-username { color: #111 !important; font-size: 14px; }
             .message.has-donation .message-text-inline { color: #111 !important; font-size: 14px; }
-            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`
-        },
-        {
-            name: 'Minimalista',
-            css: `/* THEME_ID:MINIMALISTA_AUTO10S */
+            .message-donation { background: #f7f7f7 !important; color: #111 !important; }`,
+    },
+    {
+      name: 'Minimalista',
+      css: `/* THEME_ID:MINIMALISTA_AUTO10S */
             :root { --bg-main: transparent; --bg-message: rgba(230,230,230,0.72); --bg-message-alt: rgba(230,230,230,0.72); --border: rgba(0,0,0,0.12); --text: #111; --username: #111; --donation: rgb(16,211,158); --donation-bg: rgba(42,197,213,0.12); }
             .message { background: rgba(230,230,230,0.72) !important; border: 1px solid rgba(0,0,0,0.12); border-left: 6px solid rgba(0,0,0,0.12); border-radius: 10px; padding: 10px 14px; margin-bottom: 6px; color: #111 !important; backdrop-filter: saturate(120%) blur(4px); -webkit-backdrop-filter: saturate(120%) blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.18); will-change: opacity, transform; animation: fadeInUp 0.35s ease-out both, fadeOut 0.35s ease-in 9.65s forwards; }
             .message.odd { background: rgba(230,230,230,0.72) !important; }
@@ -231,62 +241,64 @@ document.addEventListener('DOMContentLoaded', () => {
             .message.has-donation .message-text-inline { color: #111 !important; }
             .message-donation { background: rgb(16,211,158) !important; color: #111 !important; }
             @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes fadeOut { to { opacity: 0; transform: translateY(-6px); } }`
-        }
-    ];
+            @keyframes fadeOut { to { opacity: 0; transform: translateY(-6px); } }`,
+    },
+  ];
 
-    function getCustomThemes() {
-        try {
-            return JSON.parse(localStorage.getItem('chatCustomThemes') || '[]');
-        } catch { return []; }
+  function getCustomThemes() {
+    try {
+      return JSON.parse(localStorage.getItem('chatCustomThemes') || '[]');
+    } catch {
+      return [];
     }
-    function saveCustomThemes(themes) {
-        localStorage.setItem('chatCustomThemes', JSON.stringify(themes));
-    }
-    function getAllThemes() {
-        return [...defaultThemes, ...getCustomThemes()];
-    }
-    function renderThemeOptions() {
-        if (!chatThemeSelect) return;
-        chatThemeSelect.innerHTML = '';
-        getAllThemes().forEach((theme, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.textContent = theme.name;
-            chatThemeSelect.appendChild(opt);
-        });
+  }
+  function saveCustomThemes(themes) {
+    localStorage.setItem('chatCustomThemes', JSON.stringify(themes));
+  }
+  function getAllThemes() {
+    return [...defaultThemes, ...getCustomThemes()];
+  }
+  function renderThemeOptions() {
+    if (!chatThemeSelect) return;
+    chatThemeSelect.innerHTML = '';
+    getAllThemes().forEach((theme, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = theme.name;
+      chatThemeSelect.appendChild(opt);
+    });
 
-        const customThemes = getCustomThemes();
-        if (customThemes.length > 0) {
-            let removeBtn = document.getElementById('remove-custom-theme-btn');
-            if (!removeBtn) {
-                removeBtn = document.createElement('button');
-                removeBtn.id = 'remove-custom-theme-btn';
-                removeBtn.textContent = 'Remove Custom Theme';
-                removeBtn.classList.add('mt-8');
-                chatThemeSelect.parentNode.appendChild(removeBtn);
-            }
-            removeBtn.onclick = function() {
-                const idx = parseInt(chatThemeSelect.value);
-                if (idx >= defaultThemes.length) {
-                    const customIdx = idx - defaultThemes.length;
-                    customThemes.splice(customIdx, 1);
-                    saveCustomThemes(customThemes);
-                    renderThemeOptions();
-                    chatThemeSelect.selectedIndex = 0;
-                    applyThemePreview(0);
-                    showCopyThemeCSS();
-                }
-            };
-        } else {
-            const btn = document.getElementById('remove-custom-theme-btn');
-            if (btn) btn.remove();
+    const customThemes = getCustomThemes();
+    if (customThemes.length > 0) {
+      let removeBtn = document.getElementById('remove-custom-theme-btn');
+      if (!removeBtn) {
+        removeBtn = document.createElement('button');
+        removeBtn.id = 'remove-custom-theme-btn';
+        removeBtn.textContent = 'Remove Custom Theme';
+        removeBtn.classList.add('mt-8');
+        chatThemeSelect.parentNode.appendChild(removeBtn);
+      }
+      removeBtn.onclick = function () {
+        const idx = parseInt(chatThemeSelect.value);
+        if (idx >= defaultThemes.length) {
+          const customIdx = idx - defaultThemes.length;
+          customThemes.splice(customIdx, 1);
+          saveCustomThemes(customThemes);
+          renderThemeOptions();
+          chatThemeSelect.selectedIndex = 0;
+          applyThemePreview(0);
+          showCopyThemeCSS();
         }
+      };
+    } else {
+      const btn = document.getElementById('remove-custom-theme-btn');
+      if (btn) btn.remove();
     }
-    function applyThemePreview(idx) {
-        if (!chatThemePreview) return;
-        const theme = getAllThemes()[idx];
-        chatThemePreview.innerHTML = `
+  }
+  function applyThemePreview(idx) {
+    if (!chatThemePreview) return;
+    const theme = getAllThemes()[idx];
+    chatThemePreview.innerHTML = `
             <div class="message">
                 <span class="message-username cyberpunk">User</span>
                 <span class="message-text-inline">This is an example message!</span>
@@ -300,228 +312,243 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="message-text-inline">Tip received!</span>
             </div>
         `;
-        let styleTag = chatThemePreview.querySelector('style');
-        if (styleTag) styleTag.remove();
-        styleTag = document.createElement('style');
-        styleTag.textContent = theme.css;
-        chatThemePreview.appendChild(styleTag);
-    }
+    let styleTag = chatThemePreview.querySelector('style');
+    if (styleTag) styleTag.remove();
+    styleTag = document.createElement('style');
+    styleTag.textContent = theme.css;
+    chatThemePreview.appendChild(styleTag);
+  }
 
-    function showCopyThemeCSS() {
-        const idx = chatThemeSelect ? chatThemeSelect.value : 0;
-        const theme = getAllThemes()[idx];
-        let container = document.getElementById('chat-theme-css-copy-container');
-        if (!container && chatThemeSelect) {
-            container = document.createElement('div');
-            container.id = 'chat-theme-css-copy-container';
-            container.style.margin = '18px 0';
-            container.innerHTML = `
+  function showCopyThemeCSS() {
+    const idx = chatThemeSelect ? chatThemeSelect.value : 0;
+    const theme = getAllThemes()[idx];
+    let container = document.getElementById('chat-theme-css-copy-container');
+    if (!container && chatThemeSelect) {
+      container = document.createElement('div');
+      container.id = 'chat-theme-css-copy-container';
+      container.style.margin = '18px 0';
+      container.innerHTML = `
                 <label for="chat-theme-css-copy" class="fw-600">Theme CSS for OBS:</label><br>
                 <textarea id="chat-theme-css-copy" readonly class="textarea-mono"></textarea>
                 <button id="copy-chat-theme-css" class="btn mt-8">Copy CSS</button>
             `;
-            chatThemeSelect.parentNode.appendChild(container);
+      chatThemeSelect.parentNode.appendChild(container);
+    }
+    if (container) {
+      const textarea = container.querySelector('#chat-theme-css-copy');
+      if (textarea) textarea.value = theme.css || '';
+      const copyBtn = container.querySelector('#copy-chat-theme-css');
+      if (copyBtn) {
+        copyBtn.onclick = function () {
+          textarea.select();
+          document.execCommand('copy');
+          showAlert('CSS copied to clipboard', 'success');
+        };
+      }
+    }
+  }
+
+  if (chatThemeSelect) {
+    renderThemeOptions();
+    chatThemeSelect.addEventListener('change', () => {
+      applyThemePreview(chatThemeSelect.value);
+      showCopyThemeCSS();
+    });
+
+    chatThemeSelect.selectedIndex = 0;
+    applyThemePreview(0);
+    showCopyThemeCSS();
+  }
+  if (chatThemeEditBtn) {
+    chatThemeEditBtn.addEventListener('click', () => {
+      const idx = chatThemeSelect.value;
+      const theme = getAllThemes()[idx];
+      if (theme) {
+        chatThemeNameInput.value = theme.name || '';
+        chatThemeCSSInput.value = theme.css || '';
+      } else {
+        chatThemeNameInput.value = '';
+        chatThemeCSSInput.value = '';
+      }
+      document.getElementById('chat-theme-editor').classList.remove('hidden');
+    });
+  }
+  if (chatThemeSaveBtn) {
+    chatThemeSaveBtn.addEventListener('click', () => {
+      const name = chatThemeNameInput.value.trim();
+      const css = chatThemeCSSInput.value.trim();
+      if (!name || !css) return alert('Name and CSS required');
+      const customThemes = getCustomThemes();
+
+      if (customThemes.some((t) => t.name === name)) {
+        const newName = prompt(
+          'A theme with that name already exists. Please enter a different name:',
+          name + ' copy'
+        );
+        if (!newName) return;
+        customThemes.push({ name: newName, css });
+      } else {
+        customThemes.push({ name, css });
+      }
+      saveCustomThemes(customThemes);
+      renderThemeOptions();
+      chatThemeSelect.value = getAllThemes().length - 1;
+      applyThemePreview(chatThemeSelect.value);
+      document.getElementById('chat-theme-editor').classList.add('hidden');
+      localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
+      showCopyThemeCSS();
+    });
+  }
+  if (chatThemeCSSInput) {
+    chatThemeCSSInput.addEventListener('input', () => {
+      applyThemePreview(chatThemeSelect.value);
+    });
+  }
+
+  const chatThemeDeleteBtn = document.getElementById('delete-chat-theme');
+  const chatThemeSaveBtnEditor = document.getElementById('save-chat-theme-editor');
+  const chatThemeCancelBtnEditor = document.getElementById('cancel-chat-theme-editor');
+  const chatThemeCSSCopyBtn = document.getElementById('copy-chat-theme-css');
+
+  if (chatThemeDeleteBtn) {
+    chatThemeDeleteBtn.onclick = function () {
+      const idx = parseInt(chatThemeSelect.value);
+      if (idx >= defaultThemes.length) {
+        const customThemes = getCustomThemes();
+        const customIdx = idx - defaultThemes.length;
+        if (confirm('Are you sure you want to delete this custom theme?')) {
+          customThemes.splice(customIdx, 1);
+          saveCustomThemes(customThemes);
+          renderThemeOptions();
+          chatThemeSelect.selectedIndex = 0;
+          applyThemePreview(0);
+          showCopyThemeCSS();
         }
-        if (container) {
-            const textarea = container.querySelector('#chat-theme-css-copy');
-            if (textarea) textarea.value = theme.css || '';
-            const copyBtn = container.querySelector('#copy-chat-theme-css');
-            if (copyBtn) {
-                copyBtn.onclick = function() {
-                    textarea.select();
-                    document.execCommand('copy');
-                    showAlert('CSS copied to clipboard', 'success');
-                };
-            }
-        }
+      } else {
+        const message = window.languageManager
+          ? window.languageManager.getText('chatThemeDeleteOnlyCustom')
+          : 'You can only delete custom themes.';
+        showAlert(message, 'error');
+      }
+    };
+  }
+
+  if (chatThemeSaveBtnEditor) {
+    chatThemeSaveBtnEditor.onclick = function () {
+      const name = chatThemeNameInput.value.trim();
+      const css = chatThemeCSSInput.value.trim();
+      if (!name || !css) return alert('Name and CSS are required');
+      const customThemes = getCustomThemes();
+      if (customThemes.some((t) => t.name === name)) {
+        const newName = prompt(
+          'A topic with that name already exists. Please enter a different name:',
+          name + ' copy'
+        );
+        if (!newName) return;
+        customThemes.push({ name: newName, css });
+      } else {
+        customThemes.push({ name, css });
+      }
+      saveCustomThemes(customThemes);
+      renderThemeOptions();
+      chatThemeSelect.value = getAllThemes().length - 1;
+      applyThemePreview(chatThemeSelect.value);
+      document.getElementById('chat-theme-editor').classList.add('hidden');
+      localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
+      showCopyThemeCSS();
+    };
+  }
+
+  if (chatThemeCancelBtnEditor) {
+    chatThemeCancelBtnEditor.onclick = function () {
+      document.getElementById('chat-theme-editor').classList.add('hidden');
+    };
+  }
+
+  if (chatThemeCSSCopyBtn) {
+    chatThemeCSSCopyBtn.onclick = function () {
+      const textarea = document.getElementById('chat-theme-css-copy');
+      if (textarea) {
+        textarea.select();
+        document.execCommand('copy');
+        const message = window.languageManager
+          ? window.languageManager.getText('chatThemeCopySuccess')
+          : 'CSS copied to clipboard';
+        showAlert(message, 'success');
+      }
+    };
+  }
+
+  let socialmediaConfig = [];
+
+  const socialmediaForm = document.getElementById('socialmedia-form');
+  const socialmediaList = document.getElementById('socialmedia-list');
+  const saveSocialmediaBtn = document.getElementById('save-socialmedia-config');
+
+  async function saveSocialmediaConfig() {
+    try {
+      const res = await fetch('/api/socialmedia-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: socialmediaConfig }),
+      });
+      const data = await res.json().catch(() => ({ success: false }));
+      if (!res.ok || !data.success) {
+        throw new Error(data && data.error ? data.error : 'Error saving settings');
+      }
+      showAlert('Social network settings saved', 'success');
+    } catch (e) {
+      console.error('[socialmedia] save failed:', e);
+      showAlert(e.message || 'Error saving settings', 'error');
     }
+  }
 
-    if (chatThemeSelect) {
-        renderThemeOptions();
-        chatThemeSelect.addEventListener('change', () => {
-            applyThemePreview(chatThemeSelect.value);
-            showCopyThemeCSS();
-        });
-
-        chatThemeSelect.selectedIndex = 0;
-        applyThemePreview(0);
-        showCopyThemeCSS();
-    }
-    if (chatThemeEditBtn) {
-        chatThemeEditBtn.addEventListener('click', () => {
-            const idx = chatThemeSelect.value;
-            const theme = getAllThemes()[idx];
-            if (theme) {
-                chatThemeNameInput.value = theme.name || '';
-                chatThemeCSSInput.value = theme.css || '';
-            } else {
-                chatThemeNameInput.value = '';
-                chatThemeCSSInput.value = '';
-            }
-            document.getElementById('chat-theme-editor').classList.remove('hidden');
-        });
-    }
-    if (chatThemeSaveBtn) {
-        chatThemeSaveBtn.addEventListener('click', () => {
-            const name = chatThemeNameInput.value.trim();
-            const css = chatThemeCSSInput.value.trim();
-            if (!name || !css) return alert('Name and CSS required');
-            const customThemes = getCustomThemes();
-
-            if (customThemes.some(t => t.name === name)) {
-                const newName = prompt('A theme with that name already exists. Please enter a different name:', name + ' copy');
-                if (!newName) return;
-                customThemes.push({ name: newName, css });
-            } else {
-                customThemes.push({ name, css });
-            }
-            saveCustomThemes(customThemes);
-            renderThemeOptions();
-            chatThemeSelect.value = getAllThemes().length - 1;
-            applyThemePreview(chatThemeSelect.value);
-            document.getElementById('chat-theme-editor').classList.add('hidden');
-            localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
-            showCopyThemeCSS();
-        });
-    }
-    if (chatThemeCSSInput) {
-        chatThemeCSSInput.addEventListener('input', () => {
-            applyThemePreview(chatThemeSelect.value);
-        });
-    }
-
-    const chatThemeDeleteBtn = document.getElementById('delete-chat-theme');
-    const chatThemeSaveBtnEditor = document.getElementById('save-chat-theme-editor');
-    const chatThemeCancelBtnEditor = document.getElementById('cancel-chat-theme-editor');
-    const chatThemeCSSCopyBtn = document.getElementById('copy-chat-theme-css');
-
-    if (chatThemeDeleteBtn) {
-        chatThemeDeleteBtn.onclick = function() {
-            const idx = parseInt(chatThemeSelect.value);
-            if (idx >= defaultThemes.length) {
-                const customThemes = getCustomThemes();
-                const customIdx = idx - defaultThemes.length;
-                if (confirm('Are you sure you want to delete this custom theme?')) {
-                    customThemes.splice(customIdx, 1);
-                    saveCustomThemes(customThemes);
-                    renderThemeOptions();
-                    chatThemeSelect.selectedIndex = 0;
-                    applyThemePreview(0);
-                    showCopyThemeCSS();
-                }
-            } else {
-                const message = window.languageManager ? window.languageManager.getText('chatThemeDeleteOnlyCustom') : 'You can only delete custom themes.';
-                showAlert(message, 'error');
-            }
-        };
-    }
-
-    if (chatThemeSaveBtnEditor) {
-        chatThemeSaveBtnEditor.onclick = function() {
-            const name = chatThemeNameInput.value.trim();
-            const css = chatThemeCSSInput.value.trim();
-            if (!name || !css) return alert('Name and CSS are required');
-            const customThemes = getCustomThemes();
-            if (customThemes.some(t => t.name === name)) {
-                const newName = prompt('A topic with that name already exists. Please enter a different name:', name + ' copy');
-                if (!newName) return;
-                customThemes.push({ name: newName, css });
-            } else {
-                customThemes.push({ name, css });
-            }
-            saveCustomThemes(customThemes);
-            renderThemeOptions();
-            chatThemeSelect.value = getAllThemes().length - 1;
-            applyThemePreview(chatThemeSelect.value);
-            document.getElementById('chat-theme-editor').classList.add('hidden');
-            localStorage.setItem('chatLiveThemeCSS', chatThemeCSSInput.value.trim());
-            showCopyThemeCSS();
-        };
-    }
-
-    if (chatThemeCancelBtnEditor) {
-        chatThemeCancelBtnEditor.onclick = function() {
-            document.getElementById('chat-theme-editor').classList.add('hidden');
-        };
-    }
-
-    if (chatThemeCSSCopyBtn) {
-        chatThemeCSSCopyBtn.onclick = function() {
-            const textarea = document.getElementById('chat-theme-css-copy');
-            if (textarea) {
-                textarea.select();
-                document.execCommand('copy');
-                const message = window.languageManager ? window.languageManager.getText('chatThemeCopySuccess') : 'CSS copied to clipboard';
-                showAlert(message, 'success');
-            }
-        };
-    }
-
-    let socialmediaConfig = [];
-
-    const socialmediaForm = document.getElementById('socialmedia-form');
-    const socialmediaList = document.getElementById('socialmedia-list');
-    const saveSocialmediaBtn = document.getElementById('save-socialmedia-config');
-
-    async function saveSocialmediaConfig() {
-        try {
-            const res = await fetch('/api/socialmedia-config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ config: socialmediaConfig })
-            });
-            const data = await res.json().catch(() => ({ success: false }));
-            if (!res.ok || !data.success) {
-                throw new Error(data && data.error ? data.error : 'Error saving settings');
-            }
-            showAlert('Social network settings saved', 'success');
-        } catch (e) {
-            console.error('[socialmedia] save failed:', e);
-            showAlert(e.message || 'Error saving settings', 'error');
-        }
-    }
-
-    function renderSocialmediaList() {
-        if (!socialmediaList) return;
-        socialmediaList.innerHTML = '';
-        socialmediaConfig.forEach((item, idx) => {
-            const li = document.createElement('li');
-            li.className = 'socialmedia-item';
-            let iconHTML = '';
-            if (item.icon === 'custom' && item.customIcon) {
-                iconHTML = `<img src="${item.customIcon}" alt="Custom" class="icon-custom-24">`;
-            } else {
-                iconHTML = getSocialIconSVG(item.icon);
-            }
-            li.innerHTML = `
+  function renderSocialmediaList() {
+    if (!socialmediaList) return;
+    socialmediaList.innerHTML = '';
+    socialmediaConfig.forEach((item, idx) => {
+      const li = document.createElement('li');
+      li.className = 'socialmedia-item';
+      let iconHTML = '';
+      if (item.icon === 'custom' && item.customIcon) {
+        iconHTML = `<img src="${item.customIcon}" alt="Custom" class="icon-custom-24">`;
+      } else {
+        iconHTML = getSocialIconSVG(item.icon);
+      }
+      li.innerHTML = `
                 <span class="icon">${iconHTML}</span>
                 <span class="name">${escapeHTML(item.name)}</span>
                 <button class="remove-socialmedia" data-idx="${idx}" title="Remove">×</button>
             `;
-            socialmediaList.appendChild(li);
-        });
-    }
+      socialmediaList.appendChild(li);
+    });
+  }
 
-    function escapeHTML(str) {
-        return String(str).replace(/[&<>"']/g, function(match) {
-            switch (match) {
-                case "&": return "&amp;";
-                case "<": return "&lt;";
-                case ">": return "&gt;";
-                case '"': return "&quot;";
-                case "'": return "&#39;";
-            }
-        });
-    }
+  function escapeHTML(str) {
+    return String(str).replace(/[&<>"']/g, function (match) {
+      switch (match) {
+        case '&':
+          return '&amp;';
+        case '<':
+          return '&lt;';
+        case '>':
+          return '&gt;';
+        case '"':
+          return '&quot;';
+        case "'":
+          return '&#39;';
+      }
+    });
+  }
 
-    function getSocialIconSVG(icon) {
-        switch(icon) {
-            case 'x':
-            return '<svg width="32" height="32" viewBox="0 0 24 24"><rect width="24" height="24" rx="2" fill="#222"/><path fill="#fff" d="M7 7l10 10M17 7L7 17" stroke="#fff" stroke-width="2"/></svg>';
-            case 'odysee':
-            return `<svg width="32" height="32" viewBox="0 0 192 192"><path fill="none" stroke="#111" stroke-linecap="round" stroke-linejoin="round" stroke-width="12" d="M98.612 39.193c7.085.276 9.76 4.503 12.192 10.124 3.249 7.494.988 10.141-12.192 13.85-13.187 3.74-19.535-1.171-20.404-10.115-.976-10.115 11.684-12.729 11.684-12.729 3.495-.876 6.36-1.226 8.72-1.13zm65.362 107.42c2.54-9.665-6.121-19.201-11.2-27.806-4.998-8.467-11.972-17.925-18.629-22.87a4.832 4.832 0 0 1-.378-7.376c6.57-6.21 18.15-18.329 21.813-24.725 3.413-6.664 7.628-14.488 5.34-21.513-2.058-6.317-8.8-14.298-15.274-12.806-7.342 1.692-6.837 10.98-9.216 20.638-3.222 13.187-10.86 11.697-13.968 11.697-3.108 0-1.24-4.658-8.46-25.377-7.217-20.72-26.002-15.526-40.27-6.985-18.14 10.874-10.046 34.054-5.562 48.992-2.546 2.453-12.118 4.368-20.834 9.06-10.75 5.78-21.645 9.363-24.66 19.372-1.883 6.254.172 15.997 6.162 18.602 6.645 2.889 12.633-1.694 19.751-9.073a36.226 36.226 0 0 1 7.089-5.482 75.994 75.994 0 0 1 18.276-8.59s6.97 10.707 13.432 23.393c6.457 12.686-6.968 16.918-8.459 16.918-1.497 0-22.675-1.973-17.95 15.926 4.726 17.9 30.598 11.437 43.785 2.728 13.187-8.708 9.947-37.06 9.947-37.06 12.94-1.985 16.915 11.684 18.158 18.628 1.243 6.944 4.06 18.052 11.449 19.412 8.248 1.517 17.528-7.593 19.659-15.705z"/></svg>`;
-            case 'instagram':
-            return `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  function getSocialIconSVG(icon) {
+    switch (icon) {
+      case 'x':
+        return '<svg width="32" height="32" viewBox="0 0 24 24"><rect width="24" height="24" rx="2" fill="#222"/><path fill="#fff" d="M7 7l10 10M17 7L7 17" stroke="#fff" stroke-width="2"/></svg>';
+      case 'odysee':
+        return `<svg width="32" height="32" viewBox="0 0 192 192"><path fill="none" stroke="#111" stroke-linecap="round" stroke-linejoin="round" stroke-width="12" d="M98.612 39.193c7.085.276 9.76 4.503 12.192 10.124 3.249 7.494.988 10.141-12.192 13.85-13.187 3.74-19.535-1.171-20.404-10.115-.976-10.115 11.684-12.729 11.684-12.729 3.495-.876 6.36-1.226 8.72-1.13zm65.362 107.42c2.54-9.665-6.121-19.201-11.2-27.806-4.998-8.467-11.972-17.925-18.629-22.87a4.832 4.832 0 0 1-.378-7.376c6.57-6.21 18.15-18.329 21.813-24.725 3.413-6.664 7.628-14.488 5.34-21.513-2.058-6.317-8.8-14.298-15.274-12.806-7.342 1.692-6.837 10.98-9.216 20.638-3.222 13.187-10.86 11.697-13.968 11.697-3.108 0-1.24-4.658-8.46-25.377-7.217-20.72-26.002-15.526-40.27-6.985-18.14 10.874-10.046 34.054-5.562 48.992-2.546 2.453-12.118 4.368-20.834 9.06-10.75 5.78-21.645 9.363-24.66 19.372-1.883 6.254.172 15.997 6.162 18.602 6.645 2.889 12.633-1.694 19.751-9.073a36.226 36.226 0 0 1 7.089-5.482 75.994 75.994 0 0 1 18.276-8.59s6.97 10.707 13.432 23.393c6.457 12.686-6.968 16.918-8.459 16.918-1.497 0-22.675-1.973-17.95 15.926 4.726 17.9 30.598 11.437 43.785 2.728 13.187-8.708 9.947-37.06 9.947-37.06 12.94-1.985 16.915 11.684 18.158 18.628 1.243 6.944 4.06 18.052 11.449 19.412 8.248 1.517 17.528-7.593 19.659-15.705z"/></svg>`;
+      case 'instagram':
+        return `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="2" width="28" height="28" rx="6" fill="url(#paint0_radial_87_7153)"/>
         <rect x="2" y="2" width="28" height="28" rx="6" fill="url(#paint1_radial_87_7153)"/>
         <rect x="2" y="2" width="28" height="28" rx="6" fill="url(#paint2_radial_87_7153)"/>
@@ -547,1554 +574,1682 @@ document.addEventListener('DOMContentLoaded', () => {
         </radialGradient>
         </defs>
         </svg>`;
-            case 'youtube':
-            return `<svg width="32" height="32" viewBox="0 0 48 48"><rect width="48" height="48" rx="8" fill="#CE1312"/><polygon points="19,32 19,16 32,24" fill="#fff"/></svg>`;
-            case 'rumble':
-            return '<svg width="32" height="32" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#53C22B"/><path fill="#fff" d="M12 7l5 10H7z"/></svg>';
-            case 'telegram':
-            return `<svg width="32" height="32" viewBox="0 0 512 512"><rect width="512" height="512" rx="76" fill="#37aee2"/><path fill="#c8daea" d="M199 404c-11 0-10-4-13-14l-32-105 245-144"/><path fill="#a9c9dd" d="M199 404c7 0 11-4 16-8l45-43-56-34"/><path fill="#f6fbfe" d="M204 319l135 99c14 9 26 4 30-14l55-258c5-22-9-32-24-25L79 245c-21 8-21 21-4 26l83 26 190-121c9-5 17-3 11 4"/></svg>`;
-            case 'discord':
-            return `<svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      case 'youtube':
+        return `<svg width="32" height="32" viewBox="0 0 48 48"><rect width="48" height="48" rx="8" fill="#CE1312"/><polygon points="19,32 19,16 32,24" fill="#fff"/></svg>`;
+      case 'rumble':
+        return '<svg width="32" height="32" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#53C22B"/><path fill="#fff" d="M12 7l5 10H7z"/></svg>';
+      case 'telegram':
+        return `<svg width="32" height="32" viewBox="0 0 512 512"><rect width="512" height="512" rx="76" fill="#37aee2"/><path fill="#c8daea" d="M199 404c-11 0-10-4-13-14l-32-105 245-144"/><path fill="#a9c9dd" d="M199 404c7 0 11-4 16-8l45-43-56-34"/><path fill="#f6fbfe" d="M204 319l135 99c14 9 26 4 30-14l55-258c5-22-9-32-24-25L79 245c-21 8-21 21-4 26l83 26 190-121c9-5 17-3 11 4"/></svg>`;
+      case 'discord':
+        return `<svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="4" y="4" width="24" height="24" rx="6" fill="#5865F2"/>
         <g transform="translate(7,9) scale(0.07)">
             <path d="M216.86,16.6c-16.57-7.75-34.29-13.39-52.82-16.6c-2.28,4.11-4.93,9.64-6.77,14.05c-19.69-2.96-39.2-2.96-58.53,0c-1.83-4.41-4.62-9.93-6.87-14.05C73.35,3.21,55.61,8.86,39.04,16.64C5.62,67.15-3.44,116.4,1.09,164.96c22.17,16.56,43.66,26.61,64.78,33.19c5.22-7.18,9.87-14.85,13.89-22.89c-7.63-2.9-14.94-6.48-21.85-10.63c1.83-1.36,3.62-2.76,5.39-4.24c42.12,19.7,87.89,19.7,129.51,0c1.75,1.46,3.54,2.86,5.36,4.24c-6.93,4.17-14.22,7.75-21.85,10.65c4.01,8.04,8.63,15.65,13.89,22.89c21.14-6.58,42.62-16.63,64.78-33.19C260.23,108.67,245.83,59.87,216.86,16.6zM85.47,135.09c-12.64,0-23.03-11.8-23.03-26.18c0-14.37,10.15-26.16,23.03-26.16c12.87,0,23.26,11.8,23.04,26.16C108.51,123.29,98.34,135.09,85.47,135.09zM170.53,135.09c-12.64,0-23.02-11.8-23.02-26.18c0-14.37,10.15-26.16,23.02-26.16c12.87,0,23.26,11.8,23.04,26.16C193.54,123.29,183.39,135.09,170.53,135.09z" fill="#fff"/>
         </g>
         </svg>`;
-            default:
-            return '';
+      default:
+        return '';
+    }
+  }
+
+  function loadSocialmediaConfig() {
+    fetch('/api/socialmedia-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.config)) {
+          socialmediaConfig = data.config;
+          renderSocialmediaList();
         }
-    }
+      });
+  }
 
-    function loadSocialmediaConfig() {
-        fetch('/api/socialmedia-config')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && Array.isArray(data.config)) {
-                    socialmediaConfig = data.config;
-                    renderSocialmediaList();
-                }
-            });
-    }
-    
-    const iconSelect = document.getElementById('socialmedia-icon');
-    const customIconUpload = document.getElementById('custom-icon-upload');
-    const customIconInput = document.getElementById('socialmedia-custom-icon');
-    let customIconBase64 = '';
+  const iconSelect = document.getElementById('socialmedia-icon');
+  const customIconUpload = document.getElementById('custom-icon-upload');
+  const customIconInput = document.getElementById('socialmedia-custom-icon');
+  let customIconBase64 = '';
 
-    if (iconSelect) {
-        iconSelect.addEventListener('change', function() {
-            if (iconSelect.value === 'custom') {
-                customIconUpload.classList.remove('hidden');
-            } else {
-                customIconUpload.classList.add('hidden');
-                customIconInput.value = '';
-                customIconBase64 = '';
-            }
-        });
-    }
-
-    if (customIconInput) {
-        customIconInput.addEventListener('change', function(e) {
-            if (customIconInput.files.length > 0) {
-                const file = customIconInput.files[0];
-                if (file.size > 102400) {
-                    showAlert('Icon too large (max 100KB)', 'error');
-                    customIconInput.value = '';
-                    customIconBase64 = '';
-                    return;
-                }
-                const img = new Image();
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    img.onload = function() {
-                        if (img.width > 512 || img.height > 512) {
-                            showAlert('Icon dimensions must be 512x512px or less', 'error');
-                            customIconInput.value = '';
-                            customIconBase64 = '';
-                            return;
-                        }
-                        customIconBase64 = ev.target.result;
-                    };
-                    img.src = ev.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    if (socialmediaForm) {
-        socialmediaForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const name = document.getElementById('socialmedia-name').value.trim();
-            const icon = document.getElementById('socialmedia-icon').value;
-            const link = document.getElementById('socialmedia-link').value.trim();
-            if (!name || !icon || !link) return;
-            let customIcon = '';
-            if (icon === 'custom' && customIconBase64) {
-                customIcon = customIconBase64;
-            }
-            socialmediaConfig.push({ name, icon, link, customIcon });
-            renderSocialmediaList();
-            saveSocialmediaConfig();
-            socialmediaForm.reset();
-            customIconUpload.classList.add('hidden');
-            customIconBase64 = '';
-        });
-    }
-
-    if (socialmediaList) {
-        socialmediaList.addEventListener('click', function(e) {
-            if (e.target.classList.contains('remove-socialmedia')) {
-                const idx = parseInt(e.target.dataset.idx);
-                if (!isNaN(idx)) {
-                    socialmediaConfig.splice(idx, 1);
-                    renderSocialmediaList();
-                    saveSocialmediaConfig();
-                }
-            }
-        });
-    }
-
-    if (saveSocialmediaBtn) {
-        saveSocialmediaBtn.addEventListener('click', function() {
-            saveSocialmediaConfig();
-        });
-    }
-
-    loadSocialmediaConfig();
-    fetch('/api/modules')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-    .then(data => {
-            function ensureCustomTitleField(wrapperSelector, inputId, labelKey, placeholderKey, hintKey, defaultPlaceholder) {
-                const wrapper = document.querySelector(wrapperSelector);
-                if (!wrapper) return;
-                if (document.getElementById(inputId)) return;
-                const formCard = wrapper.querySelector('.form-card');
-                if (!formCard) return;
-                const walletGroup = formCard.querySelector('.form-group');
-                const fieldHTML = document.createElement('div');
-                fieldHTML.className = 'form-group';
-                const lm = window.languageManager;
-                const label = lm ? lm.getText(labelKey) : 'Custom title';
-                const placeholder = lm ? lm.getText(placeholderKey) : defaultPlaceholder;
-                const hint = lm ? lm.getText(hintKey) : 'Title shown in widget. Leave empty for default.';
-                fieldHTML.innerHTML = `\n<label for="${inputId}" data-i18n="${labelKey}">${label}</label>\n<input type="text" id="${inputId}" placeholder="${placeholder}" data-i18n-placeholder="${placeholderKey}" />\n<small class="form-hint" data-i18n="${hintKey}">${hint}</small>`;
-
-                if (walletGroup && walletGroup.nextSibling) {
-                    walletGroup.parentNode.insertBefore(fieldHTML, walletGroup.nextSibling);
-                } else if (walletGroup) {
-                    walletGroup.parentNode.appendChild(fieldHTML);
-                } else {
-                    formCard.insertBefore(fieldHTML, formCard.firstChild);
-                }
-            }
-            ensureCustomTitleField('#last-tip-tab', 'last-tip-title', 'lastTipCustomTitleLabel', 'lastTipCustomTitlePlaceholder', 'lastTipCustomTitleHint', 'Last tip received 👏');
-            ensureCustomTitleField('#tip-goal-tab', 'tip-goal-title', 'tipGoalCustomTitleLabel', 'tipGoalCustomTitlePlaceholder', 'tipGoalCustomTitleHint', 'Configure tip goal 💸');
-            document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
-            document.getElementById('tip-goal-wallet-address').value = data.tipGoal.walletAddress || '';
-            document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
-            document.getElementById('starting-amount').value = data.tipGoal.currentAmount || 0;
-
-            const lastTipTitleInput = document.getElementById('last-tip-title');
-            if (lastTipTitleInput) lastTipTitleInput.value = data.lastTip.title || '';
-            const tipGoalTitleInput = document.getElementById('tip-goal-title');
-            if (tipGoalTitleInput) tipGoalTitleInput.value = data.tipGoal.title || '';
-            
-            let claimId = '';
-            if (data.chat.chatUrl && data.chat.chatUrl.startsWith('wss://sockety.odysee.tv/ws/commentron?id=')) {
-                claimId = data.chat.chatUrl.split('id=')[1] || '';
-            } else {
-                claimId = data.chat.chatUrl || '';
-            }
-            document.getElementById('chat-url').value = claimId;
-            document.getElementById('tts-enabled').checked = data.tipWidget?.ttsEnabled || false;
-            document.getElementById('tip-goal-bg-color').value = data.tipGoal.bgColor || '#080c10';
-            document.getElementById('tip-goal-font-color').value = data.tipGoal.fontColor || '#ffffff';
-            document.getElementById('tip-goal-border-color').value = data.tipGoal.borderColor || '#00ff7f';
-            document.getElementById('tip-goal-progress-color').value = data.tipGoal.progressColor || '#00ff7f';
-
-            const lt = data.lastTip || {};
-            const map = [
-                ['last-tip-bg-color', lt.bgColor || '#080c10'],
-                ['last-tip-font-color', lt.fontColor || '#ffffff'],
-                ['last-tip-border-color', lt.borderColor || '#00ff7f'],
-                ['last-tip-amount-color', lt.amountColor || '#00ff7f'],
-                ['last-tip-icon-bg-color', lt.iconBgColor || '#4f36ff'],
-                ['last-tip-from-color', lt.fromColor || '#817ec8']
-            ];
-            map.forEach(([id, val]) => {
-                const el = document.getElementById(id);
-                if (el && typeof val === 'string') el.value = val;
-            });
-
-            if (typeof updateLastTipColorHex === 'function') {
-                try { updateLastTipColorHex(); } catch(_) {}
-            }
-            
-            if (data.externalNotifications && data.externalNotifications.config) {
-                if (typeof data.externalNotifications.config.discordWebhook === 'string') {
-                    document.getElementById('discord-webhook').value = data.externalNotifications.config.discordWebhook || '';
-                }
-                if (typeof data.externalNotifications.config.telegramBotToken === 'string') {
-                    document.getElementById('telegram-bot-token').value = data.externalNotifications.config.telegramBotToken || '';
-                }
-                if (typeof data.externalNotifications.config.telegramChatId === 'string') {
-                    document.getElementById('telegram-chat-id').value = data.externalNotifications.config.telegramChatId || '';
-                }
-            }
-            updateStatus('lastTip-status', data.lastTip.active);
-            updateStatus('tipWidget-status', data.tipWidget.active);
-            updateStatus('tipGoal-status', data.tipGoal.active);
-            updateStatus('chat-status', data.chat.connected);
-
-            const preloadExternal = fetch('/api/external-notifications')
-                .then(r => r.ok ? r.json() : null)
-                .then(ext => {
-                    if (ext && ext.config) {
-                        if (document.getElementById('discord-webhook') && ext.config.discordWebhook)
-                            document.getElementById('discord-webhook').value = ext.config.discordWebhook;
-                        if (document.getElementById('telegram-bot-token') && ext.config.telegramBotToken)
-                            document.getElementById('telegram-bot-token').value = ext.config.telegramBotToken;
-                        if (document.getElementById('telegram-chat-id') && ext.config.telegramChatId)
-                            document.getElementById('telegram-chat-id').value = ext.config.telegramChatId;
-                    }
-                })
-                .catch(() => {});
-
-            return Promise.resolve(preloadExternal).then(() => fetch('/api/tts-setting'));
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to load TTS settings');
-            return response.json();
-        })
-        .then(ttsSettings => {
-            document.getElementById('tts-enabled').checked = ttsSettings.ttsEnabled;
-        })
-        .catch(error => {
-            console.error('Error loading TTS settings:', error);
-            document.getElementById('tts-enabled').checked = false;
-        });
-    
-    function isValidArweaveAddress(address) {
-        return /^[A-Za-z0-9-_]{43}$/.test(address);
-    }
-
-    function validateWalletInputs() {
-        const walletInput = document.getElementById('wallet-address');
-        const tipGoalWalletInput = document.getElementById('tip-goal-wallet-address');
-        let valid = true;
-        let message = '';
-        if (walletInput && walletInput.value.trim() && !isValidArweaveAddress(walletInput.value.trim())) {
-            valid = false;
-            message = window.languageManager ? window.languageManager.getText('invalidArweaveWalletLastTip') : 'The wallet address (Last Tip) is not valid for the Arweave network.';
-        }
-        if (tipGoalWalletInput && tipGoalWalletInput.value.trim() && !isValidArweaveAddress(tipGoalWalletInput.value.trim())) {
-            valid = false;
-            message = window.languageManager ? window.languageManager.getText('invalidArweaveWalletTipGoal') : 'The wallet address (Tip Goal) is not valid for the Arweave network.';
-        }
-        if (!valid) {
-            showAlert(message, 'error');
-        }
-        return valid;
-    }
-
-    document.querySelectorAll('.save-btn[data-module]').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const module = e.currentTarget.dataset.module;
-            if (!module) {
-                showAlert('Error: Button has no data-module defined.', 'error');
-                return;
-            }
-
-            if (module === 'lastTip' || module === 'tipGoal') {
-                if (!validateWalletInputs()) {
-                    return;
-                }
-            }
-            await saveSettings(module);
-        });
+  if (iconSelect) {
+    iconSelect.addEventListener('change', function () {
+      if (iconSelect.value === 'custom') {
+        customIconUpload.classList.remove('hidden');
+      } else {
+        customIconUpload.classList.add('hidden');
+        customIconInput.value = '';
+        customIconBase64 = '';
+      }
     });
+  }
 
-    document.getElementById('tts-enabled').addEventListener('change', (e) => {
-        const ttsEnabled = e.target.checked;
-        
-        fetch('/api/tts-setting', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ttsEnabled })
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to save TTS settings');
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                showAlert('TTS setting saved successfully', 'success');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving TTS settings:', error);
-            showAlert('Error saving TTS setting', 'error');
-            e.target.checked = !ttsEnabled;
-        });
-    });
-    
-    document.getElementById('refresh-status').addEventListener('click', () => {
-        fetch('/api/modules')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                updateStatus('lastTip-status', data.lastTip.active);
-                updateStatus('tipWidget-status', data.tipWidget.active);
-                updateStatus('tipGoal-status', data.tipGoal.active);
-                updateStatus('chat-status', data.chat.connected);
-                if (data.socialmedia) {
-                    updateStatus('socialmedia-status', data.socialmedia.configured);
-                }
-                if (data.announcement) {
-                    updateStatus('announcement-status', data.announcement.active);
-                }
-                showAlert('Updated status', 'success');
-            })
-            .catch(error => {
-                console.error('Error refreshing status:', error);
-                showAlert('Error updating status', 'error');
-            });
-    });
-    
-
-    async function saveSettings(module) {
-        if (!module) {
-            showAlert('Error: No module specified for saving.', 'error');
-            return;
+  if (customIconInput) {
+    customIconInput.addEventListener('change', function (e) {
+      if (customIconInput.files.length > 0) {
+        const file = customIconInput.files[0];
+        if (file.size > 102400) {
+          showAlert('Icon too large (max 100KB)', 'error');
+          customIconInput.value = '';
+          customIconBase64 = '';
+          return;
         }
-        try {
-            let endpoint = '';
-            let data = {};
-            
-            switch(module) {
-                case 'lastTip':
-                    endpoint = '/api/last-tip';
-                    data = {
-                        walletAddress: document.getElementById('wallet-address').value.trim(),
-                        bgColor: document.getElementById('last-tip-bg-color').value,
-                        fontColor: document.getElementById('last-tip-font-color').value,
-                        borderColor: document.getElementById('last-tip-border-color').value,
-                        amountColor: document.getElementById('last-tip-amount-color').value,
-                        // iconColor removed
-                        iconBgColor: document.getElementById('last-tip-icon-bg-color')?.value,
-                        fromColor: document.getElementById('last-tip-from-color').value,
-                        title: (document.getElementById('last-tip-title')?.value || '').trim()
-                    };
-                    break;
-                case 'tipGoal': {
-                    endpoint = '/api/tip-goal';
-                    const goalAmountInput = document.getElementById('goal-amount');
-                    const startingAmountInput = document.getElementById('starting-amount');
-                    const goalAudioSource = document.querySelector('input[name="goal-audio-source"]:checked')?.value || 'remote';
-                    if (!goalAmountInput) {
-                        console.error('[tipGoal] goal-amount input not found');
-                        showAlert('Goal amount field (goal-amount) does not exist.', 'error');
-                        return;
-                    }
-                    const monthlyGoal = Number(goalAmountInput.value);
-                    const currentAmount = startingAmountInput ? Number(startingAmountInput.value || '0') : 0;
-                    if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
-                        console.error('[tipGoal] monthlyGoal invalid:', monthlyGoal);
-                        showAlert('Monthly goal must be a number greater than 0.', 'error');
-                        return;
-                    }
-
-                    const formData = new FormData();
-                    formData.append('walletAddress', document.getElementById('tip-goal-wallet-address').value.trim());
-                    formData.append('monthlyGoal', monthlyGoal);
-                    formData.append('currentAmount', isNaN(currentAmount) ? 0 : currentAmount);
-                    formData.append('bgColor', document.getElementById('tip-goal-bg-color').value);
-                    formData.append('fontColor', document.getElementById('tip-goal-font-color').value);
-                    formData.append('borderColor', document.getElementById('tip-goal-border-color').value);
-                    formData.append('progressColor', document.getElementById('tip-goal-progress-color').value);
-                    formData.append('audioSource', goalAudioSource);
-                    const tipGoalTitle = (document.getElementById('tip-goal-title')?.value || '').trim();
-                    formData.append('title', tipGoalTitle);
-
-                    const goalAudioCustom = document.getElementById('goal-audio-custom');
-                    const goalAudioFileInput = document.getElementById('goal-custom-audio-file');
-                    if (goalAudioSource === 'custom' && goalAudioCustom && goalAudioCustom.checked && goalAudioFileInput && goalAudioFileInput.files.length > 0) {
-                        formData.append('audioFile', goalAudioFileInput.files[0]);
-                    }
-
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (!response.ok) {
-                        let errorData;
-                        try {
-                            errorData = await response.json();
-                        } catch (e) {
-                            errorData = { error: 'Failed to save settings' };
-                        }
-                        throw new Error(errorData.error || 'Failed to save settings');
-                    }
-
-                    const result = await response.json();
-                    showAlert('Configuration saved successfully', 'success');
-                    updateStatus(`${module}-status`, result.active || result.connected || false);
-                    return;
-                }
-                case 'chat':
-                    endpoint = '/api/chat';
-                    const claimId = document.getElementById('chat-url').value.trim();
-                    const themeIdx = document.getElementById('chat-theme-select').value;
-                    const selectedTheme = getAllThemes()[themeIdx];
-                    data = {
-                        chatUrl: `wss://sockety.odysee.tv/ws/commentron?id=${claimId}`,
-                        bgColor: document.getElementById('chat-bg-color').value,
-                        msgBgColor: document.getElementById('chat-msg-bg-color').value,
-                        msgBgAltColor: document.getElementById('chat-msg-bg-alt-color').value,
-                        borderColor: document.getElementById('chat-border-color').value,
-                        textColor: document.getElementById('chat-text-color').value,
-                        usernameColor: document.getElementById('chat-username-color').value,
-                        usernameBgColor: document.getElementById('chat-username-bg-color').value,
-                        donationColor: document.getElementById('chat-donation-color').value,
-                        donationBgColor: document.getElementById('chat-donation-bg-color').value,
-                        themeCSS: selectedTheme ? selectedTheme.css : ''
-                    };
-                    if (selectedTheme && selectedTheme.css) {
-                        localStorage.setItem('chatLiveThemeCSS', selectedTheme.css);
-                    }
-                    break;
-                    
-                case 'externalNotifications':
-                    endpoint = '/api/external-notifications';
-                    data = {
-                        discordWebhook: document.getElementById('discord-webhook').value.trim(),
-                        telegramBotToken: document.getElementById('telegram-bot-token').value.trim(),
-                        telegramChatId: document.getElementById('telegram-chat-id').value.trim(),
-                        template: document.getElementById('notification-template').value.trim()
-                    };
-                    break;
-                    
-                case 'notifications':
-                    await saveNotificationSettings();
-                    return;
-                    
-                default:
-                    throw new Error(`Unknown module: ${module}`);
-            }
-            
-            if ((module === 'lastTip' || module === 'chat') && !data[Object.keys(data)[0]]) {
-                throw new Error(`The ${Object.keys(data)[0]} is required`);
-            }
-            
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-            
-            if (!response.ok) {
-                let errorData;
-                try {
-                    errorData = await response.json();
-                } catch (e) {
-                    errorData = { error: 'Failed to save settings' };
-                }
-                throw new Error(errorData.error || 'Failed to save settings');
-            }
-            
-            const result = await response.json();
-            showAlert('Configuration saved successfully', 'success');
-            
-            if (module !== 'externalNotifications') {
-                updateStatus(`${module}-status`, result.active || result.connected || false);
-            }
-            
-        } catch (error) {
-            console.error(`Error saving ${module} settings:`, error);
-            showAlert(error.message || 'Error saving configuration', 'error');
-        }
-    }
-    
-    function updateStatus(elementId, isActive) {
-        const element = document.getElementById(elementId);
-        if (!element) {
-            console.warn(`Element with id "${elementId}" not found.`);
-            return;
-        }
-        if (isActive) {
-            element.textContent = 'Active';
-            element.classList.add('active');
-            element.classList.remove('inactive');
-        } else {
-            element.textContent = 'Inactive';
-            element.classList.add('inactive');
-            element.classList.remove('active');
-        }
-    }
-    
-    function showAlert(message, type) {
-        const toast = document.getElementById('copy-toast');
-        const icon = toast.querySelector('.copy-icon');
-        const messageElement = toast.querySelector('.copy-message');
-        
-        messageElement.textContent = message;
-        
-        if (type === 'success') {
-            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
-            toast.classList.remove('toast-error');
-            toast.classList.add('toast-success');
-        } else {
-            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
-            toast.classList.remove('toast-success');
-            toast.classList.add('toast-error');
-        }
-        
-        toast.classList.add('show');
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
-    window.showAlert = showAlert;
-
-    fetch('/api/tts-language')
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to load TTS language');
-            return response.json();
-        })
-        .then(data => {
-            document.getElementById('tts-language').value = data.ttsLanguage || 'en';
-        })
-        .catch(error => {
-            console.error('Error loading TTS language:', error);
-            document.getElementById('tts-language').value = 'en';
-        });
-
-    document.getElementById('tts-language').addEventListener('change', (e) => {
-        const ttsLanguage = e.target.value;
-        fetch('/api/tts-language', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ttsLanguage })
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to save TTS language');
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                showAlert('TTS language saved successfully', 'success');
-            } else {
-                throw new Error(data.error || 'Unknown error');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving TTS language:', error);
-            showAlert('Error saving TTS language', 'error');
-            e.target.value = e.target.value === 'en' ? 'es' : 'en';
-        });
-    });
-
-    function updateLastTipColorHex() {
-        const bgColorEl = document.getElementById('last-tip-bg-color');
-        const fontColorEl = document.getElementById('last-tip-font-color');
-        const borderColorEl = document.getElementById('last-tip-border-color');
-        const amountColorEl = document.getElementById('last-tip-amount-color');
-        const iconBgColorEl = document.getElementById('last-tip-icon-bg-color');
-        const fromColorEl = document.getElementById('last-tip-from-color');
-        
-        const bgColorHexEl = document.getElementById('last-tip-bg-color-hex');
-        const fontColorHexEl = document.getElementById('last-tip-font-color-hex');
-        const borderColorHexEl = document.getElementById('last-tip-border-color-hex');
-        const amountColorHexEl = document.getElementById('last-tip-amount-color-hex');
-        const iconBgColorHexEl = document.getElementById('last-tip-icon-bg-color-hex');
-        const fromColorHexEl = document.getElementById('last-tip-from-color-hex');
-        
-        if (bgColorEl && bgColorHexEl) bgColorHexEl.textContent = bgColorEl.value;
-        if (fontColorEl && fontColorHexEl) fontColorHexEl.textContent = fontColorEl.value;
-        if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
-        if (amountColorEl && amountColorHexEl) amountColorHexEl.textContent = amountColorEl.value;
-        if (iconBgColorEl && iconBgColorHexEl) iconBgColorHexEl.textContent = iconBgColorEl.value;
-        if (fromColorEl && fromColorHexEl) fromColorHexEl.textContent = fromColorEl.value;
-    }
-    
-    ['last-tip-bg-color','last-tip-font-color','last-tip-border-color','last-tip-amount-color','last-tip-icon-bg-color','last-tip-from-color'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', updateLastTipColorHex);
-        }
-    });
-
-    if (document.getElementById('last-tip-bg-color')) {
-        updateLastTipColorHex();
-    }
-
-    const resetLastTipBtn = document.getElementById('reset-last-tip-colors');
-    if (resetLastTipBtn) {
-        resetLastTipBtn.addEventListener('click', function() {
-            document.getElementById('last-tip-bg-color').value = '#080c10';
-            document.getElementById('last-tip-font-color').value = '#ffffff';
-            document.getElementById('last-tip-border-color').value = '#00ff7f';
-            document.getElementById('last-tip-amount-color').value = '#00ff7f';
-            if (document.getElementById('last-tip-icon-bg-color')) document.getElementById('last-tip-icon-bg-color').value = '#4f36ff';
-            document.getElementById('last-tip-from-color').value = '#817ec8';
-            updateLastTipColorHex();
-        });
-    }
-
-    function updateTipGoalColorHex() {
-        const bgColorEl = document.getElementById('tip-goal-bg-color');
-        const fontColorEl = document.getElementById('tip-goal-font-color');
-        const borderColorEl = document.getElementById('tip-goal-border-color');
-        const progressColorEl = document.getElementById('tip-goal-progress-color');
-        
-        const bgColorHexEl = document.getElementById('tip-goal-bg-color-hex');
-        const fontColorHexEl = document.getElementById('tip-goal-font-color-hex');
-        const borderColorHexEl = document.getElementById('tip-goal-border-color-hex');
-        const progressColorHexEl = document.getElementById('tip-goal-progress-color-hex');
-        
-        if (bgColorEl && bgColorHexEl) bgColorHexEl.textContent = bgColorEl.value;
-        if (fontColorEl && fontColorHexEl) fontColorHexEl.textContent = fontColorEl.value;
-        if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
-        if (progressColorEl && progressColorHexEl) progressColorHexEl.textContent = progressColorEl.value;
-    }
-    
-    ['tip-goal-bg-color','tip-goal-font-color','tip-goal-border-color','tip-goal-progress-color'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', updateTipGoalColorHex);
-        }
-    });
-
-    if (document.getElementById('tip-goal-bg-color')) {
-        updateTipGoalColorHex();
-    }
-
-    const resetBtn = document.getElementById('reset-tip-goal-colors');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function() {
-            document.getElementById('tip-goal-bg-color').value = '#080c10';
-            document.getElementById('tip-goal-font-color').value = '#ffffff';
-            document.getElementById('tip-goal-border-color').value = '#00ff7f';
-            document.getElementById('tip-goal-progress-color').value = '#00ff7f';
-            updateTipGoalColorHex();
-        });
-    }
-
-    function updateChatColorHex() {
-        const chatBgColorEl = document.getElementById('chat-bg-color');
-        const chatMsgBgColorEl = document.getElementById('chat-msg-bg-color');
-        const chatMsgBgAltColorEl = document.getElementById('chat-msg-bg-alt-color');
-        const chatBorderColorEl = document.getElementById('chat-border-color');
-        const chatTextColorEl = document.getElementById('chat-text-color');
-        const chatUsernameColorEl = document.getElementById('chat-username-color');
-        const chatUsernameBgColorEl = document.getElementById('chat-username-bg-color');
-        const chatDonationColorEl = document.getElementById('chat-donation-color');
-        const chatDonationBgColorEl = document.getElementById('chat-donation-bg-color');
-        
-        const chatBgColorHexEl = document.getElementById('chat-bg-color-hex');
-        const chatMsgBgColorHexEl = document.getElementById('chat-msg-bg-color-hex');
-        const chatMsgBgAltColorHexEl = document.getElementById('chat-msg-bg-alt-color-hex');
-        const chatBorderColorHexEl = document.getElementById('chat-border-color-hex');
-        const chatTextColorHexEl = document.getElementById('chat-text-color-hex');
-        const chatUsernameColorHexEl = document.getElementById('chat-username-color-hex');
-        const chatUsernameBgColorHexEl = document.getElementById('chat-username-bg-color-hex');
-        const chatDonationColorHexEl = document.getElementById('chat-donation-color-hex');
-        const chatDonationBgColorHexEl = document.getElementById('chat-donation-bg-color-hex');
-        
-        if (chatBgColorEl && chatBgColorHexEl) chatBgColorHexEl.textContent = chatBgColorEl.value;
-        if (chatMsgBgColorEl && chatMsgBgColorHexEl) chatMsgBgColorHexEl.textContent = chatMsgBgColorEl.value;
-        if (chatMsgBgAltColorEl && chatMsgBgAltColorHexEl) chatMsgBgAltColorHexEl.textContent = chatMsgBgAltColorEl.value;
-        if (chatBorderColorEl && chatBorderColorHexEl) chatBorderColorHexEl.textContent = chatBorderColorEl.value;
-        if (chatTextColorEl && chatTextColorHexEl) chatTextColorHexEl.textContent = chatTextColorEl.value;
-        if (chatUsernameColorEl && chatUsernameColorHexEl) chatUsernameColorHexEl.textContent = chatUsernameColorEl.value;
-        if (chatUsernameBgColorEl && chatUsernameBgColorHexEl) chatUsernameBgColorHexEl.textContent = chatUsernameBgColorEl.value;
-        if (chatDonationColorEl && chatDonationColorHexEl) chatDonationColorHexEl.textContent = chatDonationColorEl.value;
-        if (chatDonationBgColorEl && chatDonationBgColorHexEl) chatDonationBgColorHexEl.textContent = chatDonationBgColorEl.value;
-    }
-    
-    [
-        'chat-bg-color','chat-msg-bg-color','chat-msg-bg-alt-color','chat-border-color','chat-text-color',
-        'chat-username-color','chat-username-bg-color','chat-donation-color','chat-donation-bg-color'
-    ].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('input', updateChatColorHex);
-        }
-    });
-
-    if (document.getElementById('chat-bg-color')) {
-        updateChatColorHex();
-    }
-
-    const resetChatBtn = document.getElementById('reset-chat-colors');
-    if (resetChatBtn) {
-        resetChatBtn.addEventListener('click', function() {
-            document.getElementById('chat-bg-color').value = '#080c10';
-            document.getElementById('chat-msg-bg-color').value = '#0a0e12';
-            document.getElementById('chat-msg-bg-alt-color').value = '#0d1114';
-            document.getElementById('chat-border-color').value = '#161b22';
-            document.getElementById('chat-text-color').value = '#e6edf3';
-            document.getElementById('chat-username-color').value = '#fff';
-            document.getElementById('chat-username-bg-color').value = '#11ff79';
-            document.getElementById('chat-donation-color').value = '#ddb826';
-            document.getElementById('chat-donation-bg-color').value = '#131313';
-            updateChatColorHex();
-        });
-    }
-
-    const audioRemoteRadio = document.getElementById('audio-remote');
-    const audioCustomRadio = document.getElementById('audio-custom');
-    const customAudioSection = document.getElementById('custom-audio-section');
-    const customAudioFile = document.getElementById('custom-audio-file');
-    const uploadZone = document.getElementById('upload-zone');
-    const audioPreview = document.getElementById('audio-preview');
-    const audioName = document.getElementById('audio-name');
-    const audioSize = document.getElementById('audio-size');
-    const playAudioBtn = document.getElementById('play-audio');
-    const removeAudioBtn = document.getElementById('remove-audio');
-    
-    let currentAudioFile = null;
-    let currentAudioBlob = null;
-
-    if (audioRemoteRadio && audioCustomRadio) {
-        audioRemoteRadio.addEventListener('change', function() {
-            if (this.checked) {
-                customAudioSection.classList.add('hidden');
-            }
-        });
-
-        audioCustomRadio.addEventListener('change', function() {
-            if (this.checked) {
-                customAudioSection.classList.remove('hidden');
-            }
-        });
-    }
-
-    function handleAudioFile(file) {
-        clearAudioError();
-        
-        const validMimeTypes = ['audio/mpeg', 'audio/mp3'];
-        const isValidMimeType = validMimeTypes.includes(file.type);
-        const isValidExtension = file.name.toLowerCase().endsWith('.mp3');
-        
-        if (!isValidMimeType && !isValidExtension) {
-            showAudioError('Only valid MP3 files are allowed');
-            return;
-        }
-        
-        if (file.size > 1048576) {
-            showAudioError('The file must be less than 1MB');
-            return;
-        }
-        
-        if (file.size === 0) {
-            showAudioError('The file is empty');
-            return;
-        }
-        
+        const img = new Image();
         const reader = new FileReader();
-        reader.onload = function(e) {
-            const arrayBuffer = e.target.result;
-            const uint8Array = new Uint8Array(arrayBuffer);
-            const hasID3 = uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33;
-            const hasMPEGHeader = (uint8Array[0] === 0xFF && (uint8Array[1] & 0xE0) === 0xE0);
-            
-            if (!hasID3 && !hasMPEGHeader) {
-                showAudioError('The file does not appear to be a valid MP3');
-                return;
+        reader.onload = function (ev) {
+          img.onload = function () {
+            if (img.width > 512 || img.height > 512) {
+              showAlert('Icon dimensions must be 512x512px or less', 'error');
+              customIconInput.value = '';
+              customIconBase64 = '';
+              return;
             }
-            
-            currentAudioFile = file;
-            currentAudioBlob = URL.createObjectURL(file);
-            showAudioPreview(file);
+            customIconBase64 = ev.target.result;
+          };
+          img.src = ev.target.result;
         };
-        
-        reader.onerror = function() {
-            showAudioError('Error reading file');
-        };
-        
-        reader.readAsArrayBuffer(file);
-    }
+        reader.readAsDataURL(file);
+      }
+    });
+  }
 
-    function showAudioPreview(file) {
-        if (audioName) {
-            audioName.textContent = file.name;
+  if (socialmediaForm) {
+    socialmediaForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const name = document.getElementById('socialmedia-name').value.trim();
+      const icon = document.getElementById('socialmedia-icon').value;
+      const link = document.getElementById('socialmedia-link').value.trim();
+      if (!name || !icon || !link) return;
+      let customIcon = '';
+      if (icon === 'custom' && customIconBase64) {
+        customIcon = customIconBase64;
+      }
+      socialmediaConfig.push({ name, icon, link, customIcon });
+      renderSocialmediaList();
+      saveSocialmediaConfig();
+      socialmediaForm.reset();
+      customIconUpload.classList.add('hidden');
+      customIconBase64 = '';
+    });
+  }
+
+  if (socialmediaList) {
+    socialmediaList.addEventListener('click', function (e) {
+      if (e.target.classList.contains('remove-socialmedia')) {
+        const idx = parseInt(e.target.dataset.idx);
+        if (!isNaN(idx)) {
+          socialmediaConfig.splice(idx, 1);
+          renderSocialmediaList();
+          saveSocialmediaConfig();
         }
-        if (audioSize) {
-            audioSize.textContent = formatFileSize(file.size);
+      }
+    });
+  }
+
+  if (saveSocialmediaBtn) {
+    saveSocialmediaBtn.addEventListener('click', function () {
+      saveSocialmediaConfig();
+    });
+  }
+
+  loadSocialmediaConfig();
+  fetch('/api/modules')
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    })
+    .then((data) => {
+      function ensureCustomTitleField(
+        wrapperSelector,
+        inputId,
+        labelKey,
+        placeholderKey,
+        hintKey,
+        defaultPlaceholder
+      ) {
+        const wrapper = document.querySelector(wrapperSelector);
+        if (!wrapper) return;
+        if (document.getElementById(inputId)) return;
+        const formCard = wrapper.querySelector('.form-card');
+        if (!formCard) return;
+        const walletGroup = formCard.querySelector('.form-group');
+        const fieldHTML = document.createElement('div');
+        fieldHTML.className = 'form-group';
+        const lm = window.languageManager;
+        const label = lm ? lm.getText(labelKey) : 'Custom title';
+        const placeholder = lm ? lm.getText(placeholderKey) : defaultPlaceholder;
+        const hint = lm ? lm.getText(hintKey) : 'Title shown in widget. Leave empty for default.';
+        fieldHTML.innerHTML = `\n<label for="${inputId}" data-i18n="${labelKey}">${label}</label>\n<input type="text" id="${inputId}" placeholder="${placeholder}" data-i18n-placeholder="${placeholderKey}" />\n<small class="form-hint" data-i18n="${hintKey}">${hint}</small>`;
+
+        if (walletGroup && walletGroup.nextSibling) {
+          walletGroup.parentNode.insertBefore(fieldHTML, walletGroup.nextSibling);
+        } else if (walletGroup) {
+          walletGroup.parentNode.appendChild(fieldHTML);
+        } else {
+          formCard.insertBefore(fieldHTML, formCard.firstChild);
         }
-        if (uploadZone && uploadZone.parentElement) {
-            uploadZone.parentElement.classList.add('hidden');
+      }
+      ensureCustomTitleField(
+        '#last-tip-tab',
+        'last-tip-title',
+        'lastTipCustomTitleLabel',
+        'lastTipCustomTitlePlaceholder',
+        'lastTipCustomTitleHint',
+        'Last tip received 👏'
+      );
+      ensureCustomTitleField(
+        '#tip-goal-tab',
+        'tip-goal-title',
+        'tipGoalCustomTitleLabel',
+        'tipGoalCustomTitlePlaceholder',
+        'tipGoalCustomTitleHint',
+        'Configure tip goal 💸'
+      );
+      document.getElementById('wallet-address').value = data.lastTip.walletAddress || '';
+      document.getElementById('tip-goal-wallet-address').value = data.tipGoal.walletAddress || '';
+      document.getElementById('goal-amount').value = data.tipGoal.monthlyGoal || 10;
+      document.getElementById('starting-amount').value = data.tipGoal.currentAmount || 0;
+
+      const lastTipTitleInput = document.getElementById('last-tip-title');
+      if (lastTipTitleInput) lastTipTitleInput.value = data.lastTip.title || '';
+      const tipGoalTitleInput = document.getElementById('tip-goal-title');
+      if (tipGoalTitleInput) tipGoalTitleInput.value = data.tipGoal.title || '';
+
+      let claimId = '';
+      if (
+        data.chat.chatUrl &&
+        data.chat.chatUrl.startsWith('wss://sockety.odysee.tv/ws/commentron?id=')
+      ) {
+        claimId = data.chat.chatUrl.split('id=')[1] || '';
+      } else {
+        claimId = data.chat.chatUrl || '';
+      }
+      document.getElementById('chat-url').value = claimId;
+      document.getElementById('tts-enabled').checked = data.tipWidget?.ttsEnabled || false;
+      document.getElementById('tip-goal-bg-color').value = data.tipGoal.bgColor || '#080c10';
+      document.getElementById('tip-goal-font-color').value = data.tipGoal.fontColor || '#ffffff';
+      document.getElementById('tip-goal-border-color').value =
+        data.tipGoal.borderColor || '#00ff7f';
+      document.getElementById('tip-goal-progress-color').value =
+        data.tipGoal.progressColor || '#00ff7f';
+
+      const lt = data.lastTip || {};
+      const map = [
+        ['last-tip-bg-color', lt.bgColor || '#080c10'],
+        ['last-tip-font-color', lt.fontColor || '#ffffff'],
+        ['last-tip-border-color', lt.borderColor || '#00ff7f'],
+        ['last-tip-amount-color', lt.amountColor || '#00ff7f'],
+        ['last-tip-icon-bg-color', lt.iconBgColor || '#4f36ff'],
+        ['last-tip-from-color', lt.fromColor || '#817ec8'],
+      ];
+      map.forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && typeof val === 'string') el.value = val;
+      });
+
+      if (typeof updateLastTipColorHex === 'function') {
+        try {
+          updateLastTipColorHex();
+        } catch (_) {}
+      }
+
+      if (data.externalNotifications && data.externalNotifications.config) {
+        if (typeof data.externalNotifications.config.discordWebhook === 'string') {
+          document.getElementById('discord-webhook').value =
+            data.externalNotifications.config.discordWebhook || '';
         }
-        if (audioPreview) {
-            audioPreview.classList.remove('hidden');
+        if (typeof data.externalNotifications.config.telegramBotToken === 'string') {
+          document.getElementById('telegram-bot-token').value =
+            data.externalNotifications.config.telegramBotToken || '';
         }
+        if (typeof data.externalNotifications.config.telegramChatId === 'string') {
+          document.getElementById('telegram-chat-id').value =
+            data.externalNotifications.config.telegramChatId || '';
+        }
+      }
+      updateStatus('lastTip-status', data.lastTip.active);
+      updateStatus('tipWidget-status', data.tipWidget.active);
+      updateStatus('tipGoal-status', data.tipGoal.active);
+      updateStatus('chat-status', data.chat.connected);
+
+      const preloadExternal = fetch('/api/external-notifications')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((ext) => {
+          if (ext && ext.config) {
+            if (document.getElementById('discord-webhook') && ext.config.discordWebhook)
+              document.getElementById('discord-webhook').value = ext.config.discordWebhook;
+            if (document.getElementById('telegram-bot-token') && ext.config.telegramBotToken)
+              document.getElementById('telegram-bot-token').value = ext.config.telegramBotToken;
+            if (document.getElementById('telegram-chat-id') && ext.config.telegramChatId)
+              document.getElementById('telegram-chat-id').value = ext.config.telegramChatId;
+          }
+        })
+        .catch(() => {});
+
+      return Promise.resolve(preloadExternal).then(() => fetch('/api/tts-setting'));
+    })
+    .then((response) => {
+      if (!response.ok) throw new Error('Failed to load TTS settings');
+      return response.json();
+    })
+    .then((ttsSettings) => {
+      document.getElementById('tts-enabled').checked = ttsSettings.ttsEnabled;
+    })
+    .catch((error) => {
+      console.error('Error loading TTS settings:', error);
+      document.getElementById('tts-enabled').checked = false;
+    });
+
+  function isValidArweaveAddress(address) {
+    return /^[A-Za-z0-9-_]{43}$/.test(address);
+  }
+
+  function validateWalletInputs() {
+    const walletInput = document.getElementById('wallet-address');
+    const tipGoalWalletInput = document.getElementById('tip-goal-wallet-address');
+    let valid = true;
+    let message = '';
+    if (
+      walletInput &&
+      walletInput.value.trim() &&
+      !isValidArweaveAddress(walletInput.value.trim())
+    ) {
+      valid = false;
+      message = window.languageManager
+        ? window.languageManager.getText('invalidArweaveWalletLastTip')
+        : 'The wallet address (Last Tip) is not valid for the Arweave network.';
+    }
+    if (
+      tipGoalWalletInput &&
+      tipGoalWalletInput.value.trim() &&
+      !isValidArweaveAddress(tipGoalWalletInput.value.trim())
+    ) {
+      valid = false;
+      message = window.languageManager
+        ? window.languageManager.getText('invalidArweaveWalletTipGoal')
+        : 'The wallet address (Tip Goal) is not valid for the Arweave network.';
+    }
+    if (!valid) {
+      showAlert(message, 'error');
+    }
+    return valid;
+  }
+
+  document.querySelectorAll('.save-btn[data-module]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      const module = e.currentTarget.dataset.module;
+      if (!module) {
+        showAlert('Error: Button has no data-module defined.', 'error');
+        return;
+      }
+
+      if (module === 'lastTip' || module === 'tipGoal') {
+        if (!validateWalletInputs()) {
+          return;
+        }
+      }
+      await saveSettings(module);
+    });
+  });
+
+  document.getElementById('tts-enabled').addEventListener('change', (e) => {
+    const ttsEnabled = e.target.checked;
+
+    fetch('/api/tts-setting', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ttsEnabled }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error('Failed to save TTS settings');
+        return response.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          showAlert('TTS setting saved successfully', 'success');
+        }
+      })
+      .catch((error) => {
+        console.error('Error saving TTS settings:', error);
+        showAlert('Error saving TTS setting', 'error');
+        e.target.checked = !ttsEnabled;
+      });
+  });
+
+  document.getElementById('refresh-status').addEventListener('click', () => {
+    fetch('/api/modules')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        updateStatus('lastTip-status', data.lastTip.active);
+        updateStatus('tipWidget-status', data.tipWidget.active);
+        updateStatus('tipGoal-status', data.tipGoal.active);
+        updateStatus('chat-status', data.chat.connected);
+        if (data.socialmedia) {
+          updateStatus('socialmedia-status', data.socialmedia.configured);
+        }
+        if (data.announcement) {
+          updateStatus('announcement-status', data.announcement.active);
+        }
+        showAlert('Updated status', 'success');
+      })
+      .catch((error) => {
+        console.error('Error refreshing status:', error);
+        showAlert('Error updating status', 'error');
+      });
+  });
+
+  async function saveSettings(module) {
+    if (!module) {
+      showAlert('Error: No module specified for saving.', 'error');
+      return;
+    }
+    try {
+      let endpoint = '';
+      let data = {};
+
+      switch (module) {
+        case 'lastTip':
+          endpoint = '/api/last-tip';
+          data = {
+            walletAddress: document.getElementById('wallet-address').value.trim(),
+            bgColor: document.getElementById('last-tip-bg-color').value,
+            fontColor: document.getElementById('last-tip-font-color').value,
+            borderColor: document.getElementById('last-tip-border-color').value,
+            amountColor: document.getElementById('last-tip-amount-color').value,
+            // iconColor removed
+            iconBgColor: document.getElementById('last-tip-icon-bg-color')?.value,
+            fromColor: document.getElementById('last-tip-from-color').value,
+            title: (document.getElementById('last-tip-title')?.value || '').trim(),
+          };
+          break;
+        case 'tipGoal': {
+          endpoint = '/api/tip-goal';
+          const goalAmountInput = document.getElementById('goal-amount');
+          const startingAmountInput = document.getElementById('starting-amount');
+          const goalAudioSource =
+            document.querySelector('input[name="goal-audio-source"]:checked')?.value || 'remote';
+          if (!goalAmountInput) {
+            console.error('[tipGoal] goal-amount input not found');
+            showAlert('Goal amount field (goal-amount) does not exist.', 'error');
+            return;
+          }
+          const monthlyGoal = Number(goalAmountInput.value);
+          const currentAmount = startingAmountInput ? Number(startingAmountInput.value || '0') : 0;
+          if (isNaN(monthlyGoal) || monthlyGoal <= 0) {
+            console.error('[tipGoal] monthlyGoal invalid:', monthlyGoal);
+            showAlert('Monthly goal must be a number greater than 0.', 'error');
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append(
+            'walletAddress',
+            document.getElementById('tip-goal-wallet-address').value.trim()
+          );
+          formData.append('monthlyGoal', monthlyGoal);
+          formData.append('currentAmount', isNaN(currentAmount) ? 0 : currentAmount);
+          formData.append('bgColor', document.getElementById('tip-goal-bg-color').value);
+          formData.append('fontColor', document.getElementById('tip-goal-font-color').value);
+          formData.append('borderColor', document.getElementById('tip-goal-border-color').value);
+          formData.append(
+            'progressColor',
+            document.getElementById('tip-goal-progress-color').value
+          );
+          formData.append('audioSource', goalAudioSource);
+          const tipGoalTitle = (document.getElementById('tip-goal-title')?.value || '').trim();
+          formData.append('title', tipGoalTitle);
+
+          const goalAudioCustom = document.getElementById('goal-audio-custom');
+          const goalAudioFileInput = document.getElementById('goal-custom-audio-file');
+          if (
+            goalAudioSource === 'custom' &&
+            goalAudioCustom &&
+            goalAudioCustom.checked &&
+            goalAudioFileInput &&
+            goalAudioFileInput.files.length > 0
+          ) {
+            formData.append('audioFile', goalAudioFileInput.files[0]);
+          }
+
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            let errorData;
+            try {
+              errorData = await response.json();
+            } catch (e) {
+              errorData = { error: 'Failed to save settings' };
+            }
+            throw new Error(errorData.error || 'Failed to save settings');
+          }
+
+          const result = await response.json();
+          showAlert('Configuration saved successfully', 'success');
+          updateStatus(`${module}-status`, result.active || result.connected || false);
+          return;
+        }
+        case 'chat':
+          endpoint = '/api/chat';
+          const claimId = document.getElementById('chat-url').value.trim();
+          const themeIdx = document.getElementById('chat-theme-select').value;
+          const selectedTheme = getAllThemes()[themeIdx];
+          data = {
+            chatUrl: `wss://sockety.odysee.tv/ws/commentron?id=${claimId}`,
+            bgColor: document.getElementById('chat-bg-color').value,
+            msgBgColor: document.getElementById('chat-msg-bg-color').value,
+            msgBgAltColor: document.getElementById('chat-msg-bg-alt-color').value,
+            borderColor: document.getElementById('chat-border-color').value,
+            textColor: document.getElementById('chat-text-color').value,
+            usernameColor: document.getElementById('chat-username-color').value,
+            usernameBgColor: document.getElementById('chat-username-bg-color').value,
+            donationColor: document.getElementById('chat-donation-color').value,
+            donationBgColor: document.getElementById('chat-donation-bg-color').value,
+            themeCSS: selectedTheme ? selectedTheme.css : '',
+          };
+          if (selectedTheme && selectedTheme.css) {
+            localStorage.setItem('chatLiveThemeCSS', selectedTheme.css);
+          }
+          break;
+
+        case 'externalNotifications':
+          endpoint = '/api/external-notifications';
+          data = {
+            discordWebhook: document.getElementById('discord-webhook').value.trim(),
+            telegramBotToken: document.getElementById('telegram-bot-token').value.trim(),
+            telegramChatId: document.getElementById('telegram-chat-id').value.trim(),
+            template: document.getElementById('notification-template').value.trim(),
+          };
+          break;
+
+        case 'notifications':
+          await saveNotificationSettings();
+          return;
+
+        default:
+          throw new Error(`Unknown module: ${module}`);
+      }
+
+      if ((module === 'lastTip' || module === 'chat') && !data[Object.keys(data)[0]]) {
+        throw new Error(`The ${Object.keys(data)[0]} is required`);
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = { error: 'Failed to save settings' };
+        }
+        throw new Error(errorData.error || 'Failed to save settings');
+      }
+
+      const result = await response.json();
+      showAlert('Configuration saved successfully', 'success');
+
+      if (module !== 'externalNotifications') {
+        updateStatus(`${module}-status`, result.active || result.connected || false);
+      }
+    } catch (error) {
+      console.error(`Error saving ${module} settings:`, error);
+      showAlert(error.message || 'Error saving configuration', 'error');
+    }
+  }
+
+  function updateStatus(elementId, isActive) {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      console.warn(`Element with id "${elementId}" not found.`);
+      return;
+    }
+    if (isActive) {
+      element.textContent = 'Active';
+      element.classList.add('active');
+      element.classList.remove('inactive');
+    } else {
+      element.textContent = 'Inactive';
+      element.classList.add('inactive');
+      element.classList.remove('active');
+    }
+  }
+
+  function showAlert(message, type) {
+    const toast = document.getElementById('copy-toast');
+    const icon = toast.querySelector('.copy-icon');
+    const messageElement = toast.querySelector('.copy-message');
+
+    messageElement.textContent = message;
+
+    if (type === 'success') {
+      icon.innerHTML =
+        '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+      toast.classList.remove('toast-error');
+      toast.classList.add('toast-success');
+    } else {
+      icon.innerHTML =
+        '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+      toast.classList.remove('toast-success');
+      toast.classList.add('toast-error');
     }
 
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3000);
+  }
+  window.showAlert = showAlert;
+
+  fetch('/api/tts-language')
+    .then((response) => {
+      if (!response.ok) throw new Error('Failed to load TTS language');
+      return response.json();
+    })
+    .then((data) => {
+      document.getElementById('tts-language').value = data.ttsLanguage || 'en';
+    })
+    .catch((error) => {
+      console.error('Error loading TTS language:', error);
+      document.getElementById('tts-language').value = 'en';
+    });
+
+  document.getElementById('tts-language').addEventListener('change', (e) => {
+    const ttsLanguage = e.target.value;
+    fetch('/api/tts-language', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ttsLanguage }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error('Failed to save TTS language');
+        return response.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          showAlert('TTS language saved successfully', 'success');
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      })
+      .catch((error) => {
+        console.error('Error saving TTS language:', error);
+        showAlert('Error saving TTS language', 'error');
+        e.target.value = e.target.value === 'en' ? 'es' : 'en';
+      });
+  });
+
+  function updateLastTipColorHex() {
+    const bgColorEl = document.getElementById('last-tip-bg-color');
+    const fontColorEl = document.getElementById('last-tip-font-color');
+    const borderColorEl = document.getElementById('last-tip-border-color');
+    const amountColorEl = document.getElementById('last-tip-amount-color');
+    const iconBgColorEl = document.getElementById('last-tip-icon-bg-color');
+    const fromColorEl = document.getElementById('last-tip-from-color');
+
+    const bgColorHexEl = document.getElementById('last-tip-bg-color-hex');
+    const fontColorHexEl = document.getElementById('last-tip-font-color-hex');
+    const borderColorHexEl = document.getElementById('last-tip-border-color-hex');
+    const amountColorHexEl = document.getElementById('last-tip-amount-color-hex');
+    const iconBgColorHexEl = document.getElementById('last-tip-icon-bg-color-hex');
+    const fromColorHexEl = document.getElementById('last-tip-from-color-hex');
+
+    if (bgColorEl && bgColorHexEl) bgColorHexEl.textContent = bgColorEl.value;
+    if (fontColorEl && fontColorHexEl) fontColorHexEl.textContent = fontColorEl.value;
+    if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
+    if (amountColorEl && amountColorHexEl) amountColorHexEl.textContent = amountColorEl.value;
+    if (iconBgColorEl && iconBgColorHexEl) iconBgColorHexEl.textContent = iconBgColorEl.value;
+    if (fromColorEl && fromColorHexEl) fromColorHexEl.textContent = fromColorEl.value;
+  }
+
+  [
+    'last-tip-bg-color',
+    'last-tip-font-color',
+    'last-tip-border-color',
+    'last-tip-amount-color',
+    'last-tip-icon-bg-color',
+    'last-tip-from-color',
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', updateLastTipColorHex);
+    }
+  });
+
+  if (document.getElementById('last-tip-bg-color')) {
+    updateLastTipColorHex();
+  }
+
+  const resetLastTipBtn = document.getElementById('reset-last-tip-colors');
+  if (resetLastTipBtn) {
+    resetLastTipBtn.addEventListener('click', function () {
+      document.getElementById('last-tip-bg-color').value = '#080c10';
+      document.getElementById('last-tip-font-color').value = '#ffffff';
+      document.getElementById('last-tip-border-color').value = '#00ff7f';
+      document.getElementById('last-tip-amount-color').value = '#00ff7f';
+      if (document.getElementById('last-tip-icon-bg-color'))
+        document.getElementById('last-tip-icon-bg-color').value = '#4f36ff';
+      document.getElementById('last-tip-from-color').value = '#817ec8';
+      updateLastTipColorHex();
+    });
+  }
+
+  function updateTipGoalColorHex() {
+    const bgColorEl = document.getElementById('tip-goal-bg-color');
+    const fontColorEl = document.getElementById('tip-goal-font-color');
+    const borderColorEl = document.getElementById('tip-goal-border-color');
+    const progressColorEl = document.getElementById('tip-goal-progress-color');
+
+    const bgColorHexEl = document.getElementById('tip-goal-bg-color-hex');
+    const fontColorHexEl = document.getElementById('tip-goal-font-color-hex');
+    const borderColorHexEl = document.getElementById('tip-goal-border-color-hex');
+    const progressColorHexEl = document.getElementById('tip-goal-progress-color-hex');
+
+    if (bgColorEl && bgColorHexEl) bgColorHexEl.textContent = bgColorEl.value;
+    if (fontColorEl && fontColorHexEl) fontColorHexEl.textContent = fontColorEl.value;
+    if (borderColorEl && borderColorHexEl) borderColorHexEl.textContent = borderColorEl.value;
+    if (progressColorEl && progressColorHexEl)
+      progressColorHexEl.textContent = progressColorEl.value;
+  }
+
+  [
+    'tip-goal-bg-color',
+    'tip-goal-font-color',
+    'tip-goal-border-color',
+    'tip-goal-progress-color',
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', updateTipGoalColorHex);
+    }
+  });
+
+  if (document.getElementById('tip-goal-bg-color')) {
+    updateTipGoalColorHex();
+  }
+
+  const resetBtn = document.getElementById('reset-tip-goal-colors');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+      document.getElementById('tip-goal-bg-color').value = '#080c10';
+      document.getElementById('tip-goal-font-color').value = '#ffffff';
+      document.getElementById('tip-goal-border-color').value = '#00ff7f';
+      document.getElementById('tip-goal-progress-color').value = '#00ff7f';
+      updateTipGoalColorHex();
+    });
+  }
+
+  function updateChatColorHex() {
+    const chatBgColorEl = document.getElementById('chat-bg-color');
+    const chatMsgBgColorEl = document.getElementById('chat-msg-bg-color');
+    const chatMsgBgAltColorEl = document.getElementById('chat-msg-bg-alt-color');
+    const chatBorderColorEl = document.getElementById('chat-border-color');
+    const chatTextColorEl = document.getElementById('chat-text-color');
+    const chatUsernameColorEl = document.getElementById('chat-username-color');
+    const chatUsernameBgColorEl = document.getElementById('chat-username-bg-color');
+    const chatDonationColorEl = document.getElementById('chat-donation-color');
+    const chatDonationBgColorEl = document.getElementById('chat-donation-bg-color');
+
+    const chatBgColorHexEl = document.getElementById('chat-bg-color-hex');
+    const chatMsgBgColorHexEl = document.getElementById('chat-msg-bg-color-hex');
+    const chatMsgBgAltColorHexEl = document.getElementById('chat-msg-bg-alt-color-hex');
+    const chatBorderColorHexEl = document.getElementById('chat-border-color-hex');
+    const chatTextColorHexEl = document.getElementById('chat-text-color-hex');
+    const chatUsernameColorHexEl = document.getElementById('chat-username-color-hex');
+    const chatUsernameBgColorHexEl = document.getElementById('chat-username-bg-color-hex');
+    const chatDonationColorHexEl = document.getElementById('chat-donation-color-hex');
+    const chatDonationBgColorHexEl = document.getElementById('chat-donation-bg-color-hex');
+
+    if (chatBgColorEl && chatBgColorHexEl) chatBgColorHexEl.textContent = chatBgColorEl.value;
+    if (chatMsgBgColorEl && chatMsgBgColorHexEl)
+      chatMsgBgColorHexEl.textContent = chatMsgBgColorEl.value;
+    if (chatMsgBgAltColorEl && chatMsgBgAltColorHexEl)
+      chatMsgBgAltColorHexEl.textContent = chatMsgBgAltColorEl.value;
+    if (chatBorderColorEl && chatBorderColorHexEl)
+      chatBorderColorHexEl.textContent = chatBorderColorEl.value;
+    if (chatTextColorEl && chatTextColorHexEl)
+      chatTextColorHexEl.textContent = chatTextColorEl.value;
+    if (chatUsernameColorEl && chatUsernameColorHexEl)
+      chatUsernameColorHexEl.textContent = chatUsernameColorEl.value;
+    if (chatUsernameBgColorEl && chatUsernameBgColorHexEl)
+      chatUsernameBgColorHexEl.textContent = chatUsernameBgColorEl.value;
+    if (chatDonationColorEl && chatDonationColorHexEl)
+      chatDonationColorHexEl.textContent = chatDonationColorEl.value;
+    if (chatDonationBgColorEl && chatDonationBgColorHexEl)
+      chatDonationBgColorHexEl.textContent = chatDonationBgColorEl.value;
+  }
+
+  [
+    'chat-bg-color',
+    'chat-msg-bg-color',
+    'chat-msg-bg-alt-color',
+    'chat-border-color',
+    'chat-text-color',
+    'chat-username-color',
+    'chat-username-bg-color',
+    'chat-donation-color',
+    'chat-donation-bg-color',
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', updateChatColorHex);
+    }
+  });
+
+  if (document.getElementById('chat-bg-color')) {
+    updateChatColorHex();
+  }
+
+  const resetChatBtn = document.getElementById('reset-chat-colors');
+  if (resetChatBtn) {
+    resetChatBtn.addEventListener('click', function () {
+      document.getElementById('chat-bg-color').value = '#080c10';
+      document.getElementById('chat-msg-bg-color').value = '#0a0e12';
+      document.getElementById('chat-msg-bg-alt-color').value = '#0d1114';
+      document.getElementById('chat-border-color').value = '#161b22';
+      document.getElementById('chat-text-color').value = '#e6edf3';
+      document.getElementById('chat-username-color').value = '#fff';
+      document.getElementById('chat-username-bg-color').value = '#11ff79';
+      document.getElementById('chat-donation-color').value = '#ddb826';
+      document.getElementById('chat-donation-bg-color').value = '#131313';
+      updateChatColorHex();
+    });
+  }
+
+  const audioRemoteRadio = document.getElementById('audio-remote');
+  const audioCustomRadio = document.getElementById('audio-custom');
+  const customAudioSection = document.getElementById('custom-audio-section');
+  const customAudioFile = document.getElementById('custom-audio-file');
+  const uploadZone = document.getElementById('upload-zone');
+  const audioPreview = document.getElementById('audio-preview');
+  const audioName = document.getElementById('audio-name');
+  const audioSize = document.getElementById('audio-size');
+  const playAudioBtn = document.getElementById('play-audio');
+  const removeAudioBtn = document.getElementById('remove-audio');
+
+  let currentAudioFile = null;
+  let currentAudioBlob = null;
+
+  if (audioRemoteRadio && audioCustomRadio) {
+    audioRemoteRadio.addEventListener('change', function () {
+      if (this.checked) {
+        customAudioSection.classList.add('hidden');
+      }
+    });
+
+    audioCustomRadio.addEventListener('change', function () {
+      if (this.checked) {
+        customAudioSection.classList.remove('hidden');
+      }
+    });
+  }
+
+  function handleAudioFile(file) {
+    clearAudioError();
+
+    const validMimeTypes = ['audio/mpeg', 'audio/mp3'];
+    const isValidMimeType = validMimeTypes.includes(file.type);
+    const isValidExtension = file.name.toLowerCase().endsWith('.mp3');
+
+    if (!isValidMimeType && !isValidExtension) {
+      showAudioError('Only valid MP3 files are allowed');
+      return;
     }
 
-    if (playAudioBtn) {
-        playAudioBtn.addEventListener('click', function() {
-            if (currentAudioBlob) {
-                try {
-                    const audio = new Audio(currentAudioBlob);
-                    audio.volume = 0.7;
-                    
-                    audio.addEventListener('loadstart', () => {});
-                    audio.addEventListener('canplay', () => {});
-                    audio.addEventListener('loadeddata', () => {});
-                    audio.addEventListener('loadedmetadata', () => {
-                    });
-                    audio.addEventListener('error', (e) => {
-                        console.error('Audio error event:', e);
-                        console.error('Audio error details:', {
-                            error: audio.error,
-                            networkState: audio.networkState,
-                            readyState: audio.readyState,
-                            src: audio.src
-                        });
-                        
-                        let errorMessage = 'Error loading audio file.';
-                        if (audio.error) {
-                            switch (audio.error.code) {
-                                case MediaError.MEDIA_ERR_ABORTED:
-                                    errorMessage += ' Aborted reproduction.';
-                                    break;
-                                case MediaError.MEDIA_ERR_NETWORK:
-                                    errorMessage += ' Network error.';
-                                    break;
-                                case MediaError.MEDIA_ERR_DECODE:
-                                    errorMessage += ' Decoding error. MP3 file may be corrupted.';
-                                    break;
-                                case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                                    errorMessage += ' Format not supported. Use a valid MP3.';
-                                    break;
-                                default:
-                                    errorMessage += ' Unknown error.';
-                            }
-                        }
-                        showAlert(errorMessage, 'error');
-                    });
-                    
-                    audio.play().then(() => {
-                        
-                    }).catch(e => {
-                        console.error('Error playing audio:', e);
-                        if (e.name === 'NotSupportedError') {
-                            showAlert('Audio format not supported. Use a valid MP3 file.', 'error');
-                        } else if (e.name === 'NotAllowedError') {
-                            showAlert('Playback blocked by the browser. Click on the page first.', 'error');
-                        } else {
-                            showAlert('Audio playback error: ' + e.message, 'error');
-                        }
-                    });
-                } catch (error) {
-                    console.error('Error creating audio object:', error);
-                    showAlert('Error creating audio player', 'error');
-                }
-            } else {
-                showAlert('No audio to play', 'warning');
-            }
-        });
+    if (file.size > 1048576) {
+      showAudioError('The file must be less than 1MB');
+      return;
     }
 
-    if (removeAudioBtn) {
-        removeAudioBtn.addEventListener('click', function() {
-            currentAudioFile = null;
-            if (currentAudioBlob) {
-                URL.revokeObjectURL(currentAudioBlob);
-                currentAudioBlob = null;
-            }
-            if (customAudioFile) {
-                customAudioFile.value = '';
-            }
-            if (uploadZone && uploadZone.parentElement) {
-                uploadZone.parentElement.classList.remove('hidden');
-            }
-            if (audioPreview) {
-                audioPreview.classList.add('hidden');
-            }
-            clearAudioError();
-        });
+    if (file.size === 0) {
+      showAudioError('The file is empty');
+      return;
     }
 
-    function showAudioError(message) {
-        if (uploadZone && uploadZone.parentElement) {
-            uploadZone.classList.add('error');
-            let errorDiv = uploadZone.parentElement.querySelector('.error-message');
-            if (!errorDiv) {
-                errorDiv = document.createElement('div');
-                errorDiv.className = 'error-message';
-                errorDiv.innerHTML = `
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const arrayBuffer = e.target.result;
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const hasID3 = uint8Array[0] === 0x49 && uint8Array[1] === 0x44 && uint8Array[2] === 0x33;
+      const hasMPEGHeader = uint8Array[0] === 0xff && (uint8Array[1] & 0xe0) === 0xe0;
+
+      if (!hasID3 && !hasMPEGHeader) {
+        showAudioError('The file does not appear to be a valid MP3');
+        return;
+      }
+
+      currentAudioFile = file;
+      currentAudioBlob = URL.createObjectURL(file);
+      showAudioPreview(file);
+    };
+
+    reader.onerror = function () {
+      showAudioError('Error reading file');
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  function showAudioPreview(file) {
+    if (audioName) {
+      audioName.textContent = file.name;
+    }
+    if (audioSize) {
+      audioSize.textContent = formatFileSize(file.size);
+    }
+    if (uploadZone && uploadZone.parentElement) {
+      uploadZone.parentElement.classList.add('hidden');
+    }
+    if (audioPreview) {
+      audioPreview.classList.remove('hidden');
+    }
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  if (playAudioBtn) {
+    playAudioBtn.addEventListener('click', function () {
+      if (currentAudioBlob) {
+        try {
+          const audio = new Audio(currentAudioBlob);
+          audio.volume = 0.7;
+
+          audio.addEventListener('loadstart', () => {});
+          audio.addEventListener('canplay', () => {});
+          audio.addEventListener('loadeddata', () => {});
+          audio.addEventListener('loadedmetadata', () => {});
+          audio.addEventListener('error', (e) => {
+            console.error('Audio error event:', e);
+            console.error('Audio error details:', {
+              error: audio.error,
+              networkState: audio.networkState,
+              readyState: audio.readyState,
+              src: audio.src,
+            });
+
+            let errorMessage = 'Error loading audio file.';
+            if (audio.error) {
+              switch (audio.error.code) {
+                case MediaError.MEDIA_ERR_ABORTED:
+                  errorMessage += ' Aborted reproduction.';
+                  break;
+                case MediaError.MEDIA_ERR_NETWORK:
+                  errorMessage += ' Network error.';
+                  break;
+                case MediaError.MEDIA_ERR_DECODE:
+                  errorMessage += ' Decoding error. MP3 file may be corrupted.';
+                  break;
+                case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                  errorMessage += ' Format not supported. Use a valid MP3.';
+                  break;
+                default:
+                  errorMessage += ' Unknown error.';
+              }
+            }
+            showAlert(errorMessage, 'error');
+          });
+
+          audio
+            .play()
+            .then(() => {})
+            .catch((e) => {
+              console.error('Error playing audio:', e);
+              if (e.name === 'NotSupportedError') {
+                showAlert('Audio format not supported. Use a valid MP3 file.', 'error');
+              } else if (e.name === 'NotAllowedError') {
+                showAlert('Playback blocked by the browser. Click on the page first.', 'error');
+              } else {
+                showAlert('Audio playback error: ' + e.message, 'error');
+              }
+            });
+        } catch (error) {
+          console.error('Error creating audio object:', error);
+          showAlert('Error creating audio player', 'error');
+        }
+      } else {
+        showAlert('No audio to play', 'warning');
+      }
+    });
+  }
+
+  if (removeAudioBtn) {
+    removeAudioBtn.addEventListener('click', function () {
+      currentAudioFile = null;
+      if (currentAudioBlob) {
+        URL.revokeObjectURL(currentAudioBlob);
+        currentAudioBlob = null;
+      }
+      if (customAudioFile) {
+        customAudioFile.value = '';
+      }
+      if (uploadZone && uploadZone.parentElement) {
+        uploadZone.parentElement.classList.remove('hidden');
+      }
+      if (audioPreview) {
+        audioPreview.classList.add('hidden');
+      }
+      clearAudioError();
+    });
+  }
+
+  function showAudioError(message) {
+    if (uploadZone && uploadZone.parentElement) {
+      uploadZone.classList.add('error');
+      let errorDiv = uploadZone.parentElement.querySelector('.error-message');
+      if (!errorDiv) {
+        errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `
                     <svg viewBox="0 0 24 24">
                         <path fill="currentColor" d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
                     </svg>
                     <span></span>
                 `;
-                uploadZone.parentElement.appendChild(errorDiv);
-            }
-            errorDiv.querySelector('span').textContent = message;
-        } else {
-            console.error('Audio error:', message);
-            showAlert(message, 'error');
-        }
+        uploadZone.parentElement.appendChild(errorDiv);
+      }
+      errorDiv.querySelector('span').textContent = message;
+    } else {
+      console.error('Audio error:', message);
+      showAlert(message, 'error');
     }
+  }
 
-    function clearAudioError() {
-        if (uploadZone) {
-            uploadZone.classList.remove('error');
-            const errorDiv = uploadZone.parentElement.querySelector('.error-message');
-            if (errorDiv) {
-                errorDiv.remove();
-            }
-        }
-    }
-
-    const goalAudioRemote = document.getElementById('goal-audio-remote');
-    const goalAudioCustom = document.getElementById('goal-audio-custom');
-    const goalCustomAudioSection = document.getElementById('goal-custom-audio-section');
-    const goalAudioPreview = document.getElementById('goal-audio-preview');
-    const goalAudioFileInput = document.getElementById('goal-custom-audio-file');
-    const goalPlayBtn = document.getElementById('play-goal-audio');
-    const goalRemoveBtn = document.getElementById('remove-goal-audio');
-    
-    let currentGoalAudioFile = null;
-    let currentGoalAudioBlob = null;
-
-    function loadGoalAudioSettings() {
-        fetch('/api/goal-audio-settings')
-            .then(response => response.json())
-            .then(data => {
-                if (data.audioSource === 'custom') {
-                    goalAudioCustom.checked = true;
-                    goalCustomAudioSection.classList.remove('hidden');
-                    if (data.hasCustomAudio) {
-                        document.getElementById('goal-audio-name').textContent = data.audioFileName || 'custom_goal_audio.mp3';
-                        document.getElementById('goal-audio-size').textContent = formatFileSize(data.audioFileSize);
-                        goalAudioPreview.classList.remove('hidden');
-                    }
-                } else {
-                    goalAudioRemote.checked = true;
-                    goalCustomAudioSection.classList.add('hidden');
-                }
-            })
-            .catch(error => console.error('Error loading goal audio settings:', error));
-    }
-
-    if (goalAudioRemote && goalAudioCustom) {
-        goalAudioRemote.addEventListener('change', function() {
-            if (this.checked) {
-                goalCustomAudioSection.classList.add('hidden');
-            }
-        });
-
-        goalAudioCustom.addEventListener('change', function() {
-            if (this.checked) {
-                goalCustomAudioSection.classList.remove('hidden');
-            }
-        });
-    }
-
-    if (goalAudioFileInput) {
-        goalAudioFileInput.addEventListener('change', function(e) {
-            if (this.files && this.files[0]) {
-                const file = this.files[0];
-                currentGoalAudioFile = file;
-                currentGoalAudioBlob = URL.createObjectURL(file);
-                
-                document.getElementById('goal-audio-name').textContent = file.name;
-                document.getElementById('goal-audio-size').textContent = formatFileSize(file.size);
-                
-                getAudioDuration(currentGoalAudioBlob).then(duration => {
-                    document.getElementById('goal-audio-duration').textContent = formatDuration(duration);
-                });
-                
-                goalAudioPreview.classList.remove('hidden');
-            }
-        });
-    }
-
-    if (goalPlayBtn) {
-        goalPlayBtn.addEventListener('click', function() {
-            if (currentGoalAudioBlob) {
-                const audio = new Audio(currentGoalAudioBlob);
-                audio.volume = 0.8;
-                audio.play().catch(e => console.error('Error playing audio:', e));
-            } else if (goalAudioCustom.checked) {
-                const audio = new Audio('/api/goal-custom-audio');
-                audio.volume = 0.8;
-                audio.play().catch(e => console.error('Error playing audio:', e));
-            }
-        });
-    }
-
-    if (goalRemoveBtn) {
-        goalRemoveBtn.addEventListener('click', function() {
-            goalAudioFileInput.value = '';
-            currentGoalAudioFile = null;
-            if (currentGoalAudioBlob) {
-                URL.revokeObjectURL(currentGoalAudioBlob);
-                currentGoalAudioBlob = null;
-            }
-            goalAudioPreview.classList.add('hidden');
-            
-            fetch('/api/goal-audio-settings', {
-                method: 'DELETE'
-            }).catch(e => console.error('Error deleting audio:', e));
-        });
-    }
-
-    function formatDuration(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    function getAudioDuration(url) {
-        return new Promise(resolve => {
-            const audio = new Audio();
-            audio.src = url;
-            audio.onloadedmetadata = () => {
-                resolve(audio.duration);
-            };
-            audio.onerror = () => {
-                resolve(0);
-            };
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', loadGoalAudioSettings);
-
-    async function loadAudioSettings() {
-        try {
-            const response = await fetch('/api/audio-settings');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.audioSource === 'custom') {
-                    if (audioCustomRadio) {
-                        audioCustomRadio.checked = true;
-                    }
-                    if (customAudioSection) {
-                        customAudioSection.classList.remove('hidden');
-                    }
-                    if (data.hasCustomAudio) {
-                        showSavedAudioInfo(data.audioFileName, data.audioFileSize);
-                    }
-                } else {
-                    if (audioRemoteRadio) {
-                        audioRemoteRadio.checked = true;
-                    }
-                    if (customAudioSection) {
-                        customAudioSection.classList.add('hidden');
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Error loading audio settings:', error);
-        }
-    }
-
-    function showSavedAudioInfo(fileName, fileSize) {
-        if (audioName) {
-            audioName.textContent = fileName || 'Customized audio';
-        }
-        if (audioSize) {
-            audioSize.textContent = formatFileSize(fileSize || 0);
-        }
-        if (uploadZone && uploadZone.parentElement) {
-            uploadZone.parentElement.classList.add('hidden');
-        }
-        if (audioPreview) {
-            audioPreview.classList.remove('hidden');
-        }
-        if (playAudioBtn) {
-            playAudioBtn.classList.add('hidden');
-        }
-    }
-
-    async function saveNotificationSettings() {
-        const audioSource = document.querySelector('input[name="audio-source"]:checked')?.value || 'remote';
-        
-        try {
-            const audioForm = new FormData();
-            audioForm.append('audioSource', audioSource);
-            if (audioSource === 'custom' && currentAudioFile) {
-                audioForm.append('audioFile', currentAudioFile);
-            }
-            const audioRes = await fetch('/api/audio-settings', { method: 'POST', body: audioForm });
-            const audioText = await audioRes.text();
-            let audioData;
-            try { audioData = JSON.parse(audioText); } catch { throw new Error('Invalid audio response'); }
-            if (!audioRes.ok || !audioData.success) throw new Error(audioData.error || 'Audio save failed');
-            if (audioSource === 'custom' && currentAudioFile) {
-                showSavedAudioInfo(currentAudioFile.name, currentAudioFile.size);
-                currentAudioFile = null;
-            }
-
-            const pos = document.getElementById('tip-gif-position')?.value || 'right';
-            const gifInput = document.getElementById('tip-gif-file');
-            const gifFile = gifInput?.files && gifInput.files[0] ? gifInput.files[0] : null;
-            const gifForm = new FormData();
-            gifForm.append('position', pos);
-            if (gifFile) gifForm.append('gifFile', gifFile);
-            const gifRes = await fetch('/api/tip-notification-gif', { method: 'POST', body: gifForm });
-            const gifJson = await gifRes.json().catch(()=>({}));
-            if (!gifRes.ok || !gifJson.success) throw new Error(gifJson.error || 'GIF save failed');
-            if (gifJson.gifPath) {
-                const previewImg = document.getElementById('tip-gif-preview-img');
-                const previewWrapper = document.getElementById('tip-gif-preview');
-                const removeBtn = document.getElementById('tip-gif-remove');
-                if (previewImg && previewWrapper) {
-                    previewImg.src = gifJson.gifPath + '?t=' + Date.now();
-                    previewWrapper.style.display = 'block';
-                }
-                if (removeBtn) removeBtn.style.display = 'inline-flex';
-                if (gifInput) gifInput.value = '';
-            }
-
-            showAlert('Notification settings saved (audio + GIF)', 'success');
-        } catch (error) {
-            console.error('Error saving notification settings:', error);
-            showAlert(error.message || 'Error saving notification settings', 'error');
-        }
-    }
-
-    window.saveNotificationSettings = saveNotificationSettings;
-
+  function clearAudioError() {
     if (uploadZone) {
-        uploadZone.addEventListener('click', function() {
-            customAudioFile.click();
-        });
-
-        uploadZone.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
-        });
-
-        uploadZone.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-        });
-
-        uploadZone.addEventListener('drop', function(e) {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleAudioFile(files[0]);
-            }
-        });
+      uploadZone.classList.remove('error');
+      const errorDiv = uploadZone.parentElement.querySelector('.error-message');
+      if (errorDiv) {
+        errorDiv.remove();
+      }
     }
+  }
 
-    if (customAudioFile) {
-        customAudioFile.addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                handleAudioFile(e.target.files[0]);
-            }
+  const goalAudioRemote = document.getElementById('goal-audio-remote');
+  const goalAudioCustom = document.getElementById('goal-audio-custom');
+  const goalCustomAudioSection = document.getElementById('goal-custom-audio-section');
+  const goalAudioPreview = document.getElementById('goal-audio-preview');
+  const goalAudioFileInput = document.getElementById('goal-custom-audio-file');
+  const goalPlayBtn = document.getElementById('play-goal-audio');
+  const goalRemoveBtn = document.getElementById('remove-goal-audio');
+
+  let currentGoalAudioFile = null;
+  let currentGoalAudioBlob = null;
+
+  function loadGoalAudioSettings() {
+    fetch('/api/goal-audio-settings')
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.audioSource === 'custom') {
+          goalAudioCustom.checked = true;
+          goalCustomAudioSection.classList.remove('hidden');
+          if (data.hasCustomAudio) {
+            document.getElementById('goal-audio-name').textContent =
+              data.audioFileName || 'custom_goal_audio.mp3';
+            document.getElementById('goal-audio-size').textContent = formatFileSize(
+              data.audioFileSize
+            );
+            goalAudioPreview.classList.remove('hidden');
+          }
+        } else {
+          goalAudioRemote.checked = true;
+          goalCustomAudioSection.classList.add('hidden');
+        }
+      })
+      .catch((error) => console.error('Error loading goal audio settings:', error));
+  }
+
+  if (goalAudioRemote && goalAudioCustom) {
+    goalAudioRemote.addEventListener('change', function () {
+      if (this.checked) {
+        goalCustomAudioSection.classList.add('hidden');
+      }
+    });
+
+    goalAudioCustom.addEventListener('change', function () {
+      if (this.checked) {
+        goalCustomAudioSection.classList.remove('hidden');
+      }
+    });
+  }
+
+  if (goalAudioFileInput) {
+    goalAudioFileInput.addEventListener('change', function (e) {
+      if (this.files && this.files[0]) {
+        const file = this.files[0];
+        currentGoalAudioFile = file;
+        currentGoalAudioBlob = URL.createObjectURL(file);
+
+        document.getElementById('goal-audio-name').textContent = file.name;
+        document.getElementById('goal-audio-size').textContent = formatFileSize(file.size);
+
+        getAudioDuration(currentGoalAudioBlob).then((duration) => {
+          document.getElementById('goal-audio-duration').textContent = formatDuration(duration);
         });
-    }
 
-    if (audioCustomRadio) {
-        audioCustomRadio.addEventListener('change', function() {
-            if (this.checked) {
-                customAudioSection.style.display = 'block';
-            }
-        });
-    }
+        goalAudioPreview.classList.remove('hidden');
+      }
+    });
+  }
 
-    document.addEventListener('DOMContentLoaded', loadAudioSettings);
+  if (goalPlayBtn) {
+    goalPlayBtn.addEventListener('click', function () {
+      if (currentGoalAudioBlob) {
+        const audio = new Audio(currentGoalAudioBlob);
+        audio.volume = 0.8;
+        audio.play().catch((e) => console.error('Error playing audio:', e));
+      } else if (goalAudioCustom.checked) {
+        const audio = new Audio('/api/goal-custom-audio');
+        audio.volume = 0.8;
+        audio.play().catch((e) => console.error('Error playing audio:', e));
+      }
+    });
+  }
+
+  if (goalRemoveBtn) {
+    goalRemoveBtn.addEventListener('click', function () {
+      goalAudioFileInput.value = '';
+      currentGoalAudioFile = null;
+      if (currentGoalAudioBlob) {
+        URL.revokeObjectURL(currentGoalAudioBlob);
+        currentGoalAudioBlob = null;
+      }
+      goalAudioPreview.classList.add('hidden');
+
+      fetch('/api/goal-audio-settings', {
+        method: 'DELETE',
+      }).catch((e) => console.error('Error deleting audio:', e));
+    });
+  }
+
+  function formatDuration(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  function getAudioDuration(url) {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.src = url;
+      audio.onloadedmetadata = () => {
+        resolve(audio.duration);
+      };
+      audio.onerror = () => {
+        resolve(0);
+      };
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadGoalAudioSettings);
+
+  async function loadAudioSettings() {
+    try {
+      const response = await fetch('/api/audio-settings');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.audioSource === 'custom') {
+          if (audioCustomRadio) {
+            audioCustomRadio.checked = true;
+          }
+          if (customAudioSection) {
+            customAudioSection.classList.remove('hidden');
+          }
+          if (data.hasCustomAudio) {
+            showSavedAudioInfo(data.audioFileName, data.audioFileSize);
+          }
+        } else {
+          if (audioRemoteRadio) {
+            audioRemoteRadio.checked = true;
+          }
+          if (customAudioSection) {
+            customAudioSection.classList.add('hidden');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading audio settings:', error);
+    }
+  }
+
+  function showSavedAudioInfo(fileName, fileSize) {
+    if (audioName) {
+      audioName.textContent = fileName || 'Customized audio';
+    }
+    if (audioSize) {
+      audioSize.textContent = formatFileSize(fileSize || 0);
+    }
+    if (uploadZone && uploadZone.parentElement) {
+      uploadZone.parentElement.classList.add('hidden');
+    }
+    if (audioPreview) {
+      audioPreview.classList.remove('hidden');
+    }
+    if (playAudioBtn) {
+      playAudioBtn.classList.add('hidden');
+    }
+  }
+
+  async function saveNotificationSettings() {
+    const audioSource =
+      document.querySelector('input[name="audio-source"]:checked')?.value || 'remote';
+
+    try {
+      const audioForm = new FormData();
+      audioForm.append('audioSource', audioSource);
+      if (audioSource === 'custom' && currentAudioFile) {
+        audioForm.append('audioFile', currentAudioFile);
+      }
+      const audioRes = await fetch('/api/audio-settings', { method: 'POST', body: audioForm });
+      const audioText = await audioRes.text();
+      let audioData;
+      try {
+        audioData = JSON.parse(audioText);
+      } catch {
+        throw new Error('Invalid audio response');
+      }
+      if (!audioRes.ok || !audioData.success)
+        throw new Error(audioData.error || 'Audio save failed');
+      if (audioSource === 'custom' && currentAudioFile) {
+        showSavedAudioInfo(currentAudioFile.name, currentAudioFile.size);
+        currentAudioFile = null;
+      }
+
+      const pos = document.getElementById('tip-gif-position')?.value || 'right';
+      const gifInput = document.getElementById('tip-gif-file');
+      const gifFile = gifInput?.files && gifInput.files[0] ? gifInput.files[0] : null;
+      const gifForm = new FormData();
+      gifForm.append('position', pos);
+      if (gifFile) gifForm.append('gifFile', gifFile);
+      const gifRes = await fetch('/api/tip-notification-gif', { method: 'POST', body: gifForm });
+      const gifJson = await gifRes.json().catch(() => ({}));
+      if (!gifRes.ok || !gifJson.success) throw new Error(gifJson.error || 'GIF save failed');
+      if (gifJson.gifPath) {
+        const previewImg = document.getElementById('tip-gif-preview-img');
+        const previewWrapper = document.getElementById('tip-gif-preview');
+        const removeBtn = document.getElementById('tip-gif-remove');
+        if (previewImg && previewWrapper) {
+          previewImg.src = gifJson.gifPath + '?t=' + Date.now();
+          previewWrapper.style.display = 'block';
+        }
+        if (removeBtn) removeBtn.style.display = 'inline-flex';
+        if (gifInput) gifInput.value = '';
+      }
+
+      showAlert('Notification settings saved (audio + GIF)', 'success');
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+      showAlert(error.message || 'Error saving notification settings', 'error');
+    }
+  }
+
+  window.saveNotificationSettings = saveNotificationSettings;
+
+  if (uploadZone) {
+    uploadZone.addEventListener('click', function () {
+      customAudioFile.click();
+    });
+
+    uploadZone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', function (e) {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleAudioFile(files[0]);
+      }
+    });
+  }
+
+  if (customAudioFile) {
+    customAudioFile.addEventListener('change', function (e) {
+      if (e.target.files.length > 0) {
+        handleAudioFile(e.target.files[0]);
+      }
+    });
+  }
+
+  if (audioCustomRadio) {
+    audioCustomRadio.addEventListener('change', function () {
+      if (this.checked) {
+        customAudioSection.style.display = 'block';
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadAudioSettings);
 });
 
 function resolveAdminLanguage() {
-    try {
-        if (window.__i18n && window.__i18n.current) return window.__i18n.current;
-    } catch (e) {}
-    try {
-        const stored = localStorage.getItem('getty-language') || localStorage.getItem('lang') || localStorage.getItem('language') || localStorage.getItem('i18nextLng');
-        if (stored) return stored;
-    } catch (e) {}
-    try {
-        const match = document.cookie.match(/(?:^|;\s*)getty_lang=([^;]+)/) || document.cookie.match(/(?:^|;\s*)lang=([^;]+)/);
-        if (match && match[1]) return decodeURIComponent(match[1]);
-    } catch (e) {}
-    return '';
+  try {
+    if (window.__i18n && window.__i18n.current) return window.__i18n.current;
+  } catch (e) {}
+  try {
+    const stored =
+      localStorage.getItem('getty-language') ||
+      localStorage.getItem('lang') ||
+      localStorage.getItem('language') ||
+      localStorage.getItem('i18nextLng');
+    if (stored) return stored;
+  } catch (e) {}
+  try {
+    const match =
+      document.cookie.match(/(?:^|;\s*)getty_lang=([^;]+)/) ||
+      document.cookie.match(/(?:^|;\s*)lang=([^;]+)/);
+    if (match && match[1]) return decodeURIComponent(match[1]);
+  } catch (e) {}
+  return '';
 }
 
 function appendLangParam(url) {
-    const lang = resolveAdminLanguage();
-    if (!lang) return url;
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}lang=${encodeURIComponent(lang)}`;
+  const lang = resolveAdminLanguage();
+  if (!lang) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}lang=${encodeURIComponent(lang)}`;
 }
 
 function setWidgetUrlsFromObsConfig(cfg) {
-    // If no IP or port is configured, use localhost:3000 by default
-    const ip = cfg && cfg.ip ? cfg.ip : 'localhost';
-    const port = cfg && cfg.port ? cfg.port : '3000';
-    const baseUrl = `http://${ip}:${port}`;
-    const widgetUrls = {
-        'raffle-widget-url': `${baseUrl}/widgets/giveaway`,
-        'last-tip-url': `${baseUrl}/widgets/last-tip`,
-        'tip-goal-url': `${baseUrl}/widgets/tip-goal`,
-        'tip-notification-url': `${baseUrl}/widgets/tip-notification`,
-        'obs-chat-url': `${baseUrl}/widgets/chat`,
-        'obs-chat-horizontal-url': `${baseUrl}/widgets/chat?horizontal=1`,
+  // If no IP or port is configured, use localhost:3000 by default
+  const ip = cfg && cfg.ip ? cfg.ip : 'localhost';
+  const port = cfg && cfg.port ? cfg.port : '3000';
+  const baseUrl = `http://${ip}:${port}`;
+  const widgetUrls = {
+    'raffle-widget-url': `${baseUrl}/widgets/giveaway`,
+    'last-tip-url': `${baseUrl}/widgets/last-tip`,
+    'tip-goal-url': `${baseUrl}/widgets/tip-goal`,
+    'tip-notification-url': `${baseUrl}/widgets/tip-notification`,
+    'obs-chat-url': `${baseUrl}/widgets/chat`,
+    'obs-chat-horizontal-url': `${baseUrl}/widgets/chat?horizontal=1`,
     'liveviews-widget-url': appendLangParam(`${baseUrl}/widgets/liveviews`),
-        'socialmedia-widget-url': `${baseUrl}/widgets/socialmedia`
-    };
-    Object.entries(widgetUrls).forEach(([id, url]) => {
-        const el = document.getElementById(id);
-        if (el) el.value = url;
-    });
+    'socialmedia-widget-url': `${baseUrl}/widgets/socialmedia`,
+  };
+  Object.entries(widgetUrls).forEach(([id, url]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = url;
+  });
 }
 
 function loadObsWsConfig() {
-    fetch('/api/obs-ws-config')
-        .then(res => res.json())
-        .then(cfg => {
-            if (cfg) {
-                document.getElementById('obs-ws-ip').value = cfg.ip || '';
-                document.getElementById('obs-ws-port').value = cfg.port || '';
-                document.getElementById('obs-ws-password').value = cfg.password || '';
-                setWidgetUrlsFromObsConfig(cfg);
-            }
-        });
+  fetch('/api/obs-ws-config')
+    .then((res) => res.json())
+    .then((cfg) => {
+      if (cfg) {
+        document.getElementById('obs-ws-ip').value = cfg.ip || '';
+        document.getElementById('obs-ws-port').value = cfg.port || '';
+        document.getElementById('obs-ws-password').value = cfg.password || '';
+        setWidgetUrlsFromObsConfig(cfg);
+      }
+    });
 }
 
 const saveObsWsBtn = document.getElementById('save-obs-ws-settings');
 if (saveObsWsBtn) {
-    saveObsWsBtn.addEventListener('click', function() {
-        const config = {
-            ip: document.getElementById('obs-ws-ip').value,
-            port: document.getElementById('obs-ws-port').value,
-            password: document.getElementById('obs-ws-password').value
-        };
-        fetch('/api/obs-ws-config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(config)
-        }).then(res => {
-            if (res.ok) {
-                showAlert('OBS WebSocket settings saved', 'success');
-            } else {
-                showAlert('Error saving OBS WebSocket settings', 'error');
-            }
-        });
+  saveObsWsBtn.addEventListener('click', function () {
+    const config = {
+      ip: document.getElementById('obs-ws-ip').value,
+      port: document.getElementById('obs-ws-port').value,
+      password: document.getElementById('obs-ws-password').value,
+    };
+    fetch('/api/obs-ws-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    }).then((res) => {
+      if (res.ok) {
+        showAlert('OBS WebSocket settings saved', 'success');
+      } else {
+        showAlert('Error saving OBS WebSocket settings', 'error');
+      }
     });
+  });
 }
 
 document.addEventListener('DOMContentLoaded', loadObsWsConfig);
 
-document.addEventListener('DOMContentLoaded', function() {
-    
-    fetch('/config/liveviews-config.json')
-        .then(res => res.json())
-        .then(cfg => {
-            if (cfg) {
-                if (document.getElementById('liveviews-claimid')) document.getElementById('liveviews-claimid').value = cfg.claimid || '';
-                if (document.getElementById('liveviews-bg-color')) document.getElementById('liveviews-bg-color').value = cfg.bg || '#ffffff';
-                if (document.getElementById('liveviews-font-color')) document.getElementById('liveviews-font-color').value = cfg.color || '#222222';
-                                if (document.getElementById('liveviews-font-family'))
-                                    document.getElementById('liveviews-font-family').value =
-                                        cfg.font || 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
-                if (document.getElementById('liveviews-size')) document.getElementById('liveviews-size').value = cfg.size || 32;
-                
-                const iconPreview = document.getElementById('liveviews-icon-preview');
-                if (iconPreview) {
-                    iconPreview.innerHTML = '';
-                    if (cfg.icon && cfg.icon.startsWith('data:image')) {
-                        const img = document.createElement('img');
-                        img.src = cfg.icon;
-                        img.alt = 'Liveviews Icon';
-                        img.style.maxHeight = '48px';
-                        img.style.maxWidth = '48px';
-                        img.style.borderRadius = '8px';
-                        iconPreview.appendChild(img);
-                    }
-                }
-            }
-        });
+document.addEventListener('DOMContentLoaded', function () {
+  fetch('/config/liveviews-config.json')
+    .then((res) => res.json())
+    .then((cfg) => {
+      if (cfg) {
+        if (document.getElementById('liveviews-claimid'))
+          document.getElementById('liveviews-claimid').value = cfg.claimid || '';
+        if (document.getElementById('liveviews-bg-color'))
+          document.getElementById('liveviews-bg-color').value = cfg.bg || '#ffffff';
+        if (document.getElementById('liveviews-font-color'))
+          document.getElementById('liveviews-font-color').value = cfg.color || '#222222';
+        if (document.getElementById('liveviews-font-family'))
+          document.getElementById('liveviews-font-family').value =
+            cfg.font || 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
+        if (document.getElementById('liveviews-size'))
+          document.getElementById('liveviews-size').value = cfg.size || 32;
 
-    const liveviewsIconInput = document.getElementById('liveviews-icon');
-    if (liveviewsIconInput) {
-        liveviewsIconInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const iconPreview = document.getElementById('liveviews-icon-preview');
-            if (file && iconPreview) {
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    iconPreview.innerHTML = '';
-                    const img = document.createElement('img');
-                    img.src = ev.target.result;
-                    img.alt = 'Liveviews Icon';
-                    img.style.maxHeight = '48px';
-                    img.style.maxWidth = '48px';
-                    img.style.borderRadius = '8px';
-                    iconPreview.appendChild(img);
-                };
-                reader.readAsDataURL(file);
-            } else if (iconPreview) {
-                iconPreview.innerHTML = '';
-            }
-        });
-    }
-    const sidebarLinks = document.querySelectorAll('.sidebar-link');
-    const tabs = document.querySelectorAll('.admin-tab');
-    sidebarLinks.forEach(btn => {
-        btn.addEventListener('click', function() {
-            sidebarLinks.forEach(l => l.classList.remove('active'));
-            tabs.forEach(tab => tab.classList.remove('active'));
-            btn.classList.add('active');
-            let tabId = btn.getAttribute('data-tab');
-
-            if (!tabId && btn.id === 'liveviews-link') {
-                tabId = 'liveviews';
-            }
-            const tabSection = document.getElementById(tabId + '-tab');
-            if (tabSection) tabSection.classList.add('active');
-        });
+        const iconPreview = document.getElementById('liveviews-icon-preview');
+        if (iconPreview) {
+          iconPreview.innerHTML = '';
+          if (cfg.icon && cfg.icon.startsWith('data:image')) {
+            const img = document.createElement('img');
+            img.src = cfg.icon;
+            img.alt = 'Liveviews Icon';
+            img.style.maxHeight = '48px';
+            img.style.maxWidth = '48px';
+            img.style.borderRadius = '8px';
+            iconPreview.appendChild(img);
+          }
+        }
+      }
     });
 
-    const raffleWidgetUrl = document.getElementById('raffle-widget-url');
-    if (raffleWidgetUrl) {
-        raffleWidgetUrl.value = window.location.origin + '/widgets/giveaway';
-    }
+  const liveviewsIconInput = document.getElementById('liveviews-icon');
+  if (liveviewsIconInput) {
+    liveviewsIconInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      const iconPreview = document.getElementById('liveviews-icon-preview');
+      if (file && iconPreview) {
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+          iconPreview.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = ev.target.result;
+          img.alt = 'Liveviews Icon';
+          img.style.maxHeight = '48px';
+          img.style.maxWidth = '48px';
+          img.style.borderRadius = '8px';
+          iconPreview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      } else if (iconPreview) {
+        iconPreview.innerHTML = '';
+      }
+    });
+  }
+  const sidebarLinks = document.querySelectorAll('.sidebar-link');
+  const tabs = document.querySelectorAll('.admin-tab');
+  sidebarLinks.forEach((btn) => {
+    btn.addEventListener('click', function () {
+      sidebarLinks.forEach((l) => l.classList.remove('active'));
+      tabs.forEach((tab) => tab.classList.remove('active'));
+      btn.classList.add('active');
+      let tabId = btn.getAttribute('data-tab');
 
-    const lastTipWidgetUrl = document.getElementById('last-tip-url');
-    if (lastTipWidgetUrl) {
-        lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip';
-    }
+      if (!tabId && btn.id === 'liveviews-link') {
+        tabId = 'liveviews';
+      }
+      const tabSection = document.getElementById(tabId + '-tab');
+      if (tabSection) tabSection.classList.add('active');
+    });
+  });
 
-    const tipGoalWidgetUrl = document.getElementById('tip-goal-url');
-    if (tipGoalWidgetUrl) {
-        tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal';
-    }
+  const raffleWidgetUrl = document.getElementById('raffle-widget-url');
+  if (raffleWidgetUrl) {
+    raffleWidgetUrl.value = window.location.origin + '/widgets/giveaway';
+  }
 
-    const tipNotificationUrl = document.getElementById('tip-notification-url');
-    if (tipNotificationUrl) {
-        tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification';
-    }
+  const lastTipWidgetUrl = document.getElementById('last-tip-url');
+  if (lastTipWidgetUrl) {
+    lastTipWidgetUrl.value = window.location.origin + '/widgets/last-tip';
+  }
 
-    const obsChatUrl = document.getElementById('obs-chat-url');
-    if (obsChatUrl) {
-        obsChatUrl.value = window.location.origin + '/widgets/chat';
-    }
+  const tipGoalWidgetUrl = document.getElementById('tip-goal-url');
+  if (tipGoalWidgetUrl) {
+    tipGoalWidgetUrl.value = window.location.origin + '/widgets/tip-goal';
+  }
 
-    const obsChatHorizontalUrl = document.getElementById('obs-chat-horizontal-url');
-    if (obsChatHorizontalUrl) {
-        obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat?horizontal=1';
-    }
+  const tipNotificationUrl = document.getElementById('tip-notification-url');
+  if (tipNotificationUrl) {
+    tipNotificationUrl.value = window.location.origin + '/widgets/tip-notification';
+  }
 
-    const liveviewsWidgetUrl = document.getElementById('liveviews-widget-url');
-    if (liveviewsWidgetUrl) {
+  const obsChatUrl = document.getElementById('obs-chat-url');
+  if (obsChatUrl) {
+    obsChatUrl.value = window.location.origin + '/widgets/chat';
+  }
+
+  const obsChatHorizontalUrl = document.getElementById('obs-chat-horizontal-url');
+  if (obsChatHorizontalUrl) {
+    obsChatHorizontalUrl.value = window.location.origin + '/widgets/chat?horizontal=1';
+  }
+
+  const liveviewsWidgetUrl = document.getElementById('liveviews-widget-url');
+  if (liveviewsWidgetUrl) {
     liveviewsWidgetUrl.value = appendLangParam(window.location.origin + '/widgets/liveviews');
-    }
+  }
 
-    const liveviewsSaveBtn = document.getElementById('liveviews-save');
-    if (liveviewsSaveBtn) {
-        liveviewsSaveBtn.addEventListener('click', function() {
-            const iconImg = document.getElementById('liveviews-icon-preview').querySelector('img');
-            const config = {
-                claimid: document.getElementById('liveviews-claimid').value,
-                bg: document.getElementById('liveviews-bg-color').value,
-                color: document.getElementById('liveviews-font-color').value,
-                font: document.getElementById('liveviews-font-family').value,
-                size: parseInt(document.getElementById('liveviews-size').value) || 32,
-                icon: iconImg ? iconImg.src : ''
-            };
-            fetch('/config/liveviews-config.json', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            }).then(res => {
-                if (res.ok) {
-                    showUnifiedSaveToast(true);
-                } else {
-                    showUnifiedSaveToast(false);
-                }
-            });
-        });
-    }
-
-    function showUnifiedSaveToast(success = true) {
-        let toast = document.getElementById('copy-toast');
-        const icon = toast.querySelector('.copy-icon');
-        const message = toast.querySelector('.copy-message');
-        if (success) {
-            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
-            message.textContent = 'Configuration saved successfully';
-            toast.style.borderColor = 'var(--secondary-color)';
+  const liveviewsSaveBtn = document.getElementById('liveviews-save');
+  if (liveviewsSaveBtn) {
+    liveviewsSaveBtn.addEventListener('click', function () {
+      const iconImg = document.getElementById('liveviews-icon-preview').querySelector('img');
+      const config = {
+        claimid: document.getElementById('liveviews-claimid').value,
+        bg: document.getElementById('liveviews-bg-color').value,
+        color: document.getElementById('liveviews-font-color').value,
+        font: document.getElementById('liveviews-font-family').value,
+        size: parseInt(document.getElementById('liveviews-size').value) || 32,
+        icon: iconImg ? iconImg.src : '',
+      };
+      fetch('/config/liveviews-config.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      }).then((res) => {
+        if (res.ok) {
+          showUnifiedSaveToast(true);
         } else {
-            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
-            message.textContent = 'Error saving configuration';
-            toast.style.borderColor = 'var(--error-color)';
+          showUnifiedSaveToast(false);
         }
-        toast.classList.add('show');
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
+      });
+    });
+  }
+
+  function showUnifiedSaveToast(success = true) {
+    let toast = document.getElementById('copy-toast');
+    const icon = toast.querySelector('.copy-icon');
+    const message = toast.querySelector('.copy-message');
+    if (success) {
+      icon.innerHTML =
+        '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+      message.textContent = 'Configuration saved successfully';
+      toast.style.borderColor = 'var(--secondary-color)';
+    } else {
+      icon.innerHTML =
+        '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+      message.textContent = 'Error saving configuration';
+      toast.style.borderColor = 'var(--error-color)';
     }
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2000);
+  }
 
-    const lastTipStatus = document.getElementById('lastTip-status');
-    const tipWidgetStatus = document.getElementById('tipWidget-status');
-    const tipGoalStatus = document.getElementById('tipGoal-status');
-    const chatStatus = document.getElementById('chat-status');
+  const lastTipStatus = document.getElementById('lastTip-status');
+  const tipWidgetStatus = document.getElementById('tipWidget-status');
+  const tipGoalStatus = document.getElementById('tipGoal-status');
+  const chatStatus = document.getElementById('chat-status');
 
-    function updateStatus() {
-        fetch('/api/status')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    lastTipStatus.textContent = data.lastTip;
-                    tipWidgetStatus.textContent = data.tipWidget;
-                    tipGoalStatus.textContent = data.tipGoal;
-                    chatStatus.textContent = data.chat;
-                } else {
-                    console.error('Error fetching status:', data.message);
-                }
-            })
-            .catch(error => console.error('Error fetching status:', error));
-    }
-
-    updateStatus();
-    setInterval(updateStatus, 30000);
-
-    window.copyToClipboard = function(elementId) {
-        const text = document.getElementById(elementId).value;
-        navigator.clipboard.writeText(text).then(() => {
-            showCopyToast();
-        }).catch(err => {
-            console.error('Failed to copy:', err);
-            showCopyToast(false);
-        });
-    }
-
-    window.showCopyToast = function(success = true) {
-        const toast = document.getElementById('copy-toast');
-        const icon = toast.querySelector('.copy-icon');
-        const message = toast.querySelector('.copy-message');
-        
-        if (success) {
-            icon.innerHTML = '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
-            message.textContent = window.languageManager ? window.languageManager.getText('urlCopied') : 'URL copied to clipboard!';
-            toast.style.borderColor = 'var(--secondary-color)';
+  function updateStatus() {
+    fetch('/api/status')
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          lastTipStatus.textContent = data.lastTip;
+          tipWidgetStatus.textContent = data.tipWidget;
+          tipGoalStatus.textContent = data.tipGoal;
+          chatStatus.textContent = data.chat;
         } else {
-            icon.innerHTML = '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
-            message.textContent = window.languageManager ? window.languageManager.getText('failedToCopy') : 'Failed to copy!';
-            toast.style.borderColor = 'var(--error-color)';
+          console.error('Error fetching status:', data.message);
         }
-        
-        toast.classList.add('show');
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 2000);
+      })
+      .catch((error) => console.error('Error fetching status:', error));
+  }
+
+  updateStatus();
+  setInterval(updateStatus, 30000);
+
+  window.copyToClipboard = function (elementId) {
+    const text = document.getElementById(elementId).value;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        showCopyToast();
+      })
+      .catch((err) => {
+        console.error('Failed to copy:', err);
+        showCopyToast(false);
+      });
+  };
+
+  window.showCopyToast = function (success = true) {
+    const toast = document.getElementById('copy-toast');
+    const icon = toast.querySelector('.copy-icon');
+    const message = toast.querySelector('.copy-message');
+
+    if (success) {
+      icon.innerHTML =
+        '<path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />';
+      message.textContent = window.languageManager
+        ? window.languageManager.getText('urlCopied')
+        : 'URL copied to clipboard!';
+      toast.style.borderColor = 'var(--secondary-color)';
+    } else {
+      icon.innerHTML =
+        '<path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />';
+      message.textContent = window.languageManager
+        ? window.languageManager.getText('failedToCopy')
+        : 'Failed to copy!';
+      toast.style.borderColor = 'var(--error-color)';
     }
 
-    const userMenuButton = document.getElementById('user-menu-button');
-    const userMenu = document.getElementById('user-menu');
-    const themeToggle = document.getElementById('theme-toggle');
+    toast.classList.add('show');
 
-    function resolveThemePreference() {
-        let stored = null;
-        try { stored = localStorage.getItem('theme'); } catch (_) {}
-        if (stored === 'dark' || stored === 'light') return stored;
-        let legacy = null;
-        try { legacy = localStorage.getItem('prefers-dark'); } catch (_) {}
-        if (legacy === '1') return 'dark';
-        if (legacy === '0') return 'light';
-        try {
-            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        } catch (_) {
-            return 'dark';
-        }
-    }
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2000);
+  };
 
-    function applyTheme(mode, persist) {
-        const isDark = mode === 'dark';
-        document.documentElement.classList.toggle('dark', isDark);
-        document.documentElement.classList.toggle('light', !isDark);
-        try { document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light'); } catch (_) {}
-        const body = document.body;
-        if (body) {
-            body.classList.toggle('dark', isDark);
-            body.classList.toggle('light', !isDark);
-        }
-        if (persist) {
-            try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (_) {}
-            try { localStorage.setItem('prefers-dark', isDark ? '1' : '0'); } catch (_) {}
-        }
-    }
+  const userMenuButton = document.getElementById('user-menu-button');
+  const userMenu = document.getElementById('user-menu');
+  const themeToggle = document.getElementById('theme-toggle');
 
-    function syncThemeToggle(mode) {
-        if (!themeToggle) return;
-        try { themeToggle.setAttribute('aria-pressed', (mode === 'dark').toString()); } catch (_) {}
-    }
-
-    const initialTheme = resolveThemePreference();
-    applyTheme(initialTheme, false);
-    syncThemeToggle(initialTheme);
-
-    if (themeToggle) {
-        themeToggle.addEventListener('click', function() {
-            const nextTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
-            applyTheme(nextTheme, true);
-            syncThemeToggle(nextTheme);
-        });
-    }
-
+  function resolveThemePreference() {
+    let stored = null;
     try {
-        window.addEventListener('storage', function(event) {
-            if (!event) return;
-            if (event.storageArea && event.storageArea !== localStorage) return;
-            if (event.key && event.key !== 'theme' && event.key !== 'prefers-dark') return;
-            const mode = resolveThemePreference();
-            applyTheme(mode, false);
-            syncThemeToggle(mode);
-        });
+      stored = localStorage.getItem('theme');
     } catch (_) {}
-    
-    if (userMenuButton && userMenu) {
-        userMenuButton.addEventListener('click', function(e) {
-            e.stopPropagation();
-            userMenu.classList.toggle('opacity-0');
-            userMenu.classList.toggle('invisible');
-        });
-        
-        document.addEventListener('click', function(e) {
-            if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
-                userMenu.classList.add('opacity-0', 'invisible');
-            }
-        });
-        
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                userMenu.classList.add('opacity-0', 'invisible');
-            }
-        });
+    if (stored === 'dark' || stored === 'light') return stored;
+    let legacy = null;
+    try {
+      legacy = localStorage.getItem('prefers-dark');
+    } catch (_) {}
+    if (legacy === '1') return 'dark';
+    if (legacy === '0') return 'light';
+    try {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+    } catch (_) {
+      return 'dark';
     }
+  }
+
+  function applyTheme(mode, persist) {
+    const isDark = mode === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.classList.toggle('light', !isDark);
+    try {
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    } catch (_) {}
+    const body = document.body;
+    if (body) {
+      body.classList.toggle('dark', isDark);
+      body.classList.toggle('light', !isDark);
+    }
+    if (persist) {
+      try {
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      } catch (_) {}
+      try {
+        localStorage.setItem('prefers-dark', isDark ? '1' : '0');
+      } catch (_) {}
+    }
+  }
+
+  function syncThemeToggle(mode) {
+    if (!themeToggle) return;
+    try {
+      themeToggle.setAttribute('aria-pressed', (mode === 'dark').toString());
+    } catch (_) {}
+  }
+
+  const initialTheme = resolveThemePreference();
+  applyTheme(initialTheme, false);
+  syncThemeToggle(initialTheme);
+
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function () {
+      const nextTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+      applyTheme(nextTheme, true);
+      syncThemeToggle(nextTheme);
+    });
+  }
+
+  try {
+    window.addEventListener('storage', function (event) {
+      if (!event) return;
+      if (event.storageArea && event.storageArea !== localStorage) return;
+      if (event.key && event.key !== 'theme' && event.key !== 'prefers-dark') return;
+      const mode = resolveThemePreference();
+      applyTheme(mode, false);
+      syncThemeToggle(mode);
+    });
+  } catch (_) {}
+
+  if (userMenuButton && userMenu) {
+    userMenuButton.addEventListener('click', function (e) {
+      e.stopPropagation();
+      userMenu.classList.toggle('opacity-0');
+      userMenu.classList.toggle('invisible');
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
+        userMenu.classList.add('opacity-0', 'invisible');
+      }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        userMenu.classList.add('opacity-0', 'invisible');
+      }
+    });
+  }
 });

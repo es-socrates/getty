@@ -28,12 +28,15 @@ function registerLanguageRoutes(app, languageConfig) {
       }
 
       try {
-        const hdrName = (process.env.VITE_GETTY_CSRF_HEADER || process.env.GETTY_CSRF_HEADER || 'x-csrf-token').toLowerCase();
+        const hdrName = (
+          process.env.VITE_GETTY_CSRF_HEADER ||
+          process.env.GETTY_CSRF_HEADER ||
+          'x-csrf-token'
+        ).toLowerCase();
         const token = (req.headers && req.headers[hdrName]) || '';
         if (!token || typeof token !== 'string' || token.trim() === '') {
           return res.status(403).json({ error: 'missing_csrf' });
         }
-
       } catch {
         return res.status(403).json({ error: 'missing_csrf' });
       }

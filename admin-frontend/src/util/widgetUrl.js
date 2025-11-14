@@ -17,7 +17,15 @@ export function widgetUrlForChannel(widgetName, channel, opts = {}) {
   return buildWidgetUrl(`/widgets/${widgetName}/${safeChannel}`, token);
 }
 
-export function chatWidgetUrl(channel, opts = {}) { return widgetUrlForChannel('chat', channel, opts); }
-export function lastTipWidgetUrl(channel, opts = {}) { return widgetUrlForChannel('last-tip', channel, opts); }
-export function raffleWidgetUrl(channel, opts = {}) { return widgetUrlForChannel('raffle', channel, opts); }
-export function tipGoalWidgetUrl(channel, opts = {}) { return widgetUrlForChannel('tip-goal', channel, opts); }
+export function chatWidgetUrl(channel, opts = {}) {
+  return widgetUrlForChannel('chat', channel, opts);
+}
+export function lastTipWidgetUrl(channel, opts = {}) {
+  return widgetUrlForChannel('last-tip', channel, opts);
+}
+export function raffleWidgetUrl(channel, opts = {}) {
+  return widgetUrlForChannel('raffle', channel, opts);
+}
+export function tipGoalWidgetUrl(channel, opts = {}) {
+  return widgetUrlForChannel('tip-goal', channel, opts);
+}

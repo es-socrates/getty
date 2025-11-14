@@ -25,7 +25,9 @@ async function main() {
 
   const storage = getStorage(STORAGE_PROVIDERS.TURBO);
   if (!storage || storage.provider !== STORAGE_PROVIDERS.TURBO) {
-    console.error('Turbo storage is not configured. Set ARWEAVE_JWK_PATH or TURBO_ARWEAVE_JWK and STORAGE_PROVIDER=turbo.');
+    console.error(
+      'Turbo storage is not configured. Set ARWEAVE_JWK_PATH or TURBO_ARWEAVE_JWK and STORAGE_PROVIDER=turbo.'
+    );
     process.exit(1);
   }
 
@@ -40,14 +42,20 @@ async function main() {
   const durationMs = performance.now() - start;
 
   console.log('Upload complete:');
-  console.log(JSON.stringify({
-    provider: storage.provider,
-    bucket,
-    transactionId: result.transactionId,
-    publicUrl: result.publicUrl,
-    size: result.size || fileSize,
-    durationMs: Number(durationMs.toFixed(2)),
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        provider: storage.provider,
+        bucket,
+        transactionId: result.transactionId,
+        publicUrl: result.publicUrl,
+        size: result.size || fileSize,
+        durationMs: Number(durationMs.toFixed(2)),
+      },
+      null,
+      2
+    )
+  );
 
   if (typeof storage.getUploadCosts === 'function') {
     try {

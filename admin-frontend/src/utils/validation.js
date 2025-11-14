@@ -37,7 +37,7 @@ export function isArweaveAddress(addr) {
     if (!s) return false;
     if (!AR_RX.test(s)) return false;
     const b64 = s.replace(/-/g, '+').replace(/_/g, '/');
-    const pad = b64.length % 4 === 2 ? '==' : (b64.length % 4 === 3 ? '=' : '');
+    const pad = b64.length % 4 === 2 ? '==' : b64.length % 4 === 3 ? '=' : '';
     const decoded = atob(b64 + pad);
     if (decoded.length !== 32) return false;
     const u8 = new Uint8Array(32);

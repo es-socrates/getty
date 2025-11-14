@@ -21,27 +21,30 @@ const META_TARGETS = [
   { attr: 'name', key: 'twitter:url' },
   { attr: 'name', key: 'twitter:creator' },
   { attr: 'name', key: 'twitter:site' },
-  { attr: 'name', key: 'twitter:domain' }
+  { attr: 'name', key: 'twitter:domain' },
 ];
 
 const LINK_TARGETS = [{ rel: 'canonical' }];
 
 const DEFAULT_META = {
   title: 'getty',
-  description: 'The platform tools for live streaming on Odysee. This includes overlays, tip alerts, chat, sweepstakes system, creator analytics and much more.',
-  keywords: 'getty, Odysee, arweave, livestreaming, streamers, tip notifications, tip goals, chat widget, streaming, creator tools',
+  description:
+    'The platform tools for live streaming on Odysee. This includes overlays, tip alerts, chat, sweepstakes system, creator analytics and much more.',
+  keywords:
+    'getty, Odysee, arweave, livestreaming, streamers, tip notifications, tip goals, chat widget, streaming, creator tools',
   canonical: 'https://app.getty.sh/',
   siteName: 'getty',
   ogType: 'website',
   locale: 'en_US',
-  image: 'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak',
+  image:
+    'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak',
   imageAlt: 'getty',
   imageType: 'image/png',
   imageWidth: '512',
   imageHeight: '512',
   twitterCard: 'summary_large_image',
   twitterCreator: '@getty_sh',
-  twitterSite: '@getty_sh'
+  twitterSite: '@getty_sh',
 };
 
 function getHeadElement() {
@@ -91,7 +94,7 @@ function captureState(head) {
   const metaState = new Map();
   for (const target of META_TARGETS) {
     const el = queryMeta(head, target.attr, target.key);
-    metaState.set(`${target.attr}:${target.key}`, el ? el.getAttribute('content') ?? '' : null);
+    metaState.set(`${target.attr}:${target.key}`, el ? (el.getAttribute('content') ?? '') : null);
   }
 
   const linkState = new Map();
@@ -179,7 +182,7 @@ export function applyBaseSeo(overrides = {}) {
     { attr: 'name', key: 'twitter:url', value: meta.canonical },
     { attr: 'name', key: 'twitter:creator', value: meta.twitterCreator },
     { attr: 'name', key: 'twitter:site', value: meta.twitterSite },
-    { attr: 'name', key: 'twitter:domain', value: twitterDomain }
+    { attr: 'name', key: 'twitter:domain', value: twitterDomain },
   ];
 
   for (const { attr, key, value } of pairs) {

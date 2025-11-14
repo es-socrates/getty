@@ -2,7 +2,16 @@ import { ref, computed, watch } from 'vue';
 import api from '../services/api';
 
 export const metrics = ref({});
-export const hist = ref({ rpm: [], heap: [], bandwidth: [], chat: [], tips: [], ws: [], latency: [], views: [] });
+export const hist = ref({
+  rpm: [],
+  heap: [],
+  bandwidth: [],
+  chat: [],
+  tips: [],
+  ws: [],
+  latency: [],
+  views: [],
+});
 
 export const histTs = ref([]);
 export const deltas = ref({ rpm: null, heap: null, bandwidth: null, chat: null, ws: null });
@@ -13,62 +22,73 @@ const intervalMs = 10000;
 export const currentRange = ref('5m');
 try {
   const saved = localStorage.getItem('getty_overview_range');
-  if (saved && ['5m','15m','60m'].includes(saved)) currentRange.value = saved;
+  if (saved && ['5m', '15m', '60m'].includes(saved)) currentRange.value = saved;
 } catch {}
-export function setRange(v){
-  if (!['5m','15m','60m'].includes(v)) return;
+export function setRange(v) {
+  if (!['5m', '15m', '60m'].includes(v)) return;
   currentRange.value = v;
-  try { localStorage.setItem('getty_overview_range', v); } catch {}
+  try {
+    localStorage.setItem('getty_overview_range', v);
+  } catch {}
 }
 
-export const maxPoints = computed(()=>{
+export const maxPoints = computed(() => {
   const map = { '5m': 30, '15m': 90, '60m': 360 };
   const target = map[currentRange.value] ?? 30;
   return Math.min(target, MAX_CAP);
 });
 
-function trimAll(to){
+function trimAll(to) {
   const obj = hist.value;
-  for (const k of Object.keys(obj)){
+  for (const k of Object.keys(obj)) {
     const arr = obj[k];
-    if (Array.isArray(arr) && arr.length > to){
+    if (Array.isArray(arr) && arr.length > to) {
       obj[k] = arr.slice(arr.length - to);
     }
   }
   if (histTs.value.length > to) histTs.value = histTs.value.slice(histTs.value.length - to);
 }
-watch(maxPoints, (mp)=>{ trimAll(mp); });
+watch(maxPoints, (mp) => {
+  trimAll(mp);
+});
 
-function deltaFromArr(arr){
+function deltaFromArr(arr) {
   if (!arr || arr.length < 2) return null;
   const first = arr[0];
   const last = arr[arr.length - 1];
   const diff = last - first;
   const base = Math.abs(first) < 1e-6 ? 0 : (diff / first) * 100;
   const dir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
-  const pctText = isFinite(base) ? `${(base).toFixed(1)}%` : '';
-  const absText = `${diff > 0 ? '+' : ''}${(diff).toFixed(1)}`;
+  const pctText = isFinite(base) ? `${base.toFixed(1)}%` : '';
+  const absText = `${diff > 0 ? '+' : ''}${diff.toFixed(1)}`;
   return { dir, text: pctText || absText };
 }
 
-function push(arr, v){ arr.push(v); if (arr.length > maxPoints.value) arr.shift(); }
+function push(arr, v) {
+  arr.push(v);
+  if (arr.length > maxPoints.value) arr.shift();
+}
 
-async function refresh(){
+async function refresh() {
   try {
-  const r = await api.get('/api/metrics');
+    const r = await api.get('/api/metrics');
     const m = r.data || {};
-  metrics.value = m;
+    metrics.value = m;
 
-  const ts = (typeof m.serverTime === 'number' && m.serverTime > 0) ? m.serverTime : Date.now();
+    const ts = typeof m.serverTime === 'number' && m.serverTime > 0 ? m.serverTime : Date.now();
     push(histTs.value, ts);
     push(hist.value.rpm, +(m.system?.requests?.perMin ?? 0));
     push(hist.value.heap, +(m.system?.memory?.heapUsedMB ?? 0));
-    const kb = (()=>{ const s=m.bandwidth?.human?.perMin||'0 KB'; const n=parseFloat(s); return isNaN(n)?0:n; })();
+    const kb = (() => {
+      const s = m.bandwidth?.human?.perMin || '0 KB';
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    })();
     push(hist.value.bandwidth, kb);
     push(hist.value.chat, +(m.chat?.perMin ?? 0));
     push(hist.value.tips, +(m.tips?.rate?.perMin?.ar ?? 0));
     push(hist.value.ws, +(m.system?.wsClients ?? 0));
-    push(hist.value.latency, +((m.latency?.ms ?? m.system?.latencyMs ?? 0)));
+    push(hist.value.latency, +(m.latency?.ms ?? m.system?.latencyMs ?? 0));
     push(hist.value.views, +(m.liveviews?.viewerCount ?? 0));
 
     deltas.value = {
@@ -82,14 +102,16 @@ async function refresh(){
 }
 
 let timer = null;
-export function start(){
+export function start() {
   try {
     if (timer) return;
     refresh();
     timer = setInterval(refresh, intervalMs);
   } catch {}
 }
-export function stop(){
-  try { if (timer) clearInterval(timer); } catch {}
+export function stop() {
+  try {
+    if (timer) clearInterval(timer);
+  } catch {}
   timer = null;
 }

@@ -2,21 +2,35 @@
 const fs = require('fs');
 const axios = require('axios');
 
-const LIVEVIEWS_FONT_STACK = 'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
+const LIVEVIEWS_FONT_STACK =
+  'Roobert, Tajawal, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function getLiveviewsConfigWithDefaults(partial) {
   return {
     bg: typeof partial?.bg === 'string' && partial.bg.trim() ? partial.bg : '#fff',
     color: typeof partial?.color === 'string' && partial.color.trim() ? partial.color : '#222',
-  font: typeof partial?.font === 'string' && partial.font.trim() ? partial.font : LIVEVIEWS_FONT_STACK,
+    font:
+      typeof partial?.font === 'string' && partial.font.trim()
+        ? partial.font
+        : LIVEVIEWS_FONT_STACK,
     size: typeof partial?.size === 'string' && partial.size.trim() ? partial.size : '32',
     icon: typeof partial?.icon === 'string' ? partial.icon : '',
     claimid: typeof partial?.claimid === 'string' ? partial.claimid : '',
-    viewersLabel: typeof partial?.viewersLabel === 'string' && partial.viewersLabel.trim() ? partial.viewersLabel : 'viewers'
+    viewersLabel:
+      typeof partial?.viewersLabel === 'string' && partial.viewersLabel.trim()
+        ? partial.viewersLabel
+        : 'viewers',
   };
 }
 
-async function resolveStreamHistoryClaimId({ req, ns, store, loadTenantConfig, streamHistoryConfigPath, fsModule = fs }) {
+async function resolveStreamHistoryClaimId({
+  req,
+  ns,
+  store,
+  loadTenantConfig,
+  streamHistoryConfigPath,
+  fsModule = fs,
+}) {
   let claim = '';
 
   if (loadTenantConfig) {
@@ -52,12 +66,24 @@ async function resolveStreamHistoryClaimId({ req, ns, store, loadTenantConfig, s
   return typeof claim === 'string' ? claim.trim() : '';
 }
 
-async function loadLiveviewsConfig({ req, ns, store, loadTenantConfig, liveviewsConfigPath, fsModule = fs }) {
+async function loadLiveviewsConfig({
+  req,
+  ns,
+  store,
+  loadTenantConfig,
+  liveviewsConfigPath,
+  fsModule = fs,
+}) {
   let cfgData = null;
 
   if (loadTenantConfig) {
     try {
-      const wrapped = await loadTenantConfig(req, store, liveviewsConfigPath, 'liveviews-config.json');
+      const wrapped = await loadTenantConfig(
+        req,
+        store,
+        liveviewsConfigPath,
+        'liveviews-config.json'
+      );
       if (wrapped && wrapped.data) cfgData = wrapped.data;
     } catch {}
   }
@@ -91,7 +117,7 @@ async function resolveLiveviewsMetrics({
   cache = Object.create(null),
   ttlMs = 10000,
   axiosInstance = axios,
-  fsModule = fs
+  fsModule = fs,
 }) {
   const liveviews = { live: false, viewerCount: 0 };
   const key = ns ? `ns:${ns}` : 'single';
@@ -103,7 +129,7 @@ async function resolveLiveviewsMetrics({
     store,
     loadTenantConfig,
     liveviewsConfigPath,
-    fsModule
+    fsModule,
   });
 
   if (!baseCfg.claimid) {
@@ -113,7 +139,7 @@ async function resolveLiveviewsMetrics({
       store,
       loadTenantConfig,
       streamHistoryConfigPath,
-      fsModule
+      fsModule,
     });
     if (fallbackClaim) baseCfg.claimid = fallbackClaim;
   }
@@ -123,10 +149,11 @@ async function resolveLiveviewsMetrics({
   if (!claimid) return liveviews;
 
   const cached = cache[key];
-  const cacheValid = cached && cached.claimid === claimid && (now - cached.ts) < ttlMs;
+  const cacheValid = cached && cached.claimid === claimid && now - cached.ts < ttlMs;
   if (cacheValid) {
     liveviews.live = !!cached.data.Live;
-    liveviews.viewerCount = typeof cached.data.ViewerCount === 'number' ? cached.data.ViewerCount : 0;
+    liveviews.viewerCount =
+      typeof cached.data.ViewerCount === 'number' ? cached.data.ViewerCount : 0;
     return liveviews;
   }
 
@@ -136,7 +163,7 @@ async function resolveLiveviewsMetrics({
     const data = resp?.data?.data || {};
     const out = {
       Live: !!data.Live,
-      ViewerCount: typeof data.ViewerCount === 'number' ? data.ViewerCount : 0
+      ViewerCount: typeof data.ViewerCount === 'number' ? data.ViewerCount : 0,
     };
     cache[key] = { ts: now, data: out, claimid };
     liveviews.live = out.Live;
@@ -145,7 +172,8 @@ async function resolveLiveviewsMetrics({
     const stale = cache[key];
     if (stale && stale.claimid === claimid) {
       liveviews.live = !!stale.data.Live;
-      liveviews.viewerCount = typeof stale.data.ViewerCount === 'number' ? stale.data.ViewerCount : 0;
+      liveviews.viewerCount =
+        typeof stale.data.ViewerCount === 'number' ? stale.data.ViewerCount : 0;
     }
   }
 
@@ -155,5 +183,5 @@ async function resolveLiveviewsMetrics({
 module.exports = {
   getLiveviewsConfigWithDefaults,
   resolveStreamHistoryClaimId,
-  resolveLiveviewsMetrics
+  resolveLiveviewsMetrics,
 };
