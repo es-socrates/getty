@@ -140,6 +140,22 @@ function getStreamHistorySampleCap() {
   return STREAM_HISTORY_MAX_SAMPLES;
 }
 
+const STREAM_HISTORY_REDIS_CHUNK_MIN = 1000;
+const STREAM_HISTORY_REDIS_CHUNK_MAX = 50000;
+const STREAM_HISTORY_REDIS_CHUNK_SIZE = (() => {
+  const raw = Number(process.env.GETTY_STREAM_HISTORY_REDIS_CHUNK);
+  if (Number.isFinite(raw) && raw >= STREAM_HISTORY_REDIS_CHUNK_MIN) {
+    return Math.min(STREAM_HISTORY_REDIS_CHUNK_MAX, Math.floor(raw));
+  }
+  return 10000;
+})();
+
+const STREAM_HISTORY_REDIS_MAX_FETCH = (() => {
+  const raw = Number(process.env.GETTY_STREAM_HISTORY_REDIS_MAX_FETCH);
+  if (Number.isFinite(raw) && raw > 0) return Math.floor(raw);
+  return null;
+})();
+
 const DEFAULT_STORE_ENCRYPTION_KEY = 'default-insecure-key-change-me';
 const STORE_ENCRYPTION_KEY = (() => {
   try {
@@ -1105,10 +1121,15 @@ function computePerformance(hist, period = 'day', span = 30, tzOffsetMinutes = 0
     }
   }
   const totalHoursStreamed = +(totalLiveMs / 3600000).toFixed(2);
-  const highestViewers =
-    Array.isArray(hist.samples) && hist.samples.length
-      ? Math.max(...hist.samples.map((s) => Number(s.viewers || 0)))
-      : 0;
+  let highestViewers = 0;
+  if (Array.isArray(hist.samples) && hist.samples.length) {
+    for (const sample of hist.samples) {
+      const viewers = Number(sample?.viewers || 0);
+      if (Number.isFinite(viewers) && viewers > highestViewers) {
+        highestViewers = viewers;
+      }
+    }
+  }
   const recentStreams = computeSessionStats(segments, sortedSamples, nowTs, tzOffsetMinutes, 6);
 
   return {
@@ -1167,6 +1188,51 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
 
   function redisLegacyKey(ns) {
     return redisKey(ns, 'stream-history-data');
+  }
+
+  async function loadRedisSamplesList(adminNs) {
+    if (!redis || !adminNs) return { items: [], total: 0, truncated: false };
+    try {
+      const samplesKey = redisSamplesKey(adminNs);
+      const total = await redis.llen(samplesKey);
+      if (!Number.isFinite(total) || total <= 0) {
+        return { items: [], total: 0, truncated: false };
+      }
+      const chunkSize = Math.max(1, STREAM_HISTORY_REDIS_CHUNK_SIZE);
+      const fetchLimit =
+        STREAM_HISTORY_REDIS_MAX_FETCH && STREAM_HISTORY_REDIS_MAX_FETCH > 0
+          ? Math.min(total, STREAM_HISTORY_REDIS_MAX_FETCH)
+          : total;
+      const startIndex = Math.max(0, total - fetchLimit);
+      const items = [];
+      for (let cursor = startIndex; cursor < total; cursor += chunkSize) {
+        const end = Math.min(total - 1, cursor + chunkSize - 1);
+        const chunk = await redis.lrange(samplesKey, cursor, end);
+        if (!Array.isArray(chunk) || !chunk.length) continue;
+        for (const payload of chunk) {
+          const parsed = decryptJSON(payload, null);
+          if (parsed && typeof parsed === 'object' && Number.isFinite(Number(parsed.ts))) {
+            items.push(parsed);
+          }
+        }
+      }
+      const truncated = startIndex > 0 || fetchLimit < total;
+      if (truncated) {
+        try {
+          console.warn('[stream-history][redis] truncated sample load', {
+            ns: adminNs,
+            total,
+            fetched: items.length,
+            maxFetch: fetchLimit,
+            chunkSize,
+          });
+        } catch {}
+      }
+      return { items, total, truncated };
+    } catch (err) {
+      console.error('[stream-history][redis] failed to load samples', err);
+      return { items: [], total: 0, truncated: false };
+    }
   }
 
   function getHistoryFilePath(adminNs) {
@@ -1252,20 +1318,15 @@ function registerStreamHistoryRoutes(app, limiter, options = {}) {
     if (!redis || !adminNs) return null;
     try {
       const segmentsRaw = await redis.get(redisSegmentsKey(adminNs));
-      const samplesRaw = await redis.lrange(redisSamplesKey(adminNs), 0, -1);
+      const { items: sampleItems, total: totalSamples } = await loadRedisSamplesList(adminNs);
       let segments = [];
       if (segmentsRaw) {
         const parsed = decryptJSON(segmentsRaw, null);
         if (Array.isArray(parsed)) segments = parsed;
       }
-      let samples = [];
-      if (Array.isArray(samplesRaw) && samplesRaw.length) {
-        samples = samplesRaw
-          .map((item) => decryptJSON(item, null))
-          .filter((v) => v && typeof v === 'object' && Number.isFinite(Number(v.ts)));
-      }
+      let samples = Array.isArray(sampleItems) ? sampleItems : [];
 
-      if (!segmentsRaw && (!samplesRaw || samplesRaw.length === 0)) {
+      if (!segmentsRaw && totalSamples === 0) {
         const legacy = await (store ? store.get(adminNs, 'stream-history-data', null) : null);
         if (legacy && typeof legacy === 'object') {
           const normalized = normalizeHistoryData(legacy);
