@@ -1813,6 +1813,23 @@ if (typeof window !== 'undefined') {
 </script>
 
 <style scoped>
+:global(body.profile-page-mode) {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--profile-bg, #09090b);
+  color: var(--text-primary, #f4f4f5);
+}
+
+:global(body.profile-page-mode.light-mode) {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+:global(body.profile-page-mode.dark-mode) {
+  background: #09090b;
+  color: #f4f4f5;
+}
+
 .public-profile-page {
   min-height: 100vh;
   background: var(--profile-bg);
@@ -1866,7 +1883,7 @@ if (typeof window !== 'undefined') {
 }
 
 .public-profile-page.theme-light {
-  --profile-bg: linear-gradient(180deg, #f4f4f5, #ffffff 55%, #f8fafc);
+  --profile-bg: #ffffff;
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --surface-card: #ffffff;

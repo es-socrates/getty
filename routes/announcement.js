@@ -261,6 +261,61 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
     }
   });
 
+  app.delete('/api/announcement/image-library/:id', getLimiter('config'), async (req, res) => {
+    try {
+      if (!isOpenTestMode() && shouldRequireSession) {
+        const nsCheck = await resolveNsFromReq(req);
+        if (!nsCheck) return res.status(401).json({ error: 'session_required' });
+      }
+      const ns = await resolveNsFromReq(req);
+      const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
+      if (!entryId) return res.status(400).json({ error: 'invalid_library_id' });
+      const items = await loadLibrary(ns);
+      const target = items.find((item) => item && item.id === entryId) || null;
+      if (!target) return res.status(404).json({ error: 'image_library_item_not_found' });
+      const providerId = (target.provider || '').toString().trim().toLowerCase();
+      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE) {
+        return res.status(400).json({ error: 'image_library_delete_unsupported' });
+      }
+      if (providerId === STORAGE_PROVIDERS.SUPABASE && target.path) {
+        await deleteStoredImage(STORAGE_PROVIDERS.SUPABASE, target.path);
+      }
+      const updated = items.filter((item) => item && item.id !== entryId);
+      await saveLibrary(ns, updated);
+
+      let clearedMessages = 0;
+      try {
+        const { config } = await announcementModule.getConfigWithMeta(ns);
+        const affected = Array.isArray(config?.messages)
+          ? config.messages.filter((msg) => msg && msg.imageLibraryId === entryId)
+          : [];
+        clearedMessages = affected.length;
+        for (const msg of affected) {
+          await announcementModule.updateMessage(
+            msg.id,
+            {
+              imageUrl: '',
+              imageLibraryId: '',
+              imageStorageProvider: '',
+              imageStoragePath: '',
+              imageSha256: '',
+              imageFingerprint: '',
+              imageOriginalName: '',
+            },
+            ns
+          );
+        }
+      } catch (clearError) {
+        console.warn('[announcement-library] clear refs error', clearError.message);
+      }
+
+      return res.json({ success: true, clearedMessages });
+    } catch (error) {
+      console.error('[announcement-library] delete error', error.message);
+      return res.status(500).json({ error: 'image_library_delete_failed' });
+    }
+  });
+
   app.post('/api/announcement', getLimiter('config'), async (req, res) => {
     try {
   if (!isOpenTestMode() && shouldRequireSession) {

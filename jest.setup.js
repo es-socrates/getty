@@ -3,6 +3,25 @@ if (typeof globalThis.setImmediate === 'undefined') {
   globalThis.setImmediate = (fn, ...args) => setTimeout(fn, 0, ...args);
 }
 
+if (typeof globalThis.clearImmediate === 'undefined') {
+  globalThis.clearImmediate = (token) => clearTimeout(token);
+}
+
+if (typeof globalThis.performance === 'object' && typeof globalThis.performance.markResourceTiming !== 'function') {
+  globalThis.performance.markResourceTiming = () => {};
+}
+
+try {
+  const { fetch, Headers, Request, Response, FormData, File, Blob } = require('undici');
+  if (typeof global.fetch === 'undefined') global.fetch = fetch;
+  if (typeof global.Headers === 'undefined') global.Headers = Headers;
+  if (typeof global.Request === 'undefined') global.Request = Request;
+  if (typeof global.Response === 'undefined') global.Response = Response;
+  if (typeof global.FormData === 'undefined') global.FormData = FormData;
+  if (typeof global.File === 'undefined') global.File = File;
+  if (typeof global.Blob === 'undefined') global.Blob = Blob;
+} catch { /* undici not available, assume env already provides fetch */ }
+
 const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;

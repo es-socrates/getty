@@ -392,9 +392,11 @@
       :items="gifLibrary.items"
       :loading="gifLibrary.loading"
       :error="gifLibrary.error"
+      :deleting-id="gifLibrary.deletingId"
       @close="gifLibrary.open = false"
       @refresh="fetchGifLibrary(true)"
-      @select="onLibrarySelect" />
+      @select="onLibrarySelect"
+      @delete="onLibraryDelete" />
   </section>
 </template>
 <script setup>
@@ -433,6 +435,7 @@ const gifLibrary = reactive({
   open: false,
   loading: false,
   error: '',
+  deletingId: '',
   /** @type {Array<{id: string, url: string, width?: number, height?: number, size?: number, originalName?: string, uploadedAt?: string, provider?: string, path?: string, sha256?: string, fingerprint?: string}>} */
   items: [],
 });
@@ -556,6 +559,11 @@ function openGifLibrary() {
   if (!gifLibrary.items.length) {
     fetchGifLibrary();
   }
+}
+
+function formatGifLibraryName(item) {
+  if (!item) return t('gifLibraryUnknown');
+  return item.originalName || item.id || t('gifLibraryUnknown');
 }
 
 async function fetchGifLibrary(force = false) {
@@ -682,6 +690,53 @@ function onLibrarySelect(item) {
     resolveStorageSelection(item.provider);
   }
   gifLibrary.open = false;
+}
+
+async function onLibraryDelete(item) {
+  if (!item?.id || gifLibrary.deletingId) return;
+  const confirmed = await confirmDialog({
+    title: t('gifLibraryDeleteConfirmTitle'),
+    description: t('gifLibraryDeleteConfirmBody', { fileName: formatGifLibraryName(item) }),
+    confirmText: t('commonDelete'),
+    cancelText: t('commonCancel'),
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  gifLibrary.deletingId = item.id;
+  try {
+    const { data } = await api.delete(
+      `/api/tip-notification-gif/library/${encodeURIComponent(item.id)}`
+    );
+    gifLibrary.items = gifLibrary.items.filter((entry) => entry && entry.id !== item.id);
+    const clearedActive = gif.selectedId === item.id || !!data?.cleared;
+    if (clearedActive) {
+      gif.gifPath = '';
+      gif.file = null;
+      gif.fileName = '';
+      gif.selectedId = '';
+      gif.storageProvider = '';
+      if (gifInput.value) {
+        gifInput.value.value = '';
+      }
+    }
+    pushToast({
+      type: 'success',
+      message: clearedActive
+        ? t('gifLibraryDeleteToastSuccessCleared')
+        : t('gifLibraryDeleteToastSuccess'),
+    });
+  } catch (error) {
+    console.error('[notif] gif library delete failed', error);
+    const code = error?.response?.data?.error;
+    if (code === 'gif_library_delete_unsupported') {
+      pushToast({ type: 'info', message: t('gifLibraryDeleteToastUnsupported') });
+    } else {
+      pushToast({ type: 'error', message: t('gifLibraryDeleteToastError') });
+    }
+  } finally {
+    gifLibrary.deletingId = '';
+  }
 }
 
 async function onGifChange(e) {

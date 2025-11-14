@@ -7,6 +7,14 @@ const { isTrustedLocalAdmin, shouldMaskSensitive } = require('../lib/trust');
 const { isOpenTestMode } = require('../lib/test-open-mode');
 const { getStorage, STORAGE_PROVIDERS } = require('../lib/storage');
 
+function normalizeProvider(provider) {
+  if (!provider || typeof provider !== 'string') return '';
+  const lower = provider.trim().toLowerCase();
+  if (lower === STORAGE_PROVIDERS.SUPABASE) return STORAGE_PROVIDERS.SUPABASE;
+  if (lower === STORAGE_PROVIDERS.TURBO || lower === 'arweave') return STORAGE_PROVIDERS.TURBO;
+  return lower;
+}
+
 
 function readGifDimensionsFromBuffer(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 10) {
@@ -218,6 +226,95 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     } catch (error) {
       console.error('[gif-library] list error', error.message);
       res.status(500).json({ error: 'library_list_failed' });
+    }
+  });
+
+  app.delete('/api/tip-notification-gif/library/:id', strictLimiter, async (req, res) => {
+    const requireSessionFlag = process.env.GETTY_REQUIRE_SESSION === '1';
+    const hosted = !!process.env.REDIS_URL;
+    const requireAdminWrites = (process.env.GETTY_REQUIRE_ADMIN_WRITE === '1') || hosted;
+    const hasNs = !!(req?.ns?.admin || req?.ns?.pub);
+    if (!isOpenTestMode() && (requireSessionFlag || hosted) && !hasNs) {
+      return res.status(401).json({ error: 'no_session' });
+    }
+    if (!isOpenTestMode() && requireAdminWrites) {
+      const isAdmin = !!(req?.auth && req.auth.isAdmin);
+      if (!isAdmin) return res.status(401).json({ error: 'admin_required' });
+    }
+
+    const entryId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
+    if (!entryId) {
+      return res.status(400).json({ error: 'invalid_library_id' });
+    }
+
+    try {
+      const ns = req?.ns?.admin || req?.ns?.pub || null;
+      const items = await loadLibrary(ns);
+      const target = items.find((item) => item && item.id === entryId) || null;
+      if (!target) {
+        return res.status(404).json({ error: 'gif_library_item_not_found' });
+      }
+
+      const providerId = normalizeProvider(target.provider);
+      if (providerId && providerId !== STORAGE_PROVIDERS.SUPABASE) {
+        return res.status(400).json({ error: 'gif_library_delete_unsupported' });
+      }
+
+      if (providerId === STORAGE_PROVIDERS.SUPABASE && target.path) {
+        try {
+          const storageInstance = getStorage(STORAGE_PROVIDERS.SUPABASE);
+          if (storageInstance && storageInstance.provider === STORAGE_PROVIDERS.SUPABASE) {
+            await storageInstance.deleteFile(BUCKET_NAME, target.path);
+          }
+        } catch (deleteError) {
+          console.warn('[gif-library] failed to delete Supabase file:', deleteError.message);
+        }
+      }
+
+      const updatedItems = items.filter((item) => item && item.id !== entryId);
+      await saveLibrary(ns, updatedItems);
+
+      let cfg = ensureConfigShape(loadConfig());
+      if (store && ns) {
+        try {
+          const storedCfg = await store.get(ns, 'tip-notification-gif', null);
+          if (storedCfg && typeof storedCfg === 'object') {
+            cfg = ensureConfigShape(storedCfg);
+          }
+        } catch (cfgError) {
+          console.warn('[gif-library] store config load error', cfgError.message);
+        }
+      }
+
+      let cleared = false;
+      if (cfg.libraryId === entryId) {
+        const clearedCfg = ensureConfigShape({
+          ...cfg,
+          gifPath: '',
+          width: 0,
+          height: 0,
+          libraryId: '',
+          storageProvider: '',
+        });
+        cleared = true;
+        if (store && ns) {
+          try {
+            await store.set(ns, 'tip-notification-gif', clearedCfg);
+          } catch (setError) {
+            console.warn('[gif-library] store config save error', setError.message);
+          }
+          if (!HOSTED_ENV) {
+            saveConfig(clearedCfg);
+          }
+        } else {
+          saveConfig(clearedCfg);
+        }
+      }
+
+      return res.json({ success: true, cleared });
+    } catch (error) {
+      console.error('[gif-library] delete error', error);
+      return res.status(500).json({ error: 'gif_library_delete_failed' });
     }
   });
 
