@@ -10,6 +10,9 @@ import {
 } from './utils/streamHistoryUtils.js';
 import { renderStreamHistoryChart, renderViewersSparkline } from './utils/renderChart.js';
 
+const QUICK_SPAN_VALUES = Object.freeze([7, 14, 30, 90]);
+const MAX_CALENDAR_RANGE_DAYS = 360;
+
 export function createStreamHistoryPanel(t) {
   const chartEl = ref(null);
   const sparklineEl = ref(null);
@@ -254,10 +257,10 @@ export function createStreamHistoryPanel(t) {
     const totalDays = calcDaySpan(start, end);
     if (totalDays <= 120) {
       period.value = 'day';
-      span.value = Math.min(365, totalDays);
+      span.value = Math.min(MAX_CALENDAR_RANGE_DAYS, totalDays);
     } else {
       period.value = 'week';
-      span.value = Math.min(365, Math.ceil(totalDays / 7));
+      span.value = Math.min(MAX_CALENDAR_RANGE_DAYS, Math.ceil(totalDays / 7));
     }
     scheduleRefresh(true);
   }
@@ -280,6 +283,7 @@ export function createStreamHistoryPanel(t) {
 
   let ro = null;
   let resizeTimer = null;
+  let resizeRaf = null;
   let refreshDebounceTimer = null;
   let pollTimer = null;
   let nowTimer = null;
@@ -461,7 +465,7 @@ export function createStreamHistoryPanel(t) {
   function onQuickRangeChange() {
     try {
       const v = Number(filterQuickSpan.value || 30);
-      if ([7, 14, 30, 90, 180, 365].includes(v)) {
+      if (QUICK_SPAN_VALUES.includes(v)) {
         if (customRangeActive.value) customRange.value = { startDate: null, endDate: null };
         span.value = v;
         scheduleRefresh();
@@ -576,7 +580,7 @@ export function createStreamHistoryPanel(t) {
   watch(span, (s) => {
     if (customRangeActive.value) return;
     const num = Number(s);
-    if ([7, 14, 30, 90, 180, 365].includes(num)) filterQuickSpan.value = num;
+    if (QUICK_SPAN_VALUES.includes(num)) filterQuickSpan.value = num;
   });
   watch(customRangeActive, (active) => {
     if (active) {
@@ -650,6 +654,13 @@ export function createStreamHistoryPanel(t) {
       peakFromChart = null;
     }
     try {
+      const bounds = chartEl.value?.getBoundingClientRect();
+      if (bounds && chartEl.value) {
+        chartEl.value.dataset.lastWidth = String(Math.round(bounds.width));
+        chartEl.value.dataset.lastHeight = String(Math.round(bounds.height));
+      }
+    } catch {}
+    try {
       if (showViewerTrend.value && sparklineEl.value) {
         renderViewersSparkline(sparklineEl.value, data, {
           period: period.value,
@@ -664,6 +675,29 @@ export function createStreamHistoryPanel(t) {
   }
   function toggleShowViewers() {
     showViewers.value = !showViewers.value;
+  }
+
+  function queueChartReflow() {
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb) => setTimeout(cb, 16);
+    const caf = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : clearTimeout;
+    try {
+      if (resizeRaf) caf(resizeRaf);
+    } catch {}
+    resizeRaf = raf(() => {
+      resizeRaf = null;
+      try {
+        chartEl.value?.classList.add('reflowing');
+      } catch {}
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        try {
+          renderCharts(lastSummaryData.value || []);
+        } catch {}
+        try {
+          setTimeout(() => chartEl.value?.classList.remove('reflowing'), 120);
+        } catch {}
+      }, 60);
+    });
   }
 
   onMounted(async () => {
@@ -711,25 +745,21 @@ export function createStreamHistoryPanel(t) {
     try {
       const el = chartEl.value;
       if (el && typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => {
-          try {
-            chartEl.value?.classList.add('reflowing');
-          } catch {}
-          if (resizeTimer) clearTimeout(resizeTimer);
-          resizeTimer = setTimeout(() => {
-            try {
-              renderCharts(lastSummaryData.value || []);
-            } catch {}
-            try {
-              setTimeout(() => chartEl.value?.classList.remove('reflowing'), 120);
-            } catch {}
-          }, 80);
+        ro = new ResizeObserver((entries = []) => {
+          const entry = entries[0];
+          const target = entry?.target || chartEl.value;
+          if (!target) return;
+          const width = Math.round(entry?.contentRect?.width || target.clientWidth || 0);
+          const height = Math.round(entry?.contentRect?.height || target.clientHeight || 0);
+          const prevW = Number(target.dataset.lastWidth || 0);
+          const prevH = Number(target.dataset.lastHeight || 0);
+          if (Math.abs(prevW - width) < 2 && Math.abs(prevH - height) < 2) return;
+          queueChartReflow();
         });
         ro.observe(el);
       } else {
         const onR = () => {
-          if (resizeTimer) clearTimeout(resizeTimer);
-          resizeTimer = setTimeout(() => renderCharts(lastSummaryData.value || []), 120);
+          queueChartReflow();
         };
         window.addEventListener('resize', onR);
         ro = {
@@ -811,6 +841,13 @@ export function createStreamHistoryPanel(t) {
       if (resizeTimer) {
         clearTimeout(resizeTimer);
         resizeTimer = null;
+      }
+    } catch {}
+    try {
+      if (resizeRaf) {
+        const caf = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : clearTimeout;
+        caf(resizeRaf);
+        resizeRaf = null;
       }
     } catch {}
     try {

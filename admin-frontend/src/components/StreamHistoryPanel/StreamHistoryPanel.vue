@@ -392,14 +392,18 @@
             <div class="range-popover-body">
               <label>
                 <span>{{ t('streamHistoryRangeStart') }}</span>
-                <input type="date" v-model="rangeDraft.start" :max="todayIso" />
+                <input
+                  type="date"
+                  v-model="rangeDraft.start"
+                  :min="minCalendarDate"
+                  :max="todayIso" />
               </label>
               <label>
                 <span>{{ t('streamHistoryRangeEnd') }}</span>
                 <input
                   type="date"
                   v-model="rangeDraft.end"
-                  :min="rangeDraft.start || undefined"
+                  :min="rangeDraft.start || minCalendarDate"
                   :max="todayIso" />
               </label>
               <p v-if="rangeError" class="range-error">{{ rangeError }}</p>
@@ -809,6 +813,10 @@ import { ref, watch, computed, onMounted, onBeforeUnmount, reactive } from 'vue'
 import { metrics } from '../../stores/metricsStore.js';
 
 const { t, locale } = useI18n();
+const EARLIEST_ANALYTICS_YEAR = 2020;
+const EARLIEST_ANALYTICS_DATE = new Date(EARLIEST_ANALYTICS_YEAR, 0, 1);
+const minCalendarDate = `${EARLIEST_ANALYTICS_YEAR}-01-01`;
+const QUICK_SPAN_VALUES = Object.freeze([7, 14, 30, 90]);
 const state = createStreamHistoryPanel(t);
 
 const {
@@ -997,6 +1005,7 @@ const parseInputDate = (value) => {
   if (Number.isNaN(candidate.getTime())) return null;
   if (candidate.getFullYear() !== y || candidate.getMonth() !== m - 1 || candidate.getDate() !== d)
     return null;
+  if (candidate.getTime() < EARLIEST_ANALYTICS_DATE.getTime()) return null;
   return candidate;
 };
 
@@ -1070,14 +1079,9 @@ const quickPeriodLabel = computed(() => {
   return option ? option.label : t('quickToday');
 });
 
-const quickSpanOptions = computed(() => [
-  { value: 7, label: '7d' },
-  { value: 14, label: '14d' },
-  { value: 30, label: '30d' },
-  { value: 90, label: '90d' },
-  { value: 180, label: '180d' },
-  { value: 365, label: '365d' },
-]);
+const quickSpanOptions = computed(() =>
+  QUICK_SPAN_VALUES.map((value) => ({ value, label: `${value}d` }))
+);
 
 const quickSpanLabel = computed(() => {
   const current = Number(filterQuickSpan.value);
