@@ -121,7 +121,8 @@
       "secp256k1": "^5.0.1",
       "ws@^7.0.0": "7.5.10",
       "obs-websocket-js@5.0.7>ws": "7.5.10",
-      "isomorphic-ws@5.0.0>ws": "7.5.10"
+      "isomorphic-ws@5.0.0>ws": "7.5.10",
+      "@istanbuljs/load-nyc-config>js-yaml": "4.1.0"
     }
   }
 }

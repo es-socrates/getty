@@ -16,9 +16,10 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const chartEl = ref(null);
 let resizeObserver = null;
+let scheduledFrame = null;
 
 const hasData = computed(() => {
   if (!Array.isArray(props.data)) return false;
@@ -35,6 +36,12 @@ const hasData = computed(() => {
   });
 });
 
+const getActiveLocale = () => {
+  if (typeof locale === 'string') return locale;
+  if (locale && typeof locale.value === 'string') return locale.value;
+  return undefined;
+};
+
 const render = async () => {
   await nextTick();
   if (!chartEl.value) return;
@@ -47,13 +54,35 @@ const render = async () => {
     mode: 'bar',
     showViewers: true,
     smoothWindow: 3,
+    translate: t,
+    locale: getActiveLocale(),
+  });
+};
+
+const cancelScheduledRender = () => {
+  if (scheduledFrame && typeof window !== 'undefined' && window.cancelAnimationFrame) {
+    window.cancelAnimationFrame(scheduledFrame);
+  }
+  scheduledFrame = null;
+};
+
+const scheduleRender = () => {
+  if (props.loading) return;
+  if (typeof window === 'undefined' || !window.requestAnimationFrame) {
+    render();
+    return;
+  }
+  cancelScheduledRender();
+  scheduledFrame = window.requestAnimationFrame(() => {
+    scheduledFrame = null;
+    render();
   });
 };
 
 watch(
   () => props.data,
   () => {
-    if (!props.loading) render();
+    if (!props.loading) scheduleRender();
   },
   { deep: true }
 );
@@ -61,15 +90,19 @@ watch(
 watch(
   () => props.loading,
   (busy) => {
-    if (!busy) render();
+    if (busy) {
+      cancelScheduledRender();
+      return;
+    }
+    scheduleRender();
   }
 );
 
 onMounted(() => {
-  render();
+  scheduleRender();
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
-      render();
+      scheduleRender();
     });
     if (chartEl.value) resizeObserver.observe(chartEl.value);
   }
@@ -82,6 +115,7 @@ onBeforeUnmount(() => {
     } catch {}
     resizeObserver = null;
   }
+  cancelScheduledRender();
 });
 </script>
 <style scoped>
