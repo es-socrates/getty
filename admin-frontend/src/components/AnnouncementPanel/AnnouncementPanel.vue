@@ -877,6 +877,17 @@
       @refresh="fetchImageLibrary(true)"
       @select="onLibraryImageSelect"
       @delete="onLibraryImageDelete" />
+    <AlertDialog v-model:open="uploadErrorDialog.open">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="uploadErrorDialog.open = false">OK</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </section>
 </template>
 
@@ -885,6 +896,15 @@ import { reactive, ref, watch, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CopyField from '../shared/CopyField.vue';
 import ImageLibraryDrawer from '../shared/ImageLibraryDrawer.vue';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '../ui/alert-dialog';
 import { useAnnouncementPanel } from './AnnouncementPanel.js';
 import { useStorageProviders } from '../../composables/useStorageProviders.js';
 import api from '../../services/api.js';
@@ -965,6 +985,18 @@ const imageLibrary = reactive({
   target: null,
 });
 const imageLibraryDeletingId = ref('');
+
+const uploadErrorDialog = reactive({
+  open: false,
+  title: '',
+  message: '',
+});
+
+function showUploadErrorDialog(title, message) {
+  uploadErrorDialog.title = title;
+  uploadErrorDialog.message = message;
+  uploadErrorDialog.open = true;
+}
 
 const tabs = [
   { id: 'settings', label: t('settings') || t('announcementSettings') },
@@ -1337,6 +1369,14 @@ function onEditImageChange(e) {
             storage.ensureSelection([data.libraryItem.provider]);
           }
         }
+      })
+      .catch((error) => {
+        const errorMsg = error?.response?.data?.error;
+        if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+          showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
+        } else {
+          pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+        }
       });
   } catch {}
 }
@@ -1368,12 +1408,21 @@ function clearNewImage() {
 }
 
 async function handleAddMessage() {
-  const data = await addMessage({ storageProvider: selectedStorageProvider.value });
-  if (data?.libraryItem) {
-    upsertLibraryItem(data.libraryItem);
-    if (data.libraryItem.provider) {
-      storage.registerProvider(data.libraryItem.provider);
-      storage.ensureSelection([data.libraryItem.provider]);
+  try {
+    const data = await addMessage({ storageProvider: selectedStorageProvider.value });
+    if (data?.libraryItem) {
+      upsertLibraryItem(data.libraryItem);
+      if (data.libraryItem.provider) {
+        storage.registerProvider(data.libraryItem.provider);
+        storage.ensureSelection([data.libraryItem.provider]);
+      }
+    }
+  } catch (error) {
+    const errorMsg = error?.response?.data?.error;
+    if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+      showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
+    } else {
+      pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
     }
   }
 }

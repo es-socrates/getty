@@ -62,13 +62,16 @@ describe('Tip Notification GIF API', () => {
     expect(res.body.error).toMatch(/Only GIF/i);
   });
 
-  test('Accepts large dimension GIF (now scaled client-side only)', async () => {
-    const res = await uploadGif(1200, 800, 'top');
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.width).toBe(1200);
-    expect(res.body.height).toBe(800);
-    expect(res.body).toHaveProperty('libraryId');
+  test('Rejects GIF file larger than 100KB for Turbo upload', async () => {
+    const largeBuffer = Buffer.alloc(102401); // 100KB + 1 byte
+    largeBuffer.write('GIF89a'); // Make it look like a GIF
+    const res = await request(appRef)
+      .post('/api/tip-notification-gif')
+      .field('position', 'right')
+      .field('storageProvider', 'turbo')
+      .attach('gifFile', largeBuffer, { filename: 'large.gif', contentType: 'image/gif' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/File too large for free upload/);
   });
 
   test('Accepts valid GIF and stores config', async () => {

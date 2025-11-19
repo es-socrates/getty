@@ -502,8 +502,14 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
                 libraryItem = entry;
                 imagePayload = mapEntryToImagePayload(entry);
               } catch (uploadError) {
-                console.error('Announcement upload error:', uploadError);
-                return res.status(500).json({ success: false, error: 'Failed to upload file' });
+                if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
+                  return res.status(400).json({ success: false, error: 'File too large for free upload. Maximum 100KB. Try using a smaller image or switch to Supabase storage.' });
+                } else if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
+                  return res.status(400).json({ success: false, error: 'Upload not possible with Turbo. Please switch to Supabase storage.' });
+                } else {
+                  console.error('Announcement upload error:', uploadError);
+                  return res.status(500).json({ success: false, error: 'Failed to upload file' });
+                }
               }
             }
           }
@@ -842,8 +848,14 @@ function registerAnnouncementRoutes(app, announcementModule, limiters) {
                 patch.imageFingerprint = entry.fingerprint;
                 patch.imageOriginalName = entry.originalName;
               } catch (uploadError) {
-                console.error('Announcement upload error:', uploadError);
-                return res.status(500).json({ success: false, error: 'Failed to upload file' });
+                if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
+                  return res.status(400).json({ success: false, error: 'File too large for free upload. Maximum 100KB. Try using a smaller image or switch to Supabase storage.' });
+                } else if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
+                  return res.status(400).json({ success: false, error: 'Upload not possible with Turbo. Please switch to Supabase storage.' });
+                } else {
+                  console.error('Announcement upload error:', uploadError);
+                  return res.status(500).json({ success: false, error: 'Failed to upload file' });
+                }
               }
             }
           }

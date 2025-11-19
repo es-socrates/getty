@@ -219,6 +219,17 @@
       @refresh="fetchImageLibrary(true)"
       @select="onLibraryImageSelect"
       @delete="onLibraryImageDelete" />
+    <AlertDialog v-model:open="uploadErrorDialog.open">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="uploadErrorDialog.open = false">OK</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </section>
 </template>
 <script setup>
@@ -229,6 +240,15 @@ import { pushToast } from '../services/toast';
 import { confirmDialog } from '../services/confirm';
 import CopyField from './shared/CopyField.vue';
 import ImageLibraryDrawer from './shared/ImageLibraryDrawer.vue';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from './ui/alert-dialog';
 import { MAX_RAFFLE_IMAGE } from '../utils/validation';
 import OsCard from './os/OsCard.vue';
 import { useWalletSession } from '../composables/useWalletSession';
@@ -308,6 +328,18 @@ watch(storageOptions, () => {
 
 const imageLibrary = reactive({ items: [], loading: false, error: '', loaded: false, open: false });
 const imageLibraryDeletingId = ref('');
+
+const uploadErrorDialog = reactive({
+  open: false,
+  title: '',
+  message: '',
+});
+
+function showUploadErrorDialog(title, message) {
+  uploadErrorDialog.title = title;
+  uploadErrorDialog.message = message;
+  uploadErrorDialog.open = true;
+}
 
 function upsertLibraryItem(entry) {
   if (!entry || !entry.id) return;
@@ -551,8 +583,11 @@ async function applyLibraryImage(entry, opts = {}) {
     });
     const data = res?.data || {};
     if (!data.success) {
-      if (options.notifyError) {
-        pushToast({ type: 'error', message: data.error || t('raffleImageUploadFailed') });
+      const errorMsg = data.error;
+      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+        throw new Error(errorMsg);
+      } else if (options.notifyError) {
+        pushToast({ type: 'error', message: errorMsg || t('raffleImageUploadFailed') });
       }
       return false;
     }
@@ -575,18 +610,32 @@ async function applyLibraryImage(entry, opts = {}) {
     }
     return true;
   } catch (error) {
-    console.error('[raffle] apply library image failed', error);
-    if (options.notifyError) {
-      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+    const errorMsg = error?.response?.data?.error;
+    if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+      throw error;
+    } else {
+      console.error('[raffle] apply library image failed', error);
+      if (options.notifyError) {
+        pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+      }
+      return false;
     }
-    return false;
   }
 }
 
 async function onLibraryImageSelect(entry) {
-  const applied = await applyLibraryImage(entry, { notifyError: true });
-  if (applied) {
-    imageLibrary.open = false;
+  try {
+    const applied = await applyLibraryImage(entry, { notifyError: true });
+    if (applied) {
+      imageLibrary.open = false;
+    }
+  } catch (error) {
+    const errorMsg = error?.response?.data?.error || error.message;
+    if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+      showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
+    } else {
+      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+    }
   }
 }
 
@@ -797,24 +846,29 @@ async function onImageFileChange(e) {
     if (imageInput.value) imageInput.value.value = '';
     return;
   }
-  const reused = await maybeHandleDuplicate(file);
-  if (reused) {
-    return;
-  }
-
-  const fd = new FormData();
-  fd.append('image', file);
-  if (selectedStorageProvider.value) {
-    fd.append('storageProvider', selectedStorageProvider.value);
-  }
   try {
+    const reused = await maybeHandleDuplicate(file);
+    if (reused) {
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('image', file);
+    if (selectedStorageProvider.value) {
+      fd.append('storageProvider', selectedStorageProvider.value);
+    }
     const res = await api.post('/api/raffle/upload-image', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     const data = res?.data || {};
     if (!data.success || !data.imageUrl) {
-      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
-      return;
+      const errorMsg = data.error;
+      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+        throw new Error(errorMsg);
+      } else {
+        pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+        return;
+      }
     }
     form.imageUrl = data.imageUrl;
     form.imageLibraryId = data.imageLibraryId || '';
@@ -847,8 +901,13 @@ async function onImageFileChange(e) {
     pushToast({ type: 'success', message: t('raffleImageUploaded') });
     fileUploadKey.value++;
     if (imageInput.value) imageInput.value.value = '';
-  } catch {
-    pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+  } catch (error) {
+    const errorMsg = error?.response?.data?.error || error.message;
+    if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+      showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
+    } else {
+      pushToast({ type: 'error', message: t('raffleImageUploadFailed') });
+    }
   }
 }
 

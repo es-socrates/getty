@@ -73,10 +73,10 @@
   word-break: break-all;
   text-decoration: none;
   transition: none;
+  font-weight: 600;
 }
 .socialmedia-link:hover {
   color: #fff;
-  text-decoration: underline;
 }
 
 @media (max-width: 700px) {
