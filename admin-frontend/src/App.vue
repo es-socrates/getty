@@ -640,6 +640,21 @@ const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'))
 const analyticsActive = computed(() => route.path.startsWith('/admin/status'));
 
 const wanderSession = useWanderSession();
+const LAYOUT_RESIZE_EVENT = 'admin:layout-resized';
+let layoutResizeFrame = null;
+
+function notifyLayoutResize() {
+  if (typeof window === 'undefined') return;
+  if (layoutResizeFrame) {
+    window.cancelAnimationFrame(layoutResizeFrame);
+  }
+  layoutResizeFrame = window.requestAnimationFrame(() => {
+    layoutResizeFrame = null;
+    try {
+      window.dispatchEvent(new CustomEvent(LAYOUT_RESIZE_EVENT));
+    } catch {}
+  });
+}
 
 watch(
   () => [wanderSession.state.address, wanderSession.state.loading, route.path],
@@ -831,6 +846,7 @@ function setContainerLeftVar() {
 function setSidebarWidthVar() {
   const w = sidebarCollapsed.value ? 64 : 224;
   document.documentElement.style.setProperty('--sidebar-w', w + 'px');
+  notifyLayoutResize();
 }
 
 onMounted(() => {
@@ -876,6 +892,12 @@ onBeforeUnmount(() => {
     try {
       window.removeEventListener('storage', storageHandler);
     } catch {}
+  }
+  if (layoutResizeFrame) {
+    try {
+      window.cancelAnimationFrame(layoutResizeFrame);
+    } catch {}
+    layoutResizeFrame = null;
   }
 });
 

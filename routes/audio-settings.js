@@ -71,7 +71,6 @@ function registerAudioSettingsRoutes(
   const { isOpenTestMode } = require('../lib/test-open-mode');
   const requireAdminWrites =
     process.env.GETTY_REQUIRE_ADMIN_WRITE === '1' || !!process.env.REDIS_URL;
-  const HOSTED_ENV = !!process.env.REDIS_URL;
   const LIBRARY_FILE = path.join(process.cwd(), 'config', 'audio-library.json');
 
   function loadLibraryFromFile() {
@@ -99,29 +98,26 @@ function registerAudioSettingsRoutes(
     if (store && ns) {
       try {
         const stored = await store.get(ns, 'audio-library', null);
-        if (Array.isArray(stored)) return stored;
-        if (stored && Array.isArray(stored.items)) return stored.items;
+        if (stored) {
+          if (Array.isArray(stored)) return stored;
+          if (stored && Array.isArray(stored.items)) return stored.items;
+        }
       } catch (error) {
         console.warn('[audio-library] store load error', error.message);
       }
-      return [];
     }
     return loadLibraryFromFile();
   }
 
   async function saveLibrary(ns, items) {
+    saveLibraryToFile(items);
     if (store && ns) {
       try {
         await store.set(ns, 'audio-library', items);
       } catch (error) {
         console.warn('[audio-library] store save error', error.message);
       }
-      if (!HOSTED_ENV) {
-        saveLibraryToFile(items);
-      }
-      return;
     }
-    saveLibraryToFile(items);
   }
 
   async function upsertLibraryEntry(ns, entry) {
@@ -157,35 +153,18 @@ function registerAudioSettingsRoutes(
         return res.json({ ...sanitized, libraryItem: null });
       }
 
+      let settings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
       if (store && hasNs) {
         try {
           const st = await store.get(ns, 'audio-settings', null);
           if (st && typeof st === 'object') {
-            const normalized = ensureSettingsShape(st);
-            const libraryItem = normalized.audioLibraryId
-              ? await findLibraryEntry(ns, normalized.audioLibraryId)
-              : null;
-            return res.json({ ...normalized, libraryItem });
+            settings = ensureSettingsShape(st);
           }
         } catch (error) {
           console.error('Error loading tenant audio settings:', error);
         }
-
-        const fallback = ensureSettingsShape({
-          audioSource: 'remote',
-          hasCustomAudio: false,
-          audioFileName: null,
-          audioFileSize: 0,
-          audioFileUrl: null,
-          audioFilePath: null,
-          enabled: true,
-          volume: 0.5,
-        });
-        return res.json({ ...fallback, libraryItem: null });
       }
 
-      // For non-tenant mode, use global file
-      const settings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
       const libraryItem = settings.audioLibraryId
         ? await findLibraryEntry(ns, settings.audioLibraryId)
         : null;
@@ -400,24 +379,19 @@ function registerAudioSettingsRoutes(
       let success = false;
       let payload = null;
 
-      if (ns && store) {
-        try {
-          const merged = ensureSettingsShape({ ...currentSettings, ...settings });
-          await store.set(ns, 'audio-settings', merged);
-          payload = merged;
-          success = true;
-        } catch (error) {
-          console.error('Error saving tenant audio settings:', error);
-          return res.status(500).json({ error: 'Error saving audio configuration' });
+      const merged = ensureSettingsShape({ ...currentSettings, ...settings });
+      success = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
+      if (success) {
+        payload = merged;
+        if (ns && store) {
+          try {
+            await store.set(ns, 'audio-settings', merged);
+          } catch (error) {
+            console.error('Error saving tenant audio settings:', error);
+          }
         }
       } else {
-        const merged = ensureSettingsShape({ ...currentSettings, ...settings });
-        success = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
-        if (success) {
-          payload = loadAudioSettings(AUDIO_CONFIG_FILE);
-        } else {
-          return res.status(500).json({ error: 'Error saving audio configuration' });
-        }
+        return res.status(500).json({ error: 'Error saving audio configuration' });
       }
 
       try {
@@ -505,11 +479,12 @@ function registerAudioSettingsRoutes(
       await saveLibrary(ns, updatedItems);
 
       let settingsPayload = null;
+      const currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
       if (ns && store) {
         try {
-          const currentSettings = await store.get(ns, 'audio-settings', null);
-          if (currentSettings) {
-            const normalized = ensureSettingsShape(currentSettings);
+          const storedSettings = await store.get(ns, 'audio-settings', null);
+          if (storedSettings && typeof storedSettings === 'object') {
+            const normalized = ensureSettingsShape(storedSettings);
             if (normalized.audioLibraryId === entryId) {
               const merged = ensureSettingsShape({
                 ...normalized,
@@ -522,6 +497,7 @@ function registerAudioSettingsRoutes(
                 audioLibraryId: '',
                 storageProvider: '',
               });
+              saveAudioSettings(AUDIO_CONFIG_FILE, merged);
               await store.set(ns, 'audio-settings', merged);
               settingsPayload = merged;
             }
@@ -533,7 +509,6 @@ function registerAudioSettingsRoutes(
           );
         }
       } else {
-        const currentSettings = ensureSettingsShape(loadAudioSettings(AUDIO_CONFIG_FILE));
         if (currentSettings.audioLibraryId === entryId) {
           const merged = ensureSettingsShape({
             ...currentSettings,
@@ -548,7 +523,7 @@ function registerAudioSettingsRoutes(
           });
           const saved = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
           if (saved) {
-            settingsPayload = loadAudioSettings(AUDIO_CONFIG_FILE);
+            settingsPayload = merged;
           }
         }
       }
@@ -668,23 +643,19 @@ function registerAudioSettingsRoutes(
       let success = false;
       let payload = null;
 
-      if (ns && store) {
-        try {
-          const merged = ensureSettingsShape({ ...currentSettings, ...resetSettings });
-          await store.set(ns, 'audio-settings', merged);
-          payload = merged;
-          success = true;
-        } catch (error) {
-          console.error('Error resetting tenant audio settings:', error);
-          return res.status(500).json({ error: 'Error deleting audio configuration' });
+      const merged = ensureSettingsShape({ ...currentSettings, ...resetSettings });
+      success = saveAudioSettings(AUDIO_CONFIG_FILE, merged);
+      if (success) {
+        payload = merged;
+        if (ns && store) {
+          try {
+            await store.set(ns, 'audio-settings', merged);
+          } catch (error) {
+            console.error('Error resetting tenant audio settings:', error);
+          }
         }
       } else {
-        success = saveAudioSettings(AUDIO_CONFIG_FILE, resetSettings);
-        if (success) {
-          payload = loadAudioSettings(AUDIO_CONFIG_FILE);
-        } else {
-          return res.status(500).json({ error: 'Error deleting audio configuration' });
-        }
+        return res.status(500).json({ error: 'Error deleting audio configuration' });
       }
 
       try {

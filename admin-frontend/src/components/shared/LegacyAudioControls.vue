@@ -720,7 +720,6 @@ watch(
   justify-content: center;
   padding: 4px 8px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.6);
   font-size: 12px;
   font-weight: 500;
   border: 1px solid rgba(0, 0, 0, 0.1);

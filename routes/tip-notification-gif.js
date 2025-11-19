@@ -34,7 +34,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
   const CONFIG_FILE = path.join(process.cwd(), 'config', 'tip-notification-config.json');
   const BUCKET_NAME = 'notification-gifs';
   const LIBRARY_FILE = path.join(process.cwd(), 'config', 'tip-notification-gif-library.json');
-  const HOSTED_ENV = !!process.env.REDIS_URL;
 
   const upload = multer({
     storage: multer.memoryStorage(),
@@ -140,33 +139,30 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
     if (store && ns) {
       try {
         const stored = await store.get(ns, 'tip-notification-gif-library', null);
-        const list = Array.isArray(stored)
-          ? stored
-          : stored && Array.isArray(stored.items)
-            ? stored.items
-            : [];
-        return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
+        if (stored) {
+          const list = Array.isArray(stored)
+            ? stored
+            : stored && Array.isArray(stored.items)
+              ? stored.items
+              : [];
+          return list.map(normalizeLibraryEntry).filter((entry) => entry && entry.id);
+        }
       } catch (error) {
         console.warn('[gif-library] store load error', error.message);
       }
-      return [];
     }
     return loadLibraryFromFile();
   }
 
   async function saveLibrary(ns, items) {
+    saveLibraryToFile(items);
     if (store && ns) {
       try {
         await store.set(ns, 'tip-notification-gif-library', items);
       } catch (error) {
         console.warn('[gif-library] store save error', error.message);
       }
-      if (!HOSTED_ENV) {
-        saveLibraryToFile(items);
-      }
-      return;
     }
-    saveLibraryToFile(items);
   }
 
   async function upsertLibraryEntry(ns, entry) {
@@ -206,6 +202,7 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
       if (conceal && !trusted && !hasNs) {
         return res.json({ gifPath: '', width: 0, height: 0, libraryId: '' });
       }
+
       if (store && hasNs) {
         try {
           const ns = req.ns.admin || req.ns.pub;
@@ -214,7 +211,6 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
             return res.json(ensureConfigShape(st));
           }
         } catch {}
-        return res.json(ensureConfigShape());
       }
       res.json(cfg);
     } catch {
@@ -307,17 +303,13 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           storageProvider: '',
         });
         cleared = true;
+        saveConfig(clearedCfg);
         if (store && ns) {
           try {
             await store.set(ns, 'tip-notification-gif', clearedCfg);
           } catch (setError) {
             console.warn('[gif-library] store config save error', setError.message);
           }
-          if (!HOSTED_ENV) {
-            saveConfig(clearedCfg);
-          }
-        } else {
-          saveConfig(clearedCfg);
         }
       }
 
@@ -465,17 +457,13 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         }
 
         config.position = position;
-        const hosted = !!process.env.REDIS_URL;
+        saveConfig(config);
         if (store && ns) {
           try {
             await store.set(ns, 'tip-notification-gif', config);
           } catch {}
-          if (!hosted) saveConfig(config);
-          res.json({ success: true, ...config, libraryItem: libraryEntry });
-        } else {
-          saveConfig(config);
-          res.json({ success: true, ...config, libraryItem: libraryEntry });
         }
+        res.json({ success: true, ...config, libraryItem: libraryEntry });
       } catch (_e) {
         console.error('Error saving GIF config:', _e);
         res.status(500).json({ error: 'Internal server error' });
@@ -538,16 +526,13 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
         libraryId: '',
         storageProvider: '',
       };
-      const hosted = !!process.env.REDIS_URL;
+      saveConfig(cleared);
       if (store && ns) {
         try {
           await store.set(ns, 'tip-notification-gif', cleared);
         } catch {}
-        if (!hosted) saveConfig(cleared);
-        return res.json({ success: true, ...cleared });
       }
-      saveConfig(cleared);
-      res.json({ success: true, ...cleared });
+      return res.json({ success: true, ...cleared });
     } catch {
       res.status(500).json({ error: 'Internal server error' });
     }

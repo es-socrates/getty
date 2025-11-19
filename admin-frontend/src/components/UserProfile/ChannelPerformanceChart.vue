@@ -20,6 +20,7 @@ const { t, locale } = useI18n();
 const chartEl = ref(null);
 let resizeObserver = null;
 let scheduledFrame = null;
+const LAYOUT_RESIZE_EVENT = 'admin:layout-resized';
 
 const hasData = computed(() => {
   if (!Array.isArray(props.data)) return false;
@@ -79,6 +80,14 @@ const scheduleRender = () => {
   });
 };
 
+const handleWindowResize = () => {
+  scheduleRender();
+};
+
+const handleLayoutResize = () => {
+  scheduleRender();
+};
+
 watch(
   () => props.data,
   () => {
@@ -100,6 +109,10 @@ watch(
 
 onMounted(() => {
   scheduleRender();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleWindowResize);
+    window.addEventListener(LAYOUT_RESIZE_EVENT, handleLayoutResize);
+  }
   if (typeof ResizeObserver !== 'undefined') {
     resizeObserver = new ResizeObserver(() => {
       scheduleRender();
@@ -109,6 +122,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', handleWindowResize);
+    window.removeEventListener(LAYOUT_RESIZE_EVENT, handleLayoutResize);
+  }
   if (resizeObserver) {
     try {
       resizeObserver.disconnect();
