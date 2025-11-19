@@ -639,9 +639,20 @@ function registerRaffleRoutes(app, raffle, wss, opts = {}) {
         const safeBase = (adminNs ? adminNs : 'global').replace(/[^a-zA-Z0-9_-]/g, '_');
         const fileName = `${safeBase}-raffle-${Date.now()}-${Math.random().toString(36).slice(2)}${inferredExt}`;
 
-        uploadResult = await storage.uploadFile(BUCKET_NAME, fileName, fileBuffer, {
-          contentType: req.file.mimetype,
-        });
+        try {
+          uploadResult = await storage.uploadFile(BUCKET_NAME, fileName, fileBuffer, {
+            contentType: req.file.mimetype,
+          });
+        } catch (uploadError) {
+          if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
+            return res.status(400).json({ success: false, error: 'File too large for free upload. Maximum 100KB. Try using a smaller image or switch to Supabase storage.' });
+          } else if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
+            return res.status(400).json({ success: false, error: 'Upload not possible with Turbo. Please switch to Supabase storage.' });
+          } else {
+            console.error('Raffle upload error:', uploadError);
+            return res.status(500).json({ success: false, error: 'Failed to upload file' });
+          }
+        }
       }
 
       const entry = normalizeLibraryEntry({

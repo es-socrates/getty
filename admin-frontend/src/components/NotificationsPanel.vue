@@ -148,7 +148,27 @@
               {{ savingGif ? t('commonSaving') : t('saveSettings') }}
             </button>
           </div>
-          <div v-if="errors.gif" class="small mt-2 text-red-700">{{ errors.gif }}</div>
+          <div
+            v-if="gif.fileName && !gif.gifPath"
+            class="small mt-2 text-green-700 flex items-center gap-2">
+            <svg width="16" height="16" fill="none" class="shrink-0">
+              <circle cx="8" cy="8" r="8" fill="#22c55e" />
+              <path
+                d="M6.5 8.5l1.5 1.5L10.5 7"
+                stroke="#ffffff"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+            {{ t('fileSelectedForUpload', { fileName: gif.fileName }) }}
+          </div>
+          <div v-if="errors.gif" class="small mt-2 text-red-700 flex items-center gap-2">
+            <svg width="16" height="16" fill="none" class="shrink-0">
+              <circle cx="8" cy="8" r="8" fill="#ef4444" />
+              <path d="M8 4v4m0 4h.01" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
+            </svg>
+            {{ errors.gif }}
+          </div>
         </div>
       </div>
 
@@ -397,6 +417,17 @@
       @refresh="fetchGifLibrary(true)"
       @select="onLibrarySelect"
       @delete="onLibraryDelete" />
+    <AlertDialog v-model:open="uploadErrorDialog.open">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ uploadErrorDialog.title }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ uploadErrorDialog.message }}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel @click="uploadErrorDialog.open = false">OK</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </section>
 </template>
 <script setup>
@@ -416,6 +447,15 @@ import ColorInput from './shared/ColorInput.vue';
 import TipWidgetThemePreview from './NotificationsPanel/TipWidgetThemePreview.vue';
 import TipGifLibraryDrawer from './NotificationsPanel/TipGifLibraryDrawer.vue';
 import { useStorageProviders } from '../composables/useStorageProviders';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const { t } = useI18n();
 
@@ -528,6 +568,18 @@ const selectedStorageProvider = computed({
 const storageOptions = computed(() => storage.providerOptions.value);
 const hasTurboOption = computed(() => storageOptions.value.some((opt) => opt.id === 'turbo'));
 const storageLoading = computed(() => storage.loading.value);
+
+const uploadErrorDialog = reactive({
+  open: false,
+  title: '',
+  message: '',
+});
+
+function showUploadErrorDialog(title, message) {
+  uploadErrorDialog.title = title;
+  uploadErrorDialog.message = message;
+  uploadErrorDialog.open = true;
+}
 
 function resolveStorageSelection(preferred = '') {
   const candidates = [];
@@ -899,8 +951,13 @@ async function saveGif() {
       storage.registerProvider(gif.storageProvider);
     }
     pushToast({ type: 'success', message: t('savedNotifications') });
-  } catch {
-    pushToast({ type: 'error', message: t('saveFailedNotifications') });
+  } catch (error) {
+    const errorMsg = error?.response?.data?.error;
+    if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+      showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
+    } else {
+      pushToast({ type: 'error', message: t('saveFailedNotifications') });
+    }
   } finally {
     savingGif.value = false;
   }
@@ -918,6 +975,8 @@ async function removeGif() {
     gif.fileName = '';
     gif.selectedId = '';
     gif.original = JSON.stringify({ p: gif.position, path: '', sid: '' });
+
+    await fetchGifLibrary(true);
     pushToast({ type: 'success', message: t('removedGif') });
   } catch {
     pushToast({ type: 'error', message: t('removeGifFailed') });
@@ -1019,8 +1078,15 @@ async function persistAudioCfg(silent = false) {
       audioSource: audio.audioSource,
     };
     if (!silent) pushToast({ type: 'success', message: t('savedNotifications') });
-  } catch {
-    if (!silent) pushToast({ type: 'error', message: t('saveFailedNotifications') });
+  } catch (error) {
+    if (!silent) {
+      const errorMsg = error?.response?.data?.error;
+      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+        showUploadErrorDialog(t('uploadErrorTitle'), errorMsg);
+      } else {
+        pushToast({ type: 'error', message: t('saveFailedNotifications') });
+      }
+    }
   } finally {
     savingAudio.value = false;
   }

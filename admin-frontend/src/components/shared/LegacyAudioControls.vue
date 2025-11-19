@@ -130,7 +130,7 @@
                 <button
                   v-if="pendingLibraryItem"
                   type="button"
-                  class="library-clear-btn"
+                  class="btn-secondary"
                   @click="clearLibrarySelection">
                   {{ t('audioLibraryClearSelection') }}
                 </button>
@@ -178,17 +178,36 @@
             </div>
             <div
               v-if="selectionSummary && selectionSummary.name"
-              class="selection-summary"
+              class="small mt-4 text-green-700 flex items-center gap-2"
               aria-live="polite">
-              <span class="file-info">
-                <span class="file-label">{{ selectionSummary.label }}:</span>
+              <svg width="16" height="16" fill="none" class="shrink-0">
+                <circle cx="8" cy="8" r="8" fill="#22c55e" />
+                <path
+                  d="M6.5 8.5l1.5 1.5L10.5 7"
+                  stroke="#ffffff"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>
+                <span class="file-label">{{ selectionSummary.label }}: </span>
                 <span class="file-name">{{ selectionSummary.name }}</span>
                 <span v-if="selectionSummary.size" class="file-size"
                   >({{ selectionSummary.size }})</span
                 >
               </span>
             </div>
-            <div v-if="errorMsg" class="small text-red-700 mt-2">{{ errorMsg }}</div>
+            <div v-if="errorMsg" class="small text-red-700 mt-2 flex items-center gap-2">
+              <svg width="16" height="16" fill="none" class="shrink-0">
+                <circle cx="8" cy="8" r="8" fill="#ef4444" />
+                <path
+                  d="M8 4v4m0 4h.01"
+                  stroke="#ffffff"
+                  stroke-width="1.5"
+                  stroke-linecap="round" />
+              </svg>
+              {{ errorMsg }}
+            </div>
           </div>
         </div>
       </div>
@@ -325,6 +344,9 @@ async function onAudioChange(e) {
   if (!f) return;
   if (f.size > 1024 * 1024) {
     errorMsg.value = t('valMax1MB');
+    fileRef.value = null;
+    pendingLibraryItem.value = null;
+    selectedLibraryId.value = '';
     return;
   }
   errorMsg.value = '';
@@ -484,6 +506,10 @@ async function deleteCustomAudio() {
     await api.delete(props.deleteEndpoint);
     emit('audio-deleted');
     emit('toast', { type: 'success', messageKey: 'toastAudioRemoved' });
+
+    if (props.libraryEnabled) {
+      await fetchLibrary(true);
+    }
   } catch {
   } finally {
     savingAudio.value = false;
@@ -698,23 +724,7 @@ watch(
     font-weight: 500;
   }
   .selection-summary {
-    margin-top: 10px;
-  }
-  .library-clear-btn {
-    align-self: flex-start;
-    padding: 0;
-    background: none;
-    border: none;
-    color: var(--accent, #60a5fa);
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .library-clear-btn:hover {
-    text-decoration: underline;
-  }
-  .library-clear-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
+    margin-top: 1rem;
   }
   align-items: center;
   justify-content: center;

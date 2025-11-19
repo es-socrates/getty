@@ -198,7 +198,6 @@ function fallbackName(id) {
   position: fixed;
   inset: 0;
   background: color-mix(in srgb, var(--bg-overlay, rgba(7, 11, 18, 0.92)) 78%, transparent);
-  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;

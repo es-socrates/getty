@@ -267,10 +267,20 @@ export function useAnnouncementPanel(t) {
         };
         load();
       } else {
-        pushToast({ type: 'error', message: data?.error || t('announcementSaveSettingsFailed') });
+        const errorMsg = data?.error;
+        if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+          throw new Error(errorMsg);
+        } else {
+          pushToast({ type: 'error', message: errorMsg || t('announcementSaveSettingsFailed') });
+        }
       }
-    } catch {
-      pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+    } catch (error) {
+      const errorMsg = error?.response?.data?.error;
+      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+        throw error;
+      } else {
+        pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+      }
     } finally {
       adding.value = false;
     }
@@ -498,12 +508,22 @@ export function useAnnouncementPanel(t) {
         }
         await load();
       } else {
-        pushToast({ type: 'error', message: data?.error || t('announcementSaveSettingsFailed') });
+        const errorMsg = data?.error;
+        if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+          throw new Error(errorMsg);
+        } else {
+          pushToast({ type: 'error', message: errorMsg || t('announcementSaveSettingsFailed') });
+        }
       }
       return data || null;
-    } catch {
-      pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
-      return null;
+    } catch (error) {
+      const errorMsg = error?.response?.data?.error;
+      if (errorMsg?.includes('File too large') || errorMsg?.includes('Insufficient balance')) {
+        throw error;
+      } else {
+        pushToast({ type: 'error', message: t('announcementSaveSettingsFailed') });
+        return null;
+      }
     }
   }
 

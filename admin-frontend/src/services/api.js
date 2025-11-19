@@ -119,8 +119,15 @@ api.interceptors.response.use(
         }
       }
     } catch {}
-    if (!shouldSuppressCsrfLogs()) {
-      console.error('API error', err?.response?.data || err.message);
+    const errorData = err?.response?.data;
+    const shouldSkipLog = errorData?.code === 'TURBO_FILE_TOO_LARGE' || 
+                          errorData?.code === 'TURBO_INSUFFICIENT_BALANCE' ||
+                          (errorData?.error && (
+                            errorData.error.includes('File too large') || 
+                            errorData.error.includes('Insufficient balance')
+                          ));
+    if (!shouldSuppressCsrfLogs() && !shouldSkipLog) {
+      console.error('API error', errorData || err.message);
     }
     return Promise.reject(err);
   }

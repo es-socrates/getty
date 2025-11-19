@@ -373,6 +373,20 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
           const preferredProvider =
             typeof req.body?.storageProvider === 'string' ? req.body.storageProvider : '';
           const storage = getStorage(preferredProvider);
+
+          if (preferredProvider === STORAGE_PROVIDERS.TURBO || (!preferredProvider && storage?.provider === STORAGE_PROVIDERS.TURBO)) {
+            const fileBuffer = req.file.buffer || Buffer.alloc(0);
+            const sizeFromRequest = Number(req.file.size);
+            const fileSize =
+              Number.isFinite(sizeFromRequest) && sizeFromRequest >= 0
+                ? sizeFromRequest
+                : fileBuffer.length;
+            const MAX_FREE_SIZE_BYTES = 102400; // 100KB
+            if (fileSize > MAX_FREE_SIZE_BYTES) {
+              return res.status(400).json({ error: 'File too large for free upload' });
+            }
+          }
+
           if (!storage) {
             if (process.env.NODE_ENV === 'test') {
               const safeNs = ns ? ns.replace(/[^a-zA-Z0-9_-]/g, '_') : 'global';
@@ -433,6 +447,12 @@ function registerTipNotificationGifRoutes(app, strictLimiter, { store } = {}) {
               await upsertLibraryEntry(ns, libraryEntry);
             } catch (uploadError) {
               console.error('Supabase upload error:', uploadError);
+              if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
+                return res.status(400).json({ error: 'File too large for free Turbo upload (max 100KB). Please try uploading a smaller file or use Supabase.', code: 'TURBO_FILE_TOO_LARGE' });
+              }
+              if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
+                return res.status(400).json({ error: 'Upload not possible with Turbo. Please switch to Supabase storage.', code: 'TURBO_INSUFFICIENT_BALANCE' });
+              }
               return res.status(500).json({ error: 'Failed to upload file' });
             }
           }

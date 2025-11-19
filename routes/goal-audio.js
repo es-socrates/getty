@@ -359,46 +359,57 @@ function registerGoalAudioRoutes(app, wss, strictLimiter, _GOAL_AUDIO_UPLOADS_DI
           const normalizedName = (req.file.originalname || fileName || '').toLowerCase();
           const fingerprint = `${normalizedName}::${req.file.size || 0}`;
 
-          const uploadResult = await storage.uploadFile('tip-goal-audio', fileName, fileBuffer, {
-            contentType: req.file.mimetype || 'audio/mpeg',
-          });
+          try {
+            const uploadResult = await storage.uploadFile('tip-goal-audio', fileName, fileBuffer, {
+              contentType: req.file.mimetype || 'audio/mpeg',
+            });
 
-          const providerId = normalizeProvider(
-            uploadResult.provider || storage.provider || preferredProvider
-          );
-          const derivedId =
-            uploadResult.fileName ||
-            uploadResult.path ||
-            uploadResult.transactionId ||
-            fingerprint ||
-            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-          libraryItem = {
-            id: derivedId,
-            url: uploadResult.publicUrl,
-            size: Number(req.file.size) || Number(uploadResult.size) || 0,
-            originalName:
-              req.file.originalname ||
-              uploadResult.originalName ||
+            const providerId = normalizeProvider(
+              uploadResult.provider || storage.provider || preferredProvider
+            );
+            const derivedId =
               uploadResult.fileName ||
-              derivedId,
-            path: uploadResult.path || uploadResult.fileName || derivedId,
-            uploadedAt: new Date().toISOString(),
-            mimeType: req.file.mimetype || 'audio/mpeg',
-            sha256: fileHash,
-            fingerprint,
-            provider: providerId,
-          };
+              uploadResult.path ||
+              uploadResult.transactionId ||
+              fingerprint ||
+              `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-          await upsertLibraryEntry(ns, libraryItem);
+            libraryItem = {
+              id: derivedId,
+              url: uploadResult.publicUrl,
+              size: Number(req.file.size) || Number(uploadResult.size) || 0,
+              originalName:
+                req.file.originalname ||
+                uploadResult.originalName ||
+                uploadResult.fileName ||
+                derivedId,
+              path: uploadResult.path || uploadResult.fileName || derivedId,
+              uploadedAt: new Date().toISOString(),
+              mimeType: req.file.mimetype || 'audio/mpeg',
+              sha256: fileHash,
+              fingerprint,
+              provider: providerId,
+            };
 
-          settings.hasCustomAudio = true;
-          settings.audioFileName = libraryItem.originalName;
-          settings.audioFileSize = libraryItem.size;
-          settings.audioFileUrl = libraryItem.url;
-          settings.audioFilePath = libraryItem.path;
-          settings.audioLibraryId = libraryItem.id;
-          settings.storageProvider = providerId;
+            await upsertLibraryEntry(ns, libraryItem);
+
+            settings.hasCustomAudio = true;
+            settings.audioFileName = libraryItem.originalName;
+            settings.audioFileSize = libraryItem.size;
+            settings.audioFileUrl = libraryItem.url;
+            settings.audioFilePath = libraryItem.path;
+            settings.audioLibraryId = libraryItem.id;
+            settings.storageProvider = providerId;
+          } catch (uploadError) {
+            console.error('Error uploading goal audio file:', uploadError);
+            if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
+              return res.status(400).json({ error: 'File too large for free upload. Maximum 100KB. Try using a smaller image or switch to Supabase storage.' });
+            }
+            if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
+              return res.status(400).json({ error: 'Upload not possible with Turbo. Please switch to Supabase storage.' });
+            }
+            return res.status(500).json({ error: 'Error uploading goal audio file' });
+          }
         } else if (audioSource === 'custom' && selectedAudioId) {
           try {
             const entry = await findLibraryEntry(ns, selectedAudioId);

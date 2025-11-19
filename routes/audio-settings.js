@@ -330,6 +330,12 @@ function registerAudioSettingsRoutes(
           await upsertLibraryEntry(ns, libraryItem);
         } catch (uploadError) {
           console.error('Error uploading audio file:', uploadError);
+          if (uploadError.code === 'TURBO_FILE_TOO_LARGE') {
+            return res.status(400).json({ error: 'File too large for free upload. Maximum 100KB. Try using a smaller file or switch to Supabase storage.' });
+          }
+          if (uploadError.code === 'TURBO_INSUFFICIENT_BALANCE') {
+            return res.status(400).json({ error: 'Upload not possible with Turbo. Please switch to Supabase storage.' });
+          }
           return res.status(500).json({ error: 'Error uploading audio file' });
         }
       } else if (audioSource === 'custom' && selectedAudioId) {
