@@ -57,6 +57,53 @@
                 {{ formatDelta(highlights.viewsChange) }}
                 <span class="delta-range">({{ deltaRangeLabel }})</span>
               </p>
+              <div class="highlight-trend-icon">
+                <svg
+                  v-if="highlights.viewsChange && highlights.viewsChange > 0"
+                  width="2rem"
+                  height="2rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style="color: #22c55e">
+                  <path
+                    d="M22 7L14.1314 14.8686C13.7354 15.2646 13.5373 15.4627 13.309 15.5368C13.1082 15.6021 12.8918 15.6021 12.691 15.5368C12.4627 15.4627 12.2646 15.2646 11.8686 14.8686L9.13137 12.1314C8.73535 11.7354 8.53735 11.5373 8.30902 11.4632C8.10817 11.3979 7.89183 11.3979 7.69098 11.4632C7.46265 11.5373 7.26465 11.7354 6.86863 12.1314L2 17M22 7H15M22 7V14"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <svg
+                  v-else-if="highlights.viewsChange && highlights.viewsChange < 0"
+                  width="2rem"
+                  height="2rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style="color: #de0050">
+                  <path
+                    d="M22 17L14.1314 9.13137C13.7354 8.73535 13.5373 8.53735 13.309 8.46316C13.1082 8.3979 12.8918 8.3979 12.691 8.46316C12.4627 8.53735 12.2646 8.73535 11.8686 9.13137L9.13137 11.8686C8.73535 12.2646 8.53735 12.4627 8.30902 12.5368C8.10817 12.6021 7.89183 12.6021 7.69098 12.5368C7.46265 12.4627 7.26465 12.2646 6.86863 11.8686L2 7M22 17H15M22 17V10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <svg
+                  v-else
+                  width="2rem"
+                  height="2rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style="color: #de0050">
+                  <path
+                    d="M22 17L14.1314 9.13137C13.7354 8.73535 13.5373 8.53735 13.309 8.46316C13.1082 8.3979 12.8918 8.3979 12.691 8.46316C12.4627 8.53735 12.2646 8.73535 11.8686 9.13137L9.13137 11.8686C8.73535 12.2646 8.53735 12.4627 8.30902 12.5368C8.10817 12.6021 7.89183 12.6021 7.69098 12.5368C7.46265 12.4627 7.26465 12.2646 6.86863 11.8686L2 7M22 17H15M22 17V10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </div>
             </div>
             <div class="highlight-stat">
               <p class="stat-label">{{ t('channelHighlightsFollowers') }}</p>
@@ -65,6 +112,53 @@
                 {{ formatDelta(highlights.subsChange) }}
                 <span class="delta-range">({{ deltaRangeLabel }})</span>
               </p>
+              <div class="highlight-trend-icon">
+                <svg
+                  v-if="highlights.subsChange && highlights.subsChange > 0"
+                  width="2rem"
+                  height="2rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style="color: #22c55e">
+                  <path
+                    d="M22 7L14.1314 14.8686C13.7354 15.2646 13.5373 15.4627 13.309 15.5368C13.1082 15.6021 12.8918 15.6021 12.691 15.5368C12.4627 15.4627 12.2646 15.2646 11.8686 14.8686L9.13137 12.1314C8.73535 11.7354 8.53735 11.5373 8.30902 11.4632C8.10817 11.3979 7.89183 11.3979 7.69098 11.4632C7.46265 11.5373 7.26465 11.7354 6.86863 12.1314L2 17M22 7H15M22 7V14"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <svg
+                  v-else-if="highlights.subsChange && highlights.subsChange < 0"
+                  width="2rem"
+                  height="2rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style="color: #de0050">
+                  <path
+                    d="M22 17L14.1314 9.13137C13.7354 8.73535 13.5373 8.53735 13.309 8.46316C13.1082 8.3979 12.8918 8.3979 12.691 8.46316C12.4627 8.53735 12.2646 8.73535 11.8686 9.13137L9.13137 11.8686C8.73535 12.2646 8.53735 12.4627 8.30902 12.5368C8.10817 12.6021 7.89183 12.6021 7.69098 12.5368C7.46265 12.4627 7.26465 12.2646 6.86863 11.8686L2 7M22 17H15M22 17V10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <svg
+                  v-else
+                  width="2rem"
+                  height="2rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style="color: #de0050">
+                  <path
+                    d="M22 17L14.1314 9.13137C13.7354 8.73535 13.5373 8.53735 13.309 8.46316C13.1082 8.3979 12.8918 8.3979 12.691 8.46316C12.4627 8.53735 12.2646 8.73535 11.8686 9.13137L9.13137 11.8686C8.73535 12.2646 8.53735 12.4627 8.30902 12.5368C8.10817 12.6021 7.89183 12.6021 7.69098 12.5368C7.46265 12.4627 7.26465 12.2646 6.86863 11.8686L2 7M22 17H15M22 17V10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </div>
             </div>
           </div>
           <div v-if="highlightVideoCards.length" class="highlight-videos">
@@ -83,12 +177,23 @@
                   :color="entry.trend.color"
                   :height="120"
                   :aria-label="trendAriaLabel(entry.trend)" />
-                <div
-                  v-else
-                  class="trend-neutral-line"
-                  :style="{ backgroundColor: entry.trend.color }"
-                  role="presentation"
-                  aria-hidden="true"></div>
+                <div v-else class="trend-neutral-line" role="presentation" aria-hidden="true">
+                  <svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="trend-neutral-svg"
+                    style="color: #de0050">
+                    <path
+                      d="M22 17L14.1314 9.13137C13.7354 8.73535 13.5373 8.53735 13.309 8.46316C13.1082 8.3979 12.8918 8.3979 12.691 8.46316C12.4627 8.53735 12.2646 8.73535 11.8686 9.13137L9.13137 11.8686C8.73535 12.2646 8.53735 12.4627 8.30902 12.5368C8.10817 12.6021 7.89183 12.6021 7.69098 12.5368C7.46265 12.4627 7.26465 12.2646 6.86863 11.8686L2 7M22 17H15M22 17V10"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                </div>
               </div>
               <i
                 v-if="entry.trend && !entry.trend.neutral"
@@ -731,6 +836,7 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
   border-radius: 1rem;
   padding: 1rem;
   background: var(--bg-chat, transparent);
+  position: relative;
 }
 .highlight-stat .stat-label {
   font-size: 1rem;
@@ -741,6 +847,13 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
   font-size: 1.8rem;
   font-weight: 700;
   margin: 0.25rem 0;
+}
+.highlight-trend-icon {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
 }
 .highlight-videos {
   margin-top: 1.25rem;
@@ -833,6 +946,15 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
   height: 3px;
   border-radius: 999px;
   opacity: 0.9;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.trend-neutral-svg {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
 }
 .trend-icon {
   position: absolute;
@@ -943,9 +1065,8 @@ function recordRefreshAttempt(rangeKey: ChannelAnalyticsRange) {
   background: var(--bg-chat, transparent);
 }
 .eyebrow {
-  font-size: 1.13rem;
+  font-size: 1.33rem;
   font-weight: 700;
-  text-transform: uppercase;
   margin-bottom: 0.2rem;
 }
 .muted {

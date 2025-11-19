@@ -375,6 +375,7 @@ async function save() {
   margin: 0;
   font-weight: 600;
   font-size: 1rem;
+  text-transform: lowercase;
 }
 .channel-card-handle {
   margin: 0;
