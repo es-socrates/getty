@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@ardrive/turbo-sdk>elliptic': ^6.6.1
+  '@ardrive/turbo-sdk>ws': 7.5.10
+  '@ardrive/turbo-sdk>secp256k1': 5.0.1
   esbuild: ^0.25.9
   elliptic: ^6.6.1
   secp256k1: ^5.0.1
@@ -137,8 +140,8 @@ importers:
         specifier: ^8.46.4
         version: 8.46.4(eslint@9.39.1(jiti@1.21.7))(typescript@5.9.3)
       '@vitejs/plugin-vue':
-        specifier: ^5.1.0
-        version: 5.2.4(vite@5.4.21(@types/node@24.7.0)(terser@5.44.0))(vue@3.5.22(typescript@5.9.3))
+        specifier: ^6.0.2
+        version: 6.0.2(vite@7.2.2(@types/node@24.7.0)(jiti@1.21.7)(terser@5.44.0)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))
       '@vue/eslint-config-standard':
         specifier: ^9.0.1
         version: 9.0.1(@typescript-eslint/utils@8.44.0(eslint@9.39.1(jiti@1.21.7))(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint-plugin-vue@9.33.0(eslint@9.39.1(jiti@1.21.7)))(eslint@9.39.1(jiti@1.21.7))(typescript@5.9.3)
@@ -236,8 +239,8 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^5.4.21
-        version: 5.4.21(@types/node@24.7.0)(terser@5.44.0)
+        specifier: ^7.2.2
+        version: 7.2.2(@types/node@24.7.0)(jiti@1.21.7)(terser@5.44.0)(yaml@2.8.1)
       vue:
         specifier: ^3.5.22
         version: 3.5.22(typescript@5.9.3)
@@ -1825,6 +1828,9 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || ^19.0.0-rc.1
 
+  '@rolldown/pluginutils@1.0.0-beta.50':
+    resolution: {integrity: sha512-5e76wQiQVeL1ICOZVUg4LSOVYg9jyhGCin+icYozhsUzM+fHE7kddi1bdiE0jwVqTfkjba3jUFbEkoC9WkdvyA==}
+
   '@rollup/rollup-android-arm-eabi@4.52.5':
     resolution: {integrity: sha512-8c1vW4ocv3UOMp9K+gToY5zL2XiiVw3k7f1ksf4yO1FlDFQ1C2u72iACFnSOceJFsWskc2WZNqeRhFRPzv+wtQ==}
     cpu: [arm]
@@ -2365,11 +2371,11 @@ packages:
     peerDependencies:
       react: '>= 16'
 
-  '@vitejs/plugin-vue@5.2.4':
-    resolution: {integrity: sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA==}
-    engines: {node: ^18.0.0 || >=20.0.0}
+  '@vitejs/plugin-vue@6.0.2':
+    resolution: {integrity: sha512-iHmwV3QcVGGvSC1BG5bZ4z6iwa1SOpAPWmnjOErd4Ske+lZua5K9TtAVdx0gMBClJ28DViCbSmZitjWZsWO3LA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      vite: ^5.0.0 || ^6.0.0
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0
       vue: ^3.2.25
 
   '@volar/language-core@2.4.23':
@@ -6031,21 +6037,26 @@ packages:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
 
-  vite@5.4.21:
-    resolution: {integrity: sha512-o5a9xKjbtuhY6Bi5S3+HvbRERmouabWbyUcpXXUA1u+GNUKoROi9byOJ8M0nHbHYHkYICiMlqxkg1KkYmm25Sw==}
-    engines: {node: ^18.0.0 || >=20.0.0}
+  vite@7.2.2:
+    resolution: {integrity: sha512-BxAKBWmIbrDgrokdGZH1IgkIk/5mMHDreLDmCJ0qpyJaAteP8NvMhkwr/ZCQNqNH97bw/dANTE9PDzqwJghfMQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
-      '@types/node': ^18.0.0 || >=20.0.0
-      less: '*'
+      '@types/node': ^20.19.0 || >=22.12.0
+      jiti: '>=1.21.0'
+      less: ^4.0.0
       lightningcss: ^1.21.0
-      sass: '*'
-      sass-embedded: '*'
-      stylus: '*'
-      sugarss: '*'
-      terser: ^5.4.0
+      sass: ^1.70.0
+      sass-embedded: ^1.70.0
+      stylus: '>=0.54.8'
+      sugarss: ^5.0.0
+      terser: ^5.16.0
+      tsx: ^4.8.1
+      yaml: ^2.4.2
     peerDependenciesMeta:
       '@types/node':
+        optional: true
+      jiti:
         optional: true
       less:
         optional: true
@@ -6060,6 +6071,10 @@ packages:
       sugarss:
         optional: true
       terser:
+        optional: true
+      tsx:
+        optional: true
+      yaml:
         optional: true
 
   vscode-uri@3.1.0:
@@ -8638,6 +8653,8 @@ snapshots:
       '@react-types/shared': 3.32.1(react@19.1.1)
       react: 19.1.1
 
+  '@rolldown/pluginutils@1.0.0-beta.50': {}
+
   '@rollup/rollup-android-arm-eabi@4.52.5':
     optional: true
 
@@ -9161,9 +9178,10 @@ snapshots:
     dependencies:
       react: 19.1.1
 
-  '@vitejs/plugin-vue@5.2.4(vite@5.4.21(@types/node@24.7.0)(terser@5.44.0))(vue@3.5.22(typescript@5.9.3))':
+  '@vitejs/plugin-vue@6.0.2(vite@7.2.2(@types/node@24.7.0)(jiti@1.21.7)(terser@5.44.0)(yaml@2.8.1))(vue@3.5.22(typescript@5.9.3))':
     dependencies:
-      vite: 5.4.21(@types/node@24.7.0)(terser@5.44.0)
+      '@rolldown/pluginutils': 1.0.0-beta.50
+      vite: 7.2.2(@types/node@24.7.0)(jiti@1.21.7)(terser@5.44.0)(yaml@2.8.1)
       vue: 3.5.22(typescript@5.9.3)
 
   '@volar/language-core@2.4.23':
@@ -13604,15 +13622,20 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite@5.4.21(@types/node@24.7.0)(terser@5.44.0):
+  vite@7.2.2(@types/node@24.7.0)(jiti@1.21.7)(terser@5.44.0)(yaml@2.8.1):
     dependencies:
       esbuild: 0.25.12
+      fdir: 6.5.0(picomatch@4.0.3)
+      picomatch: 4.0.3
       postcss: 8.5.6
       rollup: 4.52.5
+      tinyglobby: 0.2.15
     optionalDependencies:
       '@types/node': 24.7.0
       fsevents: 2.3.3
+      jiti: 1.21.7
       terser: 5.44.0
+      yaml: 2.8.1
 
   vscode-uri@3.1.0: {}
 
