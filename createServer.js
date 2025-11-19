@@ -405,6 +405,7 @@ const registerSocialMediaRoutes = require('./routes/socialmedia');
 const registerLastTipRoutes = require('./routes/last-tip');
 const registerObsRoutes = require('./routes/obs');
 const registerLiveviewsRoutes = require('./routes/liveviews');
+const registerChannelAnalyticsRoutes = require('./routes/channel-analytics');
 const registerStreamHistoryRoutes = require('./routes/stream-history');
 const { registerUserProfileRoutes } = require('./routes/user-profile');
 const registerTipNotificationGifRoutes = require('./routes/tip-notification-gif');
@@ -2566,6 +2567,7 @@ registerGoalAudioRoutes(app, wss, strictLimiter, GOAL_AUDIO_UPLOADS_DIR);
 
 registerExternalNotificationsRoutes(app, externalNotifications, strictLimiter, { store });
 registerLiveviewsRoutes(app, strictLimiter, { store });
+registerChannelAnalyticsRoutes(app, strictLimiter, { store });
 registerAnnouncementRoutes(app, announcementModule, announcementLimiters);
 registerAchievementsRoutes(app, achievements, strictLimiter, { store });
 registerEventsSettingsRoutes(app, strictLimiter, { store });

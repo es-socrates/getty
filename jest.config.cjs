@@ -1,10 +1,20 @@
 module.exports = {
   testEnvironment: 'jsdom',
   transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': ['@swc/jest', { jsc: { target: 'es2022', parser: { syntax: 'ecmascript', dynamicImport: true } } }],
-    '^.+\\.vue$': ['@swc/jest', { jsc: { target: 'es2022', parser: { syntax: 'ecmascript', dynamicImport: true } } }]
+    '^.+\\.(js|jsx|ts|tsx)$': ['@swc/jest', {
+      jsc: {
+        target: 'es2022',
+        parser: { syntax: 'typescript', tsx: true, dynamicImport: true }
+      }
+    }],
+    '^.+\\.vue$': ['@swc/jest', {
+      jsc: {
+        target: 'es2022',
+        parser: { syntax: 'typescript', tsx: true, dynamicImport: true }
+      }
+    }]
   },
-  moduleFileExtensions: ['js','json','vue'],
+  moduleFileExtensions: ['js','ts','tsx','json','vue'],
   moduleDirectories: ['node_modules'],
   moduleNameMapper: {
     '^vue-i18n$': 'vue-i18n/dist/vue-i18n.cjs.js',

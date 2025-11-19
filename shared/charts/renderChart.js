@@ -161,11 +161,49 @@ function calcGridLayout(height) {
   return { lines: 4, padY: 10, bottomAxis: 24 };
 }
 
-function shouldAnimate(el, modeLabel) {
+function shouldAnimate(el, modeLabel, signature) {
   if (!el || prefersReducedMotion()) return false;
-  const last = el.dataset.lastAnimatedMode || '';
-  el.dataset.lastAnimatedMode = modeLabel;
-  return last !== modeLabel;
+  const lastMode = el.dataset.lastAnimatedMode || '';
+  const lastSignature = el.dataset.lastAnimatedSignature || '';
+  const modeChanged = lastMode !== modeLabel;
+  const signatureChanged =
+    typeof signature === 'string' ? signature !== lastSignature : false;
+  if (modeChanged || signatureChanged) {
+    el.dataset.lastAnimatedMode = modeLabel;
+    if (typeof signature === 'string') {
+      el.dataset.lastAnimatedSignature = signature;
+    } else if (el.dataset.lastAnimatedSignature && signature == null) {
+      delete el.dataset.lastAnimatedSignature;
+    }
+    return true;
+  }
+  return false;
+}
+
+function buildAnimationSignature(display, { chartMode, showViewersFlag, period, goalHours }) {
+  if (!Array.isArray(display) || display.length === 0) {
+    return `${chartMode || 'line'}|empty|${showViewersFlag ? 'v1' : 'v0'}|${period || ''}|${
+      Number(goalHours || 0).toFixed(2)
+    }`;
+  }
+  const len = display.length;
+  const first = display[0] || {};
+  const mid = display[Math.floor(len / 2)] || {};
+  const last = display[len - 1] || {};
+  const parts = [
+    chartMode || 'line',
+    showViewersFlag ? 'v1' : 'v0',
+    period || '',
+    len,
+    Number(goalHours || 0).toFixed(2),
+    Number(first.hours || 0).toFixed(2),
+    Number(first.avgViewers || 0).toFixed(2),
+    Number(mid.hours || 0).toFixed(2),
+    Number(mid.avgViewers || 0).toFixed(2),
+    Number(last.hours || 0).toFixed(2),
+    Number(last.avgViewers || 0).toFixed(2),
+  ];
+  return parts.join('|');
 }
 
 function primePathAnimation(path, delayMs = 0) {
@@ -378,6 +416,12 @@ function renderStreamHistoryChart(
     return copy;
   };
   const barDisplay = trimTrailingEmptyBuckets(display);
+  const animationSignature = buildAnimationSignature(display, {
+    chartMode,
+    showViewersFlag: showViewers,
+    period,
+    goalHours: goal,
+  });
 
   function parseBucketDateString(str) {
     if (typeof str !== 'string') return null;
@@ -510,15 +554,51 @@ function renderStreamHistoryChart(
   };
 
   if (chartMode === 'line') {
+    const svgNS = 'http://www.w3.org/2000/svg';
     const axisLeft = 44;
     const gridConfig = calcGridLayout(h);
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('width', String(w));
     svg.setAttribute('height', String(h));
     svg.style.display = 'block';
-    const animateLine = shouldAnimate(el, 'line');
+    const lineModeLabel = showHoursSeries ? 'line-hours' : 'line-viewers';
+    const animateLine = shouldAnimate(el, lineModeLabel, `${animationSignature}|${lineModeLabel}`);
+    const gradientPrefix = makeUid('chart-area');
+    const defs = document.createElementNS(svgNS, 'defs');
+    const createAreaGradient = (id, colorVar, topOpacity = 0.45, bottomOpacity = 0.05) => {
+      const gradient = document.createElementNS(svgNS, 'linearGradient');
+      gradient.setAttribute('id', id);
+      gradient.setAttribute('x1', '0');
+      gradient.setAttribute('y1', '0');
+      gradient.setAttribute('x2', '0');
+      gradient.setAttribute('y2', '1');
+      const stopTop = document.createElementNS(svgNS, 'stop');
+      stopTop.setAttribute('offset', '5%');
+      stopTop.setAttribute('stop-color', colorVar);
+      stopTop.setAttribute('stop-opacity', String(topOpacity));
+      const stopBottom = document.createElementNS(svgNS, 'stop');
+      stopBottom.setAttribute('offset', '95%');
+      stopBottom.setAttribute('stop-color', colorVar);
+      stopBottom.setAttribute('stop-opacity', String(bottomOpacity));
+      gradient.appendChild(stopTop);
+      gradient.appendChild(stopBottom);
+      return gradient;
+    };
+    let hoursGradientId = null;
+    let viewersGradientId = null;
+    if (showHoursSeries) {
+      hoursGradientId = `${gradientPrefix}-hours`;
+      defs.appendChild(createAreaGradient(hoursGradientId, 'var(--line-color,#2261ee)', 0.35, 0.08));
+    }
+    if (showViewers && maxViewers > 0) {
+      viewersGradientId = `${gradientPrefix}-viewers`;
+      defs.appendChild(createAreaGradient(viewersGradientId, 'var(--accent,#553fee)', 0.25, 0.04));
+    }
+    if (defs.childNodes.length) {
+      svg.appendChild(defs);
+    }
     const drawGrid = (withLabels = false) => {
-      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      const bg = document.createElementNS(svgNS, 'rect');
       bg.setAttribute('x', '0');
       bg.setAttribute('y', '0');
       bg.setAttribute('width', String(w));
@@ -532,7 +612,7 @@ function renderStreamHistoryChart(
       const gridValueMax = showHoursSeries ? maxHours : Math.max(1, maxViewers || 1);
       for (let i = 1; i <= lines; i++) {
         const y = Math.round(padY + ((h - bottomAxis - padY * 2) * i) / (lines + 1));
-        const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        const ln = document.createElementNS(svgNS, 'line');
         ln.setAttribute('x1', String(Math.max(0, axisLeft)));
         ln.setAttribute('y1', String(y));
         ln.setAttribute('x2', String(w));
@@ -551,7 +631,7 @@ function renderStreamHistoryChart(
         for (let i = 0; i <= ticks - 1; i++) {
           const y = Math.round(pad + ((h - bottom - pad * 2) * i) / (ticks - 1));
           const val = gridValueMax * (1 - i / (ticks - 1));
-          const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          const txt = document.createElementNS(svgNS, 'text');
           txt.setAttribute('x', '6');
           txt.setAttribute('y', String(Math.max(10, Math.min(h - bottom - 2, y + 3))));
           txt.setAttribute('fill', labelColor);
@@ -570,7 +650,7 @@ function renderStreamHistoryChart(
           for (let i = 0; i <= ticks - 1; i++) {
             const y = Math.round(pad + ((h - bottom - pad * 2) * i) / (ticks - 1));
             const v = maxViewers * (1 - i / (ticks - 1));
-            const txtR = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            const txtR = document.createElementNS(svgNS, 'text');
             txtR.setAttribute('x', String(w - 6));
             txtR.setAttribute('y', String(Math.max(10, Math.min(h - bottom - 2, y + 3))));
             txtR.setAttribute('fill', labelColor);
@@ -584,7 +664,7 @@ function renderStreamHistoryChart(
           const goalY = Math.round(
             h - bottomAxis - padY - (Math.max(0, goal) / maxHours) * (h - bottomAxis - padY * 2)
           );
-          const goalLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          const goalLine = document.createElementNS(svgNS, 'line');
           goalLine.setAttribute('x1', String(axisLeft));
           goalLine.setAttribute('y1', String(goalY));
           goalLine.setAttribute('x2', String(w));
@@ -612,21 +692,81 @@ function renderStreamHistoryChart(
         h - bottomAxis - padY - (Math.max(0, v) / maxViewers) * (h - bottomAxis - padY * 2)
       );
     };
-    let path = null;
-    if (showHoursSeries) {
-      let dPath = '';
-      display.forEach((p, idx) => {
-        const hoursValue = Number(p.hours || 0);
-        const x = Math.round(axisLeft + padX + idx * stepX);
-        const y = toYHours(hoursValue);
-        dPath += idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+    const points = display.map((bucket, idx) => {
+      const hoursValue = Number(bucket?.hours || 0);
+      const avgViewersValue = Number(bucket?.avgViewers || 0);
+      const x = Math.round(axisLeft + padX + idx * stepX);
+      return {
+        bucket,
+        idx,
+        x,
+        hoursValue,
+        avgViewersValue,
+        yHours: toYHours(hoursValue),
+        yViewers: toYViewers(avgViewersValue),
+      };
+    });
+
+    const baseHoursY = toYHours(0);
+    if (showHoursSeries && points.length > 0 && hoursGradientId) {
+      let areaD = `M ${points[0].x} ${baseHoursY}`;
+      points.forEach((pt) => {
+        areaD += ` L ${pt.x} ${pt.yHours}`;
       });
-      path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      areaD += ` L ${points[points.length - 1].x} ${baseHoursY} Z`;
+      const areaPath = document.createElementNS(svgNS, 'path');
+      areaPath.setAttribute('d', areaD);
+      areaPath.setAttribute('fill', `url(#${hoursGradientId})`);
+      areaPath.setAttribute('class', 'line-area hours');
+      if (animateLine) {
+        areaPath.style.opacity = '0';
+        areaPath.style.transition = 'opacity 420ms ease 40ms';
+        requestAnimationFrame(() => {
+          areaPath.style.opacity = '1';
+        });
+      } else {
+        areaPath.style.opacity = '1';
+      }
+      svg.appendChild(areaPath);
+    }
+
+    if (showViewers && maxViewers > 0 && points.length > 0 && viewersGradientId) {
+      const baseViewersY = toYViewers(0);
+      let viewersAreaD = `M ${points[0].x} ${baseViewersY}`;
+      points.forEach((pt) => {
+        viewersAreaD += ` L ${pt.x} ${pt.yViewers}`;
+      });
+      viewersAreaD += ` L ${points[points.length - 1].x} ${baseViewersY} Z`;
+      const viewersArea = document.createElementNS(svgNS, 'path');
+      viewersArea.setAttribute('d', viewersAreaD);
+      viewersArea.setAttribute('fill', `url(#${viewersGradientId})`);
+      viewersArea.setAttribute('class', 'line-area viewers');
+      viewersArea.style.mixBlendMode = 'multiply';
+      if (animateLine || viewersStateChanged) {
+        viewersArea.style.opacity = '0';
+        viewersArea.style.transition = 'opacity 420ms ease 80ms';
+        requestAnimationFrame(() => {
+          viewersArea.style.opacity = '0.95';
+        });
+      } else {
+        viewersArea.style.opacity = '0.95';
+      }
+      svg.appendChild(viewersArea);
+    }
+
+    let path = null;
+    if (showHoursSeries && points.length > 0) {
+      let dPath = '';
+      points.forEach((pt, idx) => {
+        dPath += idx === 0 ? `M ${pt.x} ${pt.yHours}` : ` L ${pt.x} ${pt.yHours}`;
+      });
+      path = document.createElementNS(svgNS, 'path');
       path.setAttribute('d', dPath);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', 'var(--line-color, #2261ee)');
-      path.setAttribute('stroke-width', '3');
+      path.setAttribute('stroke', 'var(--line-color,#2261ee)');
+      path.setAttribute('stroke-width', '2.5');
       path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
       path.setAttribute('class', 'line-path');
       if (animateLine) {
         primePathAnimation(path, 40);
@@ -639,19 +779,18 @@ function renderStreamHistoryChart(
 
     let pathV = null;
     const animateViewerLine = showViewers && maxViewers > 0 && (animateLine || viewersStateChanged);
-    if (showViewers && maxViewers > 0) {
+    if (showViewers && maxViewers > 0 && points.length > 0) {
       let dPathV = '';
-      display.forEach((p, idx) => {
-        const x = Math.round(axisLeft + padX + idx * stepX);
-        const y = toYViewers(Number(p.avgViewers || 0));
-        dPathV += idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+      points.forEach((pt, idx) => {
+        dPathV += idx === 0 ? `M ${pt.x} ${pt.yViewers}` : ` L ${pt.x} ${pt.yViewers}`;
       });
-      pathV = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pathV = document.createElementNS(svgNS, 'path');
       pathV.setAttribute('d', dPathV);
       pathV.setAttribute('fill', 'none');
       pathV.setAttribute('stroke', 'var(--accent,#553fee)');
-      pathV.setAttribute('stroke-width', '3');
+      pathV.setAttribute('stroke-width', '2.5');
       pathV.setAttribute('stroke-linecap', 'round');
+      pathV.setAttribute('stroke-linejoin', 'round');
       pathV.setAttribute('class', 'line-path viewers');
       if (animateViewerLine) {
         primePathAnimation(pathV, 100);
@@ -662,16 +801,13 @@ function renderStreamHistoryChart(
       svg.appendChild(pathV);
     }
 
-    display.forEach((p, idx) => {
-      const hoursValue = Number(p.hours || 0);
-      const avgViewersValue = Number(p.avgViewers || 0);
-      const x = Math.round(axisLeft + padX + idx * stepX);
-      const yHours = toYHours(hoursValue);
+    points.forEach((pt) => {
+      const { bucket: p, hoursValue, avgViewersValue, x, yHours, yViewers, idx } = pt;
       if (showHoursSeries) {
-        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        const c = document.createElementNS(svgNS, 'circle');
         c.setAttribute('cx', String(x));
         c.setAttribute('cy', String(yHours));
-        c.setAttribute('r', '3');
+        c.setAttribute('r', '2.6');
         const meetsGoal = goal > 0 && hoursValue >= goal;
         const hourFill =
           hoursValue > 0
@@ -680,7 +816,7 @@ function renderStreamHistoryChart(
                 ? 'var(--chart-goal-met,#ee2264)'
                 : 'var(--line-color,#2261ee)'
               : 'var(--line-color,#2261ee)'
-            : 'rgba(128,128,128,.65)';
+            : 'rgba(148,163,184,.65)';
         c.setAttribute('fill', hourFill);
         c.classList.add('line-point');
         if (animateLine) {
@@ -714,11 +850,10 @@ function renderStreamHistoryChart(
       updatePeak({ hours: hoursValue, avgViewers: avgViewersValue, x, y: yHours });
 
       if (showViewers && maxViewers > 0) {
-        const yv = toYViewers(avgViewersValue);
-        const cv = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        const cv = document.createElementNS(svgNS, 'circle');
         cv.setAttribute('cx', String(x));
-        cv.setAttribute('cy', String(yv));
-        cv.setAttribute('r', '3');
+        cv.setAttribute('cy', String(yViewers));
+        cv.setAttribute('r', '2.6');
         cv.setAttribute('fill', 'var(--accent,#553fee)');
         cv.classList.add('line-point-viewers');
         if (animateViewerLine) {
@@ -757,7 +892,7 @@ function renderStreamHistoryChart(
       '#94a3b8';
     for (let i = 0; i < display.length; i += stride) {
       const x = Math.round(axisLeft + padX + i * stepX);
-      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const txt = document.createElementNS(svgNS, 'text');
       txt.setAttribute('x', String(x));
       txt.setAttribute('y', String(h - Math.max(6, Math.round(bottomAxis / 3))));
       txt.setAttribute('fill', labelColor);
@@ -778,7 +913,8 @@ function renderStreamHistoryChart(
     8,
     Math.floor((w - axisLeft - gap * Math.max(0, seriesLength - 1)) / seriesLength)
   );
-  const animateBars = shouldAnimate(el, chartMode === 'candle' ? 'candle' : 'bar');
+  const barModeLabel = chartMode === 'candle' ? 'candle' : 'bar';
+  const animateBars = shouldAnimate(el, barModeLabel, `${animationSignature}|${barModeLabel}`);
   const gridConfig = calcGridLayout(h);
   const gridSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   gridSvg.setAttribute('width', String(w));

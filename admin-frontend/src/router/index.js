@@ -16,6 +16,7 @@ export const routes = [
   { path: '/admin/achievements', name: 'achievements', component: () => import('../views/AchievementsView.vue') },
   { path: '/admin/tip-goal', name: 'tip-goal', component: () => import('../views/TipGoalView.vue') },
   { path: '/admin/last-tip', name: 'last-tip', component: () => import('../views/LastTipView.vue') },
+  { path: '/admin/status/channel', name: 'channel-analytics', component: () => import('../views/ChannelAnalyticsView.vue') },
 ];
 
 const router = createRouter({
