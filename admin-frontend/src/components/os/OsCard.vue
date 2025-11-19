@@ -23,7 +23,7 @@ defineProps({ title: { type: String, default: '' }, padding: { type: Boolean, de
   gap: var(--os-card-gap, 12px);
 }
 .os-card--padded {
-  padding: var(--os-card-padding, 16px);
+  padding: var(--os-card-padding, 12px);
 }
 .os-card--bare {
   padding: 0;

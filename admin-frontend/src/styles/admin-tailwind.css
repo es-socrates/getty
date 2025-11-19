@@ -450,6 +450,12 @@
   .sidebar-nav .sidebar-link.active .icon {
     @apply opacity-100;
   }
+  .sidebar-nav .sidebar-link.active .icon {
+    color: #de0048;
+  }
+  html.dark .sidebar-nav .sidebar-link.active .icon {
+    color: #28f172;
+  }
 
   .field-error .input,
   .field-error .select,

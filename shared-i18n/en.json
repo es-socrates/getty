@@ -941,7 +941,7 @@
   "eventsModule": "Events",
   "chartTooltipHoursStreamed": "Hours streamed:",
   "chartTooltipAverageViewers": "Average viewers:",
-  "chartTooltipRange": "{{start}} – {{end}}",
+  "chartTooltipRange": "{start} – {end}",
   "chartTooltipParticipants": "Average participants:",
   "chartTooltipPeakParticipants": "Peak participants:",
   "marqueeTitle": "Streamers and creators on Odysee",

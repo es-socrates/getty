@@ -1,5 +1,7 @@
 const js = require('@eslint/js');
 const vue = require('eslint-plugin-vue');
+const vueParser = require('vue-eslint-parser');
+const tsParser = require('@typescript-eslint/parser');
 
 module.exports = [
   js.configs.recommended,
@@ -93,7 +95,17 @@ module.exports = [
   },
   {
     files: ['admin-frontend/src/**/*.{js,vue}', 'public/js/**/*.js', '!public/js/lib/token-compat.js'],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'module' },
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      parser: vueParser,
+      parserOptions: {
+        parser: tsParser,
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        extraFileExtensions: ['.vue']
+      }
+    },
     rules: {
       'vue/multi-word-component-names': 'off',
       'vue/max-attributes-per-line': 'off',

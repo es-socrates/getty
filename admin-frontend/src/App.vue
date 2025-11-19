@@ -34,7 +34,6 @@
       </div>
       <div class="flex items-center gap-3 relative">
         <WalletLoginButton />
-
         <a
           href="/index.html"
           target="_blank"
@@ -166,23 +165,59 @@
         <div class="sidebar-section">
           <h3 class="sidebar-title">Widgets</h3>
           <nav class="sidebar-nav">
-            <RouterLink class="sidebar-link os-nav-link" active-class="active" to="/admin/status">
-              <span class="icon os-icon" aria-hidden="true">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                </svg>
-              </span>
-              <span>{{ t('statusTitle') }}</span>
-            </RouterLink>
+            <div class="sidebar-collapsible">
+              <button
+                type="button"
+                class="sidebar-link os-nav-link sidebar-collapsible-trigger"
+                :class="{ active: analyticsActive, open: analyticsMenuOpen }"
+                :aria-label="sidebarCollapsed ? t('statusTitle') : undefined"
+                @click="toggleAnalyticsMenu">
+                <span class="icon os-icon" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                </span>
+                <span class="sidebar-link-label">{{ t('statusTitle') }}</span>
+                <span class="sidebar-caret" aria-hidden="true">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </span>
+              </button>
+              <div class="sidebar-submenu" v-show="analyticsMenuOpen">
+                <RouterLink
+                  class="sidebar-sublink os-nav-link"
+                  active-class="active"
+                  :aria-label="sidebarCollapsed ? t('statusOverviewNav') : undefined"
+                  to="/admin/status">
+                  <i class="pi pi-chart-line sidebar-sublink-icon" aria-hidden="true"></i>
+                  <span class="sublink-label">{{ t('statusOverviewNav') }}</span>
+                </RouterLink>
+                <RouterLink
+                  class="sidebar-sublink os-nav-link"
+                  active-class="active"
+                  :aria-label="sidebarCollapsed ? t('channelAnalyticsNav') : undefined"
+                  to="/admin/status/channel">
+                  <i class="pi pi-chart-bar sidebar-sublink-icon" aria-hidden="true"></i>
+                  <span class="sublink-label">{{ t('channelAnalyticsNav') }}</span>
+                </RouterLink>
+              </div>
+            </div>
 
             <RouterLink
               class="sidebar-link os-nav-link"
@@ -599,8 +634,10 @@ const isDark = ref(false);
 const menuOpen = ref(false);
 const sidebarCollapsed = ref(false);
 const mobileSidebarOpen = ref(false);
+const analyticsMenuOpen = ref(false);
 
 const currentLocaleLabel = computed(() => (locale.value === 'es' ? 'ES' : 'EN'));
+const analyticsActive = computed(() => route.path.startsWith('/admin/status'));
 
 const wanderSession = useWanderSession();
 
@@ -615,7 +652,17 @@ watch(
   { immediate: true }
 );
 
-watch(route, () => {});
+watch(
+  () => route.path,
+  (path) => {
+    if (path.startsWith('/admin/status')) {
+      analyticsMenuOpen.value = true;
+    } else {
+      analyticsMenuOpen.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 function resolveThemePreference() {
   let stored = null;
@@ -697,6 +744,13 @@ function toggleTheme() {
 
 function toggleMenu() {
   menuOpen.value = !menuOpen.value;
+}
+function toggleAnalyticsMenu() {
+  const next = !analyticsMenuOpen.value;
+  analyticsMenuOpen.value = next;
+  if (next && !route.path.startsWith('/admin/status')) {
+    router.push('/admin/status');
+  }
 }
 function handleClickOutside(e) {
   if (!menuOpen.value) return;
@@ -900,6 +954,64 @@ router.afterEach(() => {
 .sidebar-link.active {
   background: var(--sidebar-link-active-bg);
   color: var(--text-primary);
+}
+.sidebar-collapsible {
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-collapsible-trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+.sidebar-collapsible-trigger .sidebar-caret {
+  margin-left: auto;
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+.sidebar-collapsible-trigger .sidebar-caret svg {
+  width: 16px;
+  height: 16px;
+}
+.sidebar-link.open .sidebar-caret {
+  transform: rotate(90deg);
+}
+.sidebar-submenu {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+  padding-left: 28px;
+  gap: 2px;
+}
+.sidebar-sublink {
+  font-size: 13px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 0.5rem;
+  color: var(--sidebar-link-color);
+}
+.sidebar-sublink-icon {
+  font-size: 14px;
+  opacity: 0.8;
+}
+.sidebar-collapsed .sidebar-submenu {
+  padding-left: 8px;
+}
+.sidebar-collapsed .sidebar-sublink {
+  justify-content: center;
+}
+.sidebar-collapsed .sidebar-sublink .sublink-label {
+  display: none;
+}
+.sidebar-collapsed .sidebar-collapsible-trigger {
+  justify-content: center;
+}
+.sidebar-collapsed .sidebar-link-label {
+  display: none;
+}
+.sidebar-collapsed .sidebar-collapsible-trigger .sidebar-caret {
+  display: none;
 }
 .sidebar-link .icon {
   width: 18px;
