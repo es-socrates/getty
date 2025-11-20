@@ -9,7 +9,7 @@
   border-radius: 10px;
   padding: 8px;
   background: var(--bg-chat);
-  --chart-goal-met: #ee2264;
+  --chart-goal-met: #ff184c;
   --chart-goal-base: rgba(148, 163, 184, 0.45);
 }
 .chart-canvas.reflowing .line-path {
@@ -58,7 +58,7 @@
 .peak-session-value {
   font-weight: 600;
   font-size: 0.78rem;
-  color: var(--chart-goal-met, #ee2264);
+  color: #f74843;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -72,7 +72,7 @@
     color: var(--text-primary, #e5e7eb);
   }
   .peak-session-value {
-    color: var(--chart-goal-met, #ee2264);
+    color: #ffffff;
   }
 }
 .chart-overlay {
@@ -619,14 +619,14 @@ select.quick-select::-ms-expand {
   background: currentColor;
 }
 :global(.sparkline-badge--peak) {
-  color: var(--sparkline-peak-color, #dc2626);
-  background: rgba(220, 38, 38, 0.08);
-  border-color: rgba(220, 38, 38, 0.18);
+  color: #f74843;
+  background: rgba(247, 72, 67, 0.08);
+  border-color: rgba(247, 72, 67, 0.18);
 }
 :global(.sparkline-badge--avg) {
-  color: var(--sparkline-avg-line, #1d4ed8);
-  background: rgba(29, 78, 216, 0.08);
-  border-color: rgba(29, 78, 216, 0.18);
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.08);
+  border-color: rgba(34, 211, 238, 0.18);
 }
 :global(.sparkline-badge--trend) {
   color: var(--text-secondary, #475569);
@@ -650,12 +650,13 @@ select.quick-select::-ms-expand {
   border-color: rgba(148, 163, 184, 0.2);
 }
 :global(.dark .sparkline-badge--peak) {
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(247, 72, 67, 0.12);
+  border-color: rgba(247, 72, 67, 0.3);
+  color: #ffffff;
 }
 :global(.dark .sparkline-badge--avg) {
-  background: rgba(96, 165, 250, 0.12);
-  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(34, 211, 238, 0.12);
+  border-color: rgba(34, 211, 238, 0.3);
 }
 :global(.dark .sparkline-badge--trend-up) {
   background: rgba(52, 211, 153, 0.12);

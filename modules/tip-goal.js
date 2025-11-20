@@ -67,7 +67,7 @@ class TipGoalModule {
     this.bgColor = '#080c10';
     this.fontColor = '#ffffff';
     this.borderColor = '#00ff7f';
-    this.progressColor = '#00ff7f';
+    this.progressColor = 'linear-gradient(90deg, #7058a4, #c83fee)';
     this.theme = 'classic';
     this.title = 'Monthly tip goal 🎖️';
     this._loadedMeta = null;
@@ -255,7 +255,7 @@ class TipGoalModule {
       bgColor: '#080c10',
       fontColor: '#ffffff',
       borderColor: '#00ff7f',
-      progressColor: '#00ff7f',
+      progressColor: 'linear-gradient(90deg, #7058a4, #c83fee)',
       audioSource: 'remote',
       title: 'Monthly tip goal 🎖️',
     };

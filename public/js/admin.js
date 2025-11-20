@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const defaultThemes = [
     {
       name: 'getty',
-      css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
+      css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
             .message { background: #0a0e12 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; color: #fff !important; }
             .message.odd { background: #0a0e12 !important; }
             .message-username.cyberpunk { color: #fff; font-weight: 600; }
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     {
       name: 'X',
-      css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --border: #3b5aff; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
+      css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
             .message { background: #f7f7f7 !important; border-radius: 6px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; border-left: 6px solid #3b5aff !important; color: #111 !important; }
             .message.odd { background: #f7f7f7 !important; }
             .message-username.cyberpunk { color: #111; font-weight: 600; }
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     {
       name: 'Twitch',
-      css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --border: #9147ff; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
+      css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
             .message { background: #111 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
             .message.odd { background: #111 !important; }
             .message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; }
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     {
       name: 'Claro',
-      css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --border: #d0d7de; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
+      css: `:root { --bg-main: #ffffff; --bg-message: #f1f5f9; --bg-message-alt: #f1f5f9; --text: #111; --username: #0969da; --donation: #ffb44e; --donation-bg: #fff4e5; }
             .message { background: #f1f5f9 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border: 1px solid #d0d7de; border-left: 6px solid #d0d7de; box-shadow: 0 2px 4px rgba(0,0,0,0.04); color: #111 !important; }
             .message.odd { background: #f1f5f9 !important; font-size: 14px; }
             .message-username.cyberpunk { color: #0969da; font-weight: 600; font-size: 14px; }
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
     },
     {
       name: 'Oscuro',
-      css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --border: #313131; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #2dcc89; }
+      css: `:root { --bg-main: #080c10; --bg-message: #0d1114; --bg-message-alt: #0d1114; --text: #fff; --username: #fff; --donation: #f7f7f7; --donation-bg: #2dcc89; }
             .message { background: #0d1114 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #313131 !important; color: #fff !important; }
             .message.odd { background: #0d1114 !important; font-size: 14px; }
             .message-username.cyberpunk { color: #fff; font-weight: 600; font-size: 14px; }

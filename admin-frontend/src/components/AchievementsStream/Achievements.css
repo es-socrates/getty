@@ -373,8 +373,8 @@ html.dark .ach-toast.info {
   font-size: 12px;
 }
 .ach-cta .pct.pct-progress {
-  border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
-  background: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--switch-color) 65%, transparent);
+  background: var(--switch-color);
   color: #fff;
 }
 .ach-cta .pct.pct-zero {
@@ -393,7 +393,7 @@ html.dark .ach-toast.info {
 .ach-bar > span {
   display: block;
   height: 100%;
-  background: var(--accent);
+  background: var(--switch-color);
   transition: width 0.35s ease;
 }
 
@@ -1062,8 +1062,8 @@ html.dark .ach-toast.info {
   gap: 24px;
 }
 .ach-group-box {
-  background: var(--card);
-  border: 1px solid var(--border, var(--border-color));
+  background: var(--bg-card);
+  border: 1px solid var(--card-border, var(--border-color));
   border-radius: 16px;
   padding: 18px 20px 22px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
@@ -1147,7 +1147,7 @@ html.dark .ach-toast.info {
   gap: 10px;
 }
 .ach-preview {
-  background: color-mix(in srgb, var(--accent, #553fee) 9%, transparent);
+  background: color-mix(in srgb, var(--switch-color, #553fee) 9%, transparent);
   border: 1px solid var(--border, var(--border-color));
   border-radius: 12px;
   padding: 14px 16px;
@@ -1158,7 +1158,7 @@ html.dark .ach-toast.info {
 .ach-preview-title {
   font-weight: 600;
   font-size: 13px;
-  color: var(--accent, #553fee);
+  color: var(--switch-color, #553fee);
 }
 .ach-preview-item {
   display: flex;
@@ -1241,7 +1241,7 @@ html.dark .ach-toast.info {
   width: 34px;
   height: 34px;
   border-radius: 12px;
-  background: var(--accent, #553fee);
+  background: var(--switch-color, #553fee);
   display: flex;
   align-items: center;
   justify-content: center;

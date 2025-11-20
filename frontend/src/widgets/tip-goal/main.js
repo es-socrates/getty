@@ -403,7 +403,7 @@ if (!window.__tip_goal_widget_started) {
       const modernVars = {
         bg: data.bgColor || (prefersDark ? '#0f0f12' : '#ffffff'),
         text: data.fontColor || (prefersDark ? '#ffffff' : '#0a0a0a'),
-        accent: data.progressColor || (prefersDark ? '#00ff7f' : '#111827'),
+        accent: data.progressColor || (prefersDark ? 'linear-gradient(90deg, #7058a4, #c83fee)' : '#111827'),
         progressBg: prefersDark ? 'rgba(35,38,47,0.31)' : '#e5e7eb'
       };
       applyObsColors(data);

@@ -3,12 +3,14 @@
     <div v-if="!hasData && !loading" class="chart-empty">
       {{ t('userProfileChartEmpty') }}
     </div>
-    <div v-else ref="chartEl" class="chart-surface" :class="{ 'chart-loading': loading }"></div>
+    <SkeletonLoader v-else-if="loading" class="chart-surface" />
+    <div v-else ref="chartEl" class="chart-surface"></div>
   </div>
 </template>
 <script setup>
 import { ref, watch, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import SkeletonLoader from '../SkeletonLoader.vue';
 import { renderStreamHistoryChart } from '../StreamHistoryPanel/utils/renderChart.js';
 
 const props = defineProps({
@@ -145,23 +147,9 @@ onBeforeUnmount(() => {
   height: 300px;
   background: var(--chart-bg, #fefefe);
   border-radius: 12px;
-  border: 1px solid var(--card-border);
   padding: 12px;
   box-sizing: border-box;
-}
-.chart-loading::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 12px;
-  background: linear-gradient(
-    90deg,
-    rgba(148, 163, 184, 0.08) 0%,
-    rgba(148, 163, 184, 0.18) 50%,
-    rgba(148, 163, 184, 0.08) 100%
-  );
-  animation: shimmer 1.4s infinite;
-  pointer-events: none;
+  overflow: hidden;
 }
 .chart-empty {
   display: flex;
@@ -172,16 +160,5 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   color: var(--text-secondary);
   font-size: 0.95rem;
-}
-@keyframes shimmer {
-  0% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0.4;
-  }
 }
 </style>

@@ -125,9 +125,8 @@ const {
 } = state;
 </script>
 <style scoped>
-.chat-theme-selector :focus-visible {
-  outline: 2px solid var(--primary, #2563eb);
-  outline-offset: 2px;
+.chat-theme-selector select:focus-visible {
+  outline: none;
 }
 .dark .chat-theme-selector span[class*='text-[11px]'] {
   color: #ffffff !important;

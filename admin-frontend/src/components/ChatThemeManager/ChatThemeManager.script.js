@@ -20,7 +20,7 @@ export function createChatThemeManager(t) {
   const defaultThemes = [
     {
       name: 'getty',
-      css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --border: #161b22; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
+      css: `:root { --bg-main: #080c10; --bg-message: #0a0e12; --bg-message-alt: #0a0e12; --text: #e6edf3; --username: #fff; --donation: #ddb826; --donation-bg: #ececec; }
 	.message { background: #0a0e12 !important; border-radius: 4px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; color: #fff !important; }
 	.message.odd { background: #0a0e12 !important; }
 	.message-username.cyberpunk { color: #fff; font-weight: 600; }
@@ -32,7 +32,7 @@ export function createChatThemeManager(t) {
     },
     {
       name: 'X',
-      css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --border: #3b5aff; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
+      css: `:root { --bg-main: #f7f7f7; --bg-message: #f7f7f7; --bg-message-alt: #f7f7f7; --text: #111; --username: #111; --donation: #f7f7f7; --donation-bg: #3b5aff; }
 	.message { background: #f7f7f7 !important; border-radius: 6px; padding: 12px; margin-bottom: 6px; box-sizing: border-box; border-left: 6px solid #3b5aff !important; color: #111 !important; }
 	.message.odd { background: #f7f7f7 !important; }
 	.message-username.cyberpunk { color: #111; font-weight: 600; }
@@ -44,7 +44,7 @@ export function createChatThemeManager(t) {
     },
     {
       name: 'Twitch',
-      css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --border: #9147ff; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
+      css: `:root { --bg-main: #18181b; --bg-message: #111; --bg-message-alt: #111; --text: #fff; --username: #a970ff; --donation: #f7f7f7; --donation-bg: #9147ff; }
 	.message { background: #111 !important; border-radius: 8px; padding: 10px 16px; margin-bottom: 6px; border-left: 6px solid #9147ff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); color: #fff !important; }
 	.message.odd { background: #111 !important; }
 	.message-username.cyberpunk { color: #a970ff; text-shadow: 0 0 4px #9147ff; }

@@ -634,7 +634,7 @@ function registerTipGoalRoutes(
           bgColor: bgColor || prevCfg.bgColor || '#080c10',
           fontColor: fontColor || prevCfg.fontColor || '#ffffff',
           borderColor: borderColor || prevCfg.borderColor || '#00ff7f',
-          progressColor: progressColor || prevCfg.progressColor || '#00ff7f',
+          progressColor: progressColor || prevCfg.progressColor || 'linear-gradient(90deg, #7058a4, #c83fee)',
           audioSource,
           hasCustomAudio: !!hasCustomAudio,
           audioFileName,

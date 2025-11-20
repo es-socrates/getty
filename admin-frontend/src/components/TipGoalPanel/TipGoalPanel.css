@@ -12,8 +12,8 @@
   }
 }
 .tip-goal-box {
-  background: var(--card, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--border, var(--border-color));
+  background: var(--bg-card);
+  border: 1px solid var(--card-border, var(--border-color));
   border-radius: 16px;
   padding: 20px 20px 22px;
   display: flex;
@@ -140,15 +140,15 @@
   color: var(--tg-progress, #00ff7f);
 }
 .tip-preview-card .tp-progress-track {
-  height: 10px;
+  height: 14px;
   width: 100%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tg-border, #00ff7f) 16%, transparent);
+  background: color-mix(in srgb, #757575 16%, transparent);
   overflow: hidden;
 }
 .tip-preview-card .tp-progress-fill {
   height: 100%;
-  background: var(--tg-progress, #00ff7f);
+  background: var(--tg-progress, #7058a4);
   border-radius: inherit;
   transition: width 0.3s ease;
 }

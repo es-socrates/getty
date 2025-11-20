@@ -158,7 +158,7 @@ function calcGridLayout(height) {
   if (safeHeight < 200) {
     return { lines: 3, padY: 8, bottomAxis: 20 };
   }
-  return { lines: 4, padY: 10, bottomAxis: 24 };
+  return { lines: 4, padY: 12, bottomAxis: 24 };
 }
 
 function shouldAnimate(el, modeLabel, signature) {
@@ -272,8 +272,8 @@ function renderStreamHistoryChart(
 
   const fallbackW = Number(el.dataset.testWidth || 600);
   const fallbackH = Number(el.dataset.testHeight || 260);
-  const w = el.clientWidth ? el.clientWidth - 20 : fallbackW - 20;
-  const h = el.clientHeight ? el.clientHeight - 16 : fallbackH - 16;
+  const w = Math.max(0, (el.clientWidth ? el.clientWidth - 20 : fallbackW - 20));
+  const h = Math.max(0, (el.clientHeight ? el.clientHeight - 16 : fallbackH - 16));
   const goal = Number.isFinite(Number(goalHours)) ? Math.max(0, Number(goalHours)) : 0;
   let peakCandidate = null;
   const updatePeak = (candidate) => {
@@ -288,7 +288,7 @@ function renderStreamHistoryChart(
     pointerEvents: 'none',
     padding: '4px 6px',
     fontSize: '12px',
-    borderRadius: '2px',
+    borderRadius: '6px',
     border: '1px solid var(--card-border)',
     background: 'var(--card-bg, #111827)',
     display: 'none',
@@ -588,7 +588,7 @@ function renderStreamHistoryChart(
     let viewersGradientId = null;
     if (showHoursSeries) {
       hoursGradientId = `${gradientPrefix}-hours`;
-      defs.appendChild(createAreaGradient(hoursGradientId, 'var(--line-color,#2261ee)', 0.35, 0.08));
+      defs.appendChild(createAreaGradient(hoursGradientId, '#8757f6', 0.35, 0.08));
     }
     if (showViewers && maxViewers > 0) {
       viewersGradientId = `${gradientPrefix}-viewers`;
@@ -669,7 +669,7 @@ function renderStreamHistoryChart(
           goalLine.setAttribute('y1', String(goalY));
           goalLine.setAttribute('x2', String(w));
           goalLine.setAttribute('y2', String(goalY));
-          goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ee2264)');
+          goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ff184c)');
           goalLine.setAttribute('stroke-width', '2');
           goalLine.setAttribute('stroke-dasharray', '6 4');
           goalLine.setAttribute('stroke-linecap', 'round');
@@ -763,7 +763,7 @@ function renderStreamHistoryChart(
       path = document.createElementNS(svgNS, 'path');
       path.setAttribute('d', dPath);
       path.setAttribute('fill', 'none');
-      path.setAttribute('stroke', 'var(--line-color,#2261ee)');
+      path.setAttribute('stroke', '#8757f6');
       path.setAttribute('stroke-width', '2.5');
       path.setAttribute('stroke-linecap', 'round');
       path.setAttribute('stroke-linejoin', 'round');
@@ -787,7 +787,7 @@ function renderStreamHistoryChart(
       pathV = document.createElementNS(svgNS, 'path');
       pathV.setAttribute('d', dPathV);
       pathV.setAttribute('fill', 'none');
-      pathV.setAttribute('stroke', 'var(--accent,#553fee)');
+      pathV.setAttribute('stroke', 'var(--accent,#22d3ee)');
       pathV.setAttribute('stroke-width', '2.5');
       pathV.setAttribute('stroke-linecap', 'round');
       pathV.setAttribute('stroke-linejoin', 'round');
@@ -813,9 +813,9 @@ function renderStreamHistoryChart(
           hoursValue > 0
             ? goal > 0
               ? meetsGoal
-                ? 'var(--chart-goal-met,#ee2264)'
-                : 'var(--line-color,#2261ee)'
-              : 'var(--line-color,#2261ee)'
+                ? 'var(--chart-goal-met,#ff184c)'
+                : '#8757f6'
+              : '#8757f6'
             : 'rgba(148,163,184,.65)';
         c.setAttribute('fill', hourFill);
         c.classList.add('line-point');
@@ -854,7 +854,7 @@ function renderStreamHistoryChart(
         cv.setAttribute('cx', String(x));
         cv.setAttribute('cy', String(yViewers));
         cv.setAttribute('r', '2.6');
-        cv.setAttribute('fill', 'var(--accent,#553fee)');
+        cv.setAttribute('fill', 'var(--accent,#22d3ee)');
         cv.classList.add('line-point-viewers');
         if (animateViewerLine) {
           cv.style.opacity = '0';
@@ -905,7 +905,7 @@ function renderStreamHistoryChart(
     return { peak: peakCandidate };
   }
 
-  const axisLeft = 44;
+  const axisLeft = 60;
   const gap = 4;
   const series = barDisplay;
   const seriesLength = Math.max(1, series.length);
@@ -923,6 +923,7 @@ function renderStreamHistoryChart(
   gridSvg.style.left = '0';
   gridSvg.style.top = '0';
   gridSvg.style.pointerEvents = 'none';
+  gridSvg.style.borderRadius = '12px';
   const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   bg.setAttribute('x', '0');
   bg.setAttribute('y', '0');
@@ -977,7 +978,7 @@ function renderStreamHistoryChart(
         goalLine.setAttribute('y1', String(goalY));
         goalLine.setAttribute('x2', String(w));
         goalLine.setAttribute('y2', String(goalY));
-        goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ee2264)');
+        goalLine.setAttribute('stroke', 'var(--chart-goal-met,#ff184c)');
         goalLine.setAttribute('stroke-width', '2');
         goalLine.setAttribute('stroke-dasharray', '6 4');
         goalLine.setAttribute('stroke-linecap', 'round');
@@ -1007,7 +1008,9 @@ function renderStreamHistoryChart(
     display: 'flex',
     alignItems: 'flex-end',
     gap: gap + 'px',
-    position: 'relative',
+    position: 'absolute',
+    left: '0',
+    top: '0',
     zIndex: '1',
     marginLeft: axisLeft + 'px',
   });
@@ -1047,12 +1050,12 @@ function renderStreamHistoryChart(
     }
     const meetsGoal = goal > 0 && v >= goal;
     const positiveColor = meetsGoal
-      ? 'var(--chart-goal-met,#ee2264)'
-      : 'var(--bar-positive,#2261ee)';
+      ? 'var(--chart-goal-met,#ff184c)'
+      : '#8757f6';
     const neutralColor =
       goal > 0 ? 'var(--chart-goal-base,rgba(148,163,184,0.45))' : 'rgba(128,128,128,.35)';
     bar.style.background = v > 0 ? positiveColor : neutralColor;
-    bar.style.borderRadius = '2px';
+    bar.style.borderRadius = '6px';
     bar.className = 'bar';
     if (!animateBars) {
       bar.style.opacity = '1';
@@ -1069,7 +1072,7 @@ function renderStreamHistoryChart(
       fill.style.height = '100%';
       fill.style.background = v > 0 ? positiveColor : 'rgba(128,128,128,.55)';
       fill.style.width = '100%';
-      fill.style.borderRadius = '2px';
+      fill.style.borderRadius = '6px';
       wrap.appendChild(fill);
 
       if (showViewers && maxViewers > 0) {
@@ -1080,9 +1083,9 @@ function renderStreamHistoryChart(
         viewersLine.style.right = '0';
         viewersLine.style.bottom = '0';
         viewersLine.style.height = Math.max(2, Math.min(vh, available)) + 'px';
-        viewersLine.style.background = 'var(--accent,#553fee)';
+        viewersLine.style.background = 'var(--accent,#22d3ee)';
         viewersLine.style.opacity = '0.75';
-        viewersLine.style.borderRadius = '2px';
+        viewersLine.style.borderRadius = '6px';
         wrap.appendChild(viewersLine);
       }
       bar.appendChild(wrap);
@@ -1124,6 +1127,7 @@ function renderStreamHistoryChart(
     overlaySvg.style.left = '0';
     overlaySvg.style.top = '0';
     overlaySvg.style.pointerEvents = 'none';
+    overlaySvg.style.borderRadius = '8px';
     const toX = (idx) => Math.round(axisLeft + (barW + gap) * idx + barW / 2);
     const toY = (value) => {
       if (maxViewers <= 0) return padY + available;
@@ -1140,7 +1144,7 @@ function renderStreamHistoryChart(
       const viewerPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       viewerPath.setAttribute('d', pathData);
       viewerPath.setAttribute('fill', 'none');
-      viewerPath.setAttribute('stroke', 'var(--accent,#553fee)');
+      viewerPath.setAttribute('stroke', 'var(--accent,#22d3ee)');
       viewerPath.setAttribute('stroke-width', '3');
       viewerPath.setAttribute('stroke-linecap', 'round');
       viewerPath.setAttribute('stroke-linejoin', 'round');
@@ -1156,7 +1160,7 @@ function renderStreamHistoryChart(
       marker.setAttribute('cx', String(toX(series.length - 1)));
       marker.setAttribute('cy', String(toY(lastPoint.avgViewers)));
       marker.setAttribute('r', '3');
-      marker.setAttribute('fill', 'var(--accent,#553fee)');
+      marker.setAttribute('fill', 'var(--accent,#22d3ee)');
       overlaySvg.appendChild(marker);
     }
     el.appendChild(overlaySvg);
@@ -1260,11 +1264,11 @@ function renderViewersSparkline(
   gradient.setAttribute('y2', '1');
   const stopTop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
   stopTop.setAttribute('offset', '0%');
-  stopTop.setAttribute('stop-color', 'var(--accent,#553fee)');
+  stopTop.setAttribute('stop-color', 'var(--accent,#22d3ee)');
   stopTop.setAttribute('stop-opacity', '0.35');
   const stopBottom = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
   stopBottom.setAttribute('offset', '100%');
-  stopBottom.setAttribute('stop-color', 'var(--accent,#553fee)');
+  stopBottom.setAttribute('stop-color', 'var(--accent,#22d3ee)');
   stopBottom.setAttribute('stop-opacity', '0.04');
   gradient.appendChild(stopTop);
   gradient.appendChild(stopBottom);
@@ -1306,7 +1310,7 @@ function renderViewersSparkline(
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   path.setAttribute('d', dPath);
   path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', 'var(--accent,#553fee)');
+  path.setAttribute('stroke', 'var(--accent,#22d3ee)');
   path.setAttribute('stroke-width', '2');
   path.setAttribute('stroke-linecap', 'round');
   svg.appendChild(path);
@@ -1324,7 +1328,7 @@ function renderViewersSparkline(
     const avgLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     avgLabel.setAttribute('x', String(padX + 6));
     avgLabel.setAttribute('y', String(Math.max(12, avgY - 6)));
-    avgLabel.setAttribute('fill', 'var(--sparkline-avg-line,#1d4ed8)');
+    avgLabel.setAttribute('fill', '#22d3ee');
     avgLabel.setAttribute('font-size', '10');
     avgLabel.setAttribute('font-weight', '600');
     avgLabel.textContent = `${t('streamHistoryViewersTrendAverageLabel')} · ${formatViewerCount(avgViewers)}`;
@@ -1337,7 +1341,7 @@ function renderViewersSparkline(
   dot.setAttribute('cx', String(lastX));
   dot.setAttribute('cy', String(lastY));
   dot.setAttribute('r', '3');
-  dot.setAttribute('fill', 'var(--accent,#553fee)');
+  dot.setAttribute('fill', 'var(--accent,#22d3ee)');
   svg.appendChild(dot);
 
   const lastLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -1356,7 +1360,7 @@ function renderViewersSparkline(
     peakMarker.setAttribute('cx', String(peakX));
     peakMarker.setAttribute('cy', String(peakY));
     peakMarker.setAttribute('r', '4');
-    peakMarker.setAttribute('fill', 'var(--sparkline-peak-color,#dc2626)');
+    peakMarker.setAttribute('fill', '#ee2264');
     peakMarker.setAttribute('opacity', '0.9');
     svg.appendChild(peakMarker);
 
@@ -1364,7 +1368,7 @@ function renderViewersSparkline(
     const peakLabelOffset = 20;
     peakLabel.setAttribute('x', String(peakX + 6));
     peakLabel.setAttribute('y', String(Math.max(20, peakY - peakLabelOffset)));
-    peakLabel.setAttribute('fill', 'var(--sparkline-peak-color,#dc2626)');
+    peakLabel.setAttribute('fill', '#ee2264');
     peakLabel.setAttribute('font-size', '10');
     peakLabel.setAttribute('font-weight', '600');
     peakLabel.textContent = `${t('streamHistoryViewersTrendPeakLabel')} · ${formatViewerCount(maxViewers)}`;

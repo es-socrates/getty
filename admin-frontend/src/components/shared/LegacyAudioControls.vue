@@ -855,15 +855,15 @@ watch(
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 .switch[aria-pressed='true'] {
-  background: var(--accent, #553fee);
-  border-color: var(--accent, #553fee);
+  background: var(--switch-color, #553fee);
+  border-color: var(--switch-color, #553fee);
 }
 .switch[aria-pressed='true'] .knob {
   transform: translateX(16px);
 }
 .switch:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #553fee) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
 
 :host(.compact) .legacy-audio-grid,

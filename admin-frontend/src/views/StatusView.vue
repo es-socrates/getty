@@ -11,9 +11,16 @@
           :is="AsyncStreamHistoryPanel"
           class="animate-fade-in history-panel-card" />
         <div v-else class="history-placeholder">
-          <span
-            class="inline-block w-3 h-3 border-2 border-[var(--border)] border-t-[var(--text)] rounded-full animate-spin"></span>
-          <span>Loading history…</span>
+          <div class="flex items-center gap-2 mb-4">
+            <SkeletonLoader class="w-6 h-6 rounded" />
+            <SkeletonLoader class="w-48 h-6 rounded" />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <SkeletonLoader class="h-24 rounded-lg" />
+            <SkeletonLoader class="h-24 rounded-lg" />
+            <SkeletonLoader class="h-24 rounded-lg" />
+          </div>
+          <SkeletonLoader class="w-full h-64 rounded-lg" />
         </div>
       </div>
     </div>
@@ -24,6 +31,7 @@
 import { ref, onMounted, defineAsyncComponent } from 'vue';
 import MetricsPanel from '../components/MetricsPanel.vue';
 import ModulesStatusPanel from '../components/ModulesStatusPanel.vue';
+import SkeletonLoader from '../components/SkeletonLoader.vue';
 // import ActivityPanel from '../components/ActivityPanel/ActivityPanel.vue'; // optional
 
 const AsyncStreamHistoryPanel = defineAsyncComponent(() =>
@@ -91,19 +99,10 @@ onMounted(() => {
   min-height: inherit;
 }
 .history-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
   min-height: inherit;
   border: 1px solid var(--card-border);
   border-radius: var(--os-card-radius, 16px);
   padding: 1.5rem;
-  font-size: 0.75rem;
-  opacity: 0.6;
   background: var(--card-bg);
-}
-.history-placeholder span:last-child {
-  display: inline-block;
 }
 </style>

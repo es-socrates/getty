@@ -315,7 +315,7 @@ export async function initTipGoal() {
     const card = goalWidget.querySelector('.modern-card');
     const bg = data.bgColor || (prefersDark ? '#0F0F12' : '#ffffff');
     const text = data.fontColor || (prefersDark ? '#ffffff' : '#0a0a0a');
-    const accent = data.progressColor || (prefersDark ? '#00ff7f' : '#0a0a0a');
+    const accent = data.progressColor || (prefersDark ? 'linear-gradient(90deg, #7058a4, #c83fee)' : '#0a0a0a');
     const progressBg = prefersDark ? 'rgba(35,38,47,0.31)' : '#e5e7eb';
     setTipGoalVars({ modern: { bg, text, accent, progressBg } });
     const bar = goalWidget.querySelector('.modern-bar');
@@ -327,7 +327,7 @@ export async function initTipGoal() {
     const bgColor = data.bgColor || '#222222';
     const fontColor = data.fontColor || '#ffffff';
     const borderColor = data.borderColor || '#ffcc00';
-    const progressColor = data.progressColor || '#00ff00';
+    const progressColor = data.progressColor || 'linear-gradient(90deg, #7058a4, #c83fee)';
     const progressPercentage = data.progress || 0;
     const currentUSD = data.usdValue || '0.00';
     const currentAR = data.current ? data.current.toFixed(2) : '0.00';

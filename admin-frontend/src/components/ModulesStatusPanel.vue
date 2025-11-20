@@ -31,7 +31,19 @@
       <span>{{ t('masked') || 'Masked (sin sesión activa)' }}</span>
     </div>
     <div v-if="error" class="text-xs text-red-400 mb-2">{{ error }}</div>
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+    <div v-if="loading && !items.length" class="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <div
+        v-for="i in 6"
+        :key="i"
+        class="p-2 rounded-os-sm border border-[var(--card-border)] bg-[var(--bg-chat)] flex flex-col gap-1 h-[60px]">
+        <div class="flex items-center gap-1 justify-between">
+          <SkeletonLoader class="w-20 h-4" />
+          <SkeletonLoader class="w-8 h-4 rounded" />
+        </div>
+        <SkeletonLoader class="w-32 h-3 mt-auto" />
+      </div>
+    </div>
+    <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-2">
       <div
         v-for="it in items"
         :key="it.key"
@@ -52,7 +64,7 @@
         <div v-if="it.uptime" class="text-[10px] opacity-60">↑ {{ it.uptime }}</div>
       </div>
     </div>
-    <div class="mt-3 text-[10px] opacity-60 flex justify-between" v-if="lastUpdated">
+    <div class="mt-3 text-[11px] opacity-60 flex justify-between" v-if="lastUpdated">
       <span>{{ t('lastUpdated') || 'Última actualización' }}: {{ fmtTime(lastUpdated) }}</span>
       <button type="button" class="underline hover:no-underline" @click="auto = !auto">
         {{ auto ? t('pause') || 'Pausar' : t('resume') || 'Reanudar' }}
@@ -64,6 +76,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import OsCard from './os/OsCard.vue';
+import SkeletonLoader from './SkeletonLoader.vue';
 import api from '../services/api';
 import { useWanderSession } from '../wander/store/wanderSession';
 

@@ -586,7 +586,7 @@
               : t('chartShowViewers') || 'Show viewers'
           ">
           <span
-            class="inline-block w-2.5 h-2.5 rounded-full bg-[var(--viewers-line-color,#553fee)]"></span>
+            class="inline-block w-2.5 h-2.5 rounded-full bg-[var(--viewers-line-color,#22d3ee)]"></span>
           <span>{{ showViewers ? t('chartViewersOn') : t('chartViewersOff') }}</span>
         </button>
         <button

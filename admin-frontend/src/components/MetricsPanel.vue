@@ -16,7 +16,23 @@
         {{ t('metricsTitle') || 'Live Metrics' }}
       </h3>
     </template>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div v-if="!metrics.chat" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div class="p-2 rounded-os-sm os-subtle h-40 flex flex-col gap-2">
+        <SkeletonLoader class="w-1/2 h-4" />
+        <SkeletonLoader class="w-3/4 h-4" />
+        <SkeletonLoader class="w-full h-20 mt-auto rounded" />
+      </div>
+      <div class="p-2 rounded-os-sm os-subtle h-40 flex flex-col gap-2">
+        <SkeletonLoader class="w-1/2 h-4" />
+        <SkeletonLoader class="w-3/4 h-4" />
+        <SkeletonLoader class="w-full h-20 mt-auto rounded" />
+      </div>
+      <div class="p-2 rounded-os-sm os-subtle h-40 flex flex-col gap-2">
+        <SkeletonLoader class="w-1/2 h-4" />
+        <SkeletonLoader class="w-full h-full rounded" />
+      </div>
+    </div>
+    <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div class="p-2 rounded-os-sm os-subtle">
         <div class="os-th text-xs mb-1 flex items-center gap-1.5">
           <svg
@@ -152,8 +168,8 @@
           {{ metrics.liveviews?.live ? t('liveNow') || 'Live now' : t('notLive') || 'Offline' }}
         </div>
         <div
-          class="font-semibold leading-none tracking-tight select-none text-center"
-          style="color: rgb(255 24 76); font-size: 4.75rem; line-height: 0.95"
+          class="font-semibold leading-none tracking-tight select-none text-center text-6xl lg:text-7xl py-2"
+          style="color: rgb(255 24 76); line-height: 0.95"
           :aria-label="(metrics.liveviews?.viewerCount ?? 0) + ' live viewers'">
           {{ liveviewsPretty }}
         </div>
@@ -167,6 +183,7 @@ import api from '../services/api';
 import { useI18n } from 'vue-i18n';
 import OsCard from './os/OsCard.vue';
 import OsSparkline from './os/OsSparkline.vue';
+import SkeletonLoader from './SkeletonLoader.vue';
 import { metrics, hist, deltas, setRange, start as startMetrics } from '../stores/metricsStore.js';
 
 const { t } = useI18n();

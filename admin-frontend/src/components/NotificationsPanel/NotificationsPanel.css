@@ -80,8 +80,8 @@
   }
 }
 .notif-group-box {
-  background: var(--card);
-  border: 1px solid var(--border, var(--border-color));
+  background: var(--bg-card);
+  border: 1px solid var(--card-border, var(--border-color));
   border-radius: 16px;
   padding: 20px 20px 22px;
   display: flex;
@@ -216,7 +216,6 @@
 }
 .gif-preview-box .placeholder-text {
   font-size: 11px;
-  opacity: 0.65;
   text-align: center;
   line-height: 1.3;
   padding: 6px;
@@ -228,7 +227,7 @@
   padding: 10px 12px;
   gap: 4px;
   font-size: 11px;
-  background: color-mix(in srgb, var(--accent, #553fee) 6%, transparent);
+  background: color-mix(in srgb, var(--switch-color, #553fee) 10%, transparent);
 }
 .gif-preview-box .nd-line {
   background: var(--card);
@@ -243,7 +242,7 @@
 }
 .gif-preview-box .nd-amount {
   font-weight: 600;
-  color: var(--accent, #553fee);
+  color: var(--switch-color, #553fee);
 }
 .gif-preview-box .nd-user {
   opacity: 0.85;
@@ -337,15 +336,15 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 .switch[aria-pressed='true'] {
-  background: var(--accent, #553fee);
-  border-color: var(--accent, #553fee);
+  background: var(--switch-color, #553fee);
+  border-color: var(--switch-color, #553fee);
 }
 .switch[aria-pressed='true'] .knob {
   transform: translateX(16px);
 }
 .switch:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #553fee) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
 
 .gif-preview-box {
@@ -456,7 +455,7 @@
   right: 6px;
   background: var(--card);
   color: var(--text-secondary, #666);
-  font-size: 10px;
+  font-size: 12px;
   padding: 2px 6px 2px 5px;
   border-radius: 20px;
   line-height: 1;
@@ -464,7 +463,6 @@
   pointer-events: none;
   font-weight: 500;
   letter-spacing: 0.3px;
-  mix-blend-mode: luminosity;
 }
 [data-ach-theme='dark'] .gif-preview-box .gif-pos-label {
   mix-blend-mode: normal;

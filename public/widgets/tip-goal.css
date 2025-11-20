@@ -25,7 +25,7 @@ body {
 }
 
 #goal-widget:not(.modern-theme).tip-goal-widget {
-  border-left: 8px solid var(--tg-border, #00ff7f);
+  border-left: 8px solid var(--tg-border, #7058a4);
 }
 
 .goal-container {
@@ -66,12 +66,11 @@ body {
 .current-ar {
   font-size: 24px;
   font-weight: 800;
-  color: var(--tg-progress, #00ff7f);
   transition: all 0.3s ease;
 }
 
 .tip-goal-widget .current-ar {
-  color: var(--tg-progress, #00ff7f);
+  color: var(--tg-progress, #7058a4);
 }
 
 .goal-ar {
@@ -105,15 +104,6 @@ body {
   border-radius: 4px;
   transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1), background 0.5s ease;
   animation: none !important;
-}
-
-.progress-container:not(.reached-goal) .progress-bar {
-  background: var(--tg-progress, linear-gradient(90deg, #7058a4, #c83fee));
-  animation: none;
-}
-
-.tip-goal-widget .progress-container:not(.reached-goal) .progress-bar {
-  background: var(--tg-progress, linear-gradient(90deg, #7058a4, #c83fee));
 }
 
 .progress-container.reached-goal .progress-bar {
@@ -371,11 +361,11 @@ body {
 }
 
 #goal-widget:not(.modern-theme).tip-goal-widget.celebrating {
-  border-left: 8px solid var(--tg-border, #00ff7f);
+  border-left: 8px solid var(--tg-border, #7058a4);
 }
 
 #goal-widget:not(.modern-theme).tip-goal-widget:not(.celebrating) {
-  border-left: 8px solid var(--tg-border, #00ff7f);
+  border-left: 8px solid var(--tg-border, #7058a4);
 }
 
 #goal-widget.modern-theme {
@@ -932,4 +922,17 @@ body {
   margin-bottom: 8px;
   opacity: 0.4;
   background: color-mix(in oklab, var(--modern-text) 10%, transparent);
+}
+
+#goal-widget.modern-theme .modern-card {
+  --modern-bg: #080c10;
+  --modern-text: #ffffff;
+  --modern-accent: linear-gradient(90deg, #7058a4, #c83fee);
+}
+
+#goal-widget:not(.modern-theme).tip-goal-widget {
+  --tg-bg: #080c10;
+  --tg-border: #00ff7f;
+  --tg-text: #ffffff;
+  --tg-progress: linear-gradient(90deg, #7058a4, #c83fee);
 }

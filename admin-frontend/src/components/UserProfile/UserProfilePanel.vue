@@ -14,81 +14,101 @@
 
       <div v-else class="panel-content">
         <div v-if="visibleSections.header" class="channel-header">
-          <div class="channel-cover" :style="channelCoverStyle"></div>
-          <div class="channel-info">
-            <div class="channel-avatar" :style="channelAvatarStyle" aria-hidden="true"></div>
-            <div class="channel-meta">
-              <div class="channel-names">
-                <h3 class="channel-title">{{ channelDisplayName }}</h3>
-                <p v-if="channelHandle" class="channel-handle">{{ channelHandle }}</p>
-              </div>
-              <div class="channel-tags">
-                <div class="channel-tag-list">
-                  <span class="badge" :class="liveBadgeClass">
-                    {{ liveStatusText }}
-                  </span>
-                  <span v-if="followersDisplay" class="badge badge-muted">
-                    {{ t('userProfileFollowers') }} · {{ followersDisplay }}
-                  </span>
+          <template v-if="loadingOverview && !initialLoaded">
+            <SkeletonLoader class="channel-cover" />
+            <div class="channel-info">
+              <SkeletonLoader class="channel-avatar" />
+              <div class="channel-meta w-full">
+                <div class="channel-names">
+                  <SkeletonLoader class="h-8 w-64 mb-1" />
+                  <SkeletonLoader class="h-4 w-32" />
                 </div>
-                <div class="channel-share-toggle share-toggle" :title="shareToggleHint">
-                  <span id="share-toggle-hint" class="sr-only">{{ shareToggleHint }}</span>
-                  <span class="share-label">{{ t('userProfileShareLabel') }}</span>
-                  <button
-                    type="button"
-                    :class="['share-switch', config.shareEnabled ? 'switch-on' : '']"
-                    role="switch"
-                    :aria-checked="config.shareEnabled ? 'true' : 'false'"
-                    :aria-label="shareSwitchAriaLabel"
-                    aria-describedby="share-toggle-hint"
-                    :disabled="savingConfig || loadingConfig"
-                    @click="handleShareToggle(!config.shareEnabled)"
-                    @keyup.enter.prevent="handleShareToggle(!config.shareEnabled)"
-                    @keyup.space.prevent="handleShareToggle(!config.shareEnabled)">
-                    <span class="share-switch-thumb"></span>
-                  </button>
+                <div class="channel-tags mt-2">
+                  <SkeletonLoader class="h-6 w-20 rounded-full" />
+                  <SkeletonLoader class="h-6 w-24 rounded-full" />
                 </div>
-              </div>
-              <p v-if="channelDescription" class="channel-description">{{ channelDescription }}</p>
-              <div class="channel-links">
-                <a
-                  v-if="channelUrl"
-                  :href="channelUrl"
-                  target="_blank"
-                  rel="noopener"
-                  class="channel-link">
-                  <img class="channel-link-icon" :src="odyseeLogo" alt="" aria-hidden="true" />
-                  <span>{{ t('userProfileChannelLink') }}</span>
-                </a>
-                <button
-                  v-if="config.shareEnabled && config.shareUrl"
-                  type="button"
-                  class="channel-share-btn"
-                  :title="t('userProfileShareButton')"
-                  @click="openShareModal">
-                  <span class="channel-share-btn-icon" aria-hidden="true">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round">
-                      <circle cx="18" cy="5" r="3" />
-                      <circle cx="6" cy="12" r="3" />
-                      <circle cx="18" cy="19" r="3" />
-                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                    </svg>
-                  </span>
-                  <span>{{ t('userProfileShareButton') }}</span>
-                </button>
-                <span v-if="updatedAtLabel" class="updated-at">{{ updatedAtLabel }}</span>
               </div>
             </div>
-          </div>
+          </template>
+          <template v-else>
+            <div class="channel-cover" :style="channelCoverStyle"></div>
+            <div class="channel-info">
+              <div class="channel-avatar" :style="channelAvatarStyle" aria-hidden="true"></div>
+              <div class="channel-meta">
+                <div class="channel-names">
+                  <h3 class="channel-title">{{ channelDisplayName }}</h3>
+                  <p v-if="channelHandle" class="channel-handle">{{ channelHandle }}</p>
+                </div>
+                <div class="channel-tags">
+                  <div class="channel-tag-list">
+                    <span class="badge" :class="liveBadgeClass">
+                      {{ liveStatusText }}
+                    </span>
+                    <span v-if="followersDisplay" class="badge badge-muted">
+                      {{ t('userProfileFollowers') }} · {{ followersDisplay }}
+                    </span>
+                  </div>
+                  <div class="channel-share-toggle share-toggle" :title="shareToggleHint">
+                    <span id="share-toggle-hint" class="sr-only">{{ shareToggleHint }}</span>
+                    <span class="share-label">{{ t('userProfileShareLabel') }}</span>
+                    <button
+                      type="button"
+                      :class="['share-switch', config.shareEnabled ? 'switch-on' : '']"
+                      role="switch"
+                      :aria-checked="config.shareEnabled ? 'true' : 'false'"
+                      :aria-label="shareSwitchAriaLabel"
+                      aria-describedby="share-toggle-hint"
+                      :disabled="savingConfig || loadingConfig"
+                      @click="handleShareToggle(!config.shareEnabled)"
+                      @keyup.enter.prevent="handleShareToggle(!config.shareEnabled)"
+                      @keyup.space.prevent="handleShareToggle(!config.shareEnabled)">
+                      <span class="share-switch-thumb"></span>
+                    </button>
+                  </div>
+                </div>
+                <p v-if="channelDescription" class="channel-description">
+                  {{ channelDescription }}
+                </p>
+                <div class="channel-links">
+                  <a
+                    v-if="channelUrl"
+                    :href="channelUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="channel-link">
+                    <img class="channel-link-icon" :src="odyseeLogo" alt="" aria-hidden="true" />
+                    <span>{{ t('userProfileChannelLink') }}</span>
+                  </a>
+                  <button
+                    v-if="config.shareEnabled && config.shareUrl"
+                    type="button"
+                    class="channel-share-btn"
+                    :title="t('userProfileShareButton')"
+                    @click="openShareModal">
+                    <span class="channel-share-btn-icon" aria-hidden="true">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3" />
+                        <circle cx="6" cy="12" r="3" />
+                        <circle cx="18" cy="19" r="3" />
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                      </svg>
+                    </span>
+                    <span>{{ t('userProfileShareButton') }}</span>
+                  </button>
+                  <span v-if="updatedAtLabel" class="updated-at">{{ updatedAtLabel }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div class="section-toggles" aria-labelledby="profile-sections-heading">
@@ -144,44 +164,60 @@
           v-if="visibleSections.summary"
           class="summary-grid"
           :class="{ loading: loadingOverview }">
-          <div class="summary-card">
-            <span class="summary-label">{{ t('userProfileSummaryHours') }}</span>
-            <span class="summary-value">{{ formatHours(summaryMetrics.hoursStreamed) }}</span>
-          </div>
-          <div class="summary-card">
-            <span class="summary-label">{{ t('userProfileSummaryAvg') }}</span>
-            <span class="summary-value">{{ formatNumber(summaryMetrics.avgViewers, 1) }}</span>
-          </div>
-          <div class="summary-card">
-            <span class="summary-label">{{ t('userProfileSummaryPeak') }}</span>
-            <span class="summary-value">{{ formatNumber(summaryMetrics.peakViewers, 0) }}</span>
-          </div>
-          <div class="summary-card">
-            <span class="summary-label">{{ t('userProfileSummaryViewerHours') }}</span>
-            <span class="summary-value">{{ formatNumber(summaryMetrics.hoursWatched, 1) }}</span>
-          </div>
-          <div class="summary-card">
-            <span class="summary-label">{{ t('userProfileSummaryActiveDays') }}</span>
-            <span class="summary-value">{{ formatNumber(summaryMetrics.activeDays, 0) }}</span>
-          </div>
+          <template v-if="loadingOverview && !initialLoaded">
+            <div v-for="i in 5" :key="i" class="summary-card">
+              <SkeletonLoader class="h-4 w-24 mb-2" />
+              <SkeletonLoader class="h-8 w-16" />
+            </div>
+          </template>
+          <template v-else>
+            <div class="summary-card">
+              <span class="summary-label">{{ t('userProfileSummaryHours') }}</span>
+              <span class="summary-value">{{ formatHours(summaryMetrics.hoursStreamed) }}</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">{{ t('userProfileSummaryAvg') }}</span>
+              <span class="summary-value">{{ formatNumber(summaryMetrics.avgViewers, 1) }}</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">{{ t('userProfileSummaryPeak') }}</span>
+              <span class="summary-value">{{ formatNumber(summaryMetrics.peakViewers, 0) }}</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">{{ t('userProfileSummaryViewerHours') }}</span>
+              <span class="summary-value">{{ formatNumber(summaryMetrics.hoursWatched, 1) }}</span>
+            </div>
+            <div class="summary-card">
+              <span class="summary-label">{{ t('userProfileSummaryActiveDays') }}</span>
+              <span class="summary-value">{{ formatNumber(summaryMetrics.activeDays, 0) }}</span>
+            </div>
+          </template>
         </div>
 
         <div
           v-if="visibleSections.lifetime"
           class="lifetime-grid"
           :class="{ loading: loadingOverview }">
-          <div class="lifetime-card">
-            <span class="lifetime-label">{{ t('userProfileLifetimeTotalHours') }}</span>
-            <span class="lifetime-value">{{
-              formatHours(lifetimeMetrics.totalHoursStreamed)
-            }}</span>
-          </div>
-          <div class="lifetime-card">
-            <span class="lifetime-label">{{ t('userProfileLifetimeHighestViewers') }}</span>
-            <span class="lifetime-value">{{
-              formatNumber(lifetimeMetrics.highestViewers, 0)
-            }}</span>
-          </div>
+          <template v-if="loadingOverview && !initialLoaded">
+            <div v-for="i in 2" :key="i" class="lifetime-card">
+              <SkeletonLoader class="h-4 w-32 mb-2" />
+              <SkeletonLoader class="h-8 w-20" />
+            </div>
+          </template>
+          <template v-else>
+            <div class="lifetime-card">
+              <span class="lifetime-label">{{ t('userProfileLifetimeTotalHours') }}</span>
+              <span class="lifetime-value">{{
+                formatHours(lifetimeMetrics.totalHoursStreamed)
+              }}</span>
+            </div>
+            <div class="lifetime-card">
+              <span class="lifetime-label">{{ t('userProfileLifetimeHighestViewers') }}</span>
+              <span class="lifetime-value">{{
+                formatNumber(lifetimeMetrics.highestViewers, 0)
+              }}</span>
+            </div>
+          </template>
         </div>
 
         <div v-if="visibleSections.chart" class="chart-block">
@@ -192,29 +228,46 @@
           <div class="recent-header">
             <h3 class="recent-title">{{ t('userProfileRecentStreams') }}</h3>
           </div>
-          <ul v-if="recentStreams.length" class="recent-list">
-            <li v-for="item in recentStreams" :key="item.startEpoch" class="recent-item">
-              <div class="recent-meta">
-                <span class="recent-date">{{ formatDateTime(item.startEpoch) }}</span>
-              </div>
-              <div class="recent-stats">
-                <span class="recent-stat recent-stat-duration">
-                  {{ t('userProfileRecentDuration') }}: {{ formatDuration(item.durationHours) }}
-                </span>
-                <span class="recent-stat recent-stat-avg"
-                  >{{ t('userProfileSummaryAvg') }}: {{ formatNumber(item.avgViewers, 1) }}</span
-                >
-                <span class="recent-stat recent-stat-peak"
-                  >{{ t('userProfileSummaryPeak') }}: {{ formatNumber(item.peakViewers, 0) }}</span
-                >
-                <span class="recent-stat recent-stat-viewer-hours"
-                  >{{ t('userProfileSummaryViewerHours') }}:
-                  {{ formatNumber(item.viewerHours, 1) }}</span
-                >
-              </div>
-            </li>
-          </ul>
-          <p v-else class="recent-empty">{{ t('userProfileRecentEmpty') }}</p>
+          <template v-if="loadingOverview && !initialLoaded">
+            <ul class="recent-list">
+              <li v-for="i in 3" :key="i" class="recent-item">
+                <div class="recent-meta mb-2">
+                  <SkeletonLoader class="h-4 w-32" />
+                </div>
+                <div class="recent-stats flex gap-2">
+                  <SkeletonLoader class="h-6 w-20 rounded-lg" />
+                  <SkeletonLoader class="h-6 w-20 rounded-lg" />
+                  <SkeletonLoader class="h-6 w-20 rounded-lg" />
+                </div>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <ul v-if="recentStreams.length" class="recent-list">
+              <li v-for="item in recentStreams" :key="item.startEpoch" class="recent-item">
+                <div class="recent-meta">
+                  <span class="recent-date">{{ formatDateTime(item.startEpoch) }}</span>
+                </div>
+                <div class="recent-stats">
+                  <span class="recent-stat recent-stat-duration">
+                    {{ t('userProfileRecentDuration') }}: {{ formatDuration(item.durationHours) }}
+                  </span>
+                  <span class="recent-stat recent-stat-avg"
+                    >{{ t('userProfileSummaryAvg') }}: {{ formatNumber(item.avgViewers, 1) }}</span
+                  >
+                  <span class="recent-stat recent-stat-peak"
+                    >{{ t('userProfileSummaryPeak') }}:
+                    {{ formatNumber(item.peakViewers, 0) }}</span
+                  >
+                  <span class="recent-stat recent-stat-viewer-hours"
+                    >{{ t('userProfileSummaryViewerHours') }}:
+                    {{ formatNumber(item.viewerHours, 1) }}</span
+                  >
+                </div>
+              </li>
+            </ul>
+            <p v-else class="recent-empty">{{ t('userProfileRecentEmpty') }}</p>
+          </template>
         </div>
       </div>
     </OsCard>
@@ -260,6 +313,7 @@ import { useI18n } from 'vue-i18n';
 import OsCard from '../os/OsCard.vue';
 import CopyField from '../shared/CopyField.vue';
 import ChannelPerformanceChart from './ChannelPerformanceChart.vue';
+import SkeletonLoader from '../SkeletonLoader.vue';
 import { fetchJson } from '../../services/api';
 import { pushToast } from '../../services/toast';
 import odyseeLogo from '../../assets/odysee.svg?url';
@@ -754,7 +808,7 @@ watch(
 }
 .share-switch:focus-visible,
 .section-switch:focus-visible {
-  outline: 2px solid var(--primary, #2563eb);
+  outline: 2px solid rgba(148, 163, 184, 0.5);
   outline-offset: 2px;
 }
 .share-switch-thumb {
@@ -766,7 +820,7 @@ watch(
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
 }
 .share-switch.switch-on {
-  background: rgb(85, 63, 238);
+  background: var(--switch-color);
   border-color: transparent;
 }
 .share-switch.switch-on .share-switch-thumb {
@@ -832,7 +886,7 @@ watch(
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
 }
 .section-switch.switch-on {
-  background: rgb(85, 63, 238);
+  background: var(--switch-color);
   border-color: transparent;
 }
 .section-switch.switch-on .section-switch-thumb {
@@ -889,7 +943,7 @@ watch(
 .channel-avatar {
   width: 96px;
   height: 96px;
-  border-radius: 20px;
+  border-radius: 999px;
   background-size: cover;
   background-position: center;
   flex-shrink: 0;
@@ -969,7 +1023,6 @@ watch(
   background: rgba(37, 99, 235, 0.08);
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--primary, #2563eb);
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
@@ -978,7 +1031,7 @@ watch(
   background: rgba(37, 99, 235, 0.16);
 }
 .channel-share-btn:focus-visible {
-  outline: 2px solid var(--primary, #2563eb);
+  outline: 2px solid rgba(148, 163, 184, 0.5);
   outline-offset: 2px;
 }
 .channel-share-btn-icon {
@@ -1000,7 +1053,7 @@ watch(
   background: rgba(37, 99, 235, 0.16);
 }
 .channel-link:focus-visible {
-  outline: 2px solid var(--primary, #2563eb);
+  outline: 2px solid rgba(148, 163, 184, 0.5);
   outline-offset: 2px;
 }
 .channel-link-icon {

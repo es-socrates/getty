@@ -19,7 +19,7 @@
 }
 .ann-tab[aria-selected='true'],
 .ann-tab.active {
-  border-color: var(--accent);
+  border-color: var(--switch-color);
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -180,15 +180,15 @@ html.dark .ann-tab.active {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 .switch[aria-pressed='true'] {
-  background: var(--accent, #553fee);
-  border-color: var(--accent, #553fee);
+  background: var(--switch-color, #553fee);
+  border-color: var(--switch-color, #553fee);
 }
 .switch[aria-pressed='true'] .knob {
   transform: translateX(16px);
 }
 .switch:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #553fee) 35%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--switch-color, #553fee) 35%, transparent);
 }
 
 .ann-message-item {
@@ -559,10 +559,10 @@ html.dark .ann-tab.active {
 @media (prefers-color-scheme: light) {
   .ann-tab.active,
   .ann-tab[aria-selected='true'] {
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    background: color-mix(in srgb, #6366f1 20%, transparent);
   }
   .ann-alert {
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    background: color-mix(in srgb, #6366f1 12%, transparent);
   }
   .ann-action-btn {
     --action-btn-bg: rgba(0, 0, 0, 0.05);

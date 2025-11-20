@@ -157,7 +157,15 @@
           </h3>
           <div class="mb-2">
             <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input type="checkbox" v-model="overrideUsername" class="checkbox" />
+              <div
+                class="switch"
+                @click="overrideUsername = !overrideUsername"
+                :aria-pressed="overrideUsername ? 'true' : 'false'"
+                tabindex="0"
+                @keydown.enter="overrideUsername = !overrideUsername"
+                @keydown.space.prevent="overrideUsername = !overrideUsername">
+                <div class="knob"></div>
+              </div>
               <span>{{ t('overrideUsername') || 'Override username colors' }}</span>
             </label>
             <small class="block opacity-70 mt-1" id="username-hint">{{
@@ -183,7 +191,15 @@
           <div class="my-3 h-px bg-[var(--card-border)] opacity-60"></div>
           <div class="mb-3" :aria-describedby="transparentBg ? 'transparent-hint' : null">
             <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input type="checkbox" v-model="transparentBg" class="checkbox" />
+              <div
+                class="switch"
+                @click="transparentBg = !transparentBg"
+                :aria-pressed="transparentBg ? 'true' : 'false'"
+                tabindex="0"
+                @keydown.enter="transparentBg = !transparentBg"
+                @keydown.space.prevent="transparentBg = !transparentBg">
+                <div class="knob"></div>
+              </div>
               <span>{{ t('transparentBg') || 'Transparent background' }}</span>
             </label>
             <small id="transparent-hint" class="block opacity-60 text-xs mt-1">{{
@@ -193,7 +209,15 @@
           </div>
           <div>
             <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input type="checkbox" v-model="avatarRandomBg" class="checkbox" />
+              <div
+                class="switch"
+                @click="avatarRandomBg = !avatarRandomBg"
+                :aria-pressed="avatarRandomBg ? 'true' : 'false'"
+                tabindex="0"
+                @keydown.enter="avatarRandomBg = !avatarRandomBg"
+                @keydown.space.prevent="avatarRandomBg = !avatarRandomBg">
+                <div class="knob"></div>
+              </div>
               <span>{{
                 t('avatarRandomBg') || 'Random default avatar background per message'
               }}</span>
@@ -228,7 +252,15 @@
           </h3>
           <div class="mb-3">
             <label class="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input type="checkbox" v-model="ttsAllChat" class="checkbox" />
+              <div
+                class="switch"
+                @click="ttsAllChat = !ttsAllChat"
+                :aria-pressed="ttsAllChat ? 'true' : 'false'"
+                tabindex="0"
+                @keydown.enter="ttsAllChat = !ttsAllChat"
+                @keydown.space.prevent="ttsAllChat = !ttsAllChat">
+                <div class="knob"></div>
+              </div>
               <span>{{ t('enableTtsAllChat') || 'Read all chat messages' }}</span>
             </label>
             <small class="block opacity-70 mt-1">{{

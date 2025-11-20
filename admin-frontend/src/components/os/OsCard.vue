@@ -54,9 +54,4 @@ defineProps({ title: { type: String, default: '' }, padding: { type: Boolean, de
   display: flex;
   gap: 8px;
 }
-
-.os-card :focus-visible {
-  outline: 2px solid var(--primary, #2563eb);
-  outline-offset: 2px;
-}
 </style>
