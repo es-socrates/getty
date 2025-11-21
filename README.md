@@ -31,7 +31,7 @@ Wander App is a secure and easy-to-use digital wallet for Odysee, allowing you t
 11. 📈 Real-time and historical statistics of your lives in Odysee.
 12. 🎉 Achievements System: Receive real-time achievement notifications.
 
-![getty](https://thumbs.odycdn.com/cd1523ead8d64ea78c60d0f8f26f27a7.webp)
+![getty](https://thumbs.odycdn.com/622ff97992927efc17e34aba9490bb21.webp)
 
 ## Do you want to use getty locally?
 
