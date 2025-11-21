@@ -6,6 +6,27 @@ try {
     require('dotenv').config();
   }
 } catch {}
+
+function validateEnvironment() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  const criticalVars = ['GETTY_SESSION_SECRET'];
+  
+  for (const key of criticalVars) {
+    if (isProduction && !process.env[key]) {
+      console.error(`[security] Critical environment variable ${key} is missing in production mode`);
+      process.exit(1);
+    } else if (!process.env[key]) {
+      console.warn(`[security] ${key} not set, using fallback (not recommended for production)`);
+    }
+  }
+  
+  if (isProduction && !process.env.REDIS_URL) {
+    console.warn('[security] REDIS_URL not set in production, using in-memory store');
+  }
+}
+
+validateEnvironment();
 const LIVEVIEWS_CONFIG_FILE = path.join(process.cwd(), 'config', 'liveviews-config.json');
 const STREAM_HISTORY_CONFIG_FILE = path.join(process.cwd(), 'config', 'stream-history-config.json');
 

@@ -895,20 +895,9 @@ class WanderWalletLogin {
 
   async waitForWallet(timeoutMs = 2000, stepMs = 100) {
     const start = Date.now();
-    let logged = false;
     while (Date.now() - start < timeoutMs) {
       const w = this.resolveWalletHandle();
       if (w) {
-        if (!logged) {
-          try {
-            console.info(
-              '[wander-login] wallet available after',
-              Date.now() - start,
-              'ms',
-              Object.keys(w)
-            );
-          } catch {}
-        }
         return w;
       }
       await new Promise((r) => setTimeout(r, stepMs));
