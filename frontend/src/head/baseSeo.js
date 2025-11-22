@@ -37,7 +37,7 @@ const DEFAULT_META = {
   ogType: 'website',
   locale: 'en_US',
   image:
-    'https://xc43575rqmogbtegwxry2rk4hkctslkb63os6y2cdq25nfkgmguq.arweave.net/uLm-_7GDHGDMhrXjjUVcOoU5LUH23S9jQhw11pVGYak',
+    'https://6ssiv6rqxqgopros7ervavsea7gkpczlpbocmoy2qfq3ko5tha7q.arweave.net/9KSK-jC8DOfF0vkjUFZEB8yniyt4XCY7GoFhtTuzOD8',
   imageAlt: 'getty',
   imageType: 'image/png',
   imageWidth: '512',

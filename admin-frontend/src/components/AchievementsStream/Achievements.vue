@@ -376,7 +376,22 @@
 
       <div>
         <h4 class="section-title">{{ t('achievementsProgressTitle') }}</h4>
-        <div v-for="g in grouped" :key="g.cat" class="ach-group">
+
+        <div v-if="loading" class="space-y-6">
+          <div v-for="i in 2" :key="i" class="ach-group">
+            <div class="ach-group-title flex items-center gap-2 mb-3">
+              <SkeletonLoader class="w-6 h-6 rounded-full" />
+              <SkeletonLoader class="w-32 h-6" />
+            </div>
+            <div class="ach-grid">
+              <div v-for="j in 3" :key="j" class="ach-card h-32">
+                <SkeletonLoader class="w-full h-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else v-for="g in grouped" :key="g.cat" class="ach-group">
           <div class="ach-group-title">
             <span class="ach-group-left">
               <span class="ach-group-ico" aria-hidden="true">
@@ -532,6 +547,7 @@ import LegacyAudioControls from '../shared/LegacyAudioControls.vue';
 import CopyField from '../shared/CopyField.vue';
 import OsCard from '../os/OsCard.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
+import SkeletonLoader from '../SkeletonLoader.vue';
 import { useI18n } from 'vue-i18n';
 import api from '../../services/api';
 import { useWalletSession } from '../../composables/useWalletSession';
@@ -557,6 +573,7 @@ const cfg = reactive({
 const status = reactive({ items: [] });
 const achMeta = ref(null);
 const saving = ref(false);
+const loading = ref(false);
 const toasts = ref([]);
 let toastCounter = 0;
 const { t } = useI18n();
@@ -653,58 +670,73 @@ const grouped = computed(() => {
 });
 
 async function loadAll() {
+  loading.value = true;
   try {
-    const { config, meta } = await fetchAchievementsConfig();
+    const [rConfig, rStatus, rAudio] = await Promise.allSettled([
+      fetchAchievementsConfig(),
+      getAchievementsStatus(),
+      api.get('/api/goal-audio-settings'),
+    ]);
 
-    if (config && typeof config === 'object') {
-      for (const k of Object.keys(config)) {
-        if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
-          cfg.sound = { ...cfg.sound, ...config.sound };
-          if (typeof cfg.sound.storageProvider === 'string' && cfg.sound.storageProvider) {
-            storage.registerProvider(cfg.sound.storageProvider);
+    if (rConfig.status === 'fulfilled') {
+      const { config, meta } = rConfig.value;
+      if (config && typeof config === 'object') {
+        for (const k of Object.keys(config)) {
+          if (k === 'sound' && typeof config.sound === 'object' && config.sound) {
+            cfg.sound = { ...cfg.sound, ...config.sound };
+            if (typeof cfg.sound.storageProvider === 'string' && cfg.sound.storageProvider) {
+              storage.registerProvider(cfg.sound.storageProvider);
+            }
+          } else if (k in cfg) {
+            cfg[k] = config[k];
+          } else {
+            cfg[k] = config[k];
           }
-        } else if (k in cfg) {
-          cfg[k] = config[k];
-        } else {
-          cfg[k] = config[k];
         }
       }
-    }
-    achMeta.value = meta;
-  } catch {}
-  try {
-    const st = await getAchievementsStatus();
-    status.items = Array.isArray(st.items) ? st.items : [];
-  } catch {}
-  try {
-    const { data } = await api.get('/api/goal-audio-settings');
-    audio.audioSource = data.audioSource || 'remote';
-    audioState.hasCustomAudio = !!data.hasCustomAudio;
-    audioState.audioFileName = data.audioFileName || '';
-    audioState.audioFileSize = data.audioFileSize || 0;
-    audioState.storageProvider =
-      typeof data.storageProvider === 'string' ? data.storageProvider : audioState.storageProvider;
-    if (audioState.storageProvider) {
-      storage.registerProvider(audioState.storageProvider);
-      cfg.sound.storageProvider = audioState.storageProvider;
+      achMeta.value = meta;
     }
 
-    if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
-      try {
-        const response = await api.get('/api/goal-custom-audio');
-        cfg.sound.url = response.data.url;
-      } catch (error) {
-        console.error('Error fetching custom audio URL:', error);
+    if (rStatus.status === 'fulfilled') {
+      const st = rStatus.value;
+      status.items = Array.isArray(st.items) ? st.items : [];
+    }
+
+    if (rAudio.status === 'fulfilled') {
+      const { data } = rAudio.value;
+      audio.audioSource = data.audioSource || 'remote';
+      audioState.hasCustomAudio = !!data.hasCustomAudio;
+      audioState.audioFileName = data.audioFileName || '';
+      audioState.audioFileSize = data.audioFileSize || 0;
+      audioState.storageProvider =
+        typeof data.storageProvider === 'string'
+          ? data.storageProvider
+          : audioState.storageProvider;
+      if (audioState.storageProvider) {
+        storage.registerProvider(audioState.storageProvider);
+        cfg.sound.storageProvider = audioState.storageProvider;
+      }
+
+      if (audio.audioSource === 'custom' && audioState.hasCustomAudio) {
+        try {
+          const response = await api.get('/api/goal-custom-audio');
+          cfg.sound.url = response.data.url;
+        } catch (error) {
+          console.error('Error fetching custom audio URL:', error);
+          cfg.sound.url = REMOTE_ACH_SOUND_URL;
+        }
+      } else {
         cfg.sound.url = REMOTE_ACH_SOUND_URL;
       }
-    } else {
-      cfg.sound.url = REMOTE_ACH_SOUND_URL;
+      resolveStorageSelection();
     }
-    resolveStorageSelection();
-  } catch {}
-  try {
-    await refreshChannelAvatar();
-  } catch {}
+
+    try {
+      await refreshChannelAvatar();
+    } catch {}
+  } finally {
+    loading.value = false;
+  }
 }
 async function save() {
   saving.value = true;
