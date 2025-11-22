@@ -144,7 +144,7 @@ const adminExtra = {
     statusHours: '{n} h',
     statusDays: '{n} d',
     raffleWarningTitle: 'Warning:',
-    raffleWarningChat: 'Make sure that chat is enabled so that commands are received.',
+    raffleWarningChat: 'Make sure that chat is enabled in your getty configuration so that commands can be received.',
     raffleCommandLabel: 'Command',
     raffleCommandPlaceholder: '!giveaway',
     raffleCommandHint: 'Chat command users type to enter.',

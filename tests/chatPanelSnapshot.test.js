@@ -37,7 +37,7 @@ const messages = {
     sending: 'Sending...',
     obsIntegration: 'OBS Integration',
     chatWidgetUrl: 'Chat Widget URL:',
-    chatWidgetUrlHorizontal: 'Chat Widget URL (Horizontal)',
+    chatWidgetUrlHorizontal: 'Chat Widget URL (horizontal):',
     chatThemeCustomize: 'Custom builder:',
     testActionsLabel: 'Test actions'
   }

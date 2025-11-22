@@ -122,11 +122,13 @@
             <span>{{ t('obsIntegration') }}</span>
           </h3>
           <div class="form-group">
-            <label>{{ t('chatWidgetUrl') }}</label>
+            <label class="label mb-0">{{ t('chatWidgetUrl') }}</label>
             <CopyField :value="widgetUrl" />
           </div>
           <div class="form-group mt-2">
-            <label>{{ t('chatWidgetUrlHorizontal') || 'Chat Widget URL (Horizontal)' }}</label>
+            <label class="label mb-0">{{
+              t('chatWidgetUrlHorizontal') || 'Chat Widget URL (horizontal):'
+            }}</label>
             <CopyField :value="widgetHorizontalUrl" />
           </div>
         </div>

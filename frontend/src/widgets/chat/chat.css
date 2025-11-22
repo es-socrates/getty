@@ -3,6 +3,7 @@
   --bg-message: #0a0e12;
   --bg-message-alt: #0a0e12;
   --border: #d0d0d0;
+  --message-border: #161b22;
   --text: #e6edf3;
   --username: #fff;
   --donation: #ddb826;
@@ -140,7 +141,7 @@ body {
 
 .message {
   background: var(--bg-message);
-  border-left: 6px solid var(--border, #161b22);
+  border-left: 6px solid var(--message-border, #161b22);
   border-radius: 4px;
   padding: 12px;
   margin-bottom: 6px;

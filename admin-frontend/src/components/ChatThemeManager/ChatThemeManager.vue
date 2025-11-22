@@ -37,25 +37,72 @@
             </option>
             <option value="alpha">{{ t('themeOrderAlpha') || 'A→Z' }}</option>
           </select>
-          <select
-            :id="selectId"
-            class="select"
-            v-model.number="selectedIdx"
-            @change="onSelectChange"
-            :aria-describedby="previewId">
-            <optgroup :label="t('chatThemeDefaults') || 'Default themes'">
-              <option v-for="d in filteredDefaults" :key="'def_' + d.i" :value="d.i">
+          <div class="relative inline-block">
+            <button
+              ref="themeDropdownTrigger"
+              type="button"
+              class="quick-select-trigger"
+              :class="{ 'quick-select-trigger-active': themeDropdownOpen }"
+              :aria-expanded="String(themeDropdownOpen)"
+              aria-haspopup="listbox"
+              :id="selectId"
+              @click="toggleThemeDropdown">
+              <span class="quick-select-label">{{
+                allThemes[selectedIdx]?.name || t('chatThemeSelect')
+              }}</span>
+              <span class="quick-select-caret" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </span>
+            </button>
+            <div
+              v-if="themeDropdownOpen"
+              ref="themeDropdownPopover"
+              class="quick-select-popover theme-select-popover"
+              role="listbox"
+              :aria-activedescendant="'theme-opt-' + selectedIdx">
+              <div v-if="filteredDefaults.length" class="theme-group-label">
+                {{ t('chatThemeDefaults') || 'Default themes' }}
+              </div>
+              <button
+                v-for="d in filteredDefaults"
+                :key="'def_' + d.i"
+                :id="'theme-opt-' + d.i"
+                type="button"
+                class="quick-select-option"
+                :class="{ 'quick-select-option-active': selectedIdx === d.i }"
+                role="option"
+                :aria-selected="selectedIdx === d.i"
+                @click="selectTheme(d.i)">
                 {{ d.theme.name }}
-              </option>
-            </optgroup>
-            <optgroup
-              v-if="filteredCustoms.length"
-              :label="t('chatThemeCustom') || 'Custom themes'">
-              <option v-for="c in filteredCustoms" :key="'cus_' + c.i" :value="c.i">
+              </button>
+
+              <div v-if="filteredCustoms.length" class="theme-group-label mt-2">
+                {{ t('chatThemeCustom') || 'Custom themes' }}
+              </div>
+              <button
+                v-for="c in filteredCustoms"
+                :key="'cus_' + c.i"
+                :id="'theme-opt-' + c.i"
+                type="button"
+                class="quick-select-option"
+                :class="{ 'quick-select-option-active': selectedIdx === c.i }"
+                role="option"
+                :aria-selected="selectedIdx === c.i"
+                @click="selectTheme(c.i)">
                 ★ {{ c.theme.name }}
-              </option>
-            </optgroup>
-          </select>
+              </button>
+            </div>
+          </div>
           <button
             type="button"
             class="btn ml-2"
@@ -546,6 +593,7 @@ import { useI18n } from 'vue-i18n';
 import { createChatThemeManager } from './ChatThemeManager.script.js';
 import OsCard from '../os/OsCard.vue';
 import HeaderIcon from '../shared/HeaderIcon.vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 
 const { t } = useI18n();
 const state = createChatThemeManager(t);
@@ -619,12 +667,59 @@ const {
   onImportFileChange,
 } = state;
 
-import { ref } from 'vue';
 const copiedCss = ref(false);
 function handleCopyCSS() {
   copyCSS();
   copiedCss.value = true;
   setTimeout(() => (copiedCss.value = false), 1500);
 }
+
+// Custom Dropdown Logic
+const themeDropdownOpen = ref(false);
+const themeDropdownTrigger = ref(null);
+const themeDropdownPopover = ref(null);
+
+function toggleThemeDropdown() {
+  themeDropdownOpen.value = !themeDropdownOpen.value;
+}
+
+function selectTheme(index) {
+  selectedIdx.value = index;
+  onSelectChange();
+  themeDropdownOpen.value = false;
+}
+
+function handlePointerDown(event) {
+  if (!themeDropdownOpen.value) return;
+  const target = event.target;
+  const within = (triggerRef, popoverRef) => {
+    try {
+      if (triggerRef && triggerRef.contains(target)) return true;
+      if (popoverRef && popoverRef.contains(target)) return true;
+    } catch {}
+    return false;
+  };
+  if (!within(themeDropdownTrigger.value, themeDropdownPopover.value)) {
+    themeDropdownOpen.value = false;
+  }
+}
+
+function handleKeydown(event) {
+  if (event.key === 'Escape' && themeDropdownOpen.value) {
+    themeDropdownOpen.value = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handlePointerDown, true);
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handlePointerDown, true);
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 <style scoped src="./ChatThemeManager.css"></style>
